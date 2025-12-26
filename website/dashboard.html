@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Creator Dashboard - LAUNCHR</title>
+    <link rel="icon" href="/website/logo-icon.jpg" type="image/jpeg">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #030303;
+            --surface: #0a0a0a;
+            --surface-2: #111;
+            --border: rgba(255,255,255,0.06);
+            --text: #fafafa;
+            --text-secondary: rgba(255,255,255,0.5);
+            --text-muted: rgba(255,255,255,0.3);
+            --accent: #00ff88;
+            --accent-dim: rgba(0,255,136,0.1);
+            --purple: #8b5cf6;
+            --red: #ff4444;
+        }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+        .grain {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1000;
+            opacity: 0.06;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+            mix-blend-mode: overlay;
+        }
+
+        /* Layout */
+        .layout {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            padding: 20px 0;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        .sidebar-header {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+        .sidebar-header a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--text);
+        }
+        .sidebar-header img {
+            height: 28px;
+            border-radius: 6px;
+        }
+        .sidebar-header span {
+            font-weight: 600;
+            font-size: 15px;
+        }
+        .sidebar-section {
+            padding: 0 12px;
+            margin-bottom: 24px;
+        }
+        .sidebar-section-title {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            padding: 0 8px;
+            margin-bottom: 8px;
+        }
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 6px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.15s;
+        }
+        .sidebar-link:hover {
+            background: rgba(255,255,255,0.03);
+            color: var(--text);
+        }
+        .sidebar-link.active {
+            background: var(--accent-dim);
+            color: var(--accent);
+        }
+        .sidebar-link svg {
+            width: 18px;
+            height: 18px;
+            opacity: 0.7;
+        }
+        .sidebar-link.active svg {
+            opacity: 1;
+        }
+
+        /* Main content */
+        .main {
+            padding: 24px 32px;
+            max-width: 1200px;
+        }
+
+        /* Header */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+        .page-subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 18px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-primary {
+            background: var(--accent);
+            color: #000;
+        }
+        .btn-primary:hover {
+            box-shadow: 0 4px 12px rgba(0,255,136,0.3);
+        }
+        .btn-secondary {
+            background: transparent;
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        .btn-secondary:hover {
+            border-color: var(--text-muted);
+        }
+
+        /* Token Selector */
+        .token-selector {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .token-selector-img {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            background: var(--surface-2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .token-selector-info h3 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .token-selector-info p {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .token-selector-path {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .path-badge {
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .path-badge.pumpfun {
+            background: rgba(139,92,246,0.15);
+            color: var(--purple);
+        }
+        .path-badge.raydium {
+            background: var(--accent-dim);
+            color: var(--accent);
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .stat-card-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 8px;
+        }
+        .stat-card-value {
+            font-size: 28px;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: -0.02em;
+        }
+        .stat-card-value.accent { color: var(--accent); }
+        .stat-card-change {
+            font-size: 12px;
+            color: var(--accent);
+            margin-top: 4px;
+        }
+        .stat-card-change.negative { color: var(--red); }
+
+        /* Fee Routing Card */
+        .fee-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+        .fee-card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .fee-card-title {
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .fee-card-body {
+            padding: 20px;
+        }
+        .fee-split {
+            display: flex;
+            gap: 32px;
+            margin-bottom: 24px;
+        }
+        .fee-split-item {
+            flex: 1;
+            padding: 16px;
+            background: var(--surface-2);
+            border-radius: 6px;
+            text-align: center;
+        }
+        .fee-split-percentage {
+            font-size: 32px;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .fee-split-percentage.accent { color: var(--accent); }
+        .fee-split-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+        .fee-arrow {
+            display: flex;
+            align-items: center;
+            color: var(--text-muted);
+            font-size: 20px;
+        }
+
+        /* Allocation Controls */
+        .allocation-section {
+            margin-top: 24px;
+        }
+        .allocation-title {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 12px;
+        }
+        .allocation-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+        .allocation-item {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+        }
+        .allocation-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .allocation-item-name {
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .allocation-item-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .allocation-slider {
+            width: 100%;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            appearance: none;
+            cursor: pointer;
+        }
+        .allocation-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            background: var(--text);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        /* Strategy Presets */
+        .strategy-presets {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .strategy-btn {
+            padding: 8px 14px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .strategy-btn:hover {
+            border-color: var(--text-muted);
+        }
+        .strategy-btn.active {
+            background: var(--accent-dim);
+            color: var(--accent);
+            border-color: rgba(0,255,136,0.3);
+        }
+
+        /* Activity Table */
+        .activity-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .activity-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .activity-title {
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .activity-title .dot {
+            width: 6px;
+            height: 6px;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .activity-table {
+            width: 100%;
+        }
+        .activity-row {
+            display: grid;
+            grid-template-columns: 80px 1fr 100px 120px 100px;
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border);
+            align-items: center;
+            font-size: 13px;
+        }
+        .activity-row:last-child { border-bottom: none; }
+        .activity-time {
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+        }
+        .activity-type {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .activity-type.claim { background: rgba(0,170,255,0.15); color: #00aaff; }
+        .activity-type.distribute { background: var(--accent-dim); color: var(--accent); }
+        .activity-type.buyback { background: rgba(139,92,246,0.15); color: var(--purple); }
+        .activity-type.burn { background: rgba(255,68,68,0.15); color: var(--red); }
+        .activity-amount {
+            font-family: 'JetBrains Mono', monospace;
+            text-align: right;
+        }
+        .activity-status {
+            text-align: right;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+        .status-badge.success { background: var(--accent-dim); color: var(--accent); }
+        .status-badge.pending { background: rgba(255,170,0,0.15); color: #ffaa00; }
+        .activity-sig {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* Holder Pool Card */
+        .holder-pool {
+            background: linear-gradient(135deg, rgba(0,255,136,0.08) 0%, rgba(0,255,136,0.02) 100%);
+            border: 1px solid rgba(0,255,136,0.2);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        .holder-pool-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+        .holder-pool-title {
+            font-size: 11px;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+        }
+        .holder-pool-amount {
+            font-size: 32px;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--accent);
+        }
+        .holder-pool-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        .holder-pool-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(0,255,136,0.1);
+        }
+        .holder-stat-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        .holder-stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        /* Launch Path Toggle */
+        .launch-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s;
+        }
+        .launch-modal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .launch-modal-content {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            width: 100%;
+            max-width: 600px;
+            margin: 16px;
+        }
+        .launch-modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .launch-modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 24px;
+            cursor: pointer;
+        }
+        .launch-modal-body {
+            padding: 24px;
+        }
+
+        /* Path Toggle */
+        .path-toggle {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .path-option {
+            padding: 20px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .path-option:hover {
+            border-color: var(--text-muted);
+        }
+        .path-option.active {
+            border-color: var(--accent);
+            background: var(--accent-dim);
+        }
+        .path-option.active.purple {
+            border-color: var(--purple);
+            background: rgba(139,92,246,0.1);
+        }
+        .path-option-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        .path-option-name {
+            font-weight: 600;
+            font-size: 15px;
+        }
+        .path-option-badge {
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .path-option-badge.simple {
+            background: rgba(139,92,246,0.15);
+            color: var(--purple);
+        }
+        .path-option-badge.advanced {
+            background: var(--accent-dim);
+            color: var(--accent);
+        }
+        .path-option-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Form */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-label {
+            display: block;
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 8px;
+        }
+        .form-input {
+            width: 100%;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px;
+            color: var(--text);
+            font-size: 14px;
+            outline: none;
+        }
+        .form-input:focus {
+            border-color: var(--text-muted);
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .layout { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .allocation-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="grain"></div>
+
+    <div class="layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <a href="/">
+                    <img src="/website/logo-icon.jpg" alt="LAUNCHR">
+                    <span>LAUNCHR</span>
+                </a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Dashboard</div>
+                <a href="#" class="sidebar-link active">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                    Overview
+                </a>
+                <a href="#" class="sidebar-link">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Fee Routing
+                </a>
+                <a href="#" class="sidebar-link">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    Analytics
+                </a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Tokens</div>
+                <a href="/launchpad" class="sidebar-link">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    All Tokens
+                </a>
+                <a href="#" class="sidebar-link">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                    My Launches
+                </a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Resources</div>
+                <a href="/roadmap" class="sidebar-link">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    Docs
+                </a>
+                <a href="/terms" class="sidebar-link">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Help
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Header -->
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">Creator Dashboard</h1>
+                    <p class="page-subtitle">Manage your token's fee routing and allocation</p>
+                </div>
+                <button class="btn btn-primary" id="launchBtn">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    New Launch
+                </button>
+            </div>
+
+            <!-- Token Selector -->
+            <div class="token-selector">
+                <div class="token-selector-img">M</div>
+                <div class="token-selector-info">
+                    <h3>MEME Token</h3>
+                    <p>MEMExxx...xxx</p>
+                </div>
+                <div class="token-selector-path">
+                    <span class="path-badge pumpfun">Pump.fun</span>
+                    <button class="btn btn-secondary" style="padding:6px 12px;font-size:11px">Switch Token</button>
+                </div>
+            </div>
+
+            <!-- Holder Pool Banner -->
+            <div class="holder-pool">
+                <div class="holder-pool-header">
+                    <div>
+                        <div class="holder-pool-title">LAUNCHR Holder Pool</div>
+                        <div class="holder-pool-amount">12.45 SOL</div>
+                        <div class="holder-pool-desc">1% of all creator fees across LAUNCHR</div>
+                    </div>
+                    <button class="btn btn-secondary" style="border-color:rgba(0,255,136,0.3);color:var(--accent)">Distribute Now</button>
+                </div>
+                <div class="holder-pool-stats">
+                    <div>
+                        <div class="holder-stat-label">Total Collected</div>
+                        <div class="holder-stat-value">156.78 SOL</div>
+                    </div>
+                    <div>
+                        <div class="holder-stat-label">Total Distributed</div>
+                        <div class="holder-stat-value">144.33 SOL</div>
+                    </div>
+                    <div>
+                        <div class="holder-stat-label">Holders</div>
+                        <div class="holder-stat-value">1,247</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-card-label">Total Claimed</div>
+                    <div class="stat-card-value">45.67</div>
+                    <div class="stat-card-change">+2.3 SOL today</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-label">To Holder Pool</div>
+                    <div class="stat-card-value accent">0.46</div>
+                    <div class="stat-card-change">1% of fees</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-label">Distributed</div>
+                    <div class="stat-card-value">45.21</div>
+                    <div class="stat-card-change">99% to allocation</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-label">Pending</div>
+                    <div class="stat-card-value">0.00</div>
+                    <div class="stat-card-change">Auto-claims every 10m</div>
+                </div>
+            </div>
+
+            <!-- Fee Routing Card -->
+            <div class="fee-card">
+                <div class="fee-card-header">
+                    <span class="fee-card-title">Fee Routing</span>
+                    <span style="font-size:11px;color:var(--text-muted)">How creator fees are split</span>
+                </div>
+                <div class="fee-card-body">
+                    <div class="fee-split">
+                        <div class="fee-split-item">
+                            <div class="fee-split-percentage">100%</div>
+                            <div class="fee-split-label">Creator Fees Claimed</div>
+                        </div>
+                        <div class="fee-arrow">→</div>
+                        <div class="fee-split-item">
+                            <div class="fee-split-percentage accent">1%</div>
+                            <div class="fee-split-label">LAUNCHR Holders</div>
+                        </div>
+                        <div class="fee-arrow">+</div>
+                        <div class="fee-split-item">
+                            <div class="fee-split-percentage">99%</div>
+                            <div class="fee-split-label">Your Allocation</div>
+                        </div>
+                    </div>
+
+                    <div class="allocation-section">
+                        <div class="allocation-title">Your 99% Allocation Strategy</div>
+
+                        <div class="strategy-presets">
+                            <button class="strategy-btn active">Balanced</button>
+                            <button class="strategy-btn">Growth</button>
+                            <button class="strategy-btn">Burn</button>
+                            <button class="strategy-btn">LP</button>
+                            <button class="strategy-btn">Revenue</button>
+                            <button class="strategy-btn">Custom</button>
+                        </div>
+
+                        <div class="allocation-grid">
+                            <div class="allocation-item">
+                                <div class="allocation-item-header">
+                                    <span class="allocation-item-name">Market Making</span>
+                                    <span class="allocation-item-value">25%</span>
+                                </div>
+                                <input type="range" class="allocation-slider" value="25" min="0" max="100">
+                            </div>
+                            <div class="allocation-item">
+                                <div class="allocation-item-header">
+                                    <span class="allocation-item-name">Buyback & Burn</span>
+                                    <span class="allocation-item-value">25%</span>
+                                </div>
+                                <input type="range" class="allocation-slider" value="25" min="0" max="100">
+                            </div>
+                            <div class="allocation-item">
+                                <div class="allocation-item-header">
+                                    <span class="allocation-item-name">Liquidity</span>
+                                    <span class="allocation-item-value">25%</span>
+                                </div>
+                                <input type="range" class="allocation-slider" value="25" min="0" max="100">
+                            </div>
+                            <div class="allocation-item">
+                                <div class="allocation-item-header">
+                                    <span class="allocation-item-name">Creator Revenue</span>
+                                    <span class="allocation-item-value">25%</span>
+                                </div>
+                                <input type="range" class="allocation-slider" value="25" min="0" max="100">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity -->
+            <div class="activity-card">
+                <div class="activity-header">
+                    <div class="activity-title">
+                        <span class="dot"></span>
+                        Recent Activity
+                    </div>
+                    <button class="btn btn-secondary" style="padding:6px 12px;font-size:11px">View All</button>
+                </div>
+                <div class="activity-table">
+                    <div class="activity-row">
+                        <span class="activity-time">2m ago</span>
+                        <span class="activity-type claim">Claim</span>
+                        <span class="activity-amount">+0.45 SOL</span>
+                        <span class="activity-sig">4xK...fGh</span>
+                        <span class="activity-status"><span class="status-badge success">Success</span></span>
+                    </div>
+                    <div class="activity-row">
+                        <span class="activity-time">2m ago</span>
+                        <span class="activity-type distribute">Holder</span>
+                        <span class="activity-amount">0.0045 SOL</span>
+                        <span class="activity-sig">7yL...mNp</span>
+                        <span class="activity-status"><span class="status-badge success">Success</span></span>
+                    </div>
+                    <div class="activity-row">
+                        <span class="activity-time">2m ago</span>
+                        <span class="activity-type buyback">Buyback</span>
+                        <span class="activity-amount">0.11 SOL</span>
+                        <span class="activity-sig">2aB...cDe</span>
+                        <span class="activity-status"><span class="status-badge success">Success</span></span>
+                    </div>
+                    <div class="activity-row">
+                        <span class="activity-time">2m ago</span>
+                        <span class="activity-type burn">Burn</span>
+                        <span class="activity-amount">45.2K tokens</span>
+                        <span class="activity-sig">9qR...sTu</span>
+                        <span class="activity-status"><span class="status-badge success">Success</span></span>
+                    </div>
+                    <div class="activity-row">
+                        <span class="activity-time">12m ago</span>
+                        <span class="activity-type claim">Claim</span>
+                        <span class="activity-amount">+0.32 SOL</span>
+                        <span class="activity-sig">5vW...xYz</span>
+                        <span class="activity-status"><span class="status-badge success">Success</span></span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Launch Modal -->
+    <div class="launch-modal" id="launchModal">
+        <div class="launch-modal-content">
+            <div class="launch-modal-header">
+                <span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.15em">New Launch</span>
+                <button class="launch-modal-close" id="closeModal">&times;</button>
+            </div>
+            <div class="launch-modal-body">
+                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">Choose your launch path. Both paths route fees through LAUNCHR.</p>
+
+                <div class="path-toggle">
+                    <div class="path-option active purple" data-path="pumpfun">
+                        <div class="path-option-header">
+                            <span class="path-option-name">Pump.fun</span>
+                            <span class="path-option-badge simple">Simple</span>
+                        </div>
+                        <p class="path-option-desc">One-click launch. Fast, opinionated, beginner-friendly. Graduate to Raydium later.</p>
+                    </div>
+                    <div class="path-option" data-path="raydium">
+                        <div class="path-option-header">
+                            <span class="path-option-name">Raydium</span>
+                            <span class="path-option-badge advanced">Advanced</span>
+                        </div>
+                        <p class="path-option-desc">Custom bonding curve. Full control over price discovery and liquidity mechanics.</p>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Token Name</label>
+                        <input type="text" class="form-input" placeholder="My Token">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Symbol</label>
+                        <input type="text" class="form-input" placeholder="$TICKER" style="text-transform:uppercase">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <input type="text" class="form-input" placeholder="A brief description...">
+                </div>
+
+                <div style="background:var(--accent-dim);border:1px solid rgba(0,255,136,0.2);border-radius:6px;padding:12px;margin-bottom:20px;display:flex;align-items:center;gap:10px">
+                    <div style="width:8px;height:8px;background:var(--accent);border-radius:50%"></div>
+                    <span style="font-size:13px">Your launch receives <strong style="color:var(--accent)">1 SOL</strong> seeded to allocation pool</span>
+                </div>
+
+                <button class="btn btn-primary" style="width:100%;justify-content:center">Launch Token</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Modal
+        document.getElementById('launchBtn').addEventListener('click', () => {
+            document.getElementById('launchModal').classList.add('active');
+        });
+        document.getElementById('closeModal').addEventListener('click', () => {
+            document.getElementById('launchModal').classList.remove('active');
+        });
+        document.getElementById('launchModal').addEventListener('click', (e) => {
+            if (e.target.id === 'launchModal') {
+                document.getElementById('launchModal').classList.remove('active');
+            }
+        });
+
+        // Path toggle
+        document.querySelectorAll('.path-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                document.querySelectorAll('.path-option').forEach(o => o.classList.remove('active'));
+                opt.classList.add('active');
+            });
+        });
+
+        // Strategy presets
+        document.querySelectorAll('.strategy-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.strategy-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>
