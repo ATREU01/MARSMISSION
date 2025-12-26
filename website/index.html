@@ -22,6 +22,9 @@
 
     <link rel="icon" href="/website/logo-icon.jpg" type="image/jpeg">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <!-- Privy SDK -->
+    <script src="https://cdn.privy.io/privy-browser.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
@@ -485,6 +488,81 @@
             .ai-card { padding: 40px 24px; }
             footer { flex-direction: column; gap: 20px; }
         }
+
+        /* Wallet Modal Styles */
+        .wallet-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .wallet-modal-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(4px);
+        }
+        .wallet-modal-content {
+            position: relative;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            width: 100%;
+            max-width: 400px;
+            margin: 20px;
+        }
+        .wallet-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .wallet-modal-header h3 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .wallet-modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+        .wallet-modal-close:hover { color: var(--text); }
+        .wallet-modal-body {
+            text-align: center;
+            padding: 20px 0;
+        }
+        .wallet-address {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            color: var(--text);
+            background: var(--bg);
+            padding: 12px 16px;
+            border-radius: 8px;
+            word-break: break-all;
+            margin-bottom: 12px;
+        }
+        .wallet-balance {
+            font-size: 24px;
+            font-weight: 700;
+            color: #00ff88;
+        }
+        .wallet-modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        .wallet-connected {
+            background: rgba(0,255,136,0.15) !important;
+            color: #00ff88 !important;
+            border: 1px solid rgba(0,255,136,0.3) !important;
+        }
     </style>
 </head>
 <body>
@@ -500,9 +578,29 @@
             <a href="https://x.com/LaunchrTG" target="_blank">Twitter</a>
         </div>
         <div class="nav-right">
+            <button id="connectWallet" class="btn btn-secondary" onclick="connectWallet()">Connect Wallet</button>
             <a href="/launchpad" class="btn btn-primary">Launch Token</a>
         </div>
     </nav>
+
+    <!-- Wallet Modal -->
+    <div id="walletModal" class="wallet-modal" style="display:none;">
+        <div class="wallet-modal-backdrop" onclick="closeWalletModal()"></div>
+        <div class="wallet-modal-content">
+            <div class="wallet-modal-header">
+                <h3>Connected Wallet</h3>
+                <button onclick="closeWalletModal()" class="wallet-modal-close">&times;</button>
+            </div>
+            <div class="wallet-modal-body">
+                <div class="wallet-address" id="walletAddress">-</div>
+                <div class="wallet-balance" id="walletBalance">- SOL</div>
+            </div>
+            <div class="wallet-modal-actions">
+                <button onclick="copyWalletAddress()" class="btn btn-secondary" style="flex:1;">Copy Address</button>
+                <button onclick="disconnectWallet()" class="btn btn-primary" style="flex:1;background:#ff4444;">Disconnect</button>
+            </div>
+        </div>
+    </div>
 
     <section class="hero">
         <img src="/website/logo-full.jpg" alt="LAUNCHR" class="hero-banner">
@@ -721,11 +819,235 @@
     </footer>
 
     <script>
+        // ═══════════════════════════════════════════════════════════════
+        // PRIVY WALLET CONFIGURATION
+        // ═══════════════════════════════════════════════════════════════
+
+        // Privy App ID - Replace with your actual Privy App ID
+        const PRIVY_APP_ID = 'YOUR_PRIVY_APP_ID';
+
+        // Helius RPC for Solana
+        const SOLANA_RPC = 'https://mainnet.helius-rpc.com/?api-key=YOUR_HELIUS_API_KEY';
+
+        // Wallet state
+        let privyClient = null;
+        let connectedWallet = null;
+        let walletBalance = 0;
+
         // Contract address - update this when token launches
         const CONTRACT_ADDRESS = '86ZnAujEVLmtnNazeCeT1zYR7hn2PeF5ZPEwUkTdpump';
 
-        // Initialize contract display
+        // ═══════════════════════════════════════════════════════════════
+        // PRIVY INITIALIZATION
+        // ═══════════════════════════════════════════════════════════════
+
+        async function initPrivy() {
+            try {
+                // Check if Privy SDK loaded
+                if (typeof window.Privy !== 'undefined') {
+                    privyClient = new window.Privy({
+                        appId: PRIVY_APP_ID,
+                        config: {
+                            loginMethods: ['email', 'wallet', 'google', 'twitter'],
+                            appearance: {
+                                theme: 'dark',
+                                accentColor: '#8b5cf6',
+                                showWalletLoginFirst: true,
+                            },
+                            embeddedWallets: {
+                                createOnLogin: 'users-without-wallets',
+                            },
+                            solanaClusters: [
+                                { name: 'mainnet-beta', rpcUrl: SOLANA_RPC }
+                            ],
+                        },
+                    });
+
+                    // Check for existing session
+                    const user = await privyClient.getUser();
+                    if (user && user.wallet) {
+                        handleWalletConnected(user.wallet.address);
+                    }
+
+                    console.log('[PRIVY] Initialized');
+                } else {
+                    console.log('[PRIVY] SDK not loaded - using fallback');
+                }
+            } catch (e) {
+                console.error('[PRIVY] Init error:', e);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // WALLET CONNECT FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════
+
+        async function connectWallet() {
+            // If already connected, show modal
+            if (connectedWallet) {
+                showWalletModal();
+                return;
+            }
+
+            // Try Privy first
+            if (privyClient) {
+                try {
+                    const user = await privyClient.login();
+                    if (user && user.wallet) {
+                        handleWalletConnected(user.wallet.address);
+                    }
+                    return;
+                } catch (e) {
+                    console.error('[PRIVY] Login error:', e);
+                }
+            }
+
+            // Fallback to Phantom/Solflare
+            await connectPhantom();
+        }
+
+        async function connectPhantom() {
+            // Check for Phantom
+            if (window.solana && window.solana.isPhantom) {
+                try {
+                    const resp = await window.solana.connect();
+                    handleWalletConnected(resp.publicKey.toString());
+                    return;
+                } catch (e) {
+                    console.error('[PHANTOM] Connect error:', e);
+                }
+            }
+
+            // Check for Solflare
+            if (window.solflare && window.solflare.isSolflare) {
+                try {
+                    await window.solflare.connect();
+                    handleWalletConnected(window.solflare.publicKey.toString());
+                    return;
+                } catch (e) {
+                    console.error('[SOLFLARE] Connect error:', e);
+                }
+            }
+
+            // No wallet found - show Privy modal or alert
+            alert('Please install Phantom or Solflare wallet, or use email login with Privy');
+        }
+
+        async function handleWalletConnected(address) {
+            connectedWallet = address;
+
+            // Update button
+            const btn = document.getElementById('connectWallet');
+            btn.textContent = shortenAddress(address);
+            btn.classList.add('wallet-connected');
+
+            // Fetch balance
+            await fetchBalance(address);
+
+            // Store in localStorage
+            localStorage.setItem('connectedWallet', address);
+
+            console.log('[WALLET] Connected:', address);
+        }
+
+        async function fetchBalance(address) {
+            try {
+                const response = await fetch(SOLANA_RPC, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        id: 1,
+                        method: 'getBalance',
+                        params: [address],
+                    }),
+                });
+                const data = await response.json();
+                if (data.result && data.result.value !== undefined) {
+                    walletBalance = data.result.value / 1e9; // Convert lamports to SOL
+                    document.getElementById('walletBalance').textContent = walletBalance.toFixed(4) + ' SOL';
+                }
+            } catch (e) {
+                console.error('[BALANCE] Fetch error:', e);
+            }
+        }
+
+        async function disconnectWallet() {
+            // Disconnect from Privy
+            if (privyClient) {
+                try {
+                    await privyClient.logout();
+                } catch (e) {}
+            }
+
+            // Disconnect from Phantom
+            if (window.solana && window.solana.isPhantom) {
+                try {
+                    await window.solana.disconnect();
+                } catch (e) {}
+            }
+
+            // Reset state
+            connectedWallet = null;
+            walletBalance = 0;
+            localStorage.removeItem('connectedWallet');
+
+            // Update UI
+            const btn = document.getElementById('connectWallet');
+            btn.textContent = 'Connect Wallet';
+            btn.classList.remove('wallet-connected');
+
+            closeWalletModal();
+            console.log('[WALLET] Disconnected');
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // WALLET MODAL
+        // ═══════════════════════════════════════════════════════════════
+
+        function showWalletModal() {
+            if (!connectedWallet) return;
+
+            document.getElementById('walletAddress').textContent = connectedWallet;
+            document.getElementById('walletBalance').textContent = walletBalance.toFixed(4) + ' SOL';
+            document.getElementById('walletModal').style.display = 'flex';
+        }
+
+        function closeWalletModal() {
+            document.getElementById('walletModal').style.display = 'none';
+        }
+
+        function copyWalletAddress() {
+            if (!connectedWallet) return;
+            navigator.clipboard.writeText(connectedWallet).then(() => {
+                alert('Address copied!');
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // UTILITIES
+        // ═══════════════════════════════════════════════════════════════
+
+        function shortenAddress(address) {
+            if (!address) return '';
+            return address.slice(0, 4) + '...' + address.slice(-4);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // INITIALIZATION
+        // ═══════════════════════════════════════════════════════════════
+
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize Privy
+            initPrivy();
+
+            // Check for stored wallet
+            const storedWallet = localStorage.getItem('connectedWallet');
+            if (storedWallet) {
+                handleWalletConnected(storedWallet);
+            }
+
+            // Contract address display
             const contractEl = document.getElementById('contractAddress');
             const copyBtn = document.getElementById('copyBtn');
 
