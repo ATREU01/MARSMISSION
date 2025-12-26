@@ -1013,6 +1013,32 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    // Serve Launchpad
+    if (url.pathname === '/launchpad' && req.method === 'GET') {
+        try {
+            const html = fs.readFileSync(path.join(__dirname, 'website', 'launchpad.html'), 'utf8');
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(html);
+        } catch (e) {
+            res.writeHead(302, { 'Location': '/' });
+            res.end();
+        }
+        return;
+    }
+
+    // Serve Creator Dashboard
+    if (url.pathname === '/dashboard' && req.method === 'GET') {
+        try {
+            const html = fs.readFileSync(path.join(__dirname, 'website', 'dashboard.html'), 'utf8');
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(html);
+        } catch (e) {
+            res.writeHead(302, { 'Location': '/' });
+            res.end();
+        }
+        return;
+    }
+
     // Serve static files from website folder
     if (url.pathname.startsWith('/website/') && req.method === 'GET') {
         const filePath = path.join(__dirname, url.pathname);

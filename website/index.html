@@ -494,45 +494,50 @@
         <img src="/website/logo-icon.jpg" alt="LAUNCHR" class="nav-logo">
         <div class="nav-center">
             <a href="#features">Features</a>
-            <a href="/tracker">Tracker</a>
+            <a href="/launchpad">Launchpad</a>
+            <a href="/dashboard">Dashboard</a>
             <a href="https://t.me/LAUNCHR_V2_BOT" target="_blank">Telegram</a>
             <a href="https://x.com/LaunchrTG" target="_blank">Twitter</a>
         </div>
         <div class="nav-right">
-            <a href="/app" class="btn btn-primary">Launch App</a>
+            <a href="/launchpad" class="btn btn-primary">Launch Token</a>
         </div>
     </nav>
 
     <section class="hero">
         <img src="/website/logo-full.jpg" alt="LAUNCHR" class="hero-banner">
 
-        <div class="hero-tag">First of its kind</div>
+        <div class="hero-tag">The #1 Meme Launchpad</div>
 
         <h1 class="hero-title">
-            <span>Programmable liquidity</span><br>for Pump.fun tokens
+            <span>Launch tokens.</span><br>Get 1 SOL seeded.
         </h1>
 
         <p class="hero-subtitle">
-            The only AI-powered fee engine that automatically routes creator fees into market making, buybacks, liquidity, and revenue.
+            Dual-path launchpad with programmable fee routing. Every launch gets 1 SOL seeded. Top 3 win +1 SOL every 2 hours. 1% of all fees go to LAUNCHR holders.
         </p>
 
         <div class="hero-actions">
-            <a href="/app" class="btn btn-primary">Launch App</a>
+            <a href="/launchpad" class="btn btn-primary">Launch Token</a>
             <a href="https://t.me/LAUNCHR_V2_BOT" class="btn btn-secondary">Connect via Telegram</a>
         </div>
 
         <div class="hero-stats">
             <div class="stat">
-                <div class="stat-value">4</div>
-                <div class="stat-label">Fee Channels</div>
+                <div class="stat-value" style="color:#00ff88">1 SOL</div>
+                <div class="stat-label">Seeded Per Launch</div>
             </div>
             <div class="stat">
-                <div class="stat-value">24/7</div>
-                <div class="stat-label">Automation</div>
+                <div class="stat-value">+1 SOL</div>
+                <div class="stat-label">Top 3 Rewards</div>
             </div>
             <div class="stat">
-                <div class="stat-value">AI</div>
-                <div class="stat-label">Optimized</div>
+                <div class="stat-value" style="color:#00ff88">1%</div>
+                <div class="stat-label">To Holders</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">5</div>
+                <div class="stat-label">Security Layers</div>
             </div>
         </div>
 
@@ -548,10 +553,72 @@
         </div>
     </section>
 
-    <section class="features" id="features">
+    <!-- Dual Path Section -->
+    <section class="dual-path" id="features" style="padding:100px 32px;position:relative;z-index:1;">
+        <div style="max-width:1000px;margin:0 auto;">
+            <div style="text-align:center;margin-bottom:64px;">
+                <div class="features-tag">Two Ways to Launch</div>
+                <h2 class="features-title">Choose Your Path</h2>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+                <!-- Pump.fun Path -->
+                <div style="padding:40px;background:linear-gradient(135deg,rgba(139,92,246,0.1),rgba(139,92,246,0.02));border:1px solid rgba(139,92,246,0.3);border-radius:16px;">
+                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+                        <span style="font-size:24px;font-weight:700;">Pump.fun</span>
+                        <span style="background:rgba(139,92,246,0.2);color:var(--accent);padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;text-transform:uppercase;">Simple</span>
+                    </div>
+                    <p style="color:var(--text-secondary);margin-bottom:24px;line-height:1.7;">One-click launch. Fast, beginner-friendly. Graduate to Raydium later.</p>
+                    <ul style="list-style:none;margin-bottom:24px;">
+                        <li style="color:var(--text-secondary);padding:8px 0;display:flex;align-items:center;gap:10px;"><span style="color:#00ff88;">✓</span> Launch in seconds</li>
+                        <li style="color:var(--text-secondary);padding:8px 0;display:flex;align-items:center;gap:10px;"><span style="color:#00ff88;">✓</span> Built-in bonding curve</li>
+                        <li style="color:var(--text-secondary);padding:8px 0;display:flex;align-items:center;gap:10px;"><span style="color:#00ff88;">✓</span> Auto-graduation to PumpSwap</li>
+                    </ul>
+                    <a href="/launchpad" class="btn btn-secondary" style="width:100%;text-align:center;">Launch on Pump.fun</a>
+                </div>
+
+                <!-- Raydium Path -->
+                <div style="padding:40px;background:linear-gradient(135deg,rgba(0,255,136,0.08),rgba(0,255,136,0.02));border:1px solid rgba(0,255,136,0.3);border-radius:16px;">
+                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+                        <span style="font-size:24px;font-weight:700;">Raydium</span>
+                        <span style="background:rgba(0,255,136,0.15);color:#00ff88;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;text-transform:uppercase;">Advanced</span>
+                    </div>
+                    <p style="color:var(--text-secondary);margin-bottom:24px;line-height:1.7;">Custom bonding curves. Full control over price discovery and liquidity.</p>
+                    <ul style="list-style:none;margin-bottom:24px;">
+                        <li style="color:var(--text-secondary);padding:8px 0;display:flex;align-items:center;gap:10px;"><span style="color:#00ff88;">✓</span> Linear/Exponential/Sigmoid curves</li>
+                        <li style="color:var(--text-secondary);padding:8px 0;display:flex;align-items:center;gap:10px;"><span style="color:#00ff88;">✓</span> Custom initial liquidity</li>
+                        <li style="color:var(--text-secondary);padding:8px 0;display:flex;align-items:center;gap:10px;"><span style="color:#00ff88;">✓</span> Full allocation control</li>
+                    </ul>
+                    <a href="/launchpad" class="btn btn-primary" style="width:100%;text-align:center;background:#00ff88;color:#000;">Launch on Raydium</a>
+                </div>
+            </div>
+
+            <!-- Both paths get -->
+            <div style="margin-top:40px;padding:24px 32px;background:var(--surface);border:1px solid var(--border);border-radius:12px;display:flex;justify-content:space-around;flex-wrap:wrap;gap:24px;">
+                <div style="text-align:center;">
+                    <div style="font-size:24px;font-weight:700;color:#00ff88;">1 SOL</div>
+                    <div style="font-size:12px;color:var(--text-secondary);">Seeded to every launch</div>
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:24px;font-weight:700;">99%</div>
+                    <div style="font-size:12px;color:var(--text-secondary);">Fees to your allocation</div>
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:24px;font-weight:700;color:#00ff88;">1%</div>
+                    <div style="font-size:12px;color:var(--text-secondary);">To LAUNCHR holders</div>
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:24px;font-weight:700;">5</div>
+                    <div style="font-size:12px;color:var(--text-secondary);">Security layers</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="features">
         <div class="features-header">
-            <div class="features-tag">How it works</div>
-            <h2 class="features-title">Four strategic channels</h2>
+            <div class="features-tag">Fee Allocation</div>
+            <h2 class="features-title">Your 99% goes to four channels</h2>
         </div>
 
         <div class="features-grid">
@@ -597,43 +664,55 @@
         </div>
     </section>
 
+    <!-- Competition Section -->
     <section class="how">
-        <div class="how-content">
-            <h2 class="how-title">Set it once. Watch it grow.</h2>
-            <p class="how-text">
-                Every Pump.fun token generates creator fees. Until now, there was no way to optimize them automatically. LAUNCHR routes your fees into four strategic channels with zero manual intervention. Configure your allocations, start the engine, and let your token grow with every transaction.
-            </p>
-            <a href="/app" class="btn btn-primary">Get Started</a>
+        <div style="max-width:900px;margin:0 auto;text-align:center;">
+            <div style="background:linear-gradient(135deg,rgba(0,255,136,0.1),rgba(0,255,136,0.02));border:1px solid rgba(0,255,136,0.3);border-radius:16px;padding:48px;">
+                <div style="font-size:12px;color:#00ff88;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:16px;">Live Competition</div>
+                <h2 class="how-title" style="font-size:36px;">Top 3 win +1 SOL every 2 hours</h2>
+                <p class="how-text" style="max-width:500px;margin:0 auto 32px;">
+                    Launch your token and compete for the top market cap. The top 3 tokens every 2 hours receive an additional 1 SOL seeded to their allocation pool.
+                </p>
+                <a href="/launchpad" class="btn btn-primary" style="background:#00ff88;color:#000;">Join Competition</a>
+            </div>
         </div>
     </section>
 
+    <!-- Security Section -->
     <section class="ai-section">
-        <div class="ai-card">
-            <div class="ai-badge">AUTOMATED</div>
-            <h2 class="ai-title">Smart Optimization</h2>
+        <div class="ai-card" style="border-color:rgba(0,255,136,0.3);background:linear-gradient(135deg,rgba(0,255,136,0.08),rgba(0,255,136,0.02));">
+            <div class="ai-badge" style="background:rgba(0,255,136,0.15);color:#00ff88;">5-LAYER FORTRESS</div>
+            <h2 class="ai-title">Merkle-Verified Security</h2>
             <p class="ai-desc">
-                Real-time allocation adjustment based on market conditions. RSI analysis, volatility tracking, and automatic rebalancing. Set it and forget it.
+                Every transaction cryptographically verified. Merkle tree proofs, rate limiting, wallet authorization, risk scoring, and on-chain audit via Helius.
             </p>
+            <div style="display:flex;justify-content:center;gap:32px;margin-top:32px;flex-wrap:wrap;">
+                <div style="text-align:center;"><div style="font-size:20px;font-weight:600;">Merkle</div><div style="font-size:11px;color:var(--text-secondary);">Tree Verification</div></div>
+                <div style="text-align:center;"><div style="font-size:20px;font-weight:600;">Ed25519</div><div style="font-size:11px;color:var(--text-secondary);">Signature Validation</div></div>
+                <div style="text-align:center;"><div style="font-size:20px;font-weight:600;">Rate</div><div style="font-size:11px;color:var(--text-secondary);">Limiting</div></div>
+                <div style="text-align:center;"><div style="font-size:20px;font-weight:600;">Risk</div><div style="font-size:11px;color:var(--text-secondary);">Scoring</div></div>
+                <div style="text-align:center;"><div style="font-size:20px;font-weight:600;">Helius</div><div style="font-size:11px;color:var(--text-secondary);">On-Chain Audit</div></div>
+            </div>
         </div>
     </section>
 
     <section class="cta">
-        <h2 class="cta-title">Ready to launch?</h2>
-        <p class="cta-subtitle">Fair launch. No presale. No team allocation. Just technology.</p>
+        <h2 class="cta-title">Launch. Get Seeded. Win.</h2>
+        <p class="cta-subtitle">1 SOL seeded per launch. Top 3 win +1 SOL every 2 hours. 1% of all fees to holders.</p>
         <div class="cta-actions">
-            <a href="/app" class="btn btn-primary">Launch App</a>
-            <a href="https://t.me/LAUNCHR_V2_BOT" class="btn btn-secondary">Telegram Bot</a>
+            <a href="/launchpad" class="btn btn-primary" style="background:#00ff88;color:#000;">Launch Token</a>
+            <a href="/dashboard" class="btn btn-secondary">Creator Dashboard</a>
         </div>
     </section>
 
     <footer>
         <div class="footer-left">
             <img src="/website/logo-icon.jpg" alt="LAUNCHR">
-            <span>Programmable liquidity engine</span>
+            <span>The #1 Meme Launchpad</span>
         </div>
         <div class="footer-links">
-            <a href="/app">Dashboard</a>
-            <a href="/tracker">Tracker</a>
+            <a href="/launchpad">Launchpad</a>
+            <a href="/dashboard">Dashboard</a>
             <a href="/roadmap">Roadmap</a>
             <a href="/terms">Terms</a>
             <a href="https://t.me/LAUNCHR_V2_BOT" target="_blank">Telegram</a>
