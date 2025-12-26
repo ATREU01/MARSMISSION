@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LAUNCHR - The #1 Meme Launchpad</title>
+    <meta name="description" content="Launch meme tokens with 1 SOL seeded, compete for rewards, and earn 1% of all fees as a holder.">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="LAUNCHR - The #1 Meme Launchpad">
+    <meta property="og:description" content="1 SOL seeded per launch. Top 3 win +1 SOL every 2 hours. 1% of fees to holders.">
+    <meta property="og:image" content="/website/logo-full.jpg">
+
+    <link rel="icon" href="/website/logo-icon.jpg" type="image/jpeg">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #030303;
+            --surface: #0a0a0a;
+            --surface-2: #111111;
+            --border: rgba(255,255,255,0.06);
+            --border-active: rgba(255,255,255,0.15);
+            --text: #fafafa;
+            --text-secondary: rgba(255,255,255,0.5);
+            --text-muted: rgba(255,255,255,0.3);
+            --accent: #00ff88;
+            --accent-dim: rgba(0,255,136,0.15);
+            --red: #ff4444;
+            --gold: #ffd700;
+            --silver: #c0c0c0;
+            --bronze: #cd7f32;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+        }
+
+        /* Grain texture overlay */
+        .grain {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1000;
+            opacity: 0.08;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+            mix-blend-mode: overlay;
+        }
+
+        /* Header */
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: rgba(3,3,3,0.9);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--text);
+        }
+
+        .logo img {
+            height: 28px;
+            border-radius: 6px;
+        }
+
+        .logo span {
+            font-weight: 600;
+            font-size: 15px;
+            letter-spacing: -0.01em;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 28px;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            transition: color 0.15s;
+        }
+
+        .nav-links a:hover, .nav-links a.active {
+            color: var(--text);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-muted);
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent);
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.error { background: var(--red); }
+        .status-dot.loading { background: #ffaa00; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            border: none;
+            transition: all 0.15s;
+        }
+
+        .btn-primary {
+            background: var(--text);
+            color: var(--bg);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(255,255,255,0.15);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--border-active);
+            background: rgba(255,255,255,0.03);
+        }
+
+        .btn-accent {
+            background: var(--accent);
+            color: #000;
+        }
+
+        /* Main layout */
+        main {
+            padding-top: 56px;
+            min-height: 100vh;
+        }
+
+        /* Competition Banner */
+        .competition-banner {
+            background: linear-gradient(90deg, rgba(0,255,136,0.08) 0%, rgba(0,255,136,0.02) 100%);
+            border-bottom: 1px solid rgba(0,255,136,0.15);
+            padding: 16px 24px;
+        }
+
+        .competition-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .competition-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .competition-badge {
+            background: var(--accent);
+            color: #000;
+            padding: 4px 10px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border-radius: 4px;
+        }
+
+        .competition-text {
+            font-size: 14px;
+        }
+
+        .competition-text strong {
+            color: var(--accent);
+        }
+
+        .competition-timer {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .timer-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .timer-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        /* Stats bar */
+        .stats-bar {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 24px;
+        }
+
+        .stats-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 24px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: -0.02em;
+        }
+
+        .stat-value.accent { color: var(--accent); }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-top: 4px;
+        }
+
+        /* Leaderboard */
+        .leaderboard {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 24px;
+        }
+
+        .leaderboard-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .leaderboard-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .leaderboard-title {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+        }
+
+        .leaderboard-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .leader-card {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .leader-card:hover {
+            border-color: var(--border-active);
+            background: rgba(255,255,255,0.02);
+        }
+
+        .leader-card.gold { border-color: rgba(255,215,0,0.3); background: rgba(255,215,0,0.05); }
+        .leader-card.silver { border-color: rgba(192,192,192,0.2); }
+        .leader-card.bronze { border-color: rgba(205,127,50,0.2); }
+
+        .leader-rank {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            border-radius: 6px;
+        }
+
+        .leader-rank.gold { color: var(--gold); background: rgba(255,215,0,0.1); }
+        .leader-rank.silver { color: var(--silver); background: rgba(192,192,192,0.1); }
+        .leader-rank.bronze { color: var(--bronze); background: rgba(205,127,50,0.1); }
+
+        .leader-token {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+        }
+
+        .leader-token img {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            object-fit: cover;
+        }
+
+        .leader-token-placeholder {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .leader-token-info h4 {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .leader-token-info span {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .leader-mcap {
+            text-align: right;
+        }
+
+        .leader-mcap-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .leader-reward {
+            background: rgba(0,255,136,0.1);
+            border: 1px solid rgba(0,255,136,0.2);
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--accent);
+            white-space: nowrap;
+        }
+
+        /* Main content grid */
+        .content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 24px;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 24px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            padding: 0;
+            position: relative;
+        }
+
+        .tab.active {
+            color: var(--text);
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -13px;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: var(--text);
+        }
+
+        .tab.competition {
+            color: var(--accent);
+        }
+
+        /* Search */
+        .search {
+            margin-bottom: 16px;
+        }
+
+        .search input {
+            width: 100%;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 14px;
+            color: var(--text);
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        .search input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .search input:focus {
+            border-color: var(--border-active);
+        }
+
+        /* Token table */
+        .token-table {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .token-header {
+            display: grid;
+            grid-template-columns: 50px 1fr 100px 100px 80px 140px;
+            padding: 12px 16px;
+            background: var(--surface-2);
+            border-bottom: 1px solid var(--border);
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .token-row {
+            display: grid;
+            grid-template-columns: 50px 1fr 100px 100px 80px 140px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        .token-row:hover {
+            background: rgba(255,255,255,0.02);
+        }
+
+        .token-row:last-child {
+            border-bottom: none;
+        }
+
+        .token-rank {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .token-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .token-img {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            object-fit: cover;
+        }
+
+        .token-img-placeholder {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .token-name {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .token-name h4 {
+            font-size: 13px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .token-name span {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .badge-competing {
+            font-size: 9px;
+            padding: 2px 5px;
+            background: rgba(0,255,136,0.1);
+            color: var(--accent);
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .token-mcap, .token-pool, .token-sol {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            text-align: right;
+        }
+
+        .token-pool {
+            color: var(--accent);
+        }
+
+        .token-progress {
+            padding-left: 16px;
+        }
+
+        .progress-bar {
+            height: 3px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 4px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--text);
+            border-radius: 2px;
+            transition: width 0.3s;
+        }
+
+        .progress-fill.complete {
+            background: var(--accent);
+        }
+
+        .progress-text {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .sidebar-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .sidebar-title {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sidebar-title .dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+
+        /* Fee Distribution */
+        .fee-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .fee-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .fee-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .fee-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+        }
+
+        .fee-bar {
+            height: 2px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 1px;
+            margin-top: 4px;
+        }
+
+        .fee-bar-fill {
+            height: 100%;
+            border-radius: 1px;
+        }
+
+        .fee-bar-fill.accent { background: var(--accent); }
+        .fee-bar-fill.white { background: var(--text); }
+
+        /* Activity feed */
+        .activity-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            border-top: 1px solid var(--border);
+            font-size: 11px;
+        }
+
+        .activity-item:first-child {
+            border-top: none;
+            padding-top: 0;
+        }
+
+        .activity-time {
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            width: 32px;
+        }
+
+        .activity-type {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 9px;
+            letter-spacing: 0.05em;
+        }
+
+        .activity-type.buy { background: rgba(0,255,136,0.1); color: var(--accent); }
+        .activity-type.sell { background: rgba(255,68,68,0.1); color: var(--red); }
+        .activity-type.create { background: rgba(0,170,255,0.1); color: #00aaff; }
+
+        .activity-amount {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-secondary);
+            margin-left: auto;
+        }
+
+        /* Allocation Pool Card */
+        .pool-balance {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .pool-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .pool-actions {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .pool-btn {
+            padding: 10px;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.15s;
+        }
+
+        .pool-btn:hover {
+            border-color: var(--border-active);
+            color: var(--text);
+        }
+
+        /* Advantages card */
+        .advantage-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px 0;
+            border-top: 1px solid var(--border);
+        }
+
+        .advantage-item:first-child {
+            border-top: none;
+            padding-top: 0;
+        }
+
+        .advantage-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--accent-dim);
+            border-radius: 4px;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .advantage-text {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .advantage-text strong {
+            color: var(--text);
+        }
+
+        /* Create modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            width: 100%;
+            max-width: 480px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin: 16px;
+            transform: translateY(20px);
+            transition: transform 0.2s;
+        }
+
+        .modal-overlay.active .modal {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .modal-banner {
+            padding: 14px 24px;
+            background: var(--accent-dim);
+            border-bottom: 1px solid rgba(0,255,136,0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .modal-banner-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--accent);
+            border-radius: 50%;
+        }
+
+        .modal-banner-text {
+            font-size: 13px;
+        }
+
+        .modal-banner-text strong {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid var(--border);
+            padding: 10px 0;
+            font-size: 16px;
+            color: var(--text);
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        .form-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .form-input:focus {
+            border-color: var(--text);
+        }
+
+        .form-input.uppercase {
+            text-transform: uppercase;
+        }
+
+        .strategy-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .strategy-btn {
+            padding: 12px;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.15s;
+        }
+
+        .strategy-btn:hover, .strategy-btn.active {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-dim);
+        }
+
+        .form-hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 8px;
+        }
+
+        .modal-footer {
+            padding: 20px 24px;
+            border-top: 1px solid var(--border);
+        }
+
+        .modal-footer .btn {
+            width: 100%;
+            padding: 14px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        /* Empty state */
+        .empty-state {
+            padding: 48px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .empty-state p {
+            font-size: 13px;
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 48px;
+            color: var(--text-muted);
+            font-size: 13px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-inner {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .leaderboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .token-header, .token-row {
+                grid-template-columns: 40px 1fr 80px 80px 100px;
+            }
+
+            .token-sol {
+                display: none;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .nav-links {
+                display: none;
+            }
+
+            .stats-inner {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .competition-inner {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .token-header, .token-row {
+                grid-template-columns: 1fr 80px 100px;
+            }
+
+            .token-rank, .token-pool {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="grain"></div>
+
+    <!-- Header -->
+    <header>
+        <div class="header-inner">
+            <a href="/" class="logo">
+                <img src="/website/logo-icon.jpg" alt="LAUNCHR">
+                <span>LAUNCHR</span>
+            </a>
+
+            <nav class="nav-links">
+                <a href="/launchpad" class="active">Tokens</a>
+                <a href="#leaderboard">Leaderboard</a>
+                <a href="#rewards">Rewards</a>
+                <a href="/roadmap">Docs</a>
+            </nav>
+
+            <div class="header-right">
+                <div class="status">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">LIVE</span>
+                </div>
+                <button class="btn btn-primary" id="launchBtn">Launch</button>
+                <button class="btn btn-secondary" id="connectBtn">Connect</button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Competition Banner -->
+        <div class="competition-banner">
+            <div class="competition-inner">
+                <div class="competition-info">
+                    <span class="competition-badge">Live Competition</span>
+                    <span class="competition-text">Top 3 by market cap win <strong>+1 SOL</strong> each</span>
+                </div>
+                <div class="competition-timer">
+                    <span class="timer-label">Ends in</span>
+                    <span class="timer-value" id="competitionTimer">1:59:42</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <div class="stats-inner">
+                <div class="stat">
+                    <div class="stat-value" id="statTvl">--</div>
+                    <div class="stat-label">TVL</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="statTokens">--</div>
+                    <div class="stat-label">Tokens</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="statCreators">--</div>
+                    <div class="stat-label">Creators</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="statVolume">--</div>
+                    <div class="stat-label">24h Volume</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value accent" id="statSeeded">--</div>
+                    <div class="stat-label">Seeded</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value accent" id="statHolderRewards">--</div>
+                    <div class="stat-label">To Holders</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Leaderboard -->
+        <div class="leaderboard" id="leaderboard">
+            <div class="leaderboard-inner">
+                <div class="leaderboard-header">
+                    <span class="leaderboard-title">Current Leaders</span>
+                </div>
+                <div class="leaderboard-grid" id="leaderboardGrid">
+                    <!-- Leaders will be injected here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Token List -->
+            <div class="token-list">
+                <div class="tabs">
+                    <button class="tab active" data-tab="all">All</button>
+                    <button class="tab competition" data-tab="competition">Competition</button>
+                    <button class="tab" data-tab="trending">Trending</button>
+                    <button class="tab" data-tab="new">New</button>
+                    <button class="tab" data-tab="graduating">Graduating</button>
+                </div>
+
+                <div class="search">
+                    <input type="text" placeholder="Search by name or symbol..." id="searchInput">
+                </div>
+
+                <div class="token-table">
+                    <div class="token-header">
+                        <div>#</div>
+                        <div>Token</div>
+                        <div style="text-align:right">Mcap</div>
+                        <div style="text-align:right">Pool</div>
+                        <div style="text-align:right">SOL</div>
+                        <div style="padding-left:16px">Progress</div>
+                    </div>
+                    <div id="tokenList">
+                        <div class="loading">Loading tokens...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- Selected Token Pool -->
+                <div class="sidebar-card" id="selectedTokenCard" style="display:none">
+                    <div class="sidebar-title">Allocation Pool</div>
+                    <div class="pool-balance">
+                        <span>Balance</span>
+                        <span class="pool-value" id="poolBalance">1.00 SOL</span>
+                    </div>
+                    <div class="pool-actions">
+                        <button class="pool-btn">Buyback</button>
+                        <button class="pool-btn">Burn</button>
+                        <button class="pool-btn">LP Add</button>
+                    </div>
+                </div>
+
+                <!-- Fee Distribution -->
+                <div class="sidebar-card">
+                    <div class="sidebar-title">Fee Distribution</div>
+                    <div class="fee-item">
+                        <span class="fee-label">Creator</span>
+                        <span class="fee-value">99%</span>
+                    </div>
+                    <div class="fee-bar"><div class="fee-bar-fill white" style="width:99%"></div></div>
+                    <div class="fee-item" style="margin-top:12px">
+                        <span class="fee-label">LAUNCHR Holders</span>
+                        <span class="fee-value" style="color:var(--accent)">1%</span>
+                    </div>
+                    <div class="fee-bar"><div class="fee-bar-fill accent" style="width:100%"></div></div>
+                </div>
+
+                <!-- Why LAUNCHR -->
+                <div class="sidebar-card">
+                    <div class="sidebar-title">Why LAUNCHR</div>
+                    <div class="advantage-item">
+                        <div class="advantage-icon">1</div>
+                        <div class="advantage-text"><strong>1 SOL seeded</strong> to every launch vs pump.fun's 0.5 SOL only on graduation</div>
+                    </div>
+                    <div class="advantage-item">
+                        <div class="advantage-icon">3</div>
+                        <div class="advantage-text"><strong>Top 3 win +1 SOL</strong> every 2 hours - continuous rewards</div>
+                    </div>
+                    <div class="advantage-item">
+                        <div class="advantage-icon">%</div>
+                        <div class="advantage-text"><strong>1% of all fees</strong> to LAUNCHR holders - passive income</div>
+                    </div>
+                    <div class="advantage-item">
+                        <div class="advantage-icon">5</div>
+                        <div class="advantage-text"><strong>5-layer fortress</strong> security with Merkle verification</div>
+                    </div>
+                </div>
+
+                <!-- Activity Feed -->
+                <div class="sidebar-card">
+                    <div class="sidebar-title">
+                        <span class="dot"></span>
+                        Activity
+                    </div>
+                    <div id="activityFeed">
+                        <div class="loading" style="padding:16px 0">Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Create Modal -->
+    <div class="modal-overlay" id="createModal">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">Launch Token</span>
+                <button class="modal-close" id="closeModal">&times;</button>
+            </div>
+            <div class="modal-banner">
+                <div class="modal-banner-dot"></div>
+                <span class="modal-banner-text">Your launch receives <strong>1 SOL</strong> seeded to allocation pool</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Token Name</label>
+                    <input type="text" class="form-input" placeholder="My Awesome Token" id="tokenName">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Symbol</label>
+                    <input type="text" class="form-input uppercase" placeholder="$TICKER" id="tokenSymbol" maxlength="10">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Allocation Strategy</label>
+                    <div class="strategy-grid">
+                        <button class="strategy-btn active" data-strategy="buyback">Buyback</button>
+                        <button class="strategy-btn" data-strategy="burn">Burn</button>
+                        <button class="strategy-btn" data-strategy="lp">LP Add</button>
+                    </div>
+                    <p class="form-hint">Choose how your 1 SOL allocation will be used</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-accent" id="deployBtn" disabled>Connect Wallet</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════
+        // CONFIGURATION
+        // ═══════════════════════════════════════════════════════════════
+
+        const CONFIG = {
+            HELIUS_API_KEY: '', // Set via server or env
+            PROGRAM_ID: '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P',
+            GRADUATION_SOL: 85,
+            COMPETITION_HOURS: 2,
+        };
+
+        // ═══════════════════════════════════════════════════════════════
+        // STATE
+        // ═══════════════════════════════════════════════════════════════
+
+        let state = {
+            tokens: [],
+            wallet: null,
+            selectedToken: null,
+            activeTab: 'all',
+            competitionEnd: Date.now() + (CONFIG.COMPETITION_HOURS * 3600 * 1000),
+            loading: true,
+            error: null,
+        };
+
+        // ═══════════════════════════════════════════════════════════════
+        // UTILITIES
+        // ═══════════════════════════════════════════════════════════════
+
+        const fmt = {
+            number: (n) => {
+                if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+                if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+                if (n >= 1e3) return (n / 1e3).toFixed(2) + 'K';
+                return n.toFixed(2);
+            },
+            sol: (n) => n?.toFixed(2) + ' SOL',
+            usd: (n) => '$' + fmt.number(n),
+            address: (a, c = 4) => a ? `${a.slice(0, c)}...${a.slice(-c)}` : '',
+            time: (ts) => {
+                const s = Math.floor((Date.now() / 1000) - ts);
+                if (s < 60) return s + 's';
+                if (s < 3600) return Math.floor(s / 60) + 'm';
+                if (s < 86400) return Math.floor(s / 3600) + 'h';
+                return Math.floor(s / 86400) + 'd';
+            },
+            countdown: (ms) => {
+                const s = Math.floor(ms / 1000);
+                const h = Math.floor(s / 3600);
+                const m = Math.floor((s % 3600) / 60);
+                const sec = s % 60;
+                return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+            },
+        };
+
+        // ═══════════════════════════════════════════════════════════════
+        // DATA FETCHING
+        // ═══════════════════════════════════════════════════════════════
+
+        async function fetchTokens() {
+            // In production, this would call your backend which uses Helius
+            // For now, using mock data that matches the expected structure
+
+            try {
+                // Try to fetch from your API
+                const response = await fetch('/api/tokens');
+                if (response.ok) {
+                    const data = await response.json();
+                    state.tokens = data.tokens || [];
+                    state.loading = false;
+                    state.error = null;
+                    return;
+                }
+            } catch (e) {
+                // API not available, use mock
+            }
+
+            // Mock data for demonstration
+            state.tokens = generateMockTokens();
+            state.loading = false;
+        }
+
+        function generateMockTokens() {
+            const names = ['BONK', 'DOGE', 'PEPE', 'SHIB', 'WOJAK', 'MOON', 'ROCKET', 'MEME', 'APE', 'FROG'];
+            return names.map((symbol, i) => ({
+                mint: `${symbol}xxx...xxx`,
+                name: symbol + ' Token',
+                symbol: '$' + symbol,
+                image: null,
+                mcap: Math.random() * 100000 + 1000,
+                realSol: Math.random() * 85,
+                progress: Math.random() * 100,
+                allocationPool: 1 + Math.random() * 0.5,
+                inCompetition: i < 5,
+                createdAt: Date.now() / 1000 - Math.random() * 7200,
+            })).sort((a, b) => b.mcap - a.mcap);
+        }
+
+        async function fetchActivity() {
+            // Mock activity
+            return [
+                { type: 'buy', time: Date.now() / 1000 - 30, amount: 0.5 },
+                { type: 'sell', time: Date.now() / 1000 - 120, amount: 0.3 },
+                { type: 'create', time: Date.now() / 1000 - 300, amount: 0 },
+                { type: 'buy', time: Date.now() / 1000 - 450, amount: 1.2 },
+                { type: 'buy', time: Date.now() / 1000 - 600, amount: 0.8 },
+            ];
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // RENDERING
+        // ═══════════════════════════════════════════════════════════════
+
+        function renderStats() {
+            const tokens = state.tokens;
+            const tvl = tokens.reduce((sum, t) => sum + (t.realSol || 0), 0);
+            const creators = new Set(tokens.map(t => t.creator)).size || tokens.length;
+            const seeded = tokens.length * 1; // 1 SOL per launch
+            const holderRewards = tvl * 0.01;
+
+            document.getElementById('statTvl').textContent = fmt.sol(tvl);
+            document.getElementById('statTokens').textContent = tokens.length;
+            document.getElementById('statCreators').textContent = creators;
+            document.getElementById('statVolume').textContent = fmt.usd(tvl * 10);
+            document.getElementById('statSeeded').textContent = fmt.sol(seeded);
+            document.getElementById('statHolderRewards').textContent = fmt.sol(holderRewards);
+        }
+
+        function renderLeaderboard() {
+            const leaders = state.tokens
+                .filter(t => t.inCompetition)
+                .sort((a, b) => b.mcap - a.mcap)
+                .slice(0, 3);
+
+            const grid = document.getElementById('leaderboardGrid');
+
+            if (leaders.length === 0) {
+                grid.innerHTML = '<div class="empty-state"><p>No tokens competing yet</p></div>';
+                return;
+            }
+
+            const ranks = ['gold', 'silver', 'bronze'];
+
+            grid.innerHTML = leaders.map((token, i) => `
+                <div class="leader-card ${ranks[i]}" data-mint="${token.mint}">
+                    <div class="leader-rank ${ranks[i]}">${i + 1}</div>
+                    <div class="leader-token">
+                        ${token.image
+                            ? `<img src="${token.image}" alt="${token.symbol}">`
+                            : `<div class="leader-token-placeholder">${token.symbol[1] || '?'}</div>`
+                        }
+                        <div class="leader-token-info">
+                            <h4>${token.name}</h4>
+                            <span>${token.symbol}</span>
+                        </div>
+                    </div>
+                    <div class="leader-mcap">
+                        <div class="leader-mcap-value">${fmt.usd(token.mcap)}</div>
+                    </div>
+                    <div class="leader-reward">+1 SOL</div>
+                </div>
+            `).join('');
+        }
+
+        function renderTokens() {
+            const container = document.getElementById('tokenList');
+            const search = document.getElementById('searchInput').value.toLowerCase();
+
+            let tokens = state.tokens;
+
+            // Filter by tab
+            if (state.activeTab === 'competition') {
+                tokens = tokens.filter(t => t.inCompetition);
+            } else if (state.activeTab === 'new') {
+                tokens = tokens.filter(t => t.progress < 20);
+            } else if (state.activeTab === 'graduating') {
+                tokens = tokens.filter(t => t.progress >= 80);
+            }
+
+            // Filter by search
+            if (search) {
+                tokens = tokens.filter(t =>
+                    t.name?.toLowerCase().includes(search) ||
+                    t.symbol?.toLowerCase().includes(search)
+                );
+            }
+
+            if (state.loading) {
+                container.innerHTML = '<div class="loading">Loading tokens...</div>';
+                return;
+            }
+
+            if (tokens.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>No tokens found</p></div>';
+                return;
+            }
+
+            container.innerHTML = tokens.map((token, i) => `
+                <div class="token-row" data-mint="${token.mint}">
+                    <div class="token-rank">${String(i + 1).padStart(2, '0')}</div>
+                    <div class="token-info">
+                        ${token.image
+                            ? `<img src="${token.image}" class="token-img" alt="${token.symbol}">`
+                            : `<div class="token-img-placeholder">${token.symbol?.[1] || '?'}</div>`
+                        }
+                        <div class="token-name">
+                            <h4>
+                                ${token.name}
+                                ${token.inCompetition ? '<span class="badge-competing">Competing</span>' : ''}
+                            </h4>
+                            <span>${token.symbol}</span>
+                        </div>
+                    </div>
+                    <div class="token-mcap">${fmt.usd(token.mcap)}</div>
+                    <div class="token-pool">${fmt.sol(token.allocationPool || 1)}</div>
+                    <div class="token-sol">${(token.realSol || 0).toFixed(2)}</div>
+                    <div class="token-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill ${token.progress >= 100 ? 'complete' : ''}" style="width:${Math.min(token.progress || 0, 100)}%"></div>
+                        </div>
+                        <div class="progress-text">
+                            <span>curve</span>
+                            <span>${(token.progress || 0).toFixed(0)}%</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            // Add click handlers
+            container.querySelectorAll('.token-row').forEach(row => {
+                row.addEventListener('click', () => selectToken(row.dataset.mint));
+            });
+        }
+
+        async function renderActivity() {
+            const activity = await fetchActivity();
+            const container = document.getElementById('activityFeed');
+
+            container.innerHTML = activity.map(a => `
+                <div class="activity-item">
+                    <span class="activity-time">${fmt.time(a.time)}</span>
+                    <span class="activity-type ${a.type}">${a.type}</span>
+                    ${a.amount > 0 ? `<span class="activity-amount">${fmt.sol(a.amount)}</span>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function selectToken(mint) {
+            const token = state.tokens.find(t => t.mint === mint);
+            if (!token) return;
+
+            state.selectedToken = token;
+
+            const card = document.getElementById('selectedTokenCard');
+            card.style.display = 'block';
+            document.getElementById('poolBalance').textContent = fmt.sol(token.allocationPool || 1);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // TIMER
+        // ═══════════════════════════════════════════════════════════════
+
+        function updateTimer() {
+            const remaining = state.competitionEnd - Date.now();
+
+            if (remaining <= 0) {
+                // Reset competition
+                state.competitionEnd = Date.now() + (CONFIG.COMPETITION_HOURS * 3600 * 1000);
+            }
+
+            document.getElementById('competitionTimer').textContent = fmt.countdown(remaining);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // WALLET
+        // ═══════════════════════════════════════════════════════════════
+
+        async function connectWallet() {
+            try {
+                if (window.solana?.isPhantom) {
+                    const res = await window.solana.connect();
+                    state.wallet = res.publicKey.toString();
+                    document.getElementById('connectBtn').textContent = fmt.address(state.wallet);
+                    document.getElementById('deployBtn').textContent = 'Deploy + Receive 1 SOL';
+                    document.getElementById('deployBtn').disabled = false;
+                } else {
+                    window.open('https://phantom.app/', '_blank');
+                }
+            } catch (e) {
+                console.error('Wallet connect failed:', e);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // MODAL
+        // ═══════════════════════════════════════════════════════════════
+
+        function openModal() {
+            document.getElementById('createModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('createModal').classList.remove('active');
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // EVENT LISTENERS
+        // ═══════════════════════════════════════════════════════════════
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Initial render
+            await fetchTokens();
+            renderStats();
+            renderLeaderboard();
+            renderTokens();
+            renderActivity();
+
+            // Timer
+            updateTimer();
+            setInterval(updateTimer, 1000);
+
+            // Refresh data
+            setInterval(async () => {
+                await fetchTokens();
+                renderStats();
+                renderLeaderboard();
+                renderTokens();
+            }, 30000);
+
+            // Tab switching
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    state.activeTab = tab.dataset.tab;
+                    renderTokens();
+                });
+            });
+
+            // Search
+            document.getElementById('searchInput').addEventListener('input', renderTokens);
+
+            // Wallet
+            document.getElementById('connectBtn').addEventListener('click', connectWallet);
+
+            // Modal
+            document.getElementById('launchBtn').addEventListener('click', openModal);
+            document.getElementById('closeModal').addEventListener('click', closeModal);
+            document.getElementById('createModal').addEventListener('click', (e) => {
+                if (e.target.id === 'createModal') closeModal();
+            });
+
+            // Strategy buttons
+            document.querySelectorAll('.strategy-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.strategy-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                });
+            });
+        });
+    </script>
+</body>
+</html>
