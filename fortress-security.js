@@ -1,5 +1,5 @@
 /**
- * FORTRESS SECURITY - 5-Layer Transaction Security System
+ * MISSION CONTROL - 5-Layer Transaction Security System
  *
  * Layer 1: Merkle Tree Verification - Cryptographic proof of transaction integrity
  * Layer 2: Transaction Signing & Validation - Ed25519 signature verification
@@ -20,7 +20,7 @@ const path = require('path');
 // CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════
 
-const FORTRESS_CONFIG = {
+const MISSION_CONFIG = {
     // Helius RPC Configuration
     HELIUS_API_KEY: process.env.HELIUS_API_KEY || '',
     HELIUS_RPC_URL: process.env.HELIUS_RPC_URL || 'https://mainnet.helius-rpc.com',
@@ -40,8 +40,8 @@ const FORTRESS_CONFIG = {
     MERKLE_BATCH_SIZE: 100,
 
     // Persistence
-    LEDGER_FILE: path.join(__dirname, '.fortress-ledger.json'),
-    MERKLE_FILE: path.join(__dirname, '.fortress-merkle.json'),
+    LEDGER_FILE: path.join(__dirname, '.mission-ledger.json'),
+    MERKLE_FILE: path.join(__dirname, '.mission-merkle.json'),
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -234,12 +234,12 @@ class TransactionValidator {
             return { valid: false, error: 'Invalid amount' };
         }
 
-        if (tx.amount > FORTRESS_CONFIG.MAX_SOL_PER_TRANSACTION) {
-            return { valid: false, error: `Amount exceeds max: ${FORTRESS_CONFIG.MAX_SOL_PER_TRANSACTION} SOL` };
+        if (tx.amount > MISSION_CONFIG.MAX_SOL_PER_TRANSACTION) {
+            return { valid: false, error: `Amount exceeds max: ${MISSION_CONFIG.MAX_SOL_PER_TRANSACTION} SOL` };
         }
 
-        if (tx.amount < FORTRESS_CONFIG.MIN_SOL_PER_TRANSACTION) {
-            return { valid: false, error: `Amount below min: ${FORTRESS_CONFIG.MIN_SOL_PER_TRANSACTION} SOL` };
+        if (tx.amount < MISSION_CONFIG.MIN_SOL_PER_TRANSACTION) {
+            return { valid: false, error: `Amount below min: ${MISSION_CONFIG.MIN_SOL_PER_TRANSACTION} SOL` };
         }
 
         return { valid: true };
@@ -331,29 +331,29 @@ class RateLimiter {
         const lastMinute = txHistory.filter(ts => ts > minuteAgo).length;
         const lastHour = txHistory.length;
 
-        if (lastMinute >= FORTRESS_CONFIG.MAX_TRANSACTIONS_PER_MINUTE) {
+        if (lastMinute >= MISSION_CONFIG.MAX_TRANSACTIONS_PER_MINUTE) {
             return {
                 allowed: false,
                 reason: 'Rate limit exceeded (per minute)',
                 retryAfter: 60,
                 current: lastMinute,
-                limit: FORTRESS_CONFIG.MAX_TRANSACTIONS_PER_MINUTE,
+                limit: MISSION_CONFIG.MAX_TRANSACTIONS_PER_MINUTE,
             };
         }
 
-        if (lastHour >= FORTRESS_CONFIG.MAX_TRANSACTIONS_PER_HOUR) {
+        if (lastHour >= MISSION_CONFIG.MAX_TRANSACTIONS_PER_HOUR) {
             return {
                 allowed: false,
                 reason: 'Rate limit exceeded (per hour)',
                 retryAfter: 3600,
                 current: lastHour,
-                limit: FORTRESS_CONFIG.MAX_TRANSACTIONS_PER_HOUR,
+                limit: MISSION_CONFIG.MAX_TRANSACTIONS_PER_HOUR,
             };
         }
 
         return { allowed: true, remaining: {
-            perMinute: FORTRESS_CONFIG.MAX_TRANSACTIONS_PER_MINUTE - lastMinute,
-            perHour: FORTRESS_CONFIG.MAX_TRANSACTIONS_PER_HOUR - lastHour,
+            perMinute: MISSION_CONFIG.MAX_TRANSACTIONS_PER_MINUTE - lastMinute,
+            perHour: MISSION_CONFIG.MAX_TRANSACTIONS_PER_HOUR - lastHour,
         }};
     }
 
@@ -486,7 +486,7 @@ class WalletAuthority {
         this.riskScores.set(wallet, riskScore);
 
         // Block if risk too high
-        if (riskScore >= FORTRESS_CONFIG.RISK_THRESHOLD_BLOCK) {
+        if (riskScore >= MISSION_CONFIG.RISK_THRESHOLD_BLOCK) {
             return {
                 authorized: false,
                 reason: 'Risk score too high',
@@ -495,7 +495,7 @@ class WalletAuthority {
         }
 
         // Warn if risk is elevated
-        const warn = riskScore >= FORTRESS_CONFIG.RISK_THRESHOLD_WARN;
+        const warn = riskScore >= MISSION_CONFIG.RISK_THRESHOLD_WARN;
 
         return {
             authorized: true,
@@ -531,9 +531,9 @@ class WalletAuthority {
 
 class HeliusLedger {
     constructor(apiKey) {
-        this.apiKey = apiKey || FORTRESS_CONFIG.HELIUS_API_KEY;
-        this.rpcUrl = `${FORTRESS_CONFIG.HELIUS_RPC_URL}/?api-key=${this.apiKey}`;
-        this.wsUrl = `${FORTRESS_CONFIG.HELIUS_WS_URL}/?api-key=${this.apiKey}`;
+        this.apiKey = apiKey || MISSION_CONFIG.HELIUS_API_KEY;
+        this.rpcUrl = `${MISSION_CONFIG.HELIUS_RPC_URL}/?api-key=${this.apiKey}`;
+        this.wsUrl = `${MISSION_CONFIG.HELIUS_WS_URL}/?api-key=${this.apiKey}`;
         this.connection = null;
         this.ledger = [];
         this.subscriptions = new Map();
@@ -709,11 +709,11 @@ class HeliusLedger {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// FORTRESS SECURITY - MAIN CLASS
+// MISSION CONTROL - MAIN CLASS
 // Combines all 5 layers into unified security system
 // ═══════════════════════════════════════════════════════════════════
 
-class FortressSecurity {
+class MissionControl {
     constructor(heliusApiKey) {
         // Initialize all 5 layers
         this.merkle = new MerkleTree();
@@ -745,7 +745,7 @@ class FortressSecurity {
      */
     async init() {
         console.log('\n' + '═'.repeat(50));
-        console.log('FORTRESS SECURITY SYSTEM');
+        console.log('MISSION CONTROL SECURITY SYSTEM');
         console.log('═'.repeat(50));
         console.log('Layer 1: Merkle Tree Verification');
         console.log('Layer 2: Transaction Signing & Validation');
@@ -755,7 +755,7 @@ class FortressSecurity {
         console.log('═'.repeat(50) + '\n');
 
         const heliusConnected = await this.ledger.init();
-        console.log(`[FORTRESS] Helius: ${heliusConnected ? 'Connected' : 'Local mode'}`);
+        console.log(`[MISSION] Helius: ${heliusConnected ? 'Connected' : 'Local mode'}`);
 
         return this;
     }
@@ -906,17 +906,17 @@ class FortressSecurity {
         try {
             // Save Merkle tree
             fs.writeFileSync(
-                FORTRESS_CONFIG.MERKLE_FILE,
+                MISSION_CONFIG.MERKLE_FILE,
                 JSON.stringify(this.merkle.export(), null, 2)
             );
 
             // Save ledger
             fs.writeFileSync(
-                FORTRESS_CONFIG.LEDGER_FILE,
+                MISSION_CONFIG.LEDGER_FILE,
                 JSON.stringify(this.ledger.exportLedger(), null, 2)
             );
         } catch (e) {
-            console.error(`[FORTRESS] Save error: ${e.message}`);
+            console.error(`[MISSION] Save error: ${e.message}`);
         }
     }
 
@@ -926,20 +926,20 @@ class FortressSecurity {
     loadState() {
         try {
             // Load Merkle tree
-            if (fs.existsSync(FORTRESS_CONFIG.MERKLE_FILE)) {
-                const data = JSON.parse(fs.readFileSync(FORTRESS_CONFIG.MERKLE_FILE, 'utf8'));
+            if (fs.existsSync(MISSION_CONFIG.MERKLE_FILE)) {
+                const data = JSON.parse(fs.readFileSync(MISSION_CONFIG.MERKLE_FILE, 'utf8'));
                 this.merkle.import(data);
-                console.log(`[FORTRESS] Loaded ${this.merkle.leaves.length} Merkle leaves`);
+                console.log(`[MISSION] Loaded ${this.merkle.leaves.length} Merkle leaves`);
             }
 
             // Load ledger
-            if (fs.existsSync(FORTRESS_CONFIG.LEDGER_FILE)) {
-                const data = JSON.parse(fs.readFileSync(FORTRESS_CONFIG.LEDGER_FILE, 'utf8'));
+            if (fs.existsSync(MISSION_CONFIG.LEDGER_FILE)) {
+                const data = JSON.parse(fs.readFileSync(MISSION_CONFIG.LEDGER_FILE, 'utf8'));
                 this.ledger.importLedger(data);
-                console.log(`[FORTRESS] Loaded ${this.ledger.ledger.length} ledger entries`);
+                console.log(`[MISSION] Loaded ${this.ledger.ledger.length} ledger entries`);
             }
         } catch (e) {
-            console.error(`[FORTRESS] Load error: ${e.message}`);
+            console.error(`[MISSION] Load error: ${e.message}`);
         }
     }
 
@@ -961,11 +961,11 @@ class FortressSecurity {
 // ═══════════════════════════════════════════════════════════════════
 
 module.exports = {
-    FortressSecurity,
+    MissionControl,
     MerkleTree,
     TransactionValidator,
     RateLimiter,
     WalletAuthority,
     HeliusLedger,
-    FORTRESS_CONFIG,
+    MISSION_CONFIG,
 };
