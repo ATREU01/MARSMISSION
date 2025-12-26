@@ -19,7 +19,7 @@
 const { Connection, Keypair, PublicKey, Transaction, VersionedTransaction, SystemProgram, LAMPORTS_PER_SOL } = require('@solana/web3.js');
 const { TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, createInitializeMintInstruction, createMintToInstruction, MINT_SIZE, getMinimumBalanceForRentExemptMint } = require('@solana/spl-token');
 const { LaunchrEngine } = require('./launchr-engine');
-const { FortressSecurity } = require('./fortress-security');
+const { MissionControl } = require('./fortress-security');
 const { HeliusService } = require('./helius-service');
 const axios = require('axios');
 const bs58 = require('bs58');
@@ -639,7 +639,7 @@ class LaunchrLaunchpad {
         this.connection = connection;
         this.wallet = wallet;
         this.helius = options.helius || new HeliusService(options.heliusApiKey);
-        this.security = options.security || new FortressSecurity(options.heliusApiKey);
+        this.security = options.security || new MissionControl(options.heliusApiKey);
 
         // Initialize launchers
         this.raydium = new RaydiumLauncher(connection, wallet, this.helius);
