@@ -1,0 +1,3081 @@
+const http = require('http');
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey } = require('@solana/web3.js');
+const { LaunchrEngine } = require('./launchr-engine');
+const bs58 = require('bs58');
+const tracker = require('./tracker');
+const { LaunchrBot } = require('./telegram-bot');
+
+// Cache landing page HTML
+let landingPageCache = null;
+function getLandingHTML() {
+    if (!landingPageCache) {
+        try {
+            landingPageCache = fs.readFileSync(path.join(__dirname, 'website', 'index.html'), 'utf8');
+        } catch (e) {
+            // Fallback redirect to /app if landing page not found
+            return '<html><head><meta http-equiv="refresh" content="0;url=/app"></head></html>';
+        }
+    }
+    return landingPageCache;
+}
+
+// Terms & Conditions Page
+function getTermsHTML() {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terms & Conditions - LAUNCHR</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #e5e5e5;
+            line-height: 1.8;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #111;
+            border: 1px solid #222;
+            border-radius: 16px;
+            padding: 40px;
+        }
+        h1 { color: #10b981; font-size: 28px; margin-bottom: 8px; }
+        h2 { color: #fff; font-size: 20px; margin: 32px 0 16px 0; border-bottom: 1px solid #333; padding-bottom: 8px; }
+        p { margin-bottom: 16px; color: #aaa; }
+        ul { margin: 16px 0 16px 24px; }
+        li { margin-bottom: 8px; color: #aaa; }
+        .warning { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; padding: 16px; margin: 24px 0; }
+        .warning strong { color: #ef4444; }
+        .back-link { display: inline-block; margin-top: 32px; color: #10b981; text-decoration: none; }
+        .back-link:hover { text-decoration: underline; }
+        .updated { font-size: 12px; color: #666; margin-top: 8px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Terms & Conditions</h1>
+        <p class="updated">Last Updated: December 2024</p>
+
+        <div class="warning">
+            <strong>IMPORTANT NOTICE:</strong> LAUNCHR is a meme coin and entertainment platform created for educational and recreational purposes only.
+            By accessing or using this platform, you agree to be bound by these terms.
+        </div>
+
+        <h2>1. Nature of the Platform</h2>
+        <p>LAUNCHR is a cryptocurrency token and associated software tools operating on the Solana blockchain. This project is:</p>
+        <ul>
+            <li>Created purely for <strong>entertainment and educational purposes</strong></li>
+            <li>A "meme coin" with <strong>no intrinsic value</strong></li>
+            <li>NOT an investment vehicle or security</li>
+            <li>NOT intended to generate financial returns for holders</li>
+        </ul>
+
+        <h2>2. No Financial Advice</h2>
+        <p>Nothing on this platform constitutes financial, investment, legal, or tax advice. The creators and operators of LAUNCHR:</p>
+        <ul>
+            <li>Are NOT licensed financial advisors</li>
+            <li>Make NO representations about future value or returns</li>
+            <li>Do NOT recommend purchasing, selling, or holding any cryptocurrency</li>
+            <li>Strongly advise you to consult qualified professionals before any financial decisions</li>
+        </ul>
+
+        <h2>3. Risk Acknowledgment</h2>
+        <p>By using this platform, you acknowledge and accept that:</p>
+        <ul>
+            <li>Cryptocurrency investments are <strong>extremely high risk</strong></li>
+            <li>You may lose <strong>100% of any funds</strong> used to purchase tokens</li>
+            <li>Meme coins are particularly volatile and speculative</li>
+            <li>Smart contracts may contain bugs or vulnerabilities</li>
+            <li>Blockchain transactions are irreversible</li>
+            <li>Regulatory changes may affect cryptocurrency at any time</li>
+        </ul>
+
+        <h2>4. No Expectation of Profit</h2>
+        <p>LAUNCHR tokens are distributed and traded with <strong>NO expectation of profit</strong> derived from the efforts of others. Any value fluctuation is due solely to market dynamics and community interest, not the promise or efforts of the development team.</p>
+
+        <h2>5. Educational Purpose</h2>
+        <p>This platform demonstrates concepts including:</p>
+        <ul>
+            <li>Automated fee distribution mechanisms</li>
+            <li>Token buyback and burn mechanics</li>
+            <li>Market making algorithms</li>
+            <li>Liquidity provision strategies</li>
+        </ul>
+        <p>These features are provided for educational exploration of DeFi concepts.</p>
+
+        <h2>6. No Warranty</h2>
+        <p>This software and platform are provided "AS IS" without warranty of any kind, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, and non-infringement.</p>
+
+        <h2>7. Limitation of Liability</h2>
+        <p>In no event shall the creators, developers, or operators of LAUNCHR be liable for any direct, indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of profits, data, or other intangible losses resulting from:</p>
+        <ul>
+            <li>Use or inability to use the platform</li>
+            <li>Any transactions made through the platform</li>
+            <li>Unauthorized access to your wallet or data</li>
+            <li>Bugs, viruses, or errors in the software</li>
+            <li>Any third-party actions or content</li>
+        </ul>
+
+        <h2>8. User Responsibilities</h2>
+        <p>You are solely responsible for:</p>
+        <ul>
+            <li>Securing your private keys and wallet</li>
+            <li>Understanding the risks of cryptocurrency</li>
+            <li>Complying with your local laws and regulations</li>
+            <li>Any tax obligations arising from your activities</li>
+            <li>Your own financial decisions</li>
+        </ul>
+
+        <h2>9. Regulatory Compliance</h2>
+        <p>LAUNCHR does not target or solicit users in jurisdictions where cryptocurrency activities are prohibited. Users are responsible for ensuring their participation complies with their local laws.</p>
+
+        <h2>10. Modifications</h2>
+        <p>We reserve the right to modify these terms at any time. Continued use of the platform after changes constitutes acceptance of the modified terms.</p>
+
+        <h2>11. Governing Law</h2>
+        <p>These terms shall be governed by and construed in accordance with applicable laws, without regard to conflict of law principles.</p>
+
+        <div class="warning">
+            <strong>REMEMBER:</strong> This is a meme coin for fun and education. Never invest more than you can afford to lose completely.
+            Do Your Own Research (DYOR). Have fun, but be responsible!
+        </div>
+
+        <a href="/" class="back-link">&larr; Back to LAUNCHR</a>
+    </div>
+</body>
+</html>`;
+}
+
+// Product Roadmap Page - Premium Big 5 Style
+function getRoadmapHTML() {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Roadmap - LAUNCHR</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --accent: #10b981;
+            --accent-glow: rgba(16, 185, 129, 0.15);
+            --bg-dark: #0a0a0a;
+            --bg-card: #0f0f0f;
+            --border: rgba(255,255,255,0.06);
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255,255,255,0.7);
+            --text-muted: rgba(255,255,255,0.4);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 60px 24px;
+            position: relative;
+            background:
+                radial-gradient(ellipse 80% 50% at 50% -20%, rgba(16, 185, 129, 0.08), transparent),
+                radial-gradient(ellipse 60% 40% at 80% 60%, rgba(16, 185, 129, 0.03), transparent),
+                var(--bg-dark);
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            opacity: 0.3;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--accent-glow);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 100px;
+            padding: 8px 20px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 40px;
+        }
+
+        .badge::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .hero h1 {
+            font-size: clamp(48px, 8vw, 96px);
+            font-weight: 800;
+            letter-spacing: -3px;
+            line-height: 1;
+            margin-bottom: 32px;
+            background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero h1 span {
+            background: linear-gradient(135deg, var(--accent) 0%, #34d399 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+        }
+
+        .hero-subtitle {
+            font-size: clamp(18px, 2.5vw, 24px);
+            font-weight: 300;
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin-bottom: 60px;
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: flex;
+            gap: 60px;
+            padding: 40px 0;
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            margin-top: 40px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 42px;
+            font-weight: 700;
+            color: var(--accent);
+            letter-spacing: -1px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-muted);
+            margin-top: 8px;
+        }
+
+        /* Purpose Section */
+        .purpose {
+            padding: 120px 24px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .purpose-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: var(--accent);
+            margin-bottom: 24px;
+        }
+
+        .purpose h2 {
+            font-size: clamp(28px, 4vw, 44px);
+            font-weight: 600;
+            line-height: 1.3;
+            margin-bottom: 32px;
+            letter-spacing: -1px;
+        }
+
+        .purpose p {
+            font-size: 18px;
+            color: var(--text-secondary);
+            font-weight: 300;
+        }
+
+        /* Phases Section */
+        .phases {
+            padding: 80px 24px 120px;
+            background: linear-gradient(180deg, transparent 0%, rgba(16, 185, 129, 0.02) 100%);
+        }
+
+        .phases-header {
+            text-align: center;
+            max-width: 600px;
+            margin: 0 auto 80px;
+        }
+
+        .phases-header h2 {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        .phases-header h3 {
+            font-size: clamp(32px, 5vw, 48px);
+            font-weight: 700;
+            letter-spacing: -1.5px;
+        }
+
+        .phases-grid {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            gap: 24px;
+        }
+
+        .phase-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 48px;
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 48px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .phase-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+
+        .phase-card:hover {
+            border-color: rgba(16, 185, 129, 0.2);
+            transform: translateY(-4px);
+            box-shadow: 0 24px 48px rgba(0,0,0,0.4);
+        }
+
+        .phase-card:hover::before {
+            opacity: 0.5;
+        }
+
+        .phase-number {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .phase-num {
+            width: 72px;
+            height: 72px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, var(--accent-glow), transparent);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .phase-line {
+            width: 2px;
+            flex: 1;
+            background: linear-gradient(180deg, var(--accent), transparent);
+            opacity: 0.3;
+        }
+
+        .phase-content h4 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            letter-spacing: -0.5px;
+        }
+
+        .phase-content > p {
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+            font-weight: 300;
+        }
+
+        .deliverables {
+            display: grid;
+            gap: 12px;
+        }
+
+        .deliverable {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            padding: 16px 20px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 12px;
+            border: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .deliverable:hover {
+            background: rgba(16, 185, 129, 0.05);
+            border-color: rgba(16, 185, 129, 0.1);
+        }
+
+        .deliverable-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            background: var(--accent-glow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .deliverable-icon svg {
+            width: 14px;
+            height: 14px;
+            stroke: var(--accent);
+        }
+
+        .deliverable span {
+            font-size: 15px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Footer */
+        .roadmap-footer {
+            padding: 80px 24px;
+            text-align: center;
+            border-top: 1px solid var(--border);
+        }
+
+        .footer-cta {
+            font-size: clamp(24px, 4vw, 36px);
+            font-weight: 600;
+            margin-bottom: 40px;
+            letter-spacing: -1px;
+        }
+
+        .footer-cta span {
+            color: var(--accent);
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 32px;
+            background: var(--accent);
+            color: #000;
+            font-weight: 600;
+            font-size: 15px;
+            border-radius: 12px;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(16, 185, 129, 0.3);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .stats-bar {
+                flex-direction: column;
+                gap: 32px;
+            }
+
+            .phase-card {
+                grid-template-columns: 1fr;
+                gap: 24px;
+                padding: 32px;
+            }
+
+            .phase-number {
+                flex-direction: row;
+            }
+
+            .phase-line {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <section class="hero">
+        <div class="badge">Product Roadmap 2025</div>
+        <h1>Building the Future<br>of <span>Token Launches</span></h1>
+        <p class="hero-subtitle">
+            Neutral, programmable infrastructure that adapts liquidity strategy
+            across every stage of a token's lifecycle.
+        </p>
+
+        <div class="stats-bar">
+            <div class="stat">
+                <div class="stat-value">$1.5M+</div>
+                <div class="stat-label">Trading Volume</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">6</div>
+                <div class="stat-label">Phases Planned</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">∞</div>
+                <div class="stat-label">Possibilities</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="purpose">
+        <div class="purpose-label">Our Vision</div>
+        <h2>We're not forcing a single launch path. We're giving creators the tools to adapt.</h2>
+        <p>
+            This roadmap outlines how Launchr will support all major launchpads alongside our own
+            native launchpad, with continuous upgrades to our Telegram tooling and programmable
+            fee infrastructure.
+        </p>
+    </section>
+
+    <section class="phases">
+        <div class="phases-header">
+            <h2>The Journey</h2>
+            <h3>Six Phases to Transform Token Launches</h3>
+        </div>
+
+        <div class="phases-grid">
+            <!-- Phase 1 -->
+            <div class="phase-card">
+                <div class="phase-number">
+                    <div class="phase-num">01</div>
+                    <div class="phase-line"></div>
+                </div>
+                <div class="phase-content">
+                    <h4>Foundation & Core Engine</h4>
+                    <p>Launch the core programmable creator fee engine that powers everything.</p>
+                    <div class="deliverables">
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
+                            <span>Deploy adjustable creator fee routing in real time</span>
+                        </div>
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
+                            <span>Enable dynamic allocation across LP, buybacks, burns, market making, and creator revenue</span>
+                        </div>
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
+                            <span>Allow instant reweighting, pausing, and restarting of strategies</span>
+                        </div>
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
+                            <span>Release creator dashboards for live fee management</span>
+                        </div>
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
+                            <span>Harden contracts for security, transparency, and future upgrades</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 2 -->
+            <div class="phase-card">
+                <div class="phase-number">
+                    <div class="phase-num">02</div>
+                    <div class="phase-line"></div>
+                </div>
+                <div class="phase-content">
+                    <h4>Multi-Launchpad Support</h4>
+                    <p>Position Launchr as neutral infrastructure usable across the entire ecosystem.</p>
+                    <div class="deliverables">
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg></div>
+                            <span>Integrate Launchr with all major existing launchpads</span>
+                        </div>
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg></div>
+                            <span>Allow creators to use Launchr mechanics regardless of launch venue</span>
+                        </div>
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg></div>
+                            <span>Standardize fee routing behavior across platforms</span>
+                        </div>
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg></div>
+                            <span>Ensure creators are never locked into a single distribution path</span>
+                        </div>
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg></div>
+                            <span>Establish Launchr as the programmable layer beneath launches, not a gatekeeper</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 3 -->
+            <div class="phase-card">
+                <div class="phase-number">
+                    <div class="phase-num">03</div>
+                    <div class="phase-line"></div>
+                </div>
+                <div class="phase-content">
+                    <h4>Launchr Native Launchpad</h4>
+                    <p>Release the custom-built Launchr launchpad with native integration.</p>
+                    <div class="deliverables">
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+                            <span>Native integration with the Launchr fee engine</span>
+                        </div>
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+                            <span>Advanced defaults designed for early-stage liquidity survival</span>
+                        </div>
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+                            <span>Strategy presets based on market cap and liquidity depth</span>
+                        </div>
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+                            <span>Optional guardrails for new launches without removing creator control</span>
+                        </div>
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+                            <span>Full compatibility with external Launchr-enabled launchpads</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 4 -->
+            <div class="phase-card">
+                <div class="phase-number">
+                    <div class="phase-num">04</div>
+                    <div class="phase-line"></div>
+                </div>
+                <div class="phase-content">
+                    <h4>Telegram Bot Expansion</h4>
+                    <p>Continuously evolve Launchr's Telegram bot as a primary control surface.</p>
+                    <div class="deliverables">
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+                            <span>Launch and manage tokens directly from Telegram</span>
+                        </div>
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+                            <span>Modify fee strategies in real time via bot commands</span>
+                        </div>
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+                            <span>View liquidity depth, volume, and routing status</span>
+                        </div>
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+                            <span>Push alerts for strategy-relevant market changes</span>
+                        </div>
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+                            <span>Granular permissions for creators, teams, and communities</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 5 -->
+            <div class="phase-card">
+                <div class="phase-number">
+                    <div class="phase-num">05</div>
+                    <div class="phase-line"></div>
+                </div>
+                <div class="phase-content">
+                    <h4>Automation & Strategy Layers</h4>
+                    <p>Introduce optional automation without removing manual control.</p>
+                    <div class="deliverables">
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg></div>
+                            <span>Threshold-based strategy switching using market cap, volume, and LP depth</span>
+                        </div>
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg></div>
+                            <span>Automated transitions between LP focus, buy pressure, and market making</span>
+                        </div>
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg></div>
+                            <span>Pre-built strategy templates for different token archetypes</span>
+                        </div>
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg></div>
+                            <span>Manual override always available to creators</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 6 -->
+            <div class="phase-card">
+                <div class="phase-number">
+                    <div class="phase-num">06</div>
+                    <div class="phase-line"></div>
+                </div>
+                <div class="phase-content">
+                    <h4>Ecosystem & Scale</h4>
+                    <p>Focus on durability, integrations, and long-term trust.</p>
+                    <div class="deliverables">
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+                            <span>Public APIs for analytics and third-party tooling</span>
+                        </div>
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+                            <span>Selective expansion to additional chains where launchpad activity is meaningful</span>
+                        </div>
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+                            <span>Long-term emphasis on reliability, uptime, and capital efficiency</span>
+                        </div>
+                        <div class="deliverable">
+                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+                            <span>Ship, iterate, and stay</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="roadmap-footer">
+        <p class="footer-cta">Ready to <span>launch</span>?</p>
+        <a href="/" class="back-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            Back to Dashboard
+        </a>
+    </footer>
+</body>
+</html>`;
+}
+
+// Security constants
+const MAX_BODY_SIZE = 10 * 1024; // 10KB max request body
+const SESSION_TOKEN_BYTES = 32;
+const WEB_SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours for web sessions
+
+// Rate limiting configuration
+const RATE_LIMIT = {
+    general: { max: 100, windowMs: 60 * 1000 },     // 100 req/min general
+    sensitive: { max: 10, windowMs: 60 * 1000 },    // 10 req/min for sensitive ops
+};
+const requestCounts = new Map(); // IP -> { count, resetTime }
+const failedAttempts = new Map(); // IP -> { count, lockoutUntil }
+const FAIL2BAN_THRESHOLD = 5;
+const FAIL2BAN_LOCKOUT_MS = 15 * 60 * 1000; // 15 min lockout
+
+let engine = null;
+let connection = null;
+let wallet = null;
+let logs = [];
+let autoClaimInterval = null;
+let priceUpdateInterval = null; // Updates price every 10s for RSI
+let sessionToken = null; // Auth token for this session
+let sessionCreatedAt = null; // When session was created
+
+// Auto-fund configuration
+let autoFundConfig = {
+    enabled: false,
+    sourceWallet: null,
+    encryptedSourceKey: null,
+    minBalance: 0.05 * LAMPORTS_PER_SOL,  // 0.05 SOL minimum
+    fundAmount: 0.1 * LAMPORTS_PER_SOL,    // 0.1 SOL per refill
+    lastFunded: 0
+};
+
+// Rate limiting function
+function checkRateLimit(ip, type = 'general') {
+    const now = Date.now();
+    const limit = RATE_LIMIT[type] || RATE_LIMIT.general;
+    const key = `${ip}:${type}`;
+
+    // Check fail2ban lockout first
+    const failed = failedAttempts.get(ip);
+    if (failed && failed.lockoutUntil > now) {
+        return { allowed: false, reason: 'IP temporarily blocked' };
+    }
+
+    // Check rate limit
+    let record = requestCounts.get(key);
+    if (!record || now > record.resetTime) {
+        record = { count: 0, resetTime: now + limit.windowMs };
+        requestCounts.set(key, record);
+    }
+
+    record.count++;
+    if (record.count > limit.max) {
+        return { allowed: false, reason: 'Rate limit exceeded' };
+    }
+
+    return { allowed: true };
+}
+
+// Record failed auth attempt (fail2ban style)
+function recordFailedAuth(ip) {
+    const now = Date.now();
+    let record = failedAttempts.get(ip) || { count: 0, lockoutUntil: 0 };
+
+    // Reset if lockout expired
+    if (record.lockoutUntil < now) {
+        record.count = 0;
+    }
+
+    record.count++;
+    if (record.count >= FAIL2BAN_THRESHOLD) {
+        record.lockoutUntil = now + FAIL2BAN_LOCKOUT_MS;
+        log(`SECURITY: IP ${ip.slice(0, 10)}... locked out for 15 minutes`);
+    }
+
+    failedAttempts.set(ip, record);
+}
+
+// Check if web session is still valid
+function isSessionValid() {
+    if (!sessionToken || !sessionCreatedAt) return false;
+    if (Date.now() - sessionCreatedAt > WEB_SESSION_TTL_MS) {
+        log('Session expired after 24 hours');
+        sessionToken = null;
+        sessionCreatedAt = null;
+        engine = null;
+        wallet = null;
+        return false;
+    }
+    return true;
+}
+
+// Encrypt source key for auto-fund (using crypto)
+function encryptKey(key) {
+    const encKey = crypto.randomBytes(32);
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-gcm', encKey, iv);
+    let encrypted = cipher.update(key, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    return { encrypted, iv: iv.toString('hex'), authTag: cipher.getAuthTag().toString('hex'), encKey: encKey.toString('hex') };
+}
+
+function decryptKey(data) {
+    const decipher = crypto.createDecipheriv('aes-256-gcm', Buffer.from(data.encKey, 'hex'), Buffer.from(data.iv, 'hex'));
+    decipher.setAuthTag(Buffer.from(data.authTag, 'hex'));
+    let decrypted = decipher.update(data.encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+}
+
+// HTML escape to prevent XSS
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+// Safe body parser with size limit
+function parseBody(req, maxSize = MAX_BODY_SIZE) {
+    return new Promise((resolve, reject) => {
+        let body = '';
+        let size = 0;
+
+        req.on('data', chunk => {
+            size += chunk.length;
+            if (size > maxSize) {
+                req.destroy();
+                reject(new Error('Request body too large'));
+                return;
+            }
+            body += chunk;
+        });
+
+        req.on('end', () => {
+            try {
+                resolve(JSON.parse(body));
+            } catch (e) {
+                reject(new Error('Invalid JSON'));
+            }
+        });
+
+        req.on('error', reject);
+    });
+}
+
+// Validate Solana public key format
+function isValidPublicKey(str) {
+    try {
+        new PublicKey(str);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+// Check auth token and session validity
+function isAuthorized(req) {
+    if (!isSessionValid()) return false;
+    const authHeader = req.headers['authorization'];
+    return authHeader === `Bearer ${sessionToken}`;
+}
+
+function log(msg) {
+    const timestamp = new Date().toLocaleTimeString();
+    // Sanitize log message to prevent log injection
+    const sanitized = String(msg).replace(/[\r\n]/g, ' ');
+    const entry = `[${timestamp}] ${sanitized}`;
+    logs.push(entry);
+    if (logs.length > 100) logs.shift();
+    console.log(entry);
+}
+
+const server = http.createServer(async (req, res) => {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+
+    // Get origin for CORS - only allow same-origin or configured origins
+    const origin = req.headers.origin;
+    const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
+
+    // CORS headers - restrict to same origin by default
+    if (origin && (allowedOrigins.includes(origin) || allowedOrigins.includes('*'))) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+    }
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+    if (req.method === 'OPTIONS') {
+        res.writeHead(200);
+        res.end();
+        return;
+    }
+
+    // Serve Landing Page
+    if (url.pathname === '/' && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(getLandingHTML());
+        return;
+    }
+
+    // Serve Terms & Conditions
+    if (url.pathname === '/terms' && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(getTermsHTML());
+        return;
+    }
+
+    // Serve Product Roadmap
+    if (url.pathname === '/roadmap' && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(getRoadmapHTML());
+        return;
+    }
+
+    // Serve static files from website folder
+    if (url.pathname.startsWith('/website/') && req.method === 'GET') {
+        const filePath = path.join(__dirname, url.pathname);
+        const ext = path.extname(filePath).toLowerCase();
+        const mimeTypes = {
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.png': 'image/png',
+            '.svg': 'image/svg+xml',
+            '.ico': 'image/x-icon',
+            '.css': 'text/css',
+            '.js': 'application/javascript'
+        };
+        const contentType = mimeTypes[ext] || 'application/octet-stream';
+
+        try {
+            const data = fs.readFileSync(filePath);
+            res.writeHead(200, { 'Content-Type': contentType, 'Cache-Control': 'public, max-age=86400' });
+            res.end(data);
+            return;
+        } catch (e) {
+            res.writeHead(404);
+            res.end('Not found');
+            return;
+        }
+    }
+
+    // Serve Dashboard App
+    if (url.pathname === '/app' && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(getHTML());
+        return;
+    }
+
+    // API: Configure
+    if (url.pathname === '/api/configure' && req.method === 'POST') {
+        try {
+            const data = await parseBody(req);
+
+            // Validate required fields
+            if (!data.privateKey || typeof data.privateKey !== 'string') {
+                throw new Error('Private key is required');
+            }
+            if (!data.tokenMint || typeof data.tokenMint !== 'string') {
+                throw new Error('Token mint is required');
+            }
+
+            // Validate token mint format
+            if (!isValidPublicKey(data.tokenMint)) {
+                throw new Error('Invalid token mint address');
+            }
+
+            // Validate private key format (base58)
+            let decodedKey;
+            try {
+                decodedKey = bs58.decode(data.privateKey);
+                if (decodedKey.length !== 64) {
+                    throw new Error('Invalid key length');
+                }
+            } catch {
+                throw new Error('Invalid private key format');
+            }
+
+            // Use RPC URL with robust fallback (empty string check)
+            const rpcUrl = process.env.RPC_URL && process.env.RPC_URL.startsWith('http')
+                ? process.env.RPC_URL
+                : 'https://api.mainnet-beta.solana.com';
+            connection = new Connection(rpcUrl, 'confirmed');
+            wallet = Keypair.fromSecretKey(decodedKey);
+            engine = new LaunchrEngine(connection, data.tokenMint, wallet);
+
+            // Generate session token for subsequent requests
+            sessionToken = crypto.randomBytes(SESSION_TOKEN_BYTES).toString('hex');
+            sessionCreatedAt = Date.now();
+
+            // Track this token in the registry
+            tracker.registerToken(data.tokenMint, wallet.publicKey.toBase58());
+
+            log('Connected: ' + wallet.publicKey.toBase58().slice(0, 8) + '...');
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                wallet: wallet.publicKey.toBase58(),
+                token: sessionToken  // Client stores this for auth
+            }));
+        } catch (e) {
+            log('Config error: ' + e.message);
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Get Status
+    if (url.pathname === '/api/status' && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        if (!engine) {
+            res.end(JSON.stringify({ configured: false }));
+            return;
+        }
+        try {
+            const balance = await connection.getBalance(wallet.publicKey);
+            const status = engine.getStatus();
+            res.end(JSON.stringify({
+                configured: true,
+                wallet: wallet.publicKey.toBase58(),
+                balance: balance / LAMPORTS_PER_SOL,
+                ...status,
+                autoClaimActive: autoClaimInterval !== null,
+            }));
+        } catch (e) {
+            res.end(JSON.stringify({ configured: true, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Update Allocations (requires auth)
+    if (url.pathname === '/api/allocations' && req.method === 'POST') {
+        if (!isAuthorized(req)) {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Unauthorized' }));
+            return;
+        }
+        if (!engine) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Not configured' }));
+            return;
+        }
+        try {
+            const data = await parseBody(req);
+
+            // Validate allocation values
+            const validKeys = ['marketMaking', 'buybackBurn', 'liquidity', 'creatorRevenue'];
+            for (const key of validKeys) {
+                if (typeof data[key] !== 'number' || data[key] < 0 || data[key] > 100) {
+                    throw new Error(`Invalid allocation for ${key}: must be 0-100`);
+                }
+            }
+
+            // Validate total is exactly 100%
+            const total = validKeys.reduce((sum, key) => sum + (data[key] || 0), 0);
+            if (Math.abs(total - 100) > 0.01) {
+                throw new Error(`Allocations must sum to 100% (currently ${total}%)`);
+            }
+
+            engine.setAllocations(data);
+            log('Allocations updated: ' + JSON.stringify(data));
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, allocations: engine.getAllocations() }));
+        } catch (e) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Toggle Feature (requires auth)
+    if (url.pathname === '/api/feature' && req.method === 'POST') {
+        if (!isAuthorized(req)) {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Unauthorized' }));
+            return;
+        }
+        if (!engine) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Not configured' }));
+            return;
+        }
+        try {
+            const data = await parseBody(req);
+
+            // Validate feature name
+            const validFeatures = ['marketMaking', 'buybackBurn', 'liquidity', 'creatorRevenue'];
+            if (!validFeatures.includes(data.feature)) {
+                throw new Error('Invalid feature name');
+            }
+            if (typeof data.enabled !== 'boolean') {
+                throw new Error('enabled must be a boolean');
+            }
+
+            engine.setFeatureEnabled(data.feature, data.enabled);
+            log(`Feature ${data.feature}: ${data.enabled ? 'enabled' : 'disabled'}`);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true }));
+        } catch (e) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Claim and Distribute (requires auth)
+    if (url.pathname === '/api/claim' && req.method === 'POST') {
+        if (!isAuthorized(req)) {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Unauthorized' }));
+            return;
+        }
+        if (!engine) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Not configured' }));
+            return;
+        }
+        try {
+            log('Starting claim + distribute...');
+            await engine.updatePrice();
+            const result = await engine.claimAndDistribute();
+            if (result.claimed > 0) {
+                log('Claimed: ' + (result.claimed / LAMPORTS_PER_SOL).toFixed(4) + ' SOL');
+                log('Distributed: ' + (result.distributed / LAMPORTS_PER_SOL).toFixed(4) + ' SOL');
+            } else {
+                log('No fees to claim');
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(result));
+        } catch (e) {
+            log('Error: ' + e.message);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Distribute from wallet balance (requires auth)
+    if (url.pathname === '/api/distribute' && req.method === 'POST') {
+        if (!isAuthorized(req)) {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Unauthorized' }));
+            return;
+        }
+        if (!engine) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Not configured' }));
+            return;
+        }
+        try {
+            const data = await parseBody(req);
+            const amount = data.amount ? parseFloat(data.amount) : 0;
+
+            if (amount <= 0) {
+                throw new Error('Invalid amount');
+            }
+
+            const lamports = Math.floor(amount * LAMPORTS_PER_SOL);
+            log(`Distributing ${amount} SOL from wallet...`);
+
+            const result = await engine.distributeFees(lamports);
+
+            if (result.distributed > 0) {
+                log('Distributed: ' + (result.distributed / LAMPORTS_PER_SOL).toFixed(4) + ' SOL');
+            }
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(result));
+        } catch (e) {
+            log('Distribute error: ' + e.message);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Start Auto (requires auth)
+    if (url.pathname === '/api/auto/start' && req.method === 'POST') {
+        if (!isAuthorized(req)) {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Unauthorized' }));
+            return;
+        }
+        if (!engine) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Not configured' }));
+            return;
+        }
+        if (autoClaimInterval) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Already running' }));
+            return;
+        }
+
+        const intervalMs = 1 * 60 * 1000;
+        log('Auto-claim started (every 1 min)');
+
+        const runClaim = async () => {
+            try {
+                // Check balance and auto-fund if needed
+                if (autoFundConfig.enabled && autoFundConfig.encryptedSourceKey) {
+                    const balance = await connection.getBalance(wallet.publicKey);
+                    if (balance < autoFundConfig.minBalance) {
+                        try {
+                            const sourceKey = decryptKey(autoFundConfig.encryptedSourceKey);
+                            const sourceKeypair = Keypair.fromSecretKey(bs58.decode(sourceKey));
+                            const { SystemProgram, Transaction } = require('@solana/web3.js');
+                            const tx = new Transaction().add(
+                                SystemProgram.transfer({
+                                    fromPubkey: sourceKeypair.publicKey,
+                                    toPubkey: wallet.publicKey,
+                                    lamports: autoFundConfig.fundAmount,
+                                })
+                            );
+                            const sig = await connection.sendTransaction(tx, [sourceKeypair]);
+                            // Don't block - just wait briefly
+                            await new Promise(r => setTimeout(r, 2000));
+                            autoFundConfig.lastFunded = Date.now();
+                            log('Auto-fund: Added ' + (autoFundConfig.fundAmount / LAMPORTS_PER_SOL).toFixed(4) + ' SOL');
+                        } catch (fundErr) {
+                            log('Auto-fund error: ' + fundErr.message);
+                        }
+                    }
+                }
+
+                await engine.updatePrice();
+                const result = await engine.claimAndDistribute();
+                if (result.claimed > 0) {
+                    log('Auto: Claimed ' + (result.claimed / LAMPORTS_PER_SOL).toFixed(4) + ' SOL');
+                }
+            } catch (e) {
+                log('Auto error: ' + e.message);
+            }
+        };
+
+        runClaim();
+        autoClaimInterval = setInterval(runClaim, intervalMs);
+
+        // Start price updates every 10s to build RSI data
+        if (!priceUpdateInterval) {
+            priceUpdateInterval = setInterval(async () => {
+                if (engine) {
+                    await engine.updatePrice();
+                }
+            }, 10000);
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true }));
+        return;
+    }
+
+    // API: Stop Auto (requires auth)
+    if (url.pathname === '/api/auto/stop' && req.method === 'POST') {
+        if (!isAuthorized(req)) {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Unauthorized' }));
+            return;
+        }
+        if (autoClaimInterval) {
+            clearInterval(autoClaimInterval);
+            autoClaimInterval = null;
+        }
+        if (priceUpdateInterval) {
+            clearInterval(priceUpdateInterval);
+            priceUpdateInterval = null;
+        }
+        log('Auto-claim stopped');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true }));
+        return;
+    }
+
+    // API: Configure Auto-Fund (requires auth)
+    if (url.pathname === '/api/autofund/configure' && req.method === 'POST') {
+        if (!isAuthorized(req)) {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Unauthorized' }));
+            return;
+        }
+        try {
+            const data = await parseBody(req);
+
+            if (data.enabled === false) {
+                // Disable auto-fund and wipe the source key
+                autoFundConfig.enabled = false;
+                autoFundConfig.encryptedSourceKey = null;
+                autoFundConfig.sourceWallet = null;
+                log('Auto-fund disabled');
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true, enabled: false }));
+                return;
+            }
+
+            // Enable auto-fund with source wallet
+            if (!data.sourceKey || typeof data.sourceKey !== 'string') {
+                throw new Error('Source wallet private key required');
+            }
+
+            // Validate source key format
+            let sourceKeypair;
+            try {
+                sourceKeypair = Keypair.fromSecretKey(bs58.decode(data.sourceKey));
+            } catch {
+                throw new Error('Invalid source wallet private key format');
+            }
+
+            // Encrypt and store source key
+            autoFundConfig.enabled = true;
+            autoFundConfig.encryptedSourceKey = encryptKey(data.sourceKey);
+            autoFundConfig.sourceWallet = sourceKeypair.publicKey.toBase58();
+
+            // Optional: set min balance and fund amount
+            if (data.minBalance !== undefined) {
+                autoFundConfig.minBalance = Math.floor(data.minBalance * LAMPORTS_PER_SOL);
+            }
+            if (data.fundAmount !== undefined) {
+                autoFundConfig.fundAmount = Math.floor(data.fundAmount * LAMPORTS_PER_SOL);
+            }
+
+            log('Auto-fund enabled from wallet ' + autoFundConfig.sourceWallet.slice(0, 8) + '...');
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                enabled: true,
+                sourceWallet: autoFundConfig.sourceWallet,
+                minBalance: autoFundConfig.minBalance / LAMPORTS_PER_SOL,
+                fundAmount: autoFundConfig.fundAmount / LAMPORTS_PER_SOL
+            }));
+        } catch (e) {
+            log('Auto-fund config error: ' + e.message);
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Manual Fund Wallet (requires wallet to be configured)
+    if (url.pathname === '/api/fund' && req.method === 'POST') {
+        // Security comes from requiring source private key, not session token
+        if (!wallet) {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Connect wallet first' }));
+            return;
+        }
+        try {
+            const data = await parseBody(req);
+
+            if (!data.sourceKey || typeof data.sourceKey !== 'string') {
+                throw new Error('Source wallet private key required');
+            }
+            if (!data.amount || data.amount <= 0) {
+                throw new Error('Invalid amount');
+            }
+
+            // Validate and decode source key
+            let sourceKeypair;
+            try {
+                sourceKeypair = Keypair.fromSecretKey(bs58.decode(data.sourceKey));
+            } catch {
+                throw new Error('Invalid source wallet key');
+            }
+
+            // Send the transaction
+            const { SystemProgram, Transaction } = require('@solana/web3.js');
+            const lamports = Math.floor(data.amount * LAMPORTS_PER_SOL);
+
+            const tx = new Transaction().add(
+                SystemProgram.transfer({
+                    fromPubkey: sourceKeypair.publicKey,
+                    toPubkey: wallet.publicKey,
+                    lamports: lamports,
+                })
+            );
+
+            const sig = await connection.sendTransaction(tx, [sourceKeypair]);
+
+            // Don't block on confirmation - just wait briefly for tx to propagate
+            await new Promise(r => setTimeout(r, 2000));
+
+            log('Manual fund: Added ' + data.amount.toFixed(4) + ' SOL from ' + sourceKeypair.publicKey.toBase58().slice(0, 8) + '...');
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, signature: sig }));
+        } catch (e) {
+            log('Manual fund error: ' + e.message);
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Get Logs (escape HTML to prevent XSS)
+    if (url.pathname === '/api/logs' && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        // Escape logs to prevent XSS when rendered as HTML
+        const escapedLogs = logs.map(l => escapeHtml(l));
+        res.end(JSON.stringify({ logs: escapedLogs }));
+        return;
+    }
+
+    // API: Smart Optimizer - Optimize allocations using AI
+    if (url.pathname === '/api/ai/optimize' && req.method === 'POST') {
+        if (!isAuthorized(req)) {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Unauthorized' }));
+            return;
+        }
+
+        try {
+            const data = await parseBody(req);
+            const { rsi, balance, currentAllocations, tokenPrice, marketCap } = data;
+
+            // Use server-side API key from environment
+            const apiKey = process.env.CLAUDE_API_KEY;
+            if (!apiKey) {
+                throw new Error('AI service not configured');
+            }
+
+            // Call Claude API for optimization
+            const prompt = `You are the LAUNCHR Smart Optimizer, an AI that optimizes token fee allocations.
+
+Current market data:
+- RSI: ${rsi || 'unknown'}
+- Token Price: ${tokenPrice || 'unknown'}
+- Market Cap: ${marketCap || 'unknown'}
+- Available Balance: ${balance || 0} SOL
+- Current Allocations: Market Making ${currentAllocations?.marketMaking || 25}%, Buyback & Burn ${currentAllocations?.buybackBurn || 25}%, Liquidity ${currentAllocations?.liquidity || 25}%, Creator Revenue ${currentAllocations?.creatorRevenue || 25}%
+
+Based on this data, provide optimal allocation percentages for the 4 channels. Consider:
+- Low RSI (<30) = oversold, good for buybacks
+- High RSI (>70) = overbought, reduce buying
+- Low liquidity = prioritize LP additions
+- Sustainable revenue for long-term development
+
+Respond ONLY with valid JSON in this exact format:
+{"marketMaking": XX, "buybackBurn": XX, "liquidity": XX, "creatorRevenue": XX, "reasoning": "brief explanation"}
+
+The 4 percentages must sum to 100.`;
+
+            const response = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey,
+                    'anthropic-version': '2023-06-01'
+                },
+                body: JSON.stringify({
+                    model: 'claude-3-haiku-20240307',
+                    max_tokens: 256,
+                    messages: [{ role: 'user', content: prompt }]
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Claude API error: ' + response.status);
+            }
+
+            const result = await response.json();
+            const content = result.content[0].text;
+
+            // Parse the JSON response
+            const optimized = JSON.parse(content);
+
+            // Validate
+            const total = optimized.marketMaking + optimized.buybackBurn + optimized.liquidity + optimized.creatorRevenue;
+            if (Math.abs(total - 100) > 1) {
+                throw new Error('AI returned invalid allocations (not 100%)');
+            }
+
+            log(`Optimizer: MM=${optimized.marketMaking}%, BB=${optimized.buybackBurn}%, LP=${optimized.liquidity}%, CR=${optimized.creatorRevenue}%`);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, allocations: optimized }));
+            return;
+        } catch (error) {
+            log('Optimizer error: ' + error.message);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: error.message }));
+            return;
+        }
+    }
+
+    // API: Public tracker stats
+    if (url.pathname === '/api/tracker/stats' && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(tracker.getPublicStats()));
+        return;
+    }
+
+    // Tracker page
+    if (url.pathname === '/tracker' && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(getTrackerHTML());
+        return;
+    }
+
+    res.writeHead(404);
+    res.end('Not found');
+});
+
+function getTrackerHTML() {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LAUNCHR - Token Tracker</title>
+    <link rel="icon" href="/website/logo-icon.jpg" type="image/jpeg">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg: #000000;
+            --card: rgba(255,255,255,0.03);
+            --border: rgba(255,255,255,0.08);
+            --text: #ffffff;
+            --text-dim: rgba(255,255,255,0.5);
+            --accent: #a855f7;
+        }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        .bg-glow {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(ellipse at 50% 0%, rgba(168,85,247,0.1) 0%, transparent 50%);
+            pointer-events: none;
+        }
+        nav {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 100;
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+        }
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--text);
+        }
+        .nav-brand img { height: 28px; border-radius: 6px; }
+        .nav-brand span { font-weight: 700; font-size: 16px; letter-spacing: 2px; }
+        .nav-links { display: flex; align-items: center; gap: 24px; }
+        .nav-links a { color: var(--text-dim); text-decoration: none; font-size: 13px; font-weight: 500; }
+        .nav-links a:hover { color: var(--text); }
+        .btn { padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; text-decoration: none; background: var(--text); color: var(--bg); }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 120px 24px 60px;
+            position: relative;
+            z-index: 1;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+        .header h1 {
+            font-size: 42px;
+            font-weight: 800;
+            margin-bottom: 12px;
+            letter-spacing: -1px;
+        }
+        .header p {
+            color: var(--text-dim);
+            font-size: 16px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 48px;
+        }
+        .stat-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px 24px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 48px;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent), #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .tokens-section h2 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+        .tokens-list {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .token-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 100px;
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            align-items: center;
+        }
+        .token-row:last-child { border-bottom: none; }
+        .token-row.header {
+            background: rgba(255,255,255,0.02);
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .token-mint {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: var(--accent);
+        }
+        .token-date {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+        .token-sessions {
+            font-size: 13px;
+            font-weight: 600;
+            text-align: right;
+        }
+        .empty-state {
+            padding: 60px 24px;
+            text-align: center;
+            color: var(--text-dim);
+        }
+        .live-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #22c55e;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid { grid-template-columns: 1fr; }
+            .token-row { grid-template-columns: 1fr 80px; }
+            .token-date { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-glow"></div>
+
+    <nav>
+        <a href="/" class="nav-brand">
+            <img src="/website/logo-icon.jpg" alt="LAUNCHR">
+            <span>LAUNCHR</span>
+        </a>
+        <div class="nav-links">
+            <a href="/">Home</a>
+            <a href="/app">Dashboard</a>
+            <a href="https://x.com/LaunchrTG" target="_blank">Twitter</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="header">
+            <h1><span class="live-dot"></span>Token Tracker</h1>
+            <p>Tokens launched and managed with LAUNCHR technology</p>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="totalTokens">-</div>
+                <div class="stat-label">Tokens Tracked</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalClaimed">-</div>
+                <div class="stat-label">SOL Claimed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalDistributed">-</div>
+                <div class="stat-label">SOL Distributed</div>
+            </div>
+        </div>
+
+        <div class="tokens-section">
+            <h2>Recent Tokens</h2>
+            <div class="tokens-list">
+                <div class="token-row header">
+                    <span>Token Address</span>
+                    <span>Registered</span>
+                    <span style="text-align: right;">Sessions</span>
+                </div>
+                <div id="tokensList">
+                    <div class="empty-state">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/tracker/stats');
+                const data = await res.json();
+
+                document.getElementById('totalTokens').textContent = data.totalTokens || 0;
+                document.getElementById('totalClaimed').textContent = ((data.totalClaimed || 0) / 1e9).toFixed(2);
+                document.getElementById('totalDistributed').textContent = ((data.totalDistributed || 0) / 1e9).toFixed(2);
+
+                const list = document.getElementById('tokensList');
+                if (data.recentTokens && data.recentTokens.length > 0) {
+                    list.innerHTML = data.recentTokens.map(t => {
+                        const date = new Date(t.registeredAt).toLocaleDateString();
+                        return \`<div class="token-row">
+                            <span class="token-mint">\${t.mint}</span>
+                            <span class="token-date">\${date}</span>
+                            <span class="token-sessions">\${t.sessions}</span>
+                        </div>\`;
+                    }).join('');
+                } else {
+                    list.innerHTML = '<div class="empty-state">No tokens tracked yet. Be the first to launch!</div>';
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        loadStats();
+        setInterval(loadStats, 30000);
+    </script>
+</body>
+</html>`;
+}
+
+function getHTML() {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LAUNCHR - Dashboard</title>
+    <link rel="icon" href="/website/logo-icon.jpg" type="image/jpeg">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --accent-1: #6366f1;
+            --accent-2: #8b5cf6;
+            --accent-3: #a78bfa;
+            --bg-dark: #000000;
+            --bg-card: rgba(255,255,255,0.03);
+            --border: rgba(255,255,255,0.08);
+            --text: #fafafa;
+            --text-dim: rgba(255,255,255,0.5);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .bg-effects {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .bg-effects::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(ellipse at 30% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+                        radial-gradient(ellipse at 70% 80%, rgba(139, 92, 246, 0.06) 0%, transparent 50%);
+        }
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--text);
+        }
+
+        .nav-brand img {
+            height: 32px;
+            width: auto;
+            border-radius: 6px;
+        }
+
+        .nav-brand span {
+            font-weight: 700;
+            font-size: 16px;
+            letter-spacing: 2px;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .nav-links a {
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--text);
+        }
+
+        .nav-badge {
+            padding: 6px 12px;
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 100px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--accent-3);
+            letter-spacing: 1px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 16px;
+        }
+
+        .col-4 { grid-column: span 4; }
+        .col-6 { grid-column: span 6; }
+        .col-8 { grid-column: span 8; }
+        .col-12 { grid-column: span 12; }
+
+        @media (max-width: 900px) {
+            .col-4, .col-6, .col-8 { grid-column: span 12; }
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            backdrop-filter: blur(20px);
+        }
+
+        .card-title {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: 20px;
+        }
+
+        input {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: rgba(0,0,0,0.4);
+            color: var(--text);
+            font-size: 14px;
+            font-family: inherit;
+            margin-bottom: 12px;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--accent-1);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px 20px;
+            border-radius: 10px;
+            border: none;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.05);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981, #34d399);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #f87171);
+            color: white;
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        /* Allocation Sliders */
+        .allocation-item {
+            margin-bottom: 20px;
+        }
+
+        .allocation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .allocation-name {
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .allocation-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--accent-3);
+        }
+
+        .allocation-toggle {
+            width: 40px;
+            height: 22px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 11px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .allocation-toggle.active {
+            background: var(--accent-1);
+        }
+
+        .allocation-toggle::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 18px;
+            height: 18px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+
+        .allocation-toggle.active::after {
+            transform: translateX(18px);
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255,255,255,0.1);
+            -webkit-appearance: none;
+            appearance: none;
+            cursor: pointer;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent-2);
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(139, 92, 246, 0.4);
+        }
+
+        .slider:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        /* Stats */
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        .stat-value {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        /* Status badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .status-badge.active {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+        }
+
+        .status-badge.inactive {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        /* Logs */
+        .logs-container {
+            background: rgba(0,0,0,0.4);
+            border-radius: 10px;
+            padding: 16px;
+            height: 180px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            line-height: 1.8;
+        }
+
+        .log-entry {
+            color: var(--text-dim);
+        }
+
+        /* Connected card */
+        .connected-banner {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 12px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .connected-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .connected-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #34d399;
+            box-shadow: 0 0 10px rgba(52, 211, 153, 0.5);
+        }
+
+        .total-display {
+            text-align: center;
+            padding: 20px;
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .total-label {
+            font-size: 11px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .total-value {
+            font-size: 36px;
+            font-weight: 800;
+            color: var(--accent-3);
+        }
+
+        .total-warning {
+            color: #f87171;
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-effects"></div>
+
+    <nav>
+        <a href="/" class="nav-brand">
+            <img src="/website/logo-icon.jpg" alt="LAUNCHR">
+            <span>LAUNCHR</span>
+        </a>
+        <div class="nav-links">
+            <a href="https://x.com/LaunchrTG" target="_blank">Twitter</a>
+            <span class="nav-badge">DASHBOARD</span>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: 100px;">
+        <div class="grid">
+            <!-- Connection -->
+            <div class="col-12" id="configCard">
+                <div class="card">
+                    <div class="card-title">Connect Wallet</div>
+                    <div style="background: rgba(234,179,8,0.1); border: 1px solid rgba(234,179,8,0.3); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                        <p style="font-size: 11px; color: #eab308; margin: 0; line-height: 1.5;">
+                            <strong>⚠️ IMPORTANT:</strong> Your private key is <strong>PROCESSED</strong> to sign transactions but is <strong>NEVER STORED</strong> on any server or database.
+                            Keys are encrypted in memory (AES-256) and wiped on disconnect. No logging, no persistence.
+                            Only use a dedicated fee wallet - never your main wallet. DYOR.
+                        </p>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <input type="password" id="privateKey" placeholder="Private Key (base58)" autocomplete="off">
+                        <input type="text" id="tokenMint" placeholder="Token Mint Address">
+                    </div>
+                    <button class="btn btn-primary" onclick="configure()" style="margin-top: 8px;">Connect</button>
+                </div>
+            </div>
+
+            <div class="col-12" id="connectedCard" style="display: none;">
+                <div class="connected-banner">
+                    <div class="connected-info">
+                        <div class="connected-dot"></div>
+                        <span style="font-weight: 600;">Connected:</span>
+                        <span id="walletDisplay" style="font-family: monospace; color: var(--text-dim);"></span>
+                    </div>
+                    <button class="btn btn-secondary" onclick="disconnect()" style="width: auto; padding: 8px 16px;">Disconnect</button>
+                </div>
+            </div>
+
+            <!-- ALL-TIME BREAKDOWN - Full Width -->
+            <div class="col-12" id="breakdownCard" style="display: none;">
+                <div class="card" style="background: linear-gradient(135deg, rgba(34,197,94,0.08), rgba(59,130,246,0.08)); border-color: rgba(34,197,94,0.3);">
+                    <div class="card-title" style="color: #22c55e; font-size: 13px;">ALL-TIME STATS BREAKDOWN</div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 28px; font-weight: 800; color: #22c55e;" id="statLP">0.0000</div>
+                            <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px;">LP Added (SOL)</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 28px; font-weight: 800; color: #f97316;" id="statBurn">0.0000</div>
+                            <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px;">Buyback & Burn (SOL)</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 28px; font-weight: 800; color: #3b82f6;" id="statMM">0.0000</div>
+                            <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px;">Market Making (SOL)</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 28px; font-weight: 800; color: #a855f7;" id="statRevenue">0.0000</div>
+                            <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px;">Creator Revenue (SOL)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Allocation Controls -->
+            <div class="col-8">
+                <div class="card">
+                    <div class="card-title">Fee Allocation</div>
+
+                    <div class="total-display">
+                        <div class="total-label">Total Allocation</div>
+                        <div class="total-value" id="totalAllocation">100%</div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div class="allocation-item">
+                            <label style="font-size: 12px; color: var(--text-dim); display: block; margin-bottom: 6px;">Market Making %</label>
+                            <input type="number" id="input-marketMaking" min="0" max="100" value="25" oninput="clampValue(this)" onchange="updateTotal()" style="font-size: 16px; text-align: center;">
+                        </div>
+
+                        <div class="allocation-item">
+                            <label style="font-size: 12px; color: var(--text-dim); display: block; margin-bottom: 6px;">Buyback & Burn %</label>
+                            <input type="number" id="input-buybackBurn" min="0" max="100" value="25" oninput="clampValue(this)" onchange="updateTotal()" style="font-size: 16px; text-align: center;">
+                        </div>
+
+                        <div class="allocation-item">
+                            <label style="font-size: 12px; color: var(--text-dim); display: block; margin-bottom: 6px;">Liquidity Pool %</label>
+                            <input type="number" id="input-liquidity" min="0" max="100" value="25" oninput="clampValue(this)" onchange="updateTotal()" style="font-size: 16px; text-align: center;">
+                        </div>
+
+                        <div class="allocation-item">
+                            <label style="font-size: 12px; color: var(--text-dim); display: block; margin-bottom: 6px;">Creator Revenue %</label>
+                            <input type="number" id="input-creatorRevenue" min="0" max="100" value="25" oninput="clampValue(this)" onchange="updateTotal()" style="font-size: 16px; text-align: center;">
+                        </div>
+                    </div>
+
+                    <p style="font-size: 11px; color: var(--text-dim); margin-top: 12px; text-align: center;">Must total exactly 100%</p>
+                    <button class="btn btn-primary" onclick="saveAllocations()" id="saveBtn" disabled style="margin-top: 12px;">Save Allocations</button>
+                </div>
+            </div>
+
+            <!-- Stats & Controls -->
+            <div class="col-4">
+                <div class="card" style="margin-bottom: 16px;">
+                    <div class="card-title">Statistics</div>
+                    <div class="stat-row">
+                        <span class="stat-label">Balance</span>
+                        <span class="stat-value" id="balance">-- SOL</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Total Claimed</span>
+                        <span class="stat-value" id="claimed">-- SOL</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Total Distributed</span>
+                        <span class="stat-value" id="distributed">-- SOL</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">RSI</span>
+                        <span class="stat-value" id="rsi">--</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Automation</div>
+                    <div style="margin-bottom: 16px;">
+                        <span class="status-badge inactive" id="autoBadge">
+                            <span class="status-dot"></span>
+                            <span id="autoStatusText">Inactive</span>
+                        </span>
+                    </div>
+                    <div class="btn-grid">
+                        <button class="btn btn-success" onclick="startAuto()" id="startBtn" disabled>Start</button>
+                        <button class="btn btn-danger" onclick="stopAuto()" id="stopBtn" disabled>Stop</button>
+                    </div>
+                    <button class="btn btn-primary" onclick="claimNow()" id="claimBtn" disabled style="margin-top: 12px;">Claim Now</button>
+                </div>
+
+                <!-- DISTRIBUTE FROM WALLET - BIG AND OBVIOUS -->
+                <div class="card" style="background: linear-gradient(135deg, rgba(249,115,22,0.2), rgba(234,88,12,0.2)); border: 2px solid #f97316; margin-top: 16px;">
+                    <div class="card-title" style="color: #f97316; font-size: 16px;">🔥 DISTRIBUTE FROM WALLET</div>
+                    <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 12px;">Use your wallet SOL directly - runs all mechanisms instantly!</p>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="number" id="distributeAmount" value="0.5" step="0.1" min="0.01" style="flex: 1; font-size: 18px; padding: 12px; margin: 0; font-weight: bold;">
+                        <span style="color: var(--text); font-size: 14px; font-weight: bold;">SOL</span>
+                    </div>
+                    <button class="btn" onclick="distributeNow()" id="distributeBtn" disabled style="margin-top: 12px; background: linear-gradient(135deg, #f97316, #ea580c); width: 100%; padding: 16px; font-size: 16px; font-weight: bold;">
+                        🚀 DISTRIBUTE NOW
+                    </button>
+                    <div id="distributeResult" style="margin-top: 8px; font-size: 12px; display: none;"></div>
+                </div>
+
+                <div class="card" style="background: linear-gradient(135deg, rgba(168,85,247,0.1), rgba(99,102,241,0.1)); border-color: rgba(168,85,247,0.3);">
+                    <div class="card-title" style="color: #a855f7;">SMART OPTIMIZER</div>
+                    <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 16px;">AI analyzes market conditions and optimizes your allocations automatically</p>
+                    <button class="btn" onclick="runMaximus()" id="maximusBtn" disabled style="background: linear-gradient(135deg, #a855f7, #6366f1); width: 100%;">
+                        RUN ANALYSIS
+                    </button>
+                    <div id="maximusResult" style="margin-top: 12px; font-size: 11px; color: var(--text-dim); display: none;"></div>
+                </div>
+
+                <div class="card" style="background: linear-gradient(135deg, rgba(34,197,94,0.1), rgba(16,185,129,0.1)); border-color: rgba(34,197,94,0.3); margin-top: 16px;">
+                    <div class="card-title" style="color: #22c55e;">FUND WALLET</div>
+                    <p style="font-size: 11px; color: var(--text-dim); margin-bottom: 12px;">Send SOL directly to the LAUNCHR wallet address below.</p>
+
+                    <div id="fundWalletConfig" style="display: none;">
+                        <!-- Wallet Address Display -->
+                        <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+                            <div style="font-size: 10px; color: var(--text-dim); margin-bottom: 6px;">LAUNCHR WALLET ADDRESS</div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <code id="launchrWalletAddress" style="flex: 1; font-size: 11px; color: #22c55e; word-break: break-all; background: rgba(34,197,94,0.1); padding: 8px; border-radius: 4px;">Loading...</code>
+                                <button onclick="copyWalletAddress()" style="background: #22c55e; color: #000; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 11px; white-space: nowrap;">
+                                    COPY
+                                </button>
+                            </div>
+                            <div id="copyResult" style="margin-top: 6px; font-size: 10px; color: #22c55e; display: none;">✓ Copied! Send SOL from Phantom</div>
+                        </div>
+
+                        <p style="font-size: 10px; color: var(--text-dim); text-align: center; margin: 0;">
+                            Open Phantom → Send → Paste address → Send SOL
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logs -->
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-title">Activity Log</div>
+                    <div class="logs-container" id="logs"></div>
+                </div>
+            </div>
+
+            <!-- Disclaimer -->
+            <div class="col-12">
+                <div style="padding: 16px; background: rgba(239,68,68,0.05); border: 1px solid rgba(239,68,68,0.2); border-radius: 12px; margin-top: 16px;">
+                    <p style="font-size: 11px; color: rgba(255,255,255,0.5); text-align: center; line-height: 1.6;">
+                        <strong style="color: #ef4444;">DISCLAIMER:</strong> LAUNCHR is a meme coin with no intrinsic value or expectation of financial return.
+                        This is NOT financial advice. Cryptocurrency investments are extremely risky and may result in total loss of funds.
+                        DYOR. Only invest what you can afford to lose. By using this platform, you acknowledge these risks.
+                    </p>
+                    <p style="font-size: 11px; text-align: center; margin-top: 12px;">
+                        <a href="/terms" target="_blank" style="color: #10b981; text-decoration: none;">Terms & Conditions</a>
+                        <span style="color: #333; margin: 0 8px;">|</span>
+                        <a href="/roadmap" target="_blank" style="color: #10b981; text-decoration: none;">Roadmap</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let configured = false;
+        let authToken = null;
+        let allocationsLoaded = false; // Track if we've loaded allocations from server
+
+        // Clamp input values to 0-100
+        function clampValue(input) {
+            let val = parseInt(input.value) || 0;
+            if (val < 0) val = 0;
+            if (val > 100) val = 100;
+            input.value = val;
+            updateTotal();
+        }
+
+        // Helper to make authenticated requests
+        function authHeaders() {
+            const headers = { 'Content-Type': 'application/json' };
+            if (authToken) {
+                headers['Authorization'] = 'Bearer ' + authToken;
+            }
+            return headers;
+        }
+
+        // Get allocations from inputs
+        function getAllocations() {
+            return {
+                marketMaking: parseInt(document.getElementById('input-marketMaking').value) || 0,
+                buybackBurn: parseInt(document.getElementById('input-buybackBurn').value) || 0,
+                liquidity: parseInt(document.getElementById('input-liquidity').value) || 0,
+                creatorRevenue: parseInt(document.getElementById('input-creatorRevenue').value) || 0
+            };
+        }
+
+        // Update total display and save button state
+        function updateTotal() {
+            const alloc = getAllocations();
+            const total = alloc.marketMaking + alloc.buybackBurn + alloc.liquidity + alloc.creatorRevenue;
+            const display = document.getElementById('totalAllocation');
+            const saveBtn = document.getElementById('saveBtn');
+
+            display.textContent = total + '%';
+
+            if (total === 100) {
+                display.className = 'total-value';
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save Allocations';
+            } else if (total > 100) {
+                display.className = 'total-value total-warning';
+                saveBtn.disabled = true;
+                saveBtn.textContent = 'Over by ' + (total - 100) + '%';
+            } else {
+                display.className = 'total-value total-warning';
+                saveBtn.disabled = true;
+                saveBtn.textContent = 'Under by ' + (100 - total) + '%';
+            }
+        }
+
+        async function saveAllocations() {
+            const allocations = getAllocations();
+            const total = allocations.marketMaking + allocations.buybackBurn + allocations.liquidity + allocations.creatorRevenue;
+            if (total !== 100) {
+                alert('Allocations must sum to 100%');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/allocations', {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify(allocations)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert('Allocations saved!');
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        async function configure() {
+            const privateKey = document.getElementById('privateKey').value;
+            const tokenMint = document.getElementById('tokenMint').value;
+
+            if (!privateKey || !tokenMint) {
+                alert('Enter private key and token mint');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/configure', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ privateKey, tokenMint })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    configured = true;
+                    authToken = data.token;  // Store the session token
+                    document.getElementById('configCard').style.display = 'none';
+                    document.getElementById('connectedCard').style.display = 'block';
+                    document.getElementById('breakdownCard').style.display = 'block';
+                    document.getElementById('walletDisplay').textContent = data.wallet.slice(0,8) + '...' + data.wallet.slice(-6);
+                    document.getElementById('saveBtn').disabled = false;
+                    document.getElementById('claimBtn').disabled = false;
+                    document.getElementById('startBtn').disabled = false;
+                    document.getElementById('stopBtn').disabled = false;
+                    document.getElementById('maximusBtn').disabled = false;
+                    document.getElementById('distributeBtn').disabled = false;
+                    document.getElementById('fundWalletConfig').style.display = 'block';
+                    refreshStatus();
+                    refreshLogs();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        function disconnect() {
+            configured = false;
+            authToken = null;  // Clear auth token
+            allocationsLoaded = false;  // Reset so allocations load fresh on reconnect
+            document.getElementById('configCard').style.display = 'block';
+            document.getElementById('connectedCard').style.display = 'none';
+            document.getElementById('breakdownCard').style.display = 'none';
+        }
+
+        function copyWalletAddress() {
+            const address = document.getElementById('launchrWalletAddress').textContent;
+            navigator.clipboard.writeText(address).then(() => {
+                const result = document.getElementById('copyResult');
+                result.style.display = 'block';
+                setTimeout(() => result.style.display = 'none', 3000);
+            });
+        }
+
+        async function refreshStatus() {
+            if (!configured) return;
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+
+                if (data.configured) {
+                    document.getElementById('balance').textContent = (data.balance || 0).toFixed(4) + ' SOL';
+                    document.getElementById('claimed').textContent = ((data.stats?.totalClaimed || 0) / 1e9).toFixed(4) + ' SOL';
+                    document.getElementById('distributed').textContent = ((data.stats?.totalDistributed || 0) / 1e9).toFixed(4) + ' SOL';
+                    document.getElementById('rsi').textContent = data.rsi?.current?.toFixed(1) || '--';
+
+                    // ALL-TIME BREAKDOWN stats
+                    document.getElementById('statLP').textContent = ((data.stats?.liquidity || 0) / 1e9).toFixed(4);
+                    document.getElementById('statBurn').textContent = ((data.stats?.buybackBurn || 0) / 1e9).toFixed(4);
+                    document.getElementById('statMM').textContent = ((data.stats?.marketMaking || 0) / 1e9).toFixed(4);
+                    document.getElementById('statRevenue').textContent = ((data.stats?.creatorRevenue || 0) / 1e9).toFixed(4);
+
+                    // Update wallet address display
+                    if (data.wallet) {
+                        document.getElementById('launchrWalletAddress').textContent = data.wallet;
+                    }
+
+                    // Only load allocations from server ONCE on initial connect
+                    if (data.allocations && !allocationsLoaded) {
+                        document.getElementById('input-marketMaking').value = data.allocations.marketMaking || 25;
+                        document.getElementById('input-buybackBurn').value = data.allocations.buybackBurn || 25;
+                        document.getElementById('input-liquidity').value = data.allocations.liquidity || 25;
+                        document.getElementById('input-creatorRevenue').value = data.allocations.creatorRevenue || 25;
+                        updateTotal();
+                        allocationsLoaded = true;
+                    }
+
+                    const badge = document.getElementById('autoBadge');
+                    const text = document.getElementById('autoStatusText');
+                    if (data.autoClaimActive) {
+                        badge.className = 'status-badge active';
+                        text.textContent = 'Active';
+                    } else {
+                        badge.className = 'status-badge inactive';
+                        text.textContent = 'Inactive';
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function claimNow() {
+            const btn = document.getElementById('claimBtn');
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+
+            try {
+                await fetch('/api/claim', { method: 'POST', headers: authHeaders() });
+                refreshStatus();
+                refreshLogs();
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'Claim Now';
+        }
+
+        async function distributeNow() {
+            const btn = document.getElementById('distributeBtn');
+            const resultDiv = document.getElementById('distributeResult');
+            const amount = parseFloat(document.getElementById('distributeAmount').value);
+
+            if (!amount || amount <= 0) {
+                alert('Enter a valid amount');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'DISTRIBUTING...';
+
+            try {
+                const res = await fetch('/api/distribute', {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify({ amount })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    resultDiv.innerHTML = '✅ Distributed ' + (data.distributed / 1e9).toFixed(4) + ' SOL!';
+                    resultDiv.style.color = '#22c55e';
+                } else {
+                    resultDiv.innerHTML = '❌ ' + (data.error || 'Failed');
+                    resultDiv.style.color = '#ef4444';
+                }
+                resultDiv.style.display = 'block';
+                refreshStatus();
+                refreshLogs();
+            } catch (e) {
+                resultDiv.innerHTML = '❌ ' + e.message;
+                resultDiv.style.color = '#ef4444';
+                resultDiv.style.display = 'block';
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'DISTRIBUTE';
+        }
+
+        async function runMaximus() {
+            const btn = document.getElementById('maximusBtn');
+            const resultDiv = document.getElementById('maximusResult');
+
+            btn.disabled = true;
+            btn.textContent = 'ANALYZING...';
+            resultDiv.style.display = 'none';
+
+            try {
+                const rsi = document.getElementById('rsi').textContent;
+                const balance = document.getElementById('balance').textContent.replace(' SOL', '');
+
+                const res = await fetch('/api/ai/optimize', {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify({
+                        rsi: rsi !== '--' ? parseFloat(rsi) : null,
+                        balance: parseFloat(balance) || 0,
+                        currentAllocations: getAllocations()
+                    })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    // Apply the optimized allocations to inputs
+                    document.getElementById('input-marketMaking').value = data.allocations.marketMaking || 0;
+                    document.getElementById('input-buybackBurn').value = data.allocations.buybackBurn || 0;
+                    document.getElementById('input-liquidity').value = data.allocations.liquidity || 0;
+                    document.getElementById('input-creatorRevenue').value = data.allocations.creatorRevenue || 0;
+                    updateTotal();
+                    saveAllocations();
+
+                    resultDiv.innerHTML = '✅ ' + (data.allocations.reasoning || 'Allocations optimized!');
+                    resultDiv.style.display = 'block';
+                    resultDiv.style.color = '#22c55e';
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (e) {
+                resultDiv.innerHTML = '❌ ' + e.message;
+                resultDiv.style.display = 'block';
+                resultDiv.style.color = '#ef4444';
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'RUN ANALYSIS';
+        }
+
+        async function startAuto() {
+            await fetch('/api/auto/start', { method: 'POST', headers: authHeaders() });
+            refreshStatus();
+            refreshLogs();
+        }
+
+        async function stopAuto() {
+            await fetch('/api/auto/stop', { method: 'POST', headers: authHeaders() });
+            refreshStatus();
+            refreshLogs();
+        }
+
+        // Manual fund function
+        async function fundWalletNow() {
+            const sourceKey = document.getElementById('fundSourceKey').value;
+            const fundAmount = parseFloat(document.getElementById('fundAmount').value);
+
+            if (!sourceKey) {
+                alert('Enter source wallet private key');
+                return;
+            }
+
+            if (!fundAmount || fundAmount <= 0) {
+                alert('Enter a valid amount');
+                return;
+            }
+
+            const btn = document.getElementById('fundNowBtn');
+            const resultDiv = document.getElementById('fundResult');
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+            resultDiv.style.display = 'none';
+
+            try {
+                const res = await fetch('/api/fund', {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify({
+                        sourceKey: sourceKey,
+                        amount: fundAmount
+                    })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    document.getElementById('fundSourceKey').value = '';
+                    resultDiv.innerHTML = '✅ Sent ' + fundAmount + ' SOL!';
+                    resultDiv.style.color = '#22c55e';
+                    resultDiv.style.display = 'block';
+
+                    // Immediate optimistic update - add to displayed balance
+                    const balEl = document.getElementById('balance');
+                    const currentBal = parseFloat(balEl.textContent) || 0;
+                    balEl.textContent = (currentBal + fundAmount).toFixed(4) + ' SOL';
+
+                    // Then refresh from server to get accurate balance
+                    refreshLogs();
+                    setTimeout(() => refreshStatus(), 1000);
+                    setTimeout(() => refreshStatus(), 3000);
+                } else {
+                    resultDiv.innerHTML = '❌ ' + data.error;
+                    resultDiv.style.color = '#ef4444';
+                    resultDiv.style.display = 'block';
+                }
+            } catch (e) {
+                resultDiv.innerHTML = '❌ ' + e.message;
+                resultDiv.style.color = '#ef4444';
+                resultDiv.style.display = 'block';
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'SEND NOW';
+        }
+
+        // Toggle auto-fund on/off
+        let autoFundEnabled = false;
+        function toggleAutoFund() {
+            autoFundEnabled = !autoFundEnabled;
+            const toggle = document.getElementById('autoFundToggle');
+            toggle.className = autoFundEnabled ? 'allocation-toggle active' : 'allocation-toggle';
+        }
+
+        // Save auto-fund configuration
+        async function saveAutoFund() {
+            const sourceKey = document.getElementById('fundSourceKey').value;
+            const minBalance = parseFloat(document.getElementById('autoFundMinBalance').value);
+            const fundAmount = parseFloat(document.getElementById('autoFundAmount').value);
+            const resultDiv = document.getElementById('fundResult');
+
+            if (!autoFundEnabled) {
+                // Disable auto-fund
+                try {
+                    const res = await fetch('/api/autofund/configure', {
+                        method: 'POST',
+                        headers: authHeaders(),
+                        body: JSON.stringify({ enabled: false })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        resultDiv.innerHTML = 'Auto-fund disabled';
+                        resultDiv.style.color = 'var(--text-dim)';
+                        resultDiv.style.display = 'block';
+                    }
+                } catch (e) {
+                    resultDiv.innerHTML = 'Error: ' + e.message;
+                    resultDiv.style.color = '#ef4444';
+                    resultDiv.style.display = 'block';
+                }
+                return;
+            }
+
+            // Enable auto-fund
+            if (!sourceKey) {
+                alert('Enter source wallet private key to enable auto-fund');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/autofund/configure', {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify({
+                        enabled: true,
+                        sourceKey: sourceKey,
+                        minBalance: minBalance,
+                        fundAmount: fundAmount
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    resultDiv.innerHTML = 'Auto-fund enabled! Min: ' + minBalance + ' SOL, Refill: ' + fundAmount + ' SOL';
+                    resultDiv.style.color = '#22c55e';
+                    resultDiv.style.display = 'block';
+                } else {
+                    resultDiv.innerHTML = 'Error: ' + data.error;
+                    resultDiv.style.color = '#ef4444';
+                    resultDiv.style.display = 'block';
+                }
+            } catch (e) {
+                resultDiv.innerHTML = 'Error: ' + e.message;
+                resultDiv.style.color = '#ef4444';
+                resultDiv.style.display = 'block';
+            }
+        }
+
+        async function refreshLogs() {
+            try {
+                const res = await fetch('/api/logs');
+                const data = await res.json();
+                const logsDiv = document.getElementById('logs');
+                logsDiv.innerHTML = data.logs.map(l => '<div class="log-entry">' + l + '</div>').join('');
+                logsDiv.scrollTop = logsDiv.scrollHeight;
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        setInterval(() => {
+            if (configured) {
+                refreshLogs();
+                refreshStatus();
+            }
+        }, 3000);
+    </script>
+</body>
+</html>`;
+}
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, async () => {
+    console.log('LAUNCHR running on port ' + PORT);
+
+    // ═══════════════════════════════════════════════════════════════════
+    // AUTO-CONFIGURE FROM ENVIRONMENT VARIABLES
+    // If PRIVATE_KEY and TOKEN_MINT are set, auto-configure and auto-start!
+    // ═══════════════════════════════════════════════════════════════════
+    const envPrivateKey = process.env.PRIVATE_KEY;
+    const envTokenMint = process.env.TOKEN_MINT;
+
+    if (envPrivateKey && envTokenMint) {
+        console.log('[AUTO] Found PRIVATE_KEY and TOKEN_MINT in environment');
+        try {
+            // Decode private key
+            let decodedKey;
+            try {
+                decodedKey = bs58.decode(envPrivateKey);
+            } catch {
+                // Try as JSON array
+                const keyArray = JSON.parse(envPrivateKey);
+                decodedKey = new Uint8Array(keyArray);
+            }
+
+            // Setup connection and wallet
+            const rpcUrl = process.env.RPC_URL && process.env.RPC_URL.startsWith('http')
+                ? process.env.RPC_URL
+                : 'https://api.mainnet-beta.solana.com';
+            connection = new Connection(rpcUrl, 'confirmed');
+            wallet = Keypair.fromSecretKey(decodedKey);
+
+            console.log(`[AUTO] Wallet: ${wallet.publicKey.toBase58()}`);
+            console.log(`[AUTO] Token: ${envTokenMint}`);
+
+            // Create engine (args: connection, tokenMint, wallet)
+            engine = new LaunchrEngine(connection, envTokenMint, wallet);
+
+            // Generate session token for this auto-configured session
+            sessionToken = crypto.randomBytes(32).toString('hex');
+            sessionCreatedAt = Date.now();
+
+            // AUTO-START claiming!
+            console.log('[AUTO] Starting auto-claim...');
+            const intervalMs = 1 * 60 * 1000; // 1 minute
+
+            const runClaim = async () => {
+                try {
+                    await engine.updatePrice();
+                    const result = await engine.claimAndDistribute();
+                    if (result.claimed > 0) {
+                        log('Auto: Claimed ' + (result.claimed / LAMPORTS_PER_SOL).toFixed(4) + ' SOL');
+                    }
+                } catch (e) {
+                    log('Auto error: ' + e.message);
+                }
+            };
+
+            // Run first claim immediately
+            runClaim();
+            autoClaimInterval = setInterval(runClaim, intervalMs);
+
+            // Start price updates every 10s
+            priceUpdateInterval = setInterval(async () => {
+                if (engine) {
+                    await engine.updatePrice();
+                }
+            }, 10000);
+
+            log('Auto-claim started (every 1 min) - AUTO-CONFIGURED FROM ENV');
+            console.log('[AUTO] ✅ Auto-claim STARTED from environment variables!');
+
+        } catch (err) {
+            console.log('[AUTO] Failed to auto-configure: ' + err.message);
+        }
+    } else {
+        console.log('[AUTO] No PRIVATE_KEY/TOKEN_MINT in env - manual configuration required');
+    }
+
+    // Start Telegram bot if token is configured
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    if (botToken) {
+        const bot = new LaunchrBot(botToken);
+        bot.startPolling();
+        console.log('Telegram bot started');
+    } else {
+        console.log('Telegram bot not started (TELEGRAM_BOT_TOKEN not set)');
+    }
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+    console.log('SIGTERM received, shutting down...');
+    if (autoClaimInterval) clearInterval(autoClaimInterval);
+    server.close(() => {
+        console.log('Server closed');
+        process.exit(0);
+    });
+});
+
+process.on('SIGINT', () => {
+    console.log('SIGINT received, shutting down...');
+    if (autoClaimInterval) clearInterval(autoClaimInterval);
+    server.close(() => {
+        console.log('Server closed');
+        process.exit(0);
+    });
+});

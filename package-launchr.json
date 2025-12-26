@@ -1,0 +1,24 @@
+{
+  "name": "launchr-fee-engine",
+  "version": "1.0.0",
+  "description": "Programmable creator fee engine - dynamic fee routing for any token lifecycle",
+  "main": "launchr-server.js",
+  "scripts": {
+    "start": "node launchr-server.js",
+    "dev": "node launchr-server.js"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.87.6",
+    "@solana/spl-token": "^0.3.8",
+    "axios": "^1.6.0",
+    "bs58": "^5.0.0"
+  },
+  "keywords": [
+    "solana",
+    "pumpfun",
+    "fee-engine",
+    "defi",
+    "creator-fees"
+  ],
+  "license": "MIT"
+}

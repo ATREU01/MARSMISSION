@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Environment files (NEVER commit these)
+.env
+.env.local
+.env.*.local
+*.env
+
+# Private keys (NEVER commit these)
+*.pem
+*.key
+private_key*
+secret*
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build
+dist/
+build/

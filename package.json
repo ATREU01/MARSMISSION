@@ -1,0 +1,33 @@
+{
+  "name": "starfire-fee-distribution",
+  "version": "1.0.0",
+  "description": "Token fee distribution system with PumpFun/PumpPortal integration",
+  "main": "index.js",
+  "bin": {
+    "starfire": "./cli.js"
+  },
+  "scripts": {
+    "start": "node launchr-server.js",
+    "bot": "node telegram-bot.js",
+    "cli": "node cli.js",
+    "auto": "node index.js",
+    "ui": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@pump-fun/pump-swap-sdk": "^1.11.0",
+    "@solana/spl-token": "^0.3.8",
+    "@solana/web3.js": "^1.87.6",
+    "axios": "^1.6.0",
+    "bs58": "^5.0.0"
+  },
+  "keywords": [
+    "solana",
+    "pumpfun",
+    "pumpportal",
+    "pumpswap",
+    "fee-distribution",
+    "defi"
+  ],
+  "license": "MIT"
+}
