@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LAUNCHR - Programmable Liquidity Engine</title>
+    <meta name="description" content="The first AI-powered fee allocation engine for Solana. Route creator fees into market making, buybacks, and liquidity automatically.">
+
+    <!-- Open Graph / Social Preview -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://www.launchronsol.xyz/">
+    <meta property="og:title" content="LAUNCHR - Programmable Liquidity Engine">
+    <meta property="og:description" content="The first AI-powered fee allocation engine for Solana. Route creator fees into market making, buybacks, and liquidity automatically.">
+    <meta property="og:image" content="https://www.launchronsol.xyz/website/logo-full.jpg">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@LaunchrTG">
+    <meta name="twitter:title" content="LAUNCHR - Programmable Liquidity Engine">
+    <meta name="twitter:description" content="The first AI-powered fee allocation engine for Solana. Route creator fees into market making, buybacks, and liquidity.">
+    <meta name="twitter:image" content="https://www.launchronsol.xyz/website/logo-full.jpg">
+
+    <link rel="icon" href="/website/logo-icon.jpg" type="image/jpeg">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #030303;
+            --surface: #0a0a0a;
+            --border: rgba(255,255,255,0.08);
+            --text: #fafafa;
+            --text-secondary: rgba(255,255,255,0.5);
+            --accent: #8b5cf6;
+            --accent-glow: rgba(139,92,246,0.15);
+        }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Subtle gradient backdrop */
+        .backdrop {
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 80% 60% at 50% 0%, var(--accent-glow) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(3,3,3,0.8);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid var(--border);
+        }
+        .nav-logo {
+            height: 28px;
+            border-radius: 6px;
+        }
+        .nav-center {
+            display: flex;
+            gap: 32px;
+        }
+        .nav-center a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        .nav-center a:hover { color: var(--text); }
+        .nav-right { display: flex; gap: 12px; align-items: center; }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.15s ease;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-primary {
+            background: var(--text);
+            color: var(--bg);
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 20px rgba(255,255,255,0.2);
+        }
+        .btn-secondary {
+            background: transparent;
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.05);
+            border-color: rgba(255,255,255,0.15);
+        }
+
+        /* Hero */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 140px 32px 100px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-banner {
+            max-width: 600px;
+            width: 100%;
+            margin-bottom: 48px;
+            border-radius: 16px;
+            box-shadow:
+                0 0 0 1px var(--border),
+                0 20px 60px -20px rgba(0,0,0,0.5),
+                0 0 100px -20px var(--accent-glow);
+        }
+
+        .hero-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 32px;
+        }
+        .hero-tag::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: var(--accent);
+            border-radius: 50%;
+        }
+
+        .hero-title {
+            font-size: clamp(36px, 5vw, 56px);
+            font-weight: 700;
+            text-align: center;
+            max-width: 800px;
+            letter-spacing: -0.02em;
+            line-height: 1.1;
+            margin-bottom: 24px;
+        }
+        .hero-title span {
+            background: linear-gradient(135deg, var(--accent), #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-subtitle {
+            font-size: 18px;
+            color: var(--text-secondary);
+            text-align: center;
+            max-width: 560px;
+            margin-bottom: 40px;
+            line-height: 1.7;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 64px;
+        }
+
+        .hero-stats {
+            display: flex;
+            gap: 48px;
+            padding: 24px 40px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+        }
+        .stat {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* Contract Address */
+        .contract-address {
+            margin-top: 48px;
+            padding: 24px 40px;
+            background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(139,92,246,0.05));
+            border: 2px solid rgba(139,92,246,0.4);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+            max-width: 600px;
+            width: 100%;
+        }
+        .contract-label {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        .contract-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 15px;
+            color: var(--text);
+            word-break: break-all;
+            text-align: center;
+            padding: 12px 20px;
+            background: rgba(0,0,0,0.4);
+            border-radius: 8px;
+            width: 100%;
+        }
+        .contract-value.coming-soon {
+            color: var(--accent);
+            font-style: normal;
+            font-weight: 600;
+            font-size: 18px;
+        }
+        .copy-btn {
+            background: rgba(139,92,246,0.15);
+            border: 1px solid rgba(139,92,246,0.3);
+            border-radius: 8px;
+            padding: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .copy-btn:hover {
+            background: rgba(139,92,246,0.25);
+            border-color: var(--accent);
+        }
+        .copy-btn svg {
+            width: 16px;
+            height: 16px;
+            color: var(--accent);
+        }
+        .copy-btn.copied {
+            background: rgba(34,197,94,0.2);
+            border-color: #22c55e;
+        }
+        .copy-btn.copied svg {
+            color: #22c55e;
+        }
+
+        /* Features */
+        .features {
+            padding: 120px 32px;
+            position: relative;
+            z-index: 1;
+        }
+        .features-header {
+            text-align: center;
+            margin-bottom: 64px;
+        }
+        .features-tag {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 16px;
+        }
+        .features-title {
+            font-size: 36px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .feature-card {
+            padding: 32px 28px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            transition: all 0.2s ease;
+        }
+        .feature-card:hover {
+            border-color: rgba(139,92,246,0.3);
+            transform: translateY(-2px);
+        }
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--accent-glow);
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        .feature-icon svg {
+            width: 24px;
+            height: 24px;
+            stroke: var(--accent);
+        }
+        .feature-name {
+            font-size: 17px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .feature-desc {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* How it works */
+        .how {
+            padding: 100px 32px;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            position: relative;
+            z-index: 1;
+        }
+        .how-content {
+            max-width: 700px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        .how-title {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            letter-spacing: -0.02em;
+        }
+        .how-text {
+            font-size: 17px;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            margin-bottom: 40px;
+        }
+
+        /* AI Section */
+        .ai-section {
+            padding: 120px 32px;
+            position: relative;
+            z-index: 1;
+        }
+        .ai-card {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 56px;
+            background: linear-gradient(135deg, rgba(139,92,246,0.08), rgba(139,92,246,0.02));
+            border: 1px solid rgba(139,92,246,0.2);
+            border-radius: 24px;
+            text-align: center;
+        }
+        .ai-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            background: rgba(139,92,246,0.15);
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--accent);
+            letter-spacing: 0.05em;
+            margin-bottom: 24px;
+        }
+        .ai-title {
+            font-size: 40px;
+            font-weight: 800;
+            margin-bottom: 16px;
+            letter-spacing: -0.02em;
+        }
+        .ai-desc {
+            font-size: 17px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        /* CTA */
+        .cta {
+            padding: 140px 32px;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+        .cta-title {
+            font-size: clamp(40px, 6vw, 64px);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-bottom: 20px;
+        }
+        .cta-subtitle {
+            font-size: 18px;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+        }
+        .cta-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        /* Footer */
+        footer {
+            padding: 32px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        }
+        .footer-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .footer-left img {
+            height: 24px;
+            border-radius: 4px;
+        }
+        .footer-left span {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        .footer-links {
+            display: flex;
+            gap: 24px;
+        }
+        .footer-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+        .footer-links a:hover { color: var(--text); }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .features-grid { grid-template-columns: repeat(2, 1fr); }
+            .nav-center { display: none; }
+            .hero-stats { gap: 32px; padding: 20px 32px; }
+        }
+        @media (max-width: 640px) {
+            nav { padding: 12px 20px; }
+            .hero { padding: 120px 20px 80px; }
+            .hero-banner { max-width: 100%; }
+            .features-grid { grid-template-columns: 1fr; }
+            .hero-actions { flex-direction: column; width: 100%; }
+            .hero-actions .btn { width: 100%; text-align: center; }
+            .hero-stats { flex-direction: column; gap: 20px; }
+            .ai-card { padding: 40px 24px; }
+            footer { flex-direction: column; gap: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="backdrop"></div>
+
+    <nav>
+        <img src="/website/logo-icon.jpg" alt="LAUNCHR" class="nav-logo">
+        <div class="nav-center">
+            <a href="#features">Features</a>
+            <a href="/tracker">Tracker</a>
+            <a href="https://t.me/LAUNCHR_V2_BOT" target="_blank">Telegram</a>
+            <a href="https://x.com/LaunchrTG" target="_blank">Twitter</a>
+        </div>
+        <div class="nav-right">
+            <a href="/app" class="btn btn-primary">Launch App</a>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <img src="/website/logo-full.jpg" alt="LAUNCHR" class="hero-banner">
+
+        <div class="hero-tag">First of its kind</div>
+
+        <h1 class="hero-title">
+            <span>Programmable liquidity</span><br>for Pump.fun tokens
+        </h1>
+
+        <p class="hero-subtitle">
+            The only AI-powered fee engine that automatically routes creator fees into market making, buybacks, liquidity, and revenue.
+        </p>
+
+        <div class="hero-actions">
+            <a href="/app" class="btn btn-primary">Launch App</a>
+            <a href="https://t.me/LAUNCHR_V2_BOT" class="btn btn-secondary">Connect via Telegram</a>
+        </div>
+
+        <div class="hero-stats">
+            <div class="stat">
+                <div class="stat-value">4</div>
+                <div class="stat-label">Fee Channels</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">24/7</div>
+                <div class="stat-label">Automation</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">AI</div>
+                <div class="stat-label">Optimized</div>
+            </div>
+        </div>
+
+        <div class="contract-address">
+            <div class="contract-label">Contract Address</div>
+            <div class="contract-value" id="contractAddress">Coming Soon</div>
+            <button class="copy-btn" onclick="copyContract()" id="copyBtn" style="display: none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+                    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
+                </svg>
+            </button>
+        </div>
+    </section>
+
+    <section class="features" id="features">
+        <div class="features-header">
+            <div class="features-tag">How it works</div>
+            <h2 class="features-title">Four strategic channels</h2>
+        </div>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                        <path d="M3 3v18h18"/><path d="M18 17l-5-5-4 4-3-3"/>
+                    </svg>
+                </div>
+                <h3 class="feature-name">Market Making</h3>
+                <p class="feature-desc">RSI-timed trades create depth and stabilize price action automatically.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                        <path d="M12 2v4m0 12v4M2 12h4m12 0h4"/><circle cx="12" cy="12" r="3"/>
+                    </svg>
+                </div>
+                <h3 class="feature-name">Buyback & Burn</h3>
+                <p class="feature-desc">Automatic buybacks with permanent burns. Deflationary by design.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/>
+                    </svg>
+                </div>
+                <h3 class="feature-name">Liquidity Pool</h3>
+                <p class="feature-desc">Auto-add to LP with permanent locks. Deeper liquidity over time.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                        <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>
+                    </svg>
+                </div>
+                <h3 class="feature-name">Creator Revenue</h3>
+                <p class="feature-desc">Direct revenue stream to fund development and growth.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="how">
+        <div class="how-content">
+            <h2 class="how-title">Set it once. Watch it grow.</h2>
+            <p class="how-text">
+                Every Pump.fun token generates creator fees. Until now, there was no way to optimize them automatically. LAUNCHR routes your fees into four strategic channels with zero manual intervention. Configure your allocations, start the engine, and let your token grow with every transaction.
+            </p>
+            <a href="/app" class="btn btn-primary">Get Started</a>
+        </div>
+    </section>
+
+    <section class="ai-section">
+        <div class="ai-card">
+            <div class="ai-badge">AUTOMATED</div>
+            <h2 class="ai-title">Smart Optimization</h2>
+            <p class="ai-desc">
+                Real-time allocation adjustment based on market conditions. RSI analysis, volatility tracking, and automatic rebalancing. Set it and forget it.
+            </p>
+        </div>
+    </section>
+
+    <section class="cta">
+        <h2 class="cta-title">Ready to launch?</h2>
+        <p class="cta-subtitle">Fair launch. No presale. No team allocation. Just technology.</p>
+        <div class="cta-actions">
+            <a href="/app" class="btn btn-primary">Launch App</a>
+            <a href="https://t.me/LAUNCHR_V2_BOT" class="btn btn-secondary">Telegram Bot</a>
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-left">
+            <img src="/website/logo-icon.jpg" alt="LAUNCHR">
+            <span>Programmable liquidity engine</span>
+        </div>
+        <div class="footer-links">
+            <a href="/app">Dashboard</a>
+            <a href="/tracker">Tracker</a>
+            <a href="/roadmap">Roadmap</a>
+            <a href="/terms">Terms</a>
+            <a href="https://t.me/LAUNCHR_V2_BOT" target="_blank">Telegram</a>
+            <a href="https://x.com/LaunchrTG" target="_blank">Twitter</a>
+        </div>
+    </footer>
+
+    <script>
+        // Contract address - update this when token launches
+        const CONTRACT_ADDRESS = '86ZnAujEVLmtnNazeCeT1zYR7hn2PeF5ZPEwUkTdpump';
+
+        // Initialize contract display
+        document.addEventListener('DOMContentLoaded', function() {
+            const contractEl = document.getElementById('contractAddress');
+            const copyBtn = document.getElementById('copyBtn');
+
+            if (CONTRACT_ADDRESS && CONTRACT_ADDRESS.length > 0) {
+                contractEl.textContent = CONTRACT_ADDRESS;
+                contractEl.classList.remove('coming-soon');
+                copyBtn.style.display = 'flex';
+            } else {
+                contractEl.textContent = 'Coming Soon';
+                contractEl.classList.add('coming-soon');
+                copyBtn.style.display = 'none';
+            }
+        });
+
+        function copyContract() {
+            if (!CONTRACT_ADDRESS) return;
+
+            navigator.clipboard.writeText(CONTRACT_ADDRESS).then(() => {
+                const btn = document.getElementById('copyBtn');
+                btn.classList.add('copied');
+                btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20,6 9,17 4,12"></polyline></svg>';
+
+                setTimeout(() => {
+                    btn.classList.remove('copied');
+                    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>';
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>
