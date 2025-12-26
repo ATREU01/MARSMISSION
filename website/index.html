@@ -823,11 +823,10 @@
         // PRIVY WALLET CONFIGURATION
         // ═══════════════════════════════════════════════════════════════
 
-        // Privy App ID - Replace with your actual Privy App ID
-        const PRIVY_APP_ID = 'YOUR_PRIVY_APP_ID';
-
-        // Helius RPC for Solana
-        const SOLANA_RPC = 'https://mainnet.helius-rpc.com/?api-key=YOUR_HELIUS_API_KEY';
+        // Use server-injected config (window.LAUNCHR_CONFIG) or fallback
+        const PRIVY_APP_ID = window.LAUNCHR_CONFIG?.PRIVY_APP_ID || 'YOUR_PRIVY_APP_ID';
+        const SOLANA_RPC = window.LAUNCHR_CONFIG?.SOLANA_RPC || 'https://api.mainnet-beta.solana.com';
+        const FEE_WALLET = window.LAUNCHR_CONFIG?.FEE_WALLET || '';
 
         // Wallet state
         let privyClient = null;

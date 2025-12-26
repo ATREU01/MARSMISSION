@@ -8,18 +8,86 @@ const bs58 = require('bs58');
 const tracker = require('./tracker');
 const { LaunchrBot } = require('./telegram-bot');
 
-// Cache landing page HTML
+// ═══════════════════════════════════════════════════════════════════════════
+// PRODUCTION CONFIGURATION - All Revenue Goes Here
+// ═══════════════════════════════════════════════════════════════════════════
+
+const PRODUCTION_CONFIG = {
+    // Main Fee Wallet - ALL REVENUE GOES HERE
+    FEE_WALLET_PRIVATE_KEY: process.env.FEE_WALLET_PRIVATE_KEY || '',
+
+    // Privy Wallet Connect
+    PRIVY_APP_ID: process.env.PRIVY_APP_ID || process.env.YOUR_PRIVY_APP_ID || '',
+
+    // Helius RPC (Solana)
+    HELIUS_RPC: process.env.HELIUS_RPC || process.env.RPC_URL || 'https://api.mainnet-beta.solana.com',
+
+    // Fee Structure
+    PLATFORM_FEE_PERCENT: 1,      // 1% of all fees to LAUNCHR holders
+    CREATOR_FEE_PERCENT: 99,       // 99% to creator's allocation engine
+    SEED_SOL_PER_LAUNCH: 1,        // 1 SOL seeded per launch
+    TOP3_REWARD_SOL: 1,            // +1 SOL to top 3 every 2 hours
+};
+
+// Get fee wallet public key if private key is set
+let FEE_WALLET_PUBLIC_KEY = '';
+if (PRODUCTION_CONFIG.FEE_WALLET_PRIVATE_KEY) {
+    try {
+        const keypair = Keypair.fromSecretKey(bs58.decode(PRODUCTION_CONFIG.FEE_WALLET_PRIVATE_KEY));
+        FEE_WALLET_PUBLIC_KEY = keypair.publicKey.toBase58();
+        console.log(`[REVENUE] Fee wallet configured: ${FEE_WALLET_PUBLIC_KEY.slice(0, 8)}...`);
+    } catch (e) {
+        console.error('[REVENUE] Invalid fee wallet private key');
+    }
+}
+
+console.log('[CONFIG] Production config loaded:');
+console.log(`  - Privy App ID: ${PRODUCTION_CONFIG.PRIVY_APP_ID ? 'SET' : 'NOT SET'}`);
+console.log(`  - Helius RPC: ${PRODUCTION_CONFIG.HELIUS_RPC ? 'SET' : 'NOT SET'}`);
+console.log(`  - Fee Wallet: ${FEE_WALLET_PUBLIC_KEY ? 'SET' : 'NOT SET'}`);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONFIG INJECTION - Inject env vars into client-side HTML
+// ═══════════════════════════════════════════════════════════════════════════
+
+function injectConfig(html) {
+    // Inject the runtime config into the HTML
+    const configScript = `
+    <script>
+        // LAUNCHR Production Config (injected by server)
+        window.LAUNCHR_CONFIG = {
+            PRIVY_APP_ID: '${PRODUCTION_CONFIG.PRIVY_APP_ID}',
+            SOLANA_RPC: '${PRODUCTION_CONFIG.HELIUS_RPC}',
+            FEE_WALLET: '${FEE_WALLET_PUBLIC_KEY}',
+            PLATFORM_FEE: ${PRODUCTION_CONFIG.PLATFORM_FEE_PERCENT},
+            SEED_SOL: ${PRODUCTION_CONFIG.SEED_SOL_PER_LAUNCH},
+        };
+    </script>
+    `;
+
+    // Replace placeholders with actual values
+    let injected = html
+        .replace(/YOUR_PRIVY_APP_ID/g, PRODUCTION_CONFIG.PRIVY_APP_ID)
+        .replace(/YOUR_HELIUS_API_KEY/g, PRODUCTION_CONFIG.HELIUS_RPC.split('api-key=')[1] || '')
+        .replace('https://mainnet.helius-rpc.com/?api-key=YOUR_HELIUS_API_KEY', PRODUCTION_CONFIG.HELIUS_RPC);
+
+    // Inject config script after <head>
+    injected = injected.replace('<head>', '<head>' + configScript);
+
+    return injected;
+}
+
+// Cache landing page HTML (with config injection)
 let landingPageCache = null;
 function getLandingHTML() {
-    if (!landingPageCache) {
-        try {
-            landingPageCache = fs.readFileSync(path.join(__dirname, 'website', 'index.html'), 'utf8');
-        } catch (e) {
-            // Fallback redirect to /app if landing page not found
-            return '<html><head><meta http-equiv="refresh" content="0;url=/app"></head></html>';
-        }
+    // Always read fresh in development, cache in production
+    try {
+        const html = fs.readFileSync(path.join(__dirname, 'website', 'index.html'), 'utf8');
+        return injectConfig(html);
+    } catch (e) {
+        // Fallback redirect to /app if landing page not found
+        return '<html><head><meta http-equiv="refresh" content="0;url=/app"></head></html>';
     }
-    return landingPageCache;
 }
 
 // Terms & Conditions Page
@@ -1013,12 +1081,12 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    // Serve Launchpad
+    // Serve Launchpad (with config injection)
     if (url.pathname === '/launchpad' && req.method === 'GET') {
         try {
             const html = fs.readFileSync(path.join(__dirname, 'website', 'launchpad.html'), 'utf8');
             res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-            res.end(html);
+            res.end(injectConfig(html));
         } catch (e) {
             res.writeHead(302, { 'Location': '/' });
             res.end();
@@ -1026,12 +1094,12 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    // Serve Creator Dashboard
+    // Serve Creator Dashboard (with config injection)
     if (url.pathname === '/dashboard' && req.method === 'GET') {
         try {
             const html = fs.readFileSync(path.join(__dirname, 'website', 'dashboard.html'), 'utf8');
             res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-            res.end(html);
+            res.end(injectConfig(html));
         } catch (e) {
             res.writeHead(302, { 'Location': '/' });
             res.end();
