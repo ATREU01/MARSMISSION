@@ -37,9 +37,18 @@ const CURVE_CONFIG = {
     GRADUATION_MCAP: 69000,             // ~$69K mcap at graduation
 
     // Fees - LAUNCHR Revenue Model
-    PLATFORM_FEE_BPS: 100,              // 1% platform fee on every trade
+    TOTAL_FEE_BPS: 100,                 // 1% total fee on every trade
+
+    // Fee split (of the 1%)
+    FEE_SPLIT: {
+        PLATFORM: 50,                   // 50% to LAUNCHR platform (0.5%)
+        CREATOR: 30,                    // 30% to token creator (0.3%)
+        HOLDERS: 20,                    // 20% to LAUNCHR holders (0.2%)
+    },
+
+    // Graduation fees
     GRADUATION_FEE_SOL: 2.3,            // SOL taken by platform on graduation
-    CREATOR_REWARD_SOL: 0.5,            // SOL reward to creator on graduation
+    CREATOR_REWARD_SOL: 0.5,            // SOL bonus to creator on graduation
     LP_DEPOSIT_SOL: 12,                 // SOL deposited to Raydium LP
     LP_FEE_SHARE_BPS: 25,               // 0.25% of LP trading fees go to LAUNCHR
 
@@ -156,6 +165,13 @@ class BondingCurveState {
         this.uniqueBuyers = new Set();
         this.trades = [];
 
+        // Fee tracking
+        this.accumulatedFees = {
+            platform: 0,
+            creator: 0,
+            holders: 0,
+        };
+
         // Timestamps
         this.createdAt = Date.now();
         this.lastTradeAt = null;
@@ -181,7 +197,7 @@ class BondingCurveState {
         }
 
         // Apply platform fee
-        const fee = solAmount * (CURVE_CONFIG.PLATFORM_FEE_BPS / 10000);
+        const fee = solAmount * (CURVE_CONFIG.TOTAL_FEE_BPS / 10000);
         const netSol = solAmount - fee;
 
         // Update reserves
@@ -189,6 +205,21 @@ class BondingCurveState {
         this.virtualTokenReserves = result.newVirtualTokens;
         this.realSolReserves += netSol;
         this.realTokenReserves -= result.tokensOut;
+
+        // Calculate fee split
+        const feeSplit = {
+            platform: fee * (CURVE_CONFIG.FEE_SPLIT.PLATFORM / 100),
+            creator: fee * (CURVE_CONFIG.FEE_SPLIT.CREATOR / 100),
+            holders: fee * (CURVE_CONFIG.FEE_SPLIT.HOLDERS / 100),
+        };
+
+        // Track accumulated fees
+        if (!this.accumulatedFees) {
+            this.accumulatedFees = { platform: 0, creator: 0, holders: 0 };
+        }
+        this.accumulatedFees.platform += feeSplit.platform;
+        this.accumulatedFees.creator += feeSplit.creator;
+        this.accumulatedFees.holders += feeSplit.holders;
 
         // Update stats
         this.totalBuys++;
@@ -204,6 +235,7 @@ class BondingCurveState {
             tokensOut: result.tokensOut,
             price: result.pricePerToken,
             fee,
+            feeSplit,
             timestamp: Date.now(),
         });
 
@@ -242,7 +274,7 @@ class BondingCurveState {
         }
 
         // Apply platform fee
-        const fee = result.solOut * (CURVE_CONFIG.PLATFORM_FEE_BPS / 10000);
+        const fee = result.solOut * (CURVE_CONFIG.TOTAL_FEE_BPS / 10000);
         const netSol = result.solOut - fee;
 
         // Update reserves
@@ -250,6 +282,21 @@ class BondingCurveState {
         this.virtualTokenReserves = result.newVirtualTokens;
         this.realSolReserves -= result.solOut;
         this.realTokenReserves += tokenAmount;
+
+        // Calculate fee split
+        const feeSplit = {
+            platform: fee * (CURVE_CONFIG.FEE_SPLIT.PLATFORM / 100),
+            creator: fee * (CURVE_CONFIG.FEE_SPLIT.CREATOR / 100),
+            holders: fee * (CURVE_CONFIG.FEE_SPLIT.HOLDERS / 100),
+        };
+
+        // Track accumulated fees
+        if (!this.accumulatedFees) {
+            this.accumulatedFees = { platform: 0, creator: 0, holders: 0 };
+        }
+        this.accumulatedFees.platform += feeSplit.platform;
+        this.accumulatedFees.creator += feeSplit.creator;
+        this.accumulatedFees.holders += feeSplit.holders;
 
         // Update stats
         this.totalSells++;
@@ -264,6 +311,7 @@ class BondingCurveState {
             solOut: netSol,
             price: result.pricePerToken,
             fee,
+            feeSplit,
             timestamp: Date.now(),
         });
 
@@ -288,7 +336,7 @@ class BondingCurveState {
             this.virtualTokenReserves
         );
 
-        const fee = solAmount * (CURVE_CONFIG.PLATFORM_FEE_BPS / 10000);
+        const fee = solAmount * (CURVE_CONFIG.TOTAL_FEE_BPS / 10000);
 
         return {
             tokensOut: result.tokensOut,
@@ -309,7 +357,7 @@ class BondingCurveState {
             this.virtualTokenReserves
         );
 
-        const fee = result.solOut * (CURVE_CONFIG.PLATFORM_FEE_BPS / 10000);
+        const fee = result.solOut * (CURVE_CONFIG.TOTAL_FEE_BPS / 10000);
 
         return {
             solOut: result.solOut - fee,
@@ -375,6 +423,16 @@ class BondingCurveState {
             totalVolume: this.totalVolumeSol,
             uniqueBuyers: this.uniqueBuyers.size,
 
+            // Accumulated fees
+            fees: {
+                total: (this.accumulatedFees?.platform || 0) +
+                       (this.accumulatedFees?.creator || 0) +
+                       (this.accumulatedFees?.holders || 0),
+                platform: this.accumulatedFees?.platform || 0,
+                creator: this.accumulatedFees?.creator || 0,
+                holders: this.accumulatedFees?.holders || 0,
+            },
+
             // Time
             createdAt: this.createdAt,
             lastTradeAt: this.lastTradeAt,
@@ -404,6 +462,7 @@ class BondingCurveState {
             totalVolumeSol: this.totalVolumeSol,
             uniqueBuyers: Array.from(this.uniqueBuyers),
             trades: this.trades.slice(-100), // Last 100 trades
+            accumulatedFees: this.accumulatedFees,
             createdAt: this.createdAt,
             lastTradeAt: this.lastTradeAt,
         };
@@ -428,6 +487,7 @@ class BondingCurveState {
         curve.totalVolumeSol = data.totalVolumeSol;
         curve.uniqueBuyers = new Set(data.uniqueBuyers || []);
         curve.trades = data.trades || [];
+        curve.accumulatedFees = data.accumulatedFees || { platform: 0, creator: 0, holders: 0 };
         curve.createdAt = data.createdAt;
         curve.lastTradeAt = data.lastTradeAt;
 
