@@ -3453,6 +3453,14 @@
                         signedTx = await window.solana.signTransaction(tx);
                     } else if (window.solflare?.isSolflare) {
                         signedTx = await window.solflare.signTransaction(tx);
+                    } else if (privyClient) {
+                        console.log('[TRADE] Using Privy wallet for signing...');
+                        const user = await privyClient.getUser();
+                        if (user?.wallet?.address) {
+                            signedTx = await privyClient.signTransaction(tx);
+                        } else {
+                            throw new Error('No Privy wallet connected');
+                        }
                     } else {
                         throw new Error('No wallet available for signing');
                     }
