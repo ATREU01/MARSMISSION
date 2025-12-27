@@ -2351,11 +2351,9 @@
         // ═══════════════════════════════════════════════════════════════════════
         // CONFIGURATION
         // ═══════════════════════════════════════════════════════════════════════
-        const MAGIC_API_KEY = window.LAUNCHR_CONFIG?.MAGIC_API_KEY || window.LAUNCHR_CONFIG?.PRIVY_APP_ID || 'YOUR_MAGIC_API_KEY';
         const SOLANA_RPC = window.LAUNCHR_CONFIG?.SOLANA_RPC || 'https://api.mainnet-beta.solana.com';
         const FEE_WALLET = window.LAUNCHR_CONFIG?.FEE_WALLET || '';
 
-        let magicClient = null;
         let connectedWallet = null;
         let walletBalance = 0;
         let selectedLaunchPath = 'pumpfun';
@@ -2364,7 +2362,7 @@
         // INITIALIZATION
         // ═══════════════════════════════════════════════════════════════════════
         document.addEventListener('DOMContentLoaded', async () => {
-            await initMagic();
+            await initPrivy();
             const stored = localStorage.getItem('connectedWallet');
             if (stored) handleWalletConnected(stored);
 
@@ -2405,7 +2403,7 @@
         // ═══════════════════════════════════════════════════════════════════════
         // WALLET FUNCTIONS
         // ═══════════════════════════════════════════════════════════════════════
-        async function initMagic() {
+        async function initPrivy() {
             try {
                 if (typeof window.Privy !== 'undefined') {
                     privyClient = new window.Privy({
@@ -2416,24 +2414,11 @@
                             embeddedWallets: { createOnLogin: 'users-without-wallets' },
                             solanaClusters: [{ name: 'mainnet-beta', rpcUrl: SOLANA_RPC }],
                         },
-                if (typeof window.Magic !== 'undefined' && typeof window.SolanaExtension !== 'undefined') {
-                    magicClient = new window.Magic(MAGIC_API_KEY, {
-                        extensions: [
-                            new window.SolanaExtension({
-                                rpcUrl: SOLANA_RPC,
-                            }),
-                        ],
                     });
-                    // Check if user is already logged in
-                    const isLoggedIn = await magicClient.user.isLoggedIn();
-                    if (isLoggedIn) {
-                        const metadata = await magicClient.user.getMetadata();
-                        if (metadata?.publicAddress) {
-                            handleWalletConnected(metadata.publicAddress);
-                        }
-                    }
+                    const user = await privyClient.getUser();
+                    if (user?.wallet) handleWalletConnected(user.wallet.address);
                 }
-            } catch (e) { console.error('[MAGIC]', e); }
+            } catch (e) { console.error('[PRIVY]', e); }
         }
 
         async function connectWallet() {
@@ -2460,7 +2445,7 @@
                             Choose your preferred wallet to connect
                         </p>
                         <div style="display:flex;flex-direction:column;gap:10px;">
-                            <button class="wallet-option magic-option" onclick="connectMagic()">
+                            <button class="wallet-option privy-option" onclick="connectPrivy()">
                                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <rect width="24" height="24" rx="6" fill="#8B5CF6"/>
                                     <path d="M12 6L18 10V14L12 18L6 14V10L12 6Z" fill="white"/>
@@ -2481,7 +2466,7 @@
                         </div>
                         ${!hasPhantom && !hasSolflare ? `
                         <div style="margin-top:20px;padding:14px;background:var(--surface-2);border-radius:var(--radius);text-align:center;">
-                            <p style="color:var(--text-secondary);font-size:12px;">No browser wallet? Use Magic above for email/social login</p>
+                            <p style="color:var(--text-secondary);font-size:12px;">No browser wallet? Use Privy above for embedded wallet</p>
                         </div>
                         ` : ''}
                     </div>
@@ -2499,48 +2484,10 @@
                     .wallet-option span:first-of-type { flex:1;text-align:left; }
                     .wallet-detected { font-size:11px;color:var(--success);background:var(--success-dim);padding:3px 8px;border-radius:10px; }
                     .wallet-not-detected { font-size:11px;color:var(--text-muted); }
-                    .wallet-option.magic-option { border-color:rgba(139,92,246,0.3);background:rgba(139,92,246,0.1); }
-                    .wallet-option.magic-option:hover { border-color:#8B5CF6;background:rgba(139,92,246,0.2); }
+                    .wallet-option.privy-option { border-color:rgba(139,92,246,0.3);background:rgba(139,92,246,0.1); }
+                    .wallet-option.privy-option:hover { border-color:#8B5CF6;background:rgba(139,92,246,0.2); }
                 `;
                 document.head.appendChild(style);
-            }
-        }
-
-        async function connectMagic() {
-            document.getElementById('walletSelectModal')?.remove();
-            try {
-                if (!privyClient && typeof window.Privy !== 'undefined') {
-                    privyClient = new window.Privy({
-                        appId: PRIVY_APP_ID,
-                        config: {
-                            loginMethods: ['wallet'],  // Simplified: wallet-only (no Magic Link required)
-                            appearance: { theme: 'dark', accentColor: '#FFD966' },
-                            embeddedWallets: { createOnLogin: 'users-without-wallets' },
-                            solanaClusters: [{ name: 'mainnet-beta', rpcUrl: SOLANA_RPC }],
-                        },
-                    });
-                }
-                if (magicClient) {
-                    // Prompt user for email
-                    const email = prompt('Enter your email address:');
-                    if (!email) return;
-
-                    // Magic.link will handle the email OTP flow via their built-in UI
-                    await magicClient.auth.loginWithEmailOTP({ email });
-
-                    // Get user metadata
-                    const metadata = await magicClient.user.getMetadata();
-                    if (metadata?.publicAddress) {
-                        handleWalletConnected(metadata.publicAddress);
-                    } else {
-                        showNotification('Failed to get wallet address from Magic', 'error');
-                    }
-                } else {
-                    showNotification('Magic not available. Please try again or use a browser wallet.', 'error');
-                }
-            } catch (e) {
-                console.error('[MAGIC]', e);
-                showNotification('Failed to connect with Magic: ' + e.message, 'error');
             }
         }
 
@@ -2596,7 +2543,7 @@
         }
 
         async function disconnectWallet() {
-            if (magicClient) try { await magicClient.user.logout(); } catch (e) {}
+            if (privyClient) try { await privyClient.logout(); } catch (e) {}
             if (window.solana?.isPhantom) try { await window.solana.disconnect(); } catch (e) {}
             if (window.solflare?.isSolflare) try { await window.solflare.disconnect(); } catch (e) {}
             connectedWallet = null;
