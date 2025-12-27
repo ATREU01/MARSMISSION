@@ -2384,7 +2384,7 @@
                     privyClient = new window.Privy({
                         appId: PRIVY_APP_ID,
                         config: {
-                            loginMethods: ['email', 'wallet', 'google', 'twitter'],
+                            loginMethods: ['wallet'],  // Simplified: wallet-only (no Magic Link required)
                             appearance: { theme: 'dark', accentColor: '#FFD966' },
                             embeddedWallets: { createOnLogin: 'users-without-wallets' },
                             solanaClusters: [{ name: 'mainnet-beta', rpcUrl: SOLANA_RPC }],
@@ -2427,7 +2427,7 @@
                                     <path d="M12 6L18 10V14L12 18L6 14V10L12 6Z" fill="white"/>
                                 </svg>
                                 <span>Privy</span>
-                                <span class="wallet-detected">Email, Google, Twitter</span>
+                                <span class="wallet-detected">Embedded Wallet</span>
                             </button>
                             <button class="wallet-option ${hasPhantom ? '' : 'disabled'}" onclick="${hasPhantom ? 'connectPhantom()' : ''}" ${hasPhantom ? '' : 'disabled'}>
                                 <img src="/website/phantom_icon.png" alt="Phantom" style="width:28px;height:28px;border-radius:6px;">
@@ -2512,7 +2512,7 @@
                     privyClient = new window.Privy({
                         appId: PRIVY_APP_ID,
                         config: {
-                            loginMethods: ['email', 'wallet', 'google', 'twitter'],
+                            loginMethods: ['wallet'],  // Simplified: wallet-only (no Magic Link required)
                             appearance: { theme: 'dark', accentColor: '#FFD966' },
                             embeddedWallets: { createOnLogin: 'users-without-wallets' },
                             solanaClusters: [{ name: 'mainnet-beta', rpcUrl: SOLANA_RPC }],
