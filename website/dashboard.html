@@ -1948,44 +1948,43 @@
                     <div class="allocation-section">
                         <div class="allocation-title">Your 99% Allocation Strategy</div>
 
-                        <div class="strategy-presets">
-                            <button class="strategy-btn active" data-strategy="balanced">Balanced</button>
-                            <button class="strategy-btn" data-strategy="growth">Growth</button>
-                            <button class="strategy-btn" data-strategy="burn">Burn</button>
-                            <button class="strategy-btn" data-strategy="lp">LP</button>
-                            <button class="strategy-btn" data-strategy="revenue">Revenue</button>
-                            <button class="strategy-btn" data-strategy="custom">Custom</button>
+                        <!-- Total Display -->
+                        <div class="total-display" style="text-align:center;padding:16px;background:var(--gold-dim);border-radius:var(--radius);margin-bottom:20px;">
+                            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Total Allocation</div>
+                            <div id="totalAllocation" style="font-size:32px;font-weight:800;color:var(--gold);">100%</div>
                         </div>
 
-                        <div class="allocation-grid">
+                        <!-- Input Fields Grid -->
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
                             <div class="allocation-item">
-                                <div class="allocation-item-header">
-                                    <span class="allocation-item-name">Market Making</span>
-                                    <span class="allocation-item-value">25%</span>
-                                </div>
-                                <input type="range" class="allocation-slider" value="25" min="0" max="100">
+                                <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px;">Market Making %</label>
+                                <input type="number" id="input-marketMaking" min="0" max="100" value="25" oninput="clampValue(this)" onchange="updateTotal()" style="width:100%;padding:14px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-size:16px;text-align:center;">
                             </div>
                             <div class="allocation-item">
-                                <div class="allocation-item-header">
-                                    <span class="allocation-item-name">Buyback & Burn</span>
-                                    <span class="allocation-item-value">25%</span>
-                                </div>
-                                <input type="range" class="allocation-slider" value="25" min="0" max="100">
+                                <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px;">Buyback & Burn %</label>
+                                <input type="number" id="input-buybackBurn" min="0" max="100" value="25" oninput="clampValue(this)" onchange="updateTotal()" style="width:100%;padding:14px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-size:16px;text-align:center;">
                             </div>
                             <div class="allocation-item">
-                                <div class="allocation-item-header">
-                                    <span class="allocation-item-name">Liquidity</span>
-                                    <span class="allocation-item-value">25%</span>
-                                </div>
-                                <input type="range" class="allocation-slider" value="25" min="0" max="100">
+                                <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px;">Liquidity Pool %</label>
+                                <input type="number" id="input-liquidity" min="0" max="100" value="25" oninput="clampValue(this)" onchange="updateTotal()" style="width:100%;padding:14px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-size:16px;text-align:center;">
                             </div>
                             <div class="allocation-item">
-                                <div class="allocation-item-header">
-                                    <span class="allocation-item-name">Creator Revenue</span>
-                                    <span class="allocation-item-value">25%</span>
-                                </div>
-                                <input type="range" class="allocation-slider" value="25" min="0" max="100">
+                                <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px;">Creator Revenue %</label>
+                                <input type="number" id="input-creatorRevenue" min="0" max="100" value="25" oninput="clampValue(this)" onchange="updateTotal()" style="width:100%;padding:14px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-size:16px;text-align:center;">
                             </div>
+                        </div>
+
+                        <p style="font-size:11px;color:var(--text-muted);margin-top:12px;text-align:center;">Must total exactly 100%</p>
+                        <button class="btn btn-primary" onclick="saveAllocations()" id="saveAllocBtn" disabled style="margin-top:12px;width:100%;">Save Allocations</button>
+
+                        <!-- Smart Optimizer -->
+                        <div style="margin-top:20px;padding:20px;background:linear-gradient(135deg,var(--purple-dim),rgba(99,102,241,0.1));border:1px solid rgba(168,85,247,0.3);border-radius:var(--radius-lg);">
+                            <div style="font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--purple);margin-bottom:8px;">SMART OPTIMIZER</div>
+                            <p style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">AI analyzes market conditions and optimizes your allocations automatically</p>
+                            <button class="btn" onclick="runMaximus()" id="maximusBtn" style="background:linear-gradient(135deg,#a855f7,#6366f1);width:100%;color:white;">
+                                RUN ANALYSIS
+                            </button>
+                            <div id="maximusResult" style="margin-top:12px;font-size:11px;color:var(--text-muted);display:none;"></div>
                         </div>
                     </div>
                 </div>
@@ -2203,6 +2202,149 @@
         }
 
         // ═══════════════════════════════════════════════════════════════════════
+        // FEE ALLOCATION FUNCTIONS (INPUT-BASED)
+        // ═══════════════════════════════════════════════════════════════════════
+
+        // Clamp input values to 0-100
+        function clampValue(input) {
+            let val = parseInt(input.value) || 0;
+            if (val < 0) val = 0;
+            if (val > 100) val = 100;
+            input.value = val;
+            updateTotal();
+        }
+
+        // Get allocations from inputs
+        function getAllocations() {
+            return {
+                marketMaking: parseInt(document.getElementById('input-marketMaking')?.value) || 0,
+                buybackBurn: parseInt(document.getElementById('input-buybackBurn')?.value) || 0,
+                liquidity: parseInt(document.getElementById('input-liquidity')?.value) || 0,
+                creatorRevenue: parseInt(document.getElementById('input-creatorRevenue')?.value) || 0
+            };
+        }
+
+        // Update total display and save button state
+        function updateTotal() {
+            const alloc = getAllocations();
+            const total = alloc.marketMaking + alloc.buybackBurn + alloc.liquidity + alloc.creatorRevenue;
+            const display = document.getElementById('totalAllocation');
+            const saveBtn = document.getElementById('saveAllocBtn');
+
+            if (!display) return;
+
+            display.textContent = total + '%';
+
+            if (total === 100) {
+                display.style.color = 'var(--gold)';
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Save Allocations';
+                }
+            } else if (total > 100) {
+                display.style.color = 'var(--error)';
+                display.style.animation = 'pulse 1s ease-in-out infinite';
+                if (saveBtn) {
+                    saveBtn.disabled = true;
+                    saveBtn.textContent = 'Over by ' + (total - 100) + '%';
+                }
+            } else {
+                display.style.color = 'var(--warning)';
+                display.style.animation = 'pulse 1s ease-in-out infinite';
+                if (saveBtn) {
+                    saveBtn.disabled = true;
+                    saveBtn.textContent = 'Under by ' + (100 - total) + '%';
+                }
+            }
+        }
+
+        // Save allocations to server
+        async function saveAllocations() {
+            const allocations = getAllocations();
+            const total = allocations.marketMaking + allocations.buybackBurn + allocations.liquidity + allocations.creatorRevenue;
+            if (total !== 100) {
+                showNotification('Allocations must sum to 100%', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/allocations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(allocations)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showNotification('Allocations saved!', 'success');
+                } else {
+                    showNotification('Error: ' + data.error, 'error');
+                }
+            } catch (e) {
+                showNotification('Error: ' + e.message, 'error');
+            }
+        }
+
+        // Smart Optimizer - AI analysis
+        async function runMaximus() {
+            const btn = document.getElementById('maximusBtn');
+            const resultDiv = document.getElementById('maximusResult');
+
+            if (!btn) return;
+
+            btn.disabled = true;
+            btn.textContent = 'ANALYZING...';
+            if (resultDiv) resultDiv.style.display = 'none';
+
+            try {
+                const res = await fetch('/api/ai/optimize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        rsi: null,
+                        balance: walletBalance || 0,
+                        currentAllocations: getAllocations()
+                    })
+                });
+
+                const data = await res.json();
+                if (data.success && data.allocations) {
+                    // Apply the optimized allocations to inputs
+                    const mmInput = document.getElementById('input-marketMaking');
+                    const bbInput = document.getElementById('input-buybackBurn');
+                    const liqInput = document.getElementById('input-liquidity');
+                    const crInput = document.getElementById('input-creatorRevenue');
+
+                    if (mmInput) mmInput.value = data.allocations.marketMaking || 0;
+                    if (bbInput) bbInput.value = data.allocations.buybackBurn || 0;
+                    if (liqInput) liqInput.value = data.allocations.liquidity || 0;
+                    if (crInput) crInput.value = data.allocations.creatorRevenue || 0;
+
+                    updateTotal();
+
+                    // Auto-save
+                    await saveAllocations();
+
+                    if (resultDiv) {
+                        resultDiv.innerHTML = '✅ ' + (data.allocations.reasoning || 'Allocations optimized!');
+                        resultDiv.style.display = 'block';
+                        resultDiv.style.color = 'var(--success)';
+                    }
+                } else {
+                    throw new Error(data.error || 'Optimization failed');
+                }
+            } catch (e) {
+                if (resultDiv) {
+                    resultDiv.innerHTML = '❌ ' + e.message;
+                    resultDiv.style.display = 'block';
+                    resultDiv.style.color = 'var(--error)';
+                }
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'RUN ANALYSIS';
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
         // CONFIGURATION
         // ═══════════════════════════════════════════════════════════════════════
         const PRIVY_APP_ID = window.LAUNCHR_CONFIG?.PRIVY_APP_ID || 'YOUR_PRIVY_APP_ID';
@@ -2225,62 +2367,8 @@
             // Fetch initial stats
             fetchDashboardStats();
 
-            // Strategy preset buttons
-            document.querySelectorAll('.strategy-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    document.querySelectorAll('.strategy-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    applyStrategy(btn.dataset.strategy);
-                });
-            });
-
-            // Allocation sliders - enforce 100% total
-            document.querySelectorAll('.allocation-slider').forEach((slider, idx) => {
-                slider.addEventListener('input', (e) => {
-                    enforceAllocationTotal(idx, parseInt(e.target.value));
-                });
-            });
-
-            // Function to enforce 100% total allocation
-            function enforceAllocationTotal(changedIdx, newValue) {
-                const sliders = Array.from(document.querySelectorAll('.allocation-slider'));
-                const values = sliders.map(s => parseInt(s.value));
-
-                // Set the changed slider value
-                values[changedIdx] = newValue;
-
-                // Calculate current total
-                const currentTotal = values.reduce((a, b) => a + b, 0);
-
-                if (currentTotal > 100) {
-                    // Reduce other sliders proportionally
-                    const excess = currentTotal - 100;
-                    const otherIndices = sliders.map((_, i) => i).filter(i => i !== changedIdx && values[i] > 0);
-                    const otherTotal = otherIndices.reduce((sum, i) => sum + values[i], 0);
-
-                    if (otherTotal > 0) {
-                        let remaining = excess;
-                        for (const i of otherIndices) {
-                            const reduction = Math.min(values[i], Math.ceil(excess * values[i] / otherTotal));
-                            values[i] = Math.max(0, values[i] - reduction);
-                            remaining -= reduction;
-                        }
-                    } else {
-                        // Can't reduce others, cap this slider
-                        values[changedIdx] = 100;
-                    }
-                }
-
-                // Update all sliders and displays
-                sliders.forEach((slider, i) => {
-                    slider.value = values[i];
-                    slider.closest('.allocation-item').querySelector('.allocation-item-value').textContent = values[i] + '%';
-                });
-
-                // Mark as custom strategy
-                document.querySelectorAll('.strategy-btn').forEach(b => b.classList.remove('active'));
-                document.querySelector('.strategy-btn[data-strategy="custom"]')?.classList.add('active');
-            }
+            // Initialize allocation total on page load
+            updateTotal();
 
             // Auto-refresh stats every 30 seconds
             setInterval(fetchDashboardStats, 30000);
@@ -2943,11 +3031,12 @@
 
         function applyStrategy(name) {
             const values = strategies[name] || strategies.balanced;
-            const sliders = document.querySelectorAll('.allocation-slider');
-            sliders.forEach((slider, i) => {
-                slider.value = values[i];
-                slider.closest('.allocation-item').querySelector('.allocation-item-value').textContent = values[i] + '%';
+            const inputs = ['input-marketMaking', 'input-buybackBurn', 'input-liquidity', 'input-creatorRevenue'];
+            inputs.forEach((id, i) => {
+                const input = document.getElementById(id);
+                if (input) input.value = values[i];
             });
+            updateTotal();
         }
 
         // ═══════════════════════════════════════════════════════════════════════
