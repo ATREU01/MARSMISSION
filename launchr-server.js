@@ -1869,6 +1869,72 @@ The 4 percentages must sum to 100.`;
         return;
     }
 
+    // API: Register a new token (called after successful launch)
+    if (url.pathname === '/api/register-token' && req.method === 'POST') {
+        try {
+            const data = await parseBody(req);
+            if (!data.mint || !data.creator) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'mint and creator required' }));
+                return;
+            }
+
+            const result = tracker.registerToken(data.mint, data.creator, {
+                name: data.name || 'Unknown Token',
+                symbol: data.symbol || 'TOKEN',
+                image: data.image || null,
+                path: data.path || 'pump',
+                description: data.description || '',
+                socials: data.socials || {}
+            });
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, ...result }));
+        } catch (e) {
+            console.error('[API] register-token error:', e);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Get tokens by creator wallet (My Launches)
+    if (url.pathname === '/api/my-tokens' && req.method === 'GET') {
+        try {
+            const wallet = url.searchParams.get('wallet');
+            if (!wallet) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Wallet address required' }));
+                return;
+            }
+
+            const tokens = tracker.getTokensByCreator(wallet)
+                .sort((a, b) => b.registeredAt - a.registeredAt)
+                .map(t => ({
+                    mint: t.mint,
+                    name: t.name || 'Unknown Token',
+                    symbol: t.symbol || 'TOKEN',
+                    image: t.image || null,
+                    path: t.path || 'pump',
+                    mcap: t.mcap || 0,
+                    volume: t.volume || 0,
+                    change: t.change || 0,
+                    holders: t.holders || 0,
+                    createdAt: t.registeredAt,
+                    time: formatTimeAgo(t.registeredAt),
+                    stats: t.stats || { totalClaimed: 0, totalDistributed: 0 }
+                }));
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ tokens }));
+        } catch (e) {
+            console.error('[API] my-tokens error:', e);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ tokens: [] }));
+        }
+        return;
+    }
+
     // API: Get leaderboard (top tokens by mcap)
     if (url.pathname === '/api/leaderboard' && req.method === 'GET') {
         try {
