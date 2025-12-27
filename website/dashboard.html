@@ -15,51 +15,77 @@
         :root {
             /* Background Layers */
             --bg-deep: #030303;
-            --bg: #050505;
-            --bg-elevated: #080808;
-            --surface: #0C0C0C;
-            --surface-2: #121212;
-            --surface-3: #181818;
-            --surface-4: #1E1E1E;
+            --bg: #050508;
+            --bg-elevated: #0A0A0F;
+            --surface: #0E0E14;
+            --surface-2: #14141C;
+            --surface-3: #1A1A24;
+            --surface-4: #22222E;
 
             /* Borders */
-            --border: rgba(196, 165, 116, 0.08);
+            --border: rgba(255, 215, 100, 0.1);
             --border-subtle: rgba(255, 255, 255, 0.04);
-            --border-active: rgba(196, 165, 116, 0.2);
-            --border-strong: rgba(196, 165, 116, 0.35);
+            --border-active: rgba(255, 215, 100, 0.25);
+            --border-strong: rgba(255, 215, 100, 0.4);
 
             /* Text */
-            --text: #E8E4DE;
-            --text-secondary: #9A9590;
-            --text-muted: #5C5955;
-            --text-dim: #3D3A37;
+            --text: #F5F5F7;
+            --text-secondary: #A0A0A8;
+            --text-muted: #606068;
+            --text-dim: #404048;
 
-            /* Primary - Muted Gold */
-            --gold: #C4A574;
-            --gold-light: #D4B894;
-            --gold-dark: #9A8055;
-            --gold-dim: rgba(196, 165, 116, 0.12);
-            --gold-glow: rgba(196, 165, 116, 0.06);
+            /* Primary - Light Vibrant Gold */
+            --gold: #FFD966;
+            --gold-light: #FFE699;
+            --gold-bright: #FFEB99;
+            --gold-dark: #E6B800;
+            --gold-dim: rgba(255, 217, 102, 0.15);
+            --gold-glow: rgba(255, 217, 102, 0.08);
 
-            /* Secondary - Teal */
-            --teal: #64B5A0;
-            --teal-dim: rgba(100, 181, 160, 0.12);
+            /* Secondary - Electric Cyan */
+            --teal: #00E5FF;
+            --teal-dim: rgba(0, 229, 255, 0.12);
+            --cyan: #00E5FF;
+            --cyan-dim: rgba(0, 229, 255, 0.12);
+
+            /* Accent - Hot Pink */
+            --pink: #FF3D8E;
+            --pink-dim: rgba(255, 61, 142, 0.12);
 
             /* Semantic */
-            --success: #7CB66A;
-            --success-dim: rgba(124, 182, 106, 0.12);
-            --warning: #D4A84A;
-            --warning-dim: rgba(212, 168, 74, 0.12);
-            --error: #C75050;
-            --error-dim: rgba(199, 80, 80, 0.12);
-            --purple: #A78BFA;
-            --purple-dim: rgba(139, 92, 246, 0.15);
+            --success: #4ADE80;
+            --success-dim: rgba(74, 222, 128, 0.12);
+            --warning: #FBBF24;
+            --warning-dim: rgba(251, 191, 36, 0.12);
+            --error: #F43F5E;
+            --error-dim: rgba(244, 63, 94, 0.12);
+            --purple: #A855F7;
+            --purple-dim: rgba(168, 85, 247, 0.15);
 
             /* Spacing & Radius */
             --radius-sm: 6px;
-            --radius: 8px;
-            --radius-lg: 12px;
-            --radius-xl: 16px;
+            --radius: 10px;
+            --radius-lg: 14px;
+            --radius-xl: 20px;
+        }
+
+        /* Animations */
+        @keyframes shimmer {
+            0% { background-position: -200% center; }
+            100% { background-position: 200% center; }
+        }
+        @keyframes glow-pulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 217, 102, 0.3); }
+            50% { box-shadow: 0 0 40px rgba(255, 217, 102, 0.5); }
+        }
+        @keyframes gradient-flow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
         }
 
         html { scroll-behavior: smooth; }
@@ -74,15 +100,19 @@
             min-height: 100vh;
         }
 
-        /* Ambient Background */
+        /* Dynamic Multi-Color Atmosphere */
         .ambient {
             position: fixed;
             inset: 0;
             background:
-                radial-gradient(ellipse 80% 50% at 50% -10%, var(--gold-glow) 0%, transparent 50%),
-                radial-gradient(ellipse 40% 30% at 90% 90%, rgba(100, 181, 160, 0.03) 0%, transparent 40%);
+                radial-gradient(ellipse 100% 60% at 50% -20%, rgba(255, 217, 102, 0.12) 0%, transparent 50%),
+                radial-gradient(ellipse 60% 40% at 100% 0%, rgba(0, 229, 255, 0.06) 0%, transparent 40%),
+                radial-gradient(ellipse 50% 40% at 0% 100%, rgba(255, 61, 142, 0.04) 0%, transparent 40%),
+                radial-gradient(ellipse 40% 30% at 80% 80%, rgba(168, 85, 247, 0.03) 0%, transparent 40%);
             pointer-events: none;
             z-index: 0;
+            animation: gradient-flow 15s ease infinite;
+            background-size: 200% 200%;
         }
 
         /* Layout */
@@ -216,21 +246,50 @@
             white-space: nowrap;
         }
         .btn-primary {
-            background: var(--gold);
-            color: var(--bg);
+            background: linear-gradient(135deg, #FFE699 0%, #FFD966 30%, #E6B800 70%, #FFD966 100%);
+            background-size: 200% 200%;
+            color: #0A0A0F;
+            font-weight: 700;
+            text-shadow: 0 1px 0 rgba(255,255,255,0.3);
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255, 235, 153, 0.5);
+        }
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: left 0.5s ease;
+        }
+        .btn-primary:hover::before {
+            left: 100%;
         }
         .btn-primary:hover {
-            background: var(--gold-light);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(196, 165, 116, 0.25);
+            background-position: 100% 0;
+            transform: translateY(-2px);
+            box-shadow:
+                0 4px 15px rgba(255, 217, 102, 0.4),
+                0 0 30px rgba(255, 217, 102, 0.2),
+                inset 0 1px 0 rgba(255,255,255,0.3);
         }
         .btn-secondary {
-            background: var(--surface-2);
+            background: linear-gradient(135deg, var(--surface-2) 0%, var(--surface-3) 100%);
             color: var(--text);
             border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-secondary::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
         }
         .btn-secondary:hover {
-            background: var(--surface-3);
+            background: linear-gradient(135deg, var(--surface-3) 0%, var(--surface-4) 100%);
             border-color: var(--border-active);
         }
         .btn-sm {
