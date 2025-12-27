@@ -1297,12 +1297,12 @@
                             </div>
                             <div class="path-option-desc">One-click launch, auto bonding curve</div>
                         </div>
-                        <div class="path-option disabled" data-path="launchr" style="opacity:0.5;cursor:not-allowed;">
+                        <div class="path-option" data-path="launchr" onclick="selectPath('launchr')">
                             <div class="path-option-header">
-                                <span class="path-option-name">Launchr</span>
-                                <span class="path-option-badge advanced">Coming Soon</span>
+                                <span class="path-option-name">LNCR Vanity</span>
+                                <span class="path-option-badge advanced" style="background:var(--gold-dim);color:var(--gold);">Premium</span>
                             </div>
-                            <div class="path-option-desc">Custom curves, full control</div>
+                            <div class="path-option-desc">Vanity address ending in <code style="color:var(--gold);">...lncr</code></div>
                         </div>
                     </div>
 
@@ -1382,9 +1382,9 @@
                         <p class="dev-buy-hint">Buy tokens at launch to seed initial liquidity (0-5 SOL)</p>
                     </div>
 
-                    <div class="form-hint">
+                    <div class="form-hint" id="launchHint">
                         <span class="form-hint-icon">&#x1F680;</span>
-                        <span>Launch your token on <strong>Pump.fun</strong></span>
+                        <span id="launchHintText">Launch your token on <strong>Pump.fun</strong></span>
                     </div>
 
                     <button class="btn btn-primary" style="width:100%;padding:14px;" id="deployBtn" onclick="deployToken()">
@@ -1943,6 +1943,13 @@
             document.querySelectorAll('.path-option').forEach(opt => {
                 opt.classList.toggle('active', opt.dataset.path === path);
             });
+            // Update hint text based on path
+            const hintText = document.getElementById('launchHintText');
+            if (path === 'launchr') {
+                hintText.innerHTML = 'Launch with <strong style="color:var(--gold);">LNCR vanity address</strong> on Pump.fun';
+            } else {
+                hintText.innerHTML = 'Launch your token on <strong>Pump.fun</strong>';
+            }
         }
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -2006,35 +2013,44 @@
             };
         }
 
-        // Generate a new mint keypair for the token (tries vanity pool first)
+        // Generate mint keypair based on selected path
         // VAULT: Returns { publicKey, vaultId } for vanity, or { keypair } for random
         async function generateMintKeypair() {
             const { Keypair, PublicKey } = solanaWeb3;
 
-            // Try to get a vanity keypair from the server vault (secretKey stays server-side)
-            try {
-                const res = await fetch('/api/vanity-keypair');
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.success && data.vaultId) {
-                        console.log('[DEPLOY] Got vanity mint address:', data.publicKey, '(vault secured)');
-                        return {
-                            publicKey: new PublicKey(data.publicKey),
-                            vaultId: data.vaultId,  // Used for server-side signing
-                            isVanity: true
-                        };
+            // LNCR Vanity path - must get vanity keypair
+            if (selectedPath === 'launchr') {
+                try {
+                    const res = await fetch('/api/vanity-keypair');
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.success && data.vaultId) {
+                            console.log('[DEPLOY] Got LNCR vanity mint:', data.publicKey, '(vault secured)');
+                            return {
+                                publicKey: new PublicKey(data.publicKey),
+                                vaultId: data.vaultId,
+                                isVanity: true
+                            };
+                        }
                     }
+                    // No vanity available - check status
+                    const statusRes = await fetch('/api/vanity-status');
+                    const status = statusRes.ok ? await statusRes.json() : {};
+                    const msg = status.isGenerating
+                        ? `No LNCR addresses available. Mining in progress (${status.stats?.found || 0} found so far). Try again soon!`
+                        : 'No LNCR addresses available. Please try again later or use Pump.fun path.';
+                    throw new Error(msg);
+                } catch (e) {
+                    throw new Error(e.message || 'LNCR vanity keypair unavailable');
                 }
-            } catch (e) {
-                console.log('[DEPLOY] Vanity pool unavailable, using random keypair');
             }
 
-            // Fallback to random keypair (local signing)
+            // Standard Pump.fun path - use random keypair (local signing)
             const mintKeypair = Keypair.generate();
             console.log('[DEPLOY] Generated random mint address:', mintKeypair.publicKey.toString());
             return {
                 publicKey: mintKeypair.publicKey,
-                keypair: mintKeypair,  // Local keypair for signing
+                keypair: mintKeypair,
                 isVanity: false
             };
         }
@@ -2271,7 +2287,7 @@
                 // Step 1: Upload metadata to IPFS
                 const tokenMetadata = await uploadTokenMetadata(name, symbol, description, imageFile, socials);
 
-                btn.textContent = 'Getting vanity address...';
+                btn.textContent = selectedPath === 'launchr' ? 'Getting LNCR address...' : 'Generating mint...';
 
                 // Step 2: Generate mint info (tries vanity vault first)
                 const mintInfo = await generateMintKeypair();
