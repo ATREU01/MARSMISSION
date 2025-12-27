@@ -65,6 +65,10 @@ let vanityPool = [];
 let vanityGenerating = false;
 let vanityGeneratorStats = { attempts: 0, found: 0, lastFoundAt: null };
 
+// Rate limiting for vanity keypair endpoint (module-level for persistence)
+const vanityRateLimits = {};
+const VANITY_RATE_LIMIT_MS = 60000; // 1 minute between requests per IP
+
 // Load existing pool from disk
 function loadVanityPool() {
     try {
@@ -2023,8 +2027,33 @@ The 4 percentages must sum to 100.`;
         return;
     }
 
-    // API: Get vanity keypair (mint address ending in "launchr")
+    // API: Get vanity keypair (mint address ending in "launchr") - RATE LIMITED
     if (url.pathname === '/api/vanity-keypair' && req.method === 'GET') {
+        // Rate limit by IP
+        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const lastRequest = vanityRateLimits[clientIP] || 0;
+        const now = Date.now();
+
+        if (now - lastRequest < VANITY_RATE_LIMIT_MS) {
+            const waitSeconds = Math.ceil((VANITY_RATE_LIMIT_MS - (now - lastRequest)) / 1000);
+            res.writeHead(429, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                error: `Rate limited. Please wait ${waitSeconds} seconds.`,
+                retryAfter: waitSeconds
+            }));
+            return;
+        }
+
+        vanityRateLimits[clientIP] = now;
+
+        // Clean old rate limit entries every 100 requests
+        if (Object.keys(vanityRateLimits).length > 1000) {
+            const cutoff = now - VANITY_RATE_LIMIT_MS * 2;
+            for (const ip in vanityRateLimits) {
+                if (vanityRateLimits[ip] < cutoff) delete vanityRateLimits[ip];
+            }
+        }
         const keypair = getVanityKeypair();
         res.writeHead(200, { 'Content-Type': 'application/json' });
 
