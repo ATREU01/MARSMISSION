@@ -13,8 +13,6 @@
     <link rel="shortcut icon" href="/favicon.ico" type="image/jpeg">
     <link rel="apple-touch-icon" href="/website/logo-icon.jpg">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <!-- Privy SDK for embedded wallet -->
-    <script src="https://cdn.privy.io/sdk/privy-js/latest/umd/privy.min.js"></script>
     <!-- Solana Web3.js for transaction handling -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     <!-- bs58 for Base58 encoding -->
@@ -2352,9 +2350,12 @@
         // ═══════════════════════════════════════════════════════════════════════
         const SOLANA_RPC = window.LAUNCHR_CONFIG?.SOLANA_RPC || 'https://api.mainnet-beta.solana.com';
         const PRIVY_APP_ID = window.LAUNCHR_CONFIG?.PRIVY_APP_ID || '';
+        const PRIVY_CLIENT_ID = window.LAUNCHR_CONFIG?.PRIVY_CLIENT_ID || '';
         const FEE_WALLET = window.LAUNCHR_CONFIG?.FEE_WALLET || '';
 
         let privyClient = null;
+        let privyIframe = null;
+        let privyUser = null;
         let connectedWallet = null;
         let walletBalance = 0;
         let selectedLaunchPath = 'pumpfun';
@@ -2405,21 +2406,52 @@
         // WALLET FUNCTIONS
         // ═══════════════════════════════════════════════════════════════════════
         async function initPrivy() {
+            if (!PRIVY_APP_ID) {
+                console.log('[PRIVY] App ID not configured - Privy disabled');
+                return;
+            }
+
             try {
-                if (typeof window.Privy !== 'undefined') {
-                    privyClient = new window.Privy({
-                        appId: PRIVY_APP_ID,
-                        config: {
-                            loginMethods: ['wallet'],  // Simplified: wallet-only (no Magic Link required)
-                            appearance: { theme: 'dark', accentColor: '#FFD966' },
-                            embeddedWallets: { createOnLogin: 'users-without-wallets' },
-                            solanaClusters: [{ name: 'mainnet-beta', rpcUrl: SOLANA_RPC }],
-                        },
-                    });
-                    const user = await privyClient.getUser();
-                    if (user?.wallet) handleWalletConnected(user.wallet.address);
+                // Dynamic import of Privy SDK from esm.sh
+                const { default: Privy, LocalStorage } = await import('https://esm.sh/@privy-io/js-sdk-core@0.58.5');
+
+                // Initialize Privy client (appId only required)
+                privyClient = new Privy({
+                    appId: PRIVY_APP_ID,
+                    storage: new LocalStorage()
+                });
+
+                // Set up iframe for embedded wallet secure context
+                const iframeUrl = privyClient.embeddedWallet.getURL();
+                privyIframe = document.createElement('iframe');
+                privyIframe.src = iframeUrl;
+                privyIframe.style.cssText = 'display:none;position:absolute;width:0;height:0;border:none;';
+                privyIframe.id = 'privy-iframe';
+                document.body.appendChild(privyIframe);
+
+                // Set up message posting for iframe communication
+                privyClient.setMessagePoster(privyIframe.contentWindow);
+                window.addEventListener('message', (e) => {
+                    if (e.source === privyIframe.contentWindow) {
+                        privyClient.embeddedWallet.onMessage(e.data);
+                    }
+                });
+
+                // Check if user is already authenticated
+                const session = await privyClient.auth.getSession();
+                if (session?.user) {
+                    privyUser = session.user;
+                    const solanaWallet = session.user.linkedAccounts?.find(a => a.type === 'wallet' && a.chainType === 'solana');
+                    if (solanaWallet?.address) {
+                        handleWalletConnected(solanaWallet.address);
+                    }
                 }
-            } catch (e) { console.error('[PRIVY]', e); }
+
+                console.log('[PRIVY] Initialized successfully');
+            } catch (e) {
+                console.error('[PRIVY] Init error:', e);
+                // Privy failed to load - disable Privy button will be handled in showWalletSelectModal
+            }
         }
 
         async function connectWallet() {
@@ -2430,6 +2462,7 @@
         function showWalletSelectModal() {
             const hasPhantom = window.solana?.isPhantom;
             const hasSolflare = window.solflare?.isSolflare;
+            const hasPrivy = !!privyClient;
 
             const modal = document.createElement('div');
             modal.className = 'modal-overlay';
@@ -2446,13 +2479,13 @@
                             Choose your preferred wallet to connect
                         </p>
                         <div style="display:flex;flex-direction:column;gap:10px;">
-                            <button class="wallet-option privy-option" onclick="connectPrivy()">
+                            <button class="wallet-option privy-option ${hasPrivy ? '' : 'disabled'}" onclick="${hasPrivy ? 'connectPrivy()' : ''}" ${hasPrivy ? '' : 'disabled'}>
                                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <rect width="24" height="24" rx="6" fill="#8B5CF6"/>
                                     <path d="M12 6L18 10V14L12 18L6 14V10L12 6Z" fill="white"/>
                                 </svg>
                                 <span>Privy</span>
-                                <span class="wallet-detected">Embedded Wallet</span>
+                                ${hasPrivy ? '<span class="wallet-detected">Email Wallet</span>' : '<span class="wallet-not-detected">Not configured</span>'}
                             </button>
                             <button class="wallet-option ${hasPhantom ? '' : 'disabled'}" onclick="${hasPhantom ? 'connectPhantom()' : ''}" ${hasPhantom ? '' : 'disabled'}>
                                 <img src="/website/phantom_icon.png" alt="Phantom" style="width:28px;height:28px;border-radius:6px;">
@@ -2465,9 +2498,9 @@
                                 ${hasSolflare ? '<span class="wallet-detected">Detected</span>' : '<span class="wallet-not-detected">Not installed</span>'}
                             </button>
                         </div>
-                        ${!hasPhantom && !hasSolflare ? `
+                        ${!hasPhantom && !hasSolflare && !hasPrivy ? `
                         <div style="margin-top:20px;padding:14px;background:var(--surface-2);border-radius:var(--radius);text-align:center;">
-                            <p style="color:var(--text-secondary);font-size:12px;">No browser wallet? Use Privy above for embedded wallet</p>
+                            <p style="color:var(--text-secondary);font-size:12px;">No wallet available. Install <a href="https://phantom.app" target="_blank" style="color:var(--gold);">Phantom</a> or contact support to enable Privy.</p>
                         </div>
                         ` : ''}
                     </div>
@@ -2516,32 +2549,80 @@
 
         async function connectPrivy() {
             document.getElementById('walletSelectModal')?.remove();
+
+            if (!privyClient) {
+                showNotification('Privy not initialized. Check PRIVY_APP_ID and PRIVY_CLIENT_ID configuration.', 'error');
+                return;
+            }
+
             try {
-                if (!privyClient && typeof window.Privy !== 'undefined') {
-                    privyClient = new window.Privy({
-                        appId: PRIVY_APP_ID,
-                        config: {
-                            loginMethods: ['wallet'],
-                            appearance: { theme: 'dark', accentColor: '#FFD966' },
-                            embeddedWallets: { createOnLogin: 'users-without-wallets' },
-                            solanaClusters: [{ name: 'mainnet-beta', rpcUrl: SOLANA_RPC }],
-                        },
-                    });
+                // Show loading modal
+                const loadingModal = document.createElement('div');
+                loadingModal.id = 'privyLoadingModal';
+                loadingModal.className = 'modal-overlay';
+                loadingModal.innerHTML = `
+                    <div class="modal" style="max-width:360px;text-align:center;padding:40px;">
+                        <div style="font-size:24px;margin-bottom:16px;">🔐</div>
+                        <h3 style="margin-bottom:12px;">Connecting to Privy</h3>
+                        <p style="color:var(--text-secondary);font-size:14px;">Please enter your email to login or create a wallet...</p>
+                    </div>
+                `;
+                document.body.appendChild(loadingModal);
+
+                // Prompt for email
+                const email = prompt('Enter your email address to login or create a Privy wallet:');
+                loadingModal.remove();
+
+                if (!email) {
+                    showNotification('Login cancelled', 'info');
+                    return;
                 }
-                if (privyClient) {
-                    await privyClient.login();
-                    const user = await privyClient.getUser();
-                    if (user?.wallet?.address) {
-                        handleWalletConnected(user.wallet.address);
+
+                // Send OTP code to email
+                showNotification('Sending verification code to ' + email + '...', 'info');
+                await privyClient.auth.email.sendCode(email);
+
+                // Prompt for OTP
+                const otp = prompt('Enter the 6-digit code sent to ' + email + ':');
+                if (!otp) {
+                    showNotification('Verification cancelled', 'info');
+                    return;
+                }
+
+                // Verify OTP and login
+                showNotification('Verifying code...', 'info');
+                const session = await privyClient.auth.email.loginWithCode(email, otp);
+
+                if (session?.user) {
+                    privyUser = session.user;
+
+                    // Check for existing Solana wallet
+                    let solanaWallet = session.user.linkedAccounts?.find(
+                        a => a.type === 'wallet' && a.chainType === 'solana'
+                    );
+
+                    // If no Solana wallet, create one
+                    if (!solanaWallet) {
+                        showNotification('Creating Solana wallet...', 'info');
+                        const { user: updatedUser } = await privyClient.embeddedWallet.createSolana();
+                        privyUser = updatedUser;
+                        solanaWallet = updatedUser.linkedAccounts?.find(
+                            a => a.type === 'wallet' && a.chainType === 'solana'
+                        );
+                    }
+
+                    if (solanaWallet?.address) {
+                        handleWalletConnected(solanaWallet.address);
+                        showNotification('Connected with Privy wallet!', 'success');
                     } else {
-                        showNotification('No wallet found in Privy account', 'error');
+                        showNotification('Failed to get wallet address', 'error');
                     }
                 } else {
-                    showNotification('Privy not available', 'error');
+                    showNotification('Login failed', 'error');
                 }
             } catch (e) {
                 console.error('[PRIVY]', e);
-                showNotification('Failed to connect with Privy: ' + e.message, 'error');
+                showNotification('Privy error: ' + e.message, 'error');
             }
         }
 
