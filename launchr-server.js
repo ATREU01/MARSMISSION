@@ -2198,10 +2198,29 @@ The 4 percentages must sum to 100.`;
                 });
 
                 const data = await response.json();
-                console.log('[IPFS PROXY] Upload successful:', data.metadataUri || 'no uri');
+                console.log('[IPFS PROXY] Upload successful:', JSON.stringify(data, null, 2));
+
+                // Extract image URL from metadata if available
+                let imageUrl = null;
+                if (data.metadata?.image) {
+                    imageUrl = data.metadata.image;
+                } else if (data.metadataUri) {
+                    // Construct image URL from metadata URI (pump.fun pattern)
+                    // Metadata: https://cf-ipfs.com/ipfs/XXX -> Image is usually in the metadata
+                    try {
+                        const metaRes = await fetch(data.metadataUri);
+                        if (metaRes.ok) {
+                            const metadata = await metaRes.json();
+                            imageUrl = metadata.image || null;
+                            console.log('[IPFS PROXY] Fetched image URL:', imageUrl);
+                        }
+                    } catch (e) {
+                        console.log('[IPFS PROXY] Could not fetch metadata for image:', e.message);
+                    }
+                }
 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify(data));
+                res.end(JSON.stringify({ ...data, imageUrl }));
             } catch (e) {
                 console.error('[IPFS PROXY] Error:', e.message);
                 res.writeHead(500, { 'Content-Type': 'application/json' });
