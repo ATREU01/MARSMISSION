@@ -1883,7 +1883,7 @@ The 4 percentages must sum to 100.`;
                     name: t.name || 'Unknown Token',
                     symbol: t.symbol || 'TOKEN',
                     mcap: t.mcap || 0,
-                    path: t.path === 'raydium' ? 'Raydium' : 'Pump.fun',
+                    path: t.path === 'launchr' ? 'Launchr' : 'Pump.fun',
                     reward: index < 3 ? 'Winner' : null,
                 }));
             res.writeHead(200, { 'Content-Type': 'application/json' });

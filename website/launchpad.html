@@ -750,7 +750,7 @@
             background: rgba(139, 92, 246, 0.15);
             color: #A78BFA;
         }
-        .token-path.raydium {
+        .token-path.launchr {
             background: var(--teal-dim);
             color: var(--teal);
         }
@@ -1143,9 +1143,9 @@
                             </div>
                             <div class="path-option-desc">One-click launch, auto bonding curve</div>
                         </div>
-                        <div class="path-option" data-path="raydium" onclick="selectPath('raydium')">
+                        <div class="path-option" data-path="launchr" onclick="selectPath('launchr')">
                             <div class="path-option-header">
-                                <span class="path-option-name">Raydium</span>
+                                <span class="path-option-name">Launchr</span>
                                 <span class="path-option-badge advanced">Advanced</span>
                             </div>
                             <div class="path-option-desc">Custom curves, full control</div>
@@ -1433,7 +1433,7 @@
                         <div class="token-name">${t.name}</div>
                         <div class="token-meta">
                             <span class="token-ticker">$${t.symbol}</span>
-                            <span class="token-path ${t.path}">${t.path === 'raydium' ? 'Raydium' : 'Pump.fun'}</span>
+                            <span class="token-path ${t.path}">${t.path === 'launchr' ? 'Launchr' : 'Pump.fun'}</span>
                             <span class="token-time">${t.time}</span>
                         </div>
                     </div>
@@ -1529,7 +1529,7 @@
                 mint: isValidSolanaAddress(t.mint) ? t.mint : '',
                 name: escapeHtml(String(t.name || 'Unknown').slice(0, 50)),
                 symbol: escapeHtml(String(t.symbol || 'TOKEN').slice(0, 10)),
-                path: ['pump', 'raydium'].includes(t.path) ? t.path : 'pump',
+                path: ['pump', 'launchr'].includes(t.path) ? t.path : 'pump',
                 mcap: Math.max(0, parseFloat(t.mcap) || 0),
                 volume: Math.max(0, parseFloat(t.volume) || 0),
                 change: parseFloat(t.change) || 0,
