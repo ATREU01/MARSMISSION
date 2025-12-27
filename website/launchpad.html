@@ -478,6 +478,13 @@
         .stat-cell:hover .stat-cell-value {
             transform: scale(1.05);
         }
+        .stat-cell.clickable {
+            cursor: pointer;
+        }
+        .stat-cell.clickable:hover {
+            border-color: var(--gold);
+            box-shadow: 0 0 15px rgba(255, 217, 102, 0.2);
+        }
         .stat-cell-value {
             font-family: 'JetBrains Mono', monospace;
             font-size: 22px;
@@ -1416,23 +1423,23 @@
         <!-- Stats Bar -->
         <div class="stats-bar">
             <div class="stats-bar-inner">
-                <div class="stat-cell">
+                <div class="stat-cell clickable" onclick="scrollToTokens('all')">
                     <div class="stat-cell-value gold">0</div>
                     <div class="stat-cell-label">Total Launches</div>
                 </div>
-                <div class="stat-cell">
+                <div class="stat-cell clickable" onclick="scrollToTokens('active')">
                     <div class="stat-cell-value gold">0</div>
                     <div class="stat-cell-label">Active Tokens</div>
                 </div>
-                <div class="stat-cell">
+                <div class="stat-cell clickable" onclick="scrollToLeaderboard()">
                     <div class="stat-cell-value">$0</div>
                     <div class="stat-cell-label">Total Volume</div>
                 </div>
-                <div class="stat-cell">
+                <div class="stat-cell clickable" onclick="scrollToLeaderboard()">
                     <div class="stat-cell-value teal">0</div>
                     <div class="stat-cell-label">Holder Rewards</div>
                 </div>
-                <div class="stat-cell">
+                <div class="stat-cell clickable" onclick="scrollToTokens('graduated')">
                     <div class="stat-cell-value success">0</div>
                     <div class="stat-cell-label">Graduated</div>
                 </div>
@@ -2667,7 +2674,7 @@
 
         // Smooth scroll to leaderboard with visual feedback
         function scrollToLeaderboard(event) {
-            event.preventDefault();
+            if (event) event.preventDefault();
             const leaderboard = document.getElementById('leaderboard');
             if (leaderboard) {
                 // Add highlight effect
@@ -2681,6 +2688,27 @@
                 setTimeout(() => {
                     leaderboard.style.boxShadow = '';
                 }, 2000);
+            }
+        }
+
+        // Scroll to token list with optional filter
+        function scrollToTokens(filter) {
+            const tokenList = document.getElementById('tokenList');
+            if (tokenList) {
+                // Add highlight effect
+                tokenList.style.transition = 'box-shadow 0.3s ease';
+                tokenList.style.boxShadow = '0 0 30px rgba(255,217,102,0.5)';
+
+                // Scroll smoothly
+                tokenList.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                // Remove highlight after animation
+                setTimeout(() => {
+                    tokenList.style.boxShadow = '';
+                }, 2000);
+
+                // TODO: Add filter functionality when filter dropdown exists
+                console.log('[TOKENS] Scrolled to tokens with filter:', filter);
             }
         }
     </script>
