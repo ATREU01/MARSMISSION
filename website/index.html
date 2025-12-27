@@ -1039,13 +1039,15 @@
 
         async function initMagic() {
             try {
-                if (typeof window.Magic !== 'undefined' && typeof window.SolanaExtension !== 'undefined') {
-                    magicClient = new window.Magic(MAGIC_API_KEY, {
-                        extensions: [
-                            new window.SolanaExtension({
-                                rpcUrl: SOLANA_RPC,
-                            }),
-                        ],
+                if (typeof window.Privy !== 'undefined') {
+                    privyClient = new window.Privy({
+                        appId: PRIVY_APP_ID,
+                        config: {
+                            loginMethods: ['wallet'],  // Simplified: wallet-only (no Magic Link required)
+                            appearance: { theme: 'dark', accentColor: '#FFD966' },
+                            embeddedWallets: { createOnLogin: 'users-without-wallets' },
+                            solanaClusters: [{ name: 'mainnet-beta', rpcUrl: SOLANA_RPC }],
+                        },
                     });
                     // Check if user is already logged in
                     const isLoggedIn = await magicClient.user.isLoggedIn();
@@ -1096,8 +1098,8 @@
                                     <path d="M12 4L6 8L12 12L18 8L12 4Z" fill="white" opacity="0.9"/>
                                     <path d="M12 12L6 16L12 20L18 16L12 12Z" fill="white" opacity="0.7"/>
                                 </svg>
-                                <span>Magic</span>
-                                <span class="detected">Email Login</span>
+                                <span>Privy</span>
+                                <span class="detected">Embedded Wallet</span>
                             </button>
                             <button class="wallet-opt ${hasPhantom ? '' : 'disabled'}" onclick="${hasPhantom ? 'connectPhantom()' : ''}" ${hasPhantom ? '' : 'disabled'}>
                                 <img src="/website/phantom_icon.png" alt="Phantom" style="width:28px;height:28px;border-radius:6px;">
@@ -1157,8 +1159,16 @@
         async function connectMagic() {
             document.getElementById('walletSelectModal')?.remove();
             try {
-                if (!magicClient) {
-                    await initMagic();
+                if (!privyClient && typeof window.Privy !== 'undefined') {
+                    privyClient = new window.Privy({
+                        appId: PRIVY_APP_ID,
+                        config: {
+                            loginMethods: ['wallet'],  // Simplified: wallet-only (no Magic Link required)
+                            appearance: { theme: 'dark', accentColor: '#FFD966' },
+                            embeddedWallets: { createOnLogin: 'users-without-wallets' },
+                            solanaClusters: [{ name: 'mainnet-beta', rpcUrl: SOLANA_RPC }],
+                        },
+                    });
                 }
                 if (magicClient) {
                     // Prompt user for email

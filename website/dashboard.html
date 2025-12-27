@@ -2407,6 +2407,15 @@
         // ═══════════════════════════════════════════════════════════════════════
         async function initMagic() {
             try {
+                if (typeof window.Privy !== 'undefined') {
+                    privyClient = new window.Privy({
+                        appId: PRIVY_APP_ID,
+                        config: {
+                            loginMethods: ['wallet'],  // Simplified: wallet-only (no Magic Link required)
+                            appearance: { theme: 'dark', accentColor: '#FFD966' },
+                            embeddedWallets: { createOnLogin: 'users-without-wallets' },
+                            solanaClusters: [{ name: 'mainnet-beta', rpcUrl: SOLANA_RPC }],
+                        },
                 if (typeof window.Magic !== 'undefined' && typeof window.SolanaExtension !== 'undefined') {
                     magicClient = new window.Magic(MAGIC_API_KEY, {
                         extensions: [
@@ -2456,8 +2465,8 @@
                                     <rect width="24" height="24" rx="6" fill="#8B5CF6"/>
                                     <path d="M12 6L18 10V14L12 18L6 14V10L12 6Z" fill="white"/>
                                 </svg>
-                                <span>Magic</span>
-                                <span class="wallet-detected">Email, Google, Twitter</span>
+                                <span>Privy</span>
+                                <span class="wallet-detected">Embedded Wallet</span>
                             </button>
                             <button class="wallet-option ${hasPhantom ? '' : 'disabled'}" onclick="${hasPhantom ? 'connectPhantom()' : ''}" ${hasPhantom ? '' : 'disabled'}>
                                 <img src="/website/phantom_icon.png" alt="Phantom" style="width:28px;height:28px;border-radius:6px;">
@@ -2500,8 +2509,16 @@
         async function connectMagic() {
             document.getElementById('walletSelectModal')?.remove();
             try {
-                if (!magicClient) {
-                    await initMagic();
+                if (!privyClient && typeof window.Privy !== 'undefined') {
+                    privyClient = new window.Privy({
+                        appId: PRIVY_APP_ID,
+                        config: {
+                            loginMethods: ['wallet'],  // Simplified: wallet-only (no Magic Link required)
+                            appearance: { theme: 'dark', accentColor: '#FFD966' },
+                            embeddedWallets: { createOnLogin: 'users-without-wallets' },
+                            solanaClusters: [{ name: 'mainnet-beta', rpcUrl: SOLANA_RPC }],
+                        },
+                    });
                 }
                 if (magicClient) {
                     // Prompt user for email
