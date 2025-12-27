@@ -1983,34 +1983,42 @@
         }
 
         // Generate a new mint keypair for the token (tries vanity pool first)
+        // VAULT: Returns { publicKey, vaultId } for vanity, or { keypair } for random
         async function generateMintKeypair() {
-            const { Keypair } = solanaWeb3;
+            const { Keypair, PublicKey } = solanaWeb3;
 
-            // Try to get a vanity keypair from the server pool (ends in "launchr")
+            // Try to get a vanity keypair from the server vault (secretKey stays server-side)
             try {
                 const res = await fetch('/api/vanity-keypair');
                 if (res.ok) {
                     const data = await res.json();
-                    if (data.success && data.secretKey) {
-                        const secretKey = bs58.decode(data.secretKey);
-                        const mintKeypair = Keypair.fromSecretKey(secretKey);
-                        console.log('[DEPLOY] Got vanity mint address:', mintKeypair.publicKey.toString());
-                        return mintKeypair;
+                    if (data.success && data.vaultId) {
+                        console.log('[DEPLOY] Got vanity mint address:', data.publicKey, '(vault secured)');
+                        return {
+                            publicKey: new PublicKey(data.publicKey),
+                            vaultId: data.vaultId,  // Used for server-side signing
+                            isVanity: true
+                        };
                     }
                 }
             } catch (e) {
                 console.log('[DEPLOY] Vanity pool unavailable, using random keypair');
             }
 
-            // Fallback to random keypair
+            // Fallback to random keypair (local signing)
             const mintKeypair = Keypair.generate();
             console.log('[DEPLOY] Generated random mint address:', mintKeypair.publicKey.toString());
-            return mintKeypair;
+            return {
+                publicKey: mintKeypair.publicKey,
+                keypair: mintKeypair,  // Local keypair for signing
+                isVanity: false
+            };
         }
 
         // Create token via PumpPortal API
-        async function createTokenViaPumpPortal(walletAddress, mintKeypair, tokenMetadata, initialBuySOL = 0) {
-            const { VersionedTransaction, Connection, Keypair } = solanaWeb3;
+        // mintInfo: { publicKey, vaultId?, keypair?, isVanity }
+        async function createTokenViaPumpPortal(walletAddress, mintInfo, tokenMetadata, initialBuySOL = 0) {
+            const { VersionedTransaction, Connection } = solanaWeb3;
 
             const connection = new Connection(SOLANA_RPC, 'confirmed');
 
@@ -2022,7 +2030,7 @@
                     symbol: tokenMetadata.metadata.symbol,
                     uri: tokenMetadata.metadataUri
                 },
-                mint: mintKeypair.publicKey.toString(),
+                mint: mintInfo.publicKey.toString(),
                 denominatedInSol: 'true',
                 amount: initialBuySOL,
                 slippage: 10,
@@ -2051,15 +2059,50 @@
             const tx = VersionedTransaction.deserialize(new Uint8Array(txBuffer));
             console.log('[DEPLOY] Transaction deserialized successfully');
 
-            return { transaction: tx, connection, mintKeypair };
+            return { transaction: tx, connection, mintInfo };
         }
 
         // Sign and send transaction using connected wallet
-        async function signAndSendTransaction(tx, connection, mintKeypair) {
+        // mintInfo: { publicKey, vaultId?, keypair?, isVanity }
+        async function signAndSendTransaction(tx, connection, mintInfo) {
             console.log('[DEPLOY] Signing transaction...');
 
-            // First, sign with the mint keypair (this is required by PumpPortal)
-            tx.sign([mintKeypair]);
+            // VAULT: Sign with mint keypair - either via server vault or locally
+            if (mintInfo.isVanity && mintInfo.vaultId) {
+                // Use server-side vault signing (secretKey never exposed)
+                console.log('[DEPLOY] Using VAULT for mint keypair signing...');
+                const txBase64 = Buffer.from(tx.serialize()).toString('base64');
+
+                const vaultRes = await fetch('/api/vault/sign', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        vaultId: mintInfo.vaultId,
+                        transaction: txBase64
+                    })
+                });
+
+                if (!vaultRes.ok) {
+                    const err = await vaultRes.json();
+                    throw new Error('Vault signing failed: ' + (err.error || 'Unknown error'));
+                }
+
+                const vaultData = await vaultRes.json();
+                if (!vaultData.success) {
+                    throw new Error('Vault signing failed: ' + vaultData.error);
+                }
+
+                // Deserialize the vault-signed transaction
+                const signedTxBuffer = Buffer.from(vaultData.signedTransaction, 'base64');
+                tx = solanaWeb3.VersionedTransaction.deserialize(signedTxBuffer);
+                console.log('[DEPLOY] Transaction signed by vault');
+            } else if (mintInfo.keypair) {
+                // Local signing for random keypairs
+                console.log('[DEPLOY] Using local mint keypair signing...');
+                tx.sign([mintInfo.keypair]);
+            } else {
+                throw new Error('No signing method available for mint keypair');
+            }
 
             let signature;
 
@@ -2202,28 +2245,28 @@
 
                 btn.textContent = 'Getting vanity address...';
 
-                // Step 2: Generate mint keypair (tries vanity pool first)
-                const mintKeypair = await generateMintKeypair();
+                // Step 2: Generate mint info (tries vanity vault first)
+                const mintInfo = await generateMintKeypair();
 
                 btn.textContent = 'Creating token...';
 
                 // Step 3: Create token via PumpPortal
                 const { transaction, connection } = await createTokenViaPumpPortal(
                     connectedWallet,
-                    mintKeypair,
+                    mintInfo,
                     tokenMetadata,
                     devBuyAmount // Initial dev buy amount in SOL
                 );
 
-                btn.textContent = 'Waiting for signature...';
+                btn.textContent = mintInfo.isVanity ? 'Signing via vault...' : 'Waiting for signature...';
 
-                // Step 4: Sign and send transaction
-                const signature = await signAndSendTransaction(transaction, connection, mintKeypair);
+                // Step 4: Sign and send transaction (vault for vanity, local for random)
+                const signature = await signAndSendTransaction(transaction, connection, mintInfo);
 
                 btn.textContent = 'Token launched!';
 
                 // Success! Show result
-                const mintAddress = mintKeypair.publicKey.toString();
+                const mintAddress = mintInfo.publicKey.toString();
                 console.log('[DEPLOY] Token created successfully!');
                 console.log('[DEPLOY] Mint address:', mintAddress);
                 console.log('[DEPLOY] Transaction:', signature);
