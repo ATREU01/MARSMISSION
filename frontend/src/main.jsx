@@ -28,13 +28,11 @@ function PrivyGate({ children }) {
     <PrivyProvider
       appId={appId}
       config={{
-        loginMethods: ['wallet'],  // Only wallet - email creates Ethereum wallets
+        loginMethods: ['wallet'],
         appearance: {
           theme: 'dark',
           accentColor: '#FFD966',
-          walletList: ['phantom', 'solflare', 'backpack', 'detected'],
         },
-        // No embedded wallets - we need real Solana wallets
         embeddedWallets: {
           createOnLogin: 'off',
         },

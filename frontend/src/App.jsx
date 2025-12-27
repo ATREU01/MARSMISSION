@@ -6,9 +6,9 @@ function App() {
   const { ready, authenticated, user, login, logout } = usePrivy()
   const { wallets } = useWallets()
 
-  // Get SOLANA wallet address - prioritize Solana over Ethereum
+  // Get wallet address - prefer Solana, accept any
   const walletAddress = useMemo(() => {
-    // 1. Check linkedAccounts for Solana wallets first
+    // 1. Check linkedAccounts for Solana wallets
     const linkedSolana = user?.linkedAccounts?.find(
       (acc) => acc.type === 'wallet' && acc.chainType === 'solana'
     )
@@ -16,20 +16,21 @@ function App() {
       return linkedSolana.address
     }
 
-    // 2. Check external Solana wallets from useWallets()
-    const externalSolana = wallets?.find(w => w.chainType === 'solana' || w.walletClientType?.includes('solana'))
-    if (externalSolana?.address) {
-      return externalSolana.address
+    // 2. Check connected wallets - find non-Ethereum
+    const solanaWallet = wallets?.find(w => !w.address?.startsWith('0x'))
+    if (solanaWallet?.address) {
+      return solanaWallet.address
     }
 
-    // 3. Check if embedded wallet is Solana (not 0x prefix)
-    if (user?.wallet?.address && !user.wallet.address.startsWith('0x')) {
-      return user.wallet.address
+    // 3. Any wallet from linkedAccounts
+    const anyWallet = user?.linkedAccounts?.find(
+      (acc) => acc.type === 'wallet' && acc.address && !acc.address.startsWith('0x')
+    )
+    if (anyWallet?.address) {
+      return anyWallet.address
     }
 
-    // 4. Last resort - any non-Ethereum wallet
-    const anyWallet = wallets?.find(w => !w.address?.startsWith('0x'))
-    return anyWallet?.address || null
+    return null
   }, [user, wallets])
 
   const isPopup = !!window.opener
