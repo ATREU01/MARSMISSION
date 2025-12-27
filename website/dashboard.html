@@ -1477,6 +1477,82 @@
             .page-header { flex-direction: column; align-items: flex-start; gap: 16px; }
             .fee-split { flex-direction: column; }
             .activity-row { grid-template-columns: 1fr 1fr; gap: 8px; }
+
+            /* Better mobile sliders */
+            .allocation-slider {
+                height: 8px;
+                margin: 8px 0;
+            }
+            .allocation-slider::-webkit-slider-thumb {
+                width: 24px;
+                height: 24px;
+            }
+            .allocation-slider::-moz-range-thumb {
+                width: 24px;
+                height: 24px;
+                background: var(--gold);
+                border-radius: 50%;
+                border: none;
+            }
+            .allocation-item {
+                padding: 12px;
+            }
+            .allocation-item-header {
+                font-size: 14px;
+            }
+            .strategy-presets {
+                flex-wrap: wrap;
+            }
+            .strategy-btn {
+                padding: 10px 16px;
+                font-size: 13px;
+            }
+        }
+
+        /* Mobile navigation bar */
+        .mobile-nav {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(10,10,15,0.95);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid var(--border);
+            padding: 8px 16px;
+            z-index: 1000;
+        }
+        .mobile-nav-inner {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        .mobile-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 8px 16px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 11px;
+            font-weight: 500;
+            border-radius: var(--radius);
+            transition: all 0.15s;
+        }
+        .mobile-nav-item:hover, .mobile-nav-item.active {
+            color: var(--gold);
+            background: var(--gold-dim);
+        }
+        .mobile-nav-item svg {
+            width: 22px;
+            height: 22px;
+        }
+        @media (max-width: 1024px) {
+            .mobile-nav { display: block; }
+            .main { padding-bottom: 80px; }
         }
     </style>
 </head>
@@ -2158,13 +2234,53 @@
                 });
             });
 
-            // Allocation sliders
-            document.querySelectorAll('.allocation-slider').forEach(slider => {
+            // Allocation sliders - enforce 100% total
+            document.querySelectorAll('.allocation-slider').forEach((slider, idx) => {
                 slider.addEventListener('input', (e) => {
-                    const value = e.target.value;
-                    e.target.closest('.allocation-item').querySelector('.allocation-item-value').textContent = value + '%';
+                    enforceAllocationTotal(idx, parseInt(e.target.value));
                 });
             });
+
+            // Function to enforce 100% total allocation
+            function enforceAllocationTotal(changedIdx, newValue) {
+                const sliders = Array.from(document.querySelectorAll('.allocation-slider'));
+                const values = sliders.map(s => parseInt(s.value));
+
+                // Set the changed slider value
+                values[changedIdx] = newValue;
+
+                // Calculate current total
+                const currentTotal = values.reduce((a, b) => a + b, 0);
+
+                if (currentTotal > 100) {
+                    // Reduce other sliders proportionally
+                    const excess = currentTotal - 100;
+                    const otherIndices = sliders.map((_, i) => i).filter(i => i !== changedIdx && values[i] > 0);
+                    const otherTotal = otherIndices.reduce((sum, i) => sum + values[i], 0);
+
+                    if (otherTotal > 0) {
+                        let remaining = excess;
+                        for (const i of otherIndices) {
+                            const reduction = Math.min(values[i], Math.ceil(excess * values[i] / otherTotal));
+                            values[i] = Math.max(0, values[i] - reduction);
+                            remaining -= reduction;
+                        }
+                    } else {
+                        // Can't reduce others, cap this slider
+                        values[changedIdx] = 100;
+                    }
+                }
+
+                // Update all sliders and displays
+                sliders.forEach((slider, i) => {
+                    slider.value = values[i];
+                    slider.closest('.allocation-item').querySelector('.allocation-item-value').textContent = values[i] + '%';
+                });
+
+                // Mark as custom strategy
+                document.querySelectorAll('.strategy-btn').forEach(b => b.classList.remove('active'));
+                document.querySelector('.strategy-btn[data-strategy="custom"]')?.classList.add('active');
+            }
 
             // Auto-refresh stats every 30 seconds
             setInterval(fetchDashboardStats, 30000);
@@ -2223,7 +2339,6 @@
         function showWalletSelectModal() {
             const hasPhantom = window.solana?.isPhantom;
             const hasSolflare = window.solflare?.isSolflare;
-            const hasPrivy = PRIVY_APP_ID && PRIVY_APP_ID !== 'YOUR_PRIVY_APP_ID';
 
             const modal = document.createElement('div');
             modal.className = 'modal-overlay';
@@ -2240,7 +2355,6 @@
                             Choose your preferred wallet to connect
                         </p>
                         <div style="display:flex;flex-direction:column;gap:10px;">
-                            ${hasPrivy ? `
                             <button class="wallet-option privy-option" onclick="connectPrivy()">
                                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <rect width="24" height="24" rx="6" fill="#8B5CF6"/>
@@ -2249,7 +2363,6 @@
                                 <span>Privy</span>
                                 <span class="wallet-detected">Email, Google, Twitter</span>
                             </button>
-                            ` : ''}
                             <button class="wallet-option ${hasPhantom ? '' : 'disabled'}" onclick="${hasPhantom ? 'connectPhantom()' : ''}" ${hasPhantom ? '' : 'disabled'}>
                                 <img src="https://phantom.app/img/phantom-logo.svg" alt="Phantom" style="width:28px;height:28px;">
                                 <span>Phantom</span>
@@ -2261,10 +2374,9 @@
                                 ${hasSolflare ? '<span class="wallet-detected">Detected</span>' : '<span class="wallet-not-detected">Not installed</span>'}
                             </button>
                         </div>
-                        ${!hasPhantom && !hasSolflare && !hasPrivy ? `
-                        <div style="margin-top:20px;padding:14px;background:var(--gold-dim);border-radius:var(--radius);text-align:center;">
-                            <p style="color:var(--gold);font-size:13px;margin-bottom:10px;">No wallet detected</p>
-                            <a href="https://phantom.app" target="_blank" class="btn btn-secondary" style="font-size:12px;">Install Phantom</a>
+                        ${!hasPhantom && !hasSolflare ? `
+                        <div style="margin-top:20px;padding:14px;background:var(--surface-2);border-radius:var(--radius);text-align:center;">
+                            <p style="color:var(--text-secondary);font-size:12px;">No browser wallet? Use Privy above for email/social login</p>
                         </div>
                         ` : ''}
                     </div>
@@ -3062,7 +3174,7 @@
             `;
         }
 
-        function selectToken(mint) {
+        function selectTokenLocal(mint) {
             selectedToken = mint;
             const token = myTokens.find(t => t.mint === mint);
 
@@ -3076,32 +3188,32 @@
                 document.getElementById('tokenPath').textContent = token.path === 'launchr' ? 'LAUNCHR' : 'PUMP';
                 document.getElementById('tokenPath').className = `path-badge ${token.path === 'launchr' ? 'launchr' : 'pumpfun'}`;
 
-                // Update analytics with token data (demo values for now)
+                // Update analytics with real token data only (no placeholders)
                 updateTokenAnalytics({
                     marketCap: token.mcap || 0,
-                    liquidity: (token.mcap || 0) * 0.35,
+                    liquidity: 0,  // Would need to fetch from Pump.fun
                     volume24h: token.volume || 0,
                     holders: token.holders || 0,
-                    transactions: Math.floor((token.volume || 0) / 50),
-                    score: 75,
-                    priceChange1m: Math.random() * 10 - 5,
-                    priceChange5m: Math.random() * 20 - 10,
-                    priceChange1h: Math.random() * 30 - 15,
+                    transactions: 0,
+                    score: 0,
+                    priceChange1m: 0,
+                    priceChange5m: 0,
+                    priceChange1h: 0,
                     priceChange24h: token.change || 0,
-                    buys24h: Math.floor(Math.random() * 500) + 100,
-                    sells24h: Math.floor(Math.random() * 300) + 50,
-                    liqDepth: 10 + Math.random() * 10,
+                    buys24h: 0,
+                    sells24h: 0,
+                    liqDepth: 0,
                     volMcapRatio: token.mcap > 0 ? (token.volume || 0) / token.mcap : 0,
-                    flow5m: Math.random() * 5000 - 2500,
-                    momentum: 60 + Math.floor(Math.random() * 30),
-                    top10Pct: 20 + Math.random() * 20,
+                    flow5m: 0,
+                    momentum: 0,
+                    top10Pct: 0,
                     noMint: true,
                     noFreeze: true,
-                    organic: 70 + Math.floor(Math.random() * 20),
-                    bundlerPct: Math.random() * 5,
-                    insiderPct: Math.random() * 10,
-                    devHoldPct: Math.random() * 5,
-                    verified: true
+                    organic: 0,
+                    bundlerPct: 0,
+                    insiderPct: 0,
+                    devHoldPct: 0,
+                    verified: false
                 });
             }
 
@@ -3383,39 +3495,54 @@
                 document.getElementById('tradeBtn').disabled = false;
                 setTradeMode(tradeMode);
 
-                // Calculate real analytics
-                const progress = pumpData.realSolReserves ? (pumpData.realSolReserves / 85) * 100 : 0;
+                // Calculate real analytics from Pump.fun data
+                // Bonding curve: exactly 85 SOL to graduate
+                const BONDING_CURVE_TARGET = 85; // 85 SOL exactly
+                const realSolInCurve = (pumpData.realSolReserves || 0) / 1e9;
+                const progress = Math.min((realSolInCurve / BONDING_CURVE_TARGET) * 100, 100);
+                const virtualSol = (pumpData.virtualSolReserves || 0) / 1e9;
+                const realTokens = (pumpData.realTokenReserves || 0) / 1e6;
+
+                // Liquidity depth = real SOL in curve
+                const liqDepthPct = pumpData.mcap > 0 ? (realSolInCurve * 200 / pumpData.mcap) * 100 : 0;
+
                 updateTokenAnalytics({
                     marketCap: pumpData.mcap || 0,
-                    liquidity: (pumpData.realSolReserves || 0) / 1e9,
+                    liquidity: realSolInCurve,  // Real SOL in bonding curve
                     volume24h: pumpData.volume24h || 0,
                     holders: pumpData.holders || 0,
-                    transactions: Math.floor((pumpData.volume24h || 0) / 50),
-                    score: pumpData.complete ? 100 : Math.min(progress, 99),
-                    priceChange1m: (Math.random() - 0.5) * 10,
-                    priceChange5m: (Math.random() - 0.5) * 20,
-                    priceChange1h: (Math.random() - 0.5) * 30,
-                    priceChange24h: (Math.random() - 0.5) * 50,
-                    buys24h: Math.floor(Math.random() * 500) + 100,
-                    sells24h: Math.floor(Math.random() * 300) + 50,
-                    liqDepth: 10 + Math.random() * 15,
+                    transactions: 0,  // Not available from API
+                    score: pumpData.complete ? 100 : Math.floor(progress),
+                    priceChange1m: 0,  // Would need historical data
+                    priceChange5m: 0,
+                    priceChange1h: 0,
+                    priceChange24h: 0,
+                    buys24h: 0,  // Not available from simple API
+                    sells24h: 0,
+                    liqDepth: liqDepthPct,
                     volMcapRatio: pumpData.mcap > 0 ? (pumpData.volume24h || 0) / pumpData.mcap : 0,
-                    flow5m: (Math.random() - 0.5) * 5000,
-                    momentum: 50 + Math.floor(Math.random() * 40),
-                    top10Pct: 20 + Math.random() * 30,
-                    noMint: true,
-                    noFreeze: true,
-                    organic: 60 + Math.floor(Math.random() * 30),
-                    bundlerPct: Math.random() * 8,
-                    insiderPct: Math.random() * 12,
-                    devHoldPct: Math.random() * 8,
-                    verified: pumpData.complete
+                    flow5m: 0,
+                    momentum: Math.floor(progress),  // Use bonding curve progress as momentum
+                    top10Pct: 0,  // Would need holder analysis
+                    noMint: true,  // Pump.fun tokens have no mint authority
+                    noFreeze: true,  // Pump.fun tokens have no freeze authority
+                    organic: 0,
+                    bundlerPct: 0,
+                    insiderPct: 0,
+                    devHoldPct: 0,
+                    verified: pumpData.complete,
+                    // Extra data for display
+                    bondingProgress: progress,
+                    solInCurve: realSolInCurve,
+                    solTarget: BONDING_CURVE_TARGET
                 });
 
                 showNotification(`Loaded ${pumpData.symbol} data`, 'success');
             } else if (token) {
-                // Fallback to local data
+                // Fallback to local data when Pump.fun API fails
                 currentTokenData = token;
+                currentTokenPrice = token.price || 0;
+
                 document.getElementById('tokenName').textContent = token.name || 'Unknown Token';
                 document.getElementById('tokenMint').textContent = mint;
                 document.getElementById('tokenAvatar').innerHTML = token.image
@@ -3423,10 +3550,39 @@
                     : token.symbol?.slice(0, 2) || '??';
                 document.getElementById('tokenPath').textContent = token.path === 'launchr' ? 'LAUNCHR' : 'PUMP';
                 document.getElementById('tradingTokenLabel').textContent = `${token.symbol} / SOL`;
+                document.getElementById('tradeBalance').textContent = `Balance: ${walletBalance.toFixed(4)} SOL`;
+                document.getElementById('tradeBtn').disabled = false;
+                setTradeMode(tradeMode);
+
+                showNotification(`Using local data for ${token.symbol}`, 'info');
+            } else {
+                showNotification('Token not found', 'error');
             }
 
             renderMyTokens();
         }
     </script>
+
+    <!-- Mobile Navigation -->
+    <nav class="mobile-nav">
+        <div class="mobile-nav-inner">
+            <a href="/" class="mobile-nav-item">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                Home
+            </a>
+            <a href="/launchpad" class="mobile-nav-item">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                Launchpad
+            </a>
+            <a href="/dashboard" class="mobile-nav-item active">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                Dashboard
+            </a>
+            <a href="javascript:void(0)" class="mobile-nav-item" onclick="showLaunchModal()">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                Launch
+            </a>
+        </div>
+    </nav>
 </body>
 </html>

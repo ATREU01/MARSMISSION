@@ -207,6 +207,22 @@
             color: var(--gold);
             background: var(--gold-dim);
         }
+        .nav-link.leaderboard-link {
+            background: linear-gradient(135deg, rgba(255,217,102,0.15), rgba(255,61,142,0.1));
+            border: 1px solid rgba(255,217,102,0.3);
+            color: var(--gold);
+            font-weight: 600;
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+        .nav-link.leaderboard-link:hover {
+            background: linear-gradient(135deg, rgba(255,217,102,0.25), rgba(255,61,142,0.15));
+            border-color: var(--gold);
+            transform: scale(1.02);
+        }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255,217,102,0); }
+            50% { box-shadow: 0 0 12px 2px rgba(255,217,102,0.3); }
+        }
         .nav-divider {
             width: 1px;
             height: 24px;
@@ -1217,7 +1233,7 @@
             <div class="nav-links">
                 <a href="/" class="nav-link">Home</a>
                 <a href="/launchpad" class="nav-link active">Launchpad</a>
-                <a href="#leaderboard" class="nav-link">Leaderboard</a>
+                <a href="#leaderboard" class="nav-link leaderboard-link" onclick="scrollToLeaderboard(event)">&#x1F3C6; Leaderboard</a>
                 <div class="nav-divider"></div>
                 <a href="/dashboard" class="nav-link">Dashboard</a>
                 <a href="/roadmap" class="nav-link">Docs</a>
@@ -1584,12 +1600,14 @@
                 }
 
                 // Find graduating tokens (near 85 SOL bonding curve completion)
-                // Filter from trending/new for tokens with high real_sol_reserves
+                // Pump.fun bonding curve requires exactly 85 SOL to graduate
+                const BONDING_CURVE_TARGET = 85; // Exactly 85 SOL
                 const allTokens = [...liveTokens.new, ...liveTokens.trending];
                 liveTokens.graduating = allTokens
                     .filter(t => {
                         const solReserves = (t.realSolReserves || 0) / 1e9;
-                        return solReserves >= 60 && !t.complete; // 70%+ progress but not graduated
+                        const progress = (solReserves / BONDING_CURVE_TARGET) * 100;
+                        return progress >= 70 && !t.complete; // 70%+ progress (59.5+ SOL) but not graduated
                     })
                     .sort((a, b) => (b.realSolReserves || 0) - (a.realSolReserves || 0))
                     .slice(0, 20);
@@ -1681,8 +1699,10 @@
                 return;
             }
 
+            const BONDING_CURVE_TARGET = 85; // Exactly 85 SOL to graduate
             list.innerHTML = currentTokens.map(t => {
-                const progress = t.realSolReserves ? Math.min(((t.realSolReserves / 1e9) / 85) * 100, 100) : 0;
+                const solInCurve = (t.realSolReserves || 0) / 1e9;
+                const progress = Math.min((solInCurve / BONDING_CURVE_TARGET) * 100, 100);
                 const timeAgo = t.created ? getTimeAgo(t.created) : '';
                 const graduated = t.complete ? '<span style="color:var(--success);font-size:10px;margin-left:6px;">GRADUATED</span>' : '';
 
@@ -1698,7 +1718,7 @@
                             <span class="token-path pump">Pump.fun</span>
                             <span class="token-time">${timeAgo}</span>
                         </div>
-                        ${currentTab === 'graduating' ? `<div style="margin-top:6px;"><div style="background:var(--surface-3);height:4px;border-radius:2px;overflow:hidden;"><div style="background:var(--gold);height:100%;width:${progress.toFixed(1)}%;transition:width 0.3s;"></div></div><div style="font-size:10px;color:var(--text-muted);margin-top:2px;">${progress.toFixed(0)}% to graduation</div></div>` : ''}
+                        ${currentTab === 'graduating' ? `<div style="margin-top:6px;"><div style="background:var(--surface-3);height:6px;border-radius:3px;overflow:hidden;"><div style="background:linear-gradient(90deg, var(--gold), var(--success));height:100%;width:${progress.toFixed(1)}%;transition:width 0.3s;"></div></div><div style="font-size:10px;color:var(--text-muted);margin-top:4px;"><span style="color:var(--gold);font-weight:600;">${solInCurve.toFixed(2)} SOL</span> / ${BONDING_CURVE_TARGET} SOL (${progress.toFixed(1)}%)</div></div>` : ''}
                     </div>
                     <div class="token-stats">
                         <div class="token-mcap">${t.mcap > 0 ? '$' + formatNumber(t.mcap) : '-'}</div>
@@ -2340,7 +2360,6 @@
             // Check which wallets are available
             const hasPhantom = window.solana?.isPhantom;
             const hasSolflare = window.solflare?.isSolflare;
-            const hasPrivy = PRIVY_APP_ID && PRIVY_APP_ID !== 'YOUR_PRIVY_APP_ID';
 
             const modal = document.createElement('div');
             modal.className = 'modal-overlay';
@@ -2357,7 +2376,6 @@
                             Choose your preferred wallet to connect
                         </p>
                         <div style="display:flex;flex-direction:column;gap:10px;">
-                            ${hasPrivy ? `
                             <button class="wallet-option privy-option" onclick="connectPrivy()">
                                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <rect width="24" height="24" rx="6" fill="#8B5CF6"/>
@@ -2366,7 +2384,6 @@
                                 <span>Privy</span>
                                 <span class="wallet-detected">Email, Google, Twitter</span>
                             </button>
-                            ` : ''}
                             <button class="wallet-option ${hasPhantom ? '' : 'disabled'}" onclick="${hasPhantom ? 'connectPhantom()' : ''}" ${hasPhantom ? '' : 'disabled'}>
                                 <img src="https://phantom.app/img/phantom-logo.svg" alt="Phantom" style="width:28px;height:28px;">
                                 <span>Phantom</span>
@@ -2378,12 +2395,9 @@
                                 ${hasSolflare ? '<span class="wallet-detected">Detected</span>' : '<span class="wallet-not-detected">Not installed</span>'}
                             </button>
                         </div>
-                        ${!hasPhantom && !hasSolflare && !hasPrivy ? `
-                        <div style="margin-top:20px;padding:14px;background:var(--gold-dim);border-radius:var(--radius);text-align:center;">
-                            <p style="color:var(--gold);font-size:13px;margin-bottom:10px;">No wallet detected</p>
-                            <a href="https://phantom.app" target="_blank" class="btn btn-secondary" style="font-size:12px;">
-                                Install Phantom
-                            </a>
+                        ${!hasPhantom && !hasSolflare ? `
+                        <div style="margin-top:20px;padding:14px;background:var(--surface-2);border-radius:var(--radius);text-align:center;">
+                            <p style="color:var(--text-secondary);font-size:12px;">No browser wallet? Use Privy above for email/social login</p>
                         </div>
                         ` : ''}
                     </div>
@@ -2549,6 +2563,25 @@
 
         function copyWalletAddress() {
             navigator.clipboard.writeText(connectedWallet);
+        }
+
+        // Smooth scroll to leaderboard with visual feedback
+        function scrollToLeaderboard(event) {
+            event.preventDefault();
+            const leaderboard = document.getElementById('leaderboard');
+            if (leaderboard) {
+                // Add highlight effect
+                leaderboard.style.transition = 'box-shadow 0.3s ease';
+                leaderboard.style.boxShadow = '0 0 30px rgba(255,217,102,0.5)';
+
+                // Scroll smoothly
+                leaderboard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                // Remove highlight after animation
+                setTimeout(() => {
+                    leaderboard.style.boxShadow = '';
+                }, 2000);
+            }
         }
     </script>
 </body>
