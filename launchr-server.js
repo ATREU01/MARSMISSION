@@ -69,6 +69,36 @@ let vanityGeneratorStats = { attempts: 0, found: 0, lastFoundAt: null };
 const vanityRateLimits = {};
 const VANITY_RATE_LIMIT_MS = 60000; // 1 minute between requests per IP
 
+// VAULT: Secure storage for dispensed keypairs (secretKey never exposed to frontend)
+// Maps vaultId -> { secretKey, publicKey, dispensedAt, expiresAt }
+const vanityVault = new Map();
+const VAULT_EXPIRY_MS = 30 * 60 * 1000; // Vault entries expire after 30 minutes
+const VAULT_CLEANUP_INTERVAL = 5 * 60 * 1000; // Clean up expired entries every 5 minutes
+
+// Generate secure vault ID
+function generateVaultId() {
+    const bytes = require('crypto').randomBytes(32);
+    return bytes.toString('hex');
+}
+
+// Clean up expired vault entries
+function cleanupVault() {
+    const now = Date.now();
+    let cleaned = 0;
+    for (const [vaultId, entry] of vanityVault.entries()) {
+        if (entry.expiresAt < now) {
+            vanityVault.delete(vaultId);
+            cleaned++;
+        }
+    }
+    if (cleaned > 0) {
+        console.log(`[VAULT] Cleaned ${cleaned} expired entries. Active: ${vanityVault.size}`);
+    }
+}
+
+// Start vault cleanup interval
+setInterval(cleanupVault, VAULT_CLEANUP_INTERVAL);
+
 // Load existing pool from disk
 function loadVanityPool() {
     try {
@@ -2058,11 +2088,24 @@ The 4 percentages must sum to 100.`;
         res.writeHead(200, { 'Content-Type': 'application/json' });
 
         if (keypair) {
-            console.log(`[VANITY] Dispensed keypair: ${keypair.publicKey} (${vanityPool.length} remaining)`);
+            // VAULT: Store secretKey server-side, return only vaultId to client
+            const vaultId = generateVaultId();
+            const now = Date.now();
+            vanityVault.set(vaultId, {
+                secretKey: keypair.secretKey,
+                publicKey: keypair.publicKey,
+                dispensedAt: now,
+                expiresAt: now + VAULT_EXPIRY_MS,
+                used: false
+            });
+
+            console.log(`[VAULT] Stored keypair ${keypair.publicKey} with vaultId (${vanityVault.size} active, ${vanityPool.length} in pool)`);
+
             res.end(JSON.stringify({
                 success: true,
                 publicKey: keypair.publicKey,
-                secretKey: keypair.secretKey,
+                vaultId: vaultId,  // Client uses this to request server-side signing
+                expiresIn: VAULT_EXPIRY_MS / 1000, // Seconds until vault entry expires
                 poolRemaining: vanityPool.length,
                 generatorStats: {
                     totalAttempts: vanityGeneratorStats.attempts,
@@ -2100,8 +2143,93 @@ The 4 percentages must sum to 100.`;
             minSize: VANITY_POOL_MIN,
             isGenerating: vanityGenerating,
             stats: vanityGeneratorStats,
-            suffix: VANITY_SUFFIX
+            suffix: VANITY_SUFFIX,
+            vaultActive: vanityVault.size
         }));
+        return;
+    }
+
+    // API: VAULT - Sign transaction with mint keypair (secretKey never exposed)
+    if (url.pathname === '/api/vault/sign' && req.method === 'POST') {
+        let body = [];
+        req.on('data', chunk => body.push(chunk));
+        req.on('end', async () => {
+            try {
+                const data = JSON.parse(Buffer.concat(body).toString());
+                const { vaultId, transaction } = data;
+
+                if (!vaultId || !transaction) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Missing vaultId or transaction' }));
+                    return;
+                }
+
+                // Look up vault entry
+                const vaultEntry = vanityVault.get(vaultId);
+                if (!vaultEntry) {
+                    res.writeHead(404, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Vault entry not found or expired' }));
+                    return;
+                }
+
+                // Check if already used (one-time use)
+                if (vaultEntry.used) {
+                    res.writeHead(403, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Vault entry already used' }));
+                    return;
+                }
+
+                // Check expiry
+                if (Date.now() > vaultEntry.expiresAt) {
+                    vanityVault.delete(vaultId);
+                    res.writeHead(410, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Vault entry expired' }));
+                    return;
+                }
+
+                // Decode transaction and sign with mint keypair
+                const { VersionedTransaction } = require('@solana/web3.js');
+                const txBuffer = Buffer.from(transaction, 'base64');
+                const tx = VersionedTransaction.deserialize(txBuffer);
+
+                // Recreate keypair from stored secretKey
+                const secretKeyBytes = bs58.decode(vaultEntry.secretKey);
+                const mintKeypair = Keypair.fromSecretKey(secretKeyBytes);
+
+                // Sign transaction with mint keypair
+                tx.sign([mintKeypair]);
+
+                // Mark vault entry as used
+                vaultEntry.used = true;
+                vaultEntry.usedAt = Date.now();
+
+                // Serialize signed transaction
+                const signedTxBuffer = Buffer.from(tx.serialize());
+                const signedTxBase64 = signedTxBuffer.toString('base64');
+
+                console.log(`[VAULT] Signed transaction for mint ${vaultEntry.publicKey}`);
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: true,
+                    signedTransaction: signedTxBase64,
+                    publicKey: vaultEntry.publicKey
+                }));
+
+                // Clean up used entry after short delay (allow retries on network failure)
+                setTimeout(() => {
+                    if (vanityVault.has(vaultId) && vanityVault.get(vaultId).used) {
+                        vanityVault.delete(vaultId);
+                        console.log(`[VAULT] Cleaned up used entry for ${vaultEntry.publicKey}`);
+                    }
+                }, 60000); // Keep for 1 minute after use for retries
+
+            } catch (e) {
+                console.error('[VAULT] Sign error:', e);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Failed to sign transaction: ' + e.message }));
+            }
+        });
         return;
     }
 
