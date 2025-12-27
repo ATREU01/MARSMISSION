@@ -2297,7 +2297,27 @@
 
             } catch (error) {
                 console.error('[DEPLOY] Error:', error);
-                showNotification(error.message || 'Token launch failed', 'error');
+
+                // Better error messages
+                let errorMsg = error.message || 'Token launch failed';
+
+                // Handle specific errors with better UX
+                if (errorMsg.includes('insufficient') || errorMsg.includes('SOL')) {
+                    errorMsg = '⚠️ Insufficient SOL. Add more SOL to your wallet and try again.';
+                } else if (errorMsg.includes('Buffer') || errorMsg.includes('serialize')) {
+                    errorMsg = '🔄 Network issue. Refreshing... Please try again in 15 seconds.';
+                    // Auto-retry after 15 seconds
+                    setTimeout(() => {
+                        btn.textContent = '✨ Ready to retry';
+                        btn.disabled = false;
+                    }, 15000);
+                } else if (errorMsg.includes('User rejected')) {
+                    errorMsg = '❌ Transaction cancelled by user';
+                } else {
+                    errorMsg = '💡 ' + errorMsg + ' - Please try again';
+                }
+
+                showNotification(errorMsg, 'error');
             } finally {
                 btn.disabled = false;
                 btn.textContent = originalText;
