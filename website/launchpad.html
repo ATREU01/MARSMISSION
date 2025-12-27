@@ -2592,20 +2592,8 @@
                 return;
             }
 
-            // Open popup for Privy auth (React app handles the Privy SDK)
-            const width = 450;
-            const height = 650;
-            const left = window.screenX + (window.outerWidth - width) / 2;
-            const top = window.screenY + (window.outerHeight - height) / 2;
-            const popup = window.open(
-                '/auth',
-                'privy-auth',
-                `width=${width},height=${height},left=${left},top=${top},scrollbars=yes`
-            );
-
-            if (!popup) {
-                showNotification('Popup blocked - please allow popups', 'error');
-            }
+            // Open in new tab - wallet extensions work better in full tabs than popups
+            window.open('/auth', '_blank');
         }
 
         async function connectPhantom() {

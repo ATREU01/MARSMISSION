@@ -34,24 +34,31 @@ function App() {
   }, [user, wallets])
 
   const isPopup = !!window.opener
+  const isAuthPage = window.location.pathname === '/auth'
 
-  // When authenticated in popup mode, send wallet back to parent
+  // When authenticated, store wallet in localStorage
   useEffect(() => {
-    if (isPopup && authenticated && walletAddress) {
-      window.opener.postMessage({
-        type: 'privy-auth-success',
-        address: walletAddress
-      }, '*')
-      setTimeout(() => window.close(), 500)
+    if (authenticated && walletAddress) {
+      localStorage.setItem('connectedWallet', walletAddress)
+      console.log('[AUTH] Wallet stored:', walletAddress)
+
+      // If popup mode, also notify parent
+      if (isPopup && window.opener) {
+        window.opener.postMessage({
+          type: 'privy-auth-success',
+          address: walletAddress
+        }, '*')
+        setTimeout(() => window.close(), 500)
+      }
     }
-  }, [isPopup, authenticated, walletAddress])
+  }, [authenticated, walletAddress, isPopup])
 
-  // Auto-open login in popup mode
+  // Auto-open login on auth page
   useEffect(() => {
-    if (isPopup && ready && !authenticated) {
+    if (isAuthPage && ready && !authenticated) {
       login()
     }
-  }, [isPopup, ready, authenticated, login])
+  }, [isAuthPage, ready, authenticated, login])
 
   // Auto-logout if authenticated but no Solana wallet found (only Ethereum)
   useEffect(() => {
@@ -71,8 +78,8 @@ function App() {
     return <div className="loading">Loading Privy...</div>
   }
 
-  // Popup mode - minimal UI
-  if (isPopup) {
+  // Auth page mode - minimal UI for wallet connection
+  if (isAuthPage || isPopup) {
     return (
       <div className="auth-popup">
         <div className="auth-container">
@@ -84,15 +91,18 @@ function App() {
                 <>
                   <p>Connected!</p>
                   <p className="address">{walletAddress.slice(0,8)}...{walletAddress.slice(-4)}</p>
-                  <p className="closing">Closing...</p>
-                  <button onClick={() => window.close()} className="btn-close">Close</button>
+                  <p className="hint">Wallet saved. You can return to the dashboard.</p>
+                  <button onClick={() => window.location.href = '/dashboard'} className="btn-connect">
+                    Return to Dashboard
+                  </button>
+                  {isPopup && <button onClick={() => window.close()} className="btn-close">Close</button>}
                 </>
               ) : (
                 <>
                   <p>No Solana Wallet Found</p>
                   <p className="hint">Please connect a Solana wallet (Phantom, Solflare, etc.)</p>
                   <button onClick={logout} className="btn-disconnect">Try Again</button>
-                  <button onClick={() => window.close()} className="btn-close">Close</button>
+                  <button onClick={() => window.location.href = '/dashboard'} className="btn-close">Back to Dashboard</button>
                 </>
               )}
             </div>
