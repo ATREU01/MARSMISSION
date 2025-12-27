@@ -13,9 +13,8 @@
     <link rel="shortcut icon" href="/favicon.ico" type="image/jpeg">
     <link rel="apple-touch-icon" href="/website/logo-icon.jpg">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <!-- MAGIC DISABLED TEMPORARILY -->
-    <!-- <script src="https://auth.magic.link/sdk"></script> -->
-    <!-- <script src="https://auth.magic.link/sdk/extension/solana"></script> -->
+    <!-- Privy SDK for embedded wallet -->
+    <script src="https://cdn.privy.io/sdk/privy-js/latest/umd/privy.min.js"></script>
     <!-- Solana Web3.js for transaction handling -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     <!-- bs58 for Base58 encoding -->
@@ -2352,8 +2351,10 @@
         // CONFIGURATION
         // ═══════════════════════════════════════════════════════════════════════
         const SOLANA_RPC = window.LAUNCHR_CONFIG?.SOLANA_RPC || 'https://api.mainnet-beta.solana.com';
+        const PRIVY_APP_ID = window.LAUNCHR_CONFIG?.PRIVY_APP_ID || '';
         const FEE_WALLET = window.LAUNCHR_CONFIG?.FEE_WALLET || '';
 
+        let privyClient = null;
         let connectedWallet = null;
         let walletBalance = 0;
         let selectedLaunchPath = 'pumpfun';
@@ -2510,6 +2511,37 @@
             } catch (e) {
                 console.error('[SOLFLARE]', e);
                 showNotification('Failed to connect Solflare', 'error');
+            }
+        }
+
+        async function connectPrivy() {
+            document.getElementById('walletSelectModal')?.remove();
+            try {
+                if (!privyClient && typeof window.Privy !== 'undefined') {
+                    privyClient = new window.Privy({
+                        appId: PRIVY_APP_ID,
+                        config: {
+                            loginMethods: ['wallet'],
+                            appearance: { theme: 'dark', accentColor: '#FFD966' },
+                            embeddedWallets: { createOnLogin: 'users-without-wallets' },
+                            solanaClusters: [{ name: 'mainnet-beta', rpcUrl: SOLANA_RPC }],
+                        },
+                    });
+                }
+                if (privyClient) {
+                    await privyClient.login();
+                    const user = await privyClient.getUser();
+                    if (user?.wallet?.address) {
+                        handleWalletConnected(user.wallet.address);
+                    } else {
+                        showNotification('No wallet found in Privy account', 'error');
+                    }
+                } else {
+                    showNotification('Privy not available', 'error');
+                }
+            } catch (e) {
+                console.error('[PRIVY]', e);
+                showNotification('Failed to connect with Privy: ' + e.message, 'error');
             }
         }
 

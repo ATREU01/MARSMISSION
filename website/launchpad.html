@@ -14,9 +14,8 @@
     <link rel="apple-touch-icon" href="/website/logo-icon.jpg">
     <link rel="manifest" href="/phantom/manifest.json">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <!-- MAGIC DISABLED TEMPORARILY - CAUSING ERRORS -->
-    <!-- <script src="https://auth.magic.link/sdk"></script> -->
-    <!-- <script src="https://auth.magic.link/sdk/extension/solana"></script> -->
+    <!-- Privy SDK for embedded wallet -->
+    <script src="https://cdn.privy.io/sdk/privy-js/latest/umd/privy.min.js"></script>
     <!-- Solana Web3.js for transaction handling -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     <!-- bs58 for Base58 encoding -->
@@ -1513,10 +1512,10 @@
         // ═══════════════════════════════════════════════════════════════════════
         // CONFIGURATION
         // ═══════════════════════════════════════════════════════════════════════
-        const MAGIC_API_KEY = window.LAUNCHR_CONFIG?.MAGIC_API_KEY || window.LAUNCHR_CONFIG?.PRIVY_APP_ID || 'YOUR_MAGIC_API_KEY';
+        const PRIVY_APP_ID = window.LAUNCHR_CONFIG?.PRIVY_APP_ID || '';
         const SOLANA_RPC = window.LAUNCHR_CONFIG?.SOLANA_RPC || 'https://api.mainnet-beta.solana.com';
 
-        let magicClient = null;
+        let privyClient = null;
         let connectedWallet = null;
         let walletBalance = 0;
         let selectedPath = 'pump';
@@ -2133,23 +2132,19 @@
                     maxRetries: 3
                 });
             }
-            // Try Magic embedded wallet
-            else if (magicClient) {
-                console.log('[DEPLOY] Using Magic wallet for signing...');
-                const metadata = await magicClient.user.getMetadata();
-                if (metadata?.publicAddress) {
-                    const signedTx = await magicClient.solana.signTransaction(tx, {
-                        requireAllSignatures: false,
-                        verifySignatures: true,
-                    });
-                    const rawTx = Buffer.from(signedTx.rawTransaction, 'base64');
-                    signature = await connection.sendRawTransaction(rawTx, {
+            // Try Privy embedded wallet
+            else if (privyClient) {
+                console.log('[DEPLOY] Using Privy wallet for signing...');
+                const user = await privyClient.getUser();
+                if (user?.wallet?.address) {
+                    const signedTx = await privyClient.signTransaction(tx);
+                    signature = await connection.sendRawTransaction(signedTx.serialize(), {
                         skipPreflight: false,
                         preflightCommitment: 'confirmed',
                         maxRetries: 3
                     });
                 } else {
-                    throw new Error('No Magic wallet connected');
+                    throw new Error('No Privy wallet connected');
                 }
             }
             else {
