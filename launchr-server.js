@@ -1883,7 +1883,7 @@ The 4 percentages must sum to 100.`;
                     name: t.name || 'Unknown Token',
                     symbol: t.symbol || 'TOKEN',
                     mcap: t.mcap || 0,
-                    path: t.path === 'raydium' ? 'Raydium' : 'Pump.fun',
+                    path: t.path === 'launchr' ? 'Launchr' : 'Pump.fun',
                     reward: index < 3 ? 'Winner' : null,
                 }));
             res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -1978,6 +1978,38 @@ The 4 percentages must sum to 100.`;
             stats: vanityGeneratorStats,
             suffix: VANITY_SUFFIX
         }));
+        return;
+    }
+
+    // API: IPFS Proxy for Pump.fun (to avoid CORS)
+    if (url.pathname === '/api/ipfs-upload' && req.method === 'POST') {
+        let body = [];
+        req.on('data', chunk => body.push(chunk));
+        req.on('end', async () => {
+            try {
+                const rawBody = Buffer.concat(body);
+
+                // Forward the request to pump.fun
+                const response = await fetch('https://pump.fun/api/ipfs', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': req.headers['content-type'],
+                        'Content-Length': rawBody.length
+                    },
+                    body: rawBody
+                });
+
+                const data = await response.json();
+                console.log('[IPFS PROXY] Upload successful:', data.metadataUri || 'no uri');
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(data));
+            } catch (e) {
+                console.error('[IPFS PROXY] Error:', e.message);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: e.message }));
+            }
+        });
         return;
     }
 
