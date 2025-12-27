@@ -8,7 +8,7 @@
     <meta http-equiv="X-XSS-Protection" content="1; mode=block">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <title>Launchpad - LAUNCHR Mission Control</title>
-    <meta name="description" content="Launch meme tokens with 1 SOL seeded. Top 3 win +1 SOL every 2 hours.">
+    <meta name="description" content="Launch meme tokens on Pump.fun. Top performers compete for rewards every 2 hours.">
     <link rel="icon" href="/website/logo-icon.jpg" type="image/jpeg">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.privy.io/privy-browser.min.js"></script>
@@ -1169,8 +1169,8 @@
                     </div>
 
                     <div class="form-hint">
-                        <span class="form-hint-icon">1</span>
-                        <span>Your launch receives <strong>1 SOL</strong> seeded to allocation pool</span>
+                        <span class="form-hint-icon">&#x1F680;</span>
+                        <span>Token address will end in <strong>launchr</strong> (vanity address)</span>
                     </div>
 
                     <button class="btn btn-primary" style="width:100%;padding:14px;" id="deployBtn" onclick="deployToken()">
@@ -1189,7 +1189,7 @@
                 <div class="page-header-left">
                     <div class="page-title-group">
                         <h1 class="page-title">Launchpad</h1>
-                        <p class="page-subtitle">Launch tokens with 1 SOL seeded. Top 3 win +1 SOL every 2 hours.</p>
+                        <p class="page-subtitle">Launch tokens on Pump.fun. Top 3 performers win rewards every 2 hours.</p>
                     </div>
                 </div>
                 <div class="page-header-right">
@@ -1215,7 +1215,7 @@
                 </div>
                 <div class="stat-cell">
                     <div class="stat-cell-value gold">0</div>
-                    <div class="stat-cell-label">SOL Seeded</div>
+                    <div class="stat-cell-label">Vanity Tokens</div>
                 </div>
                 <div class="stat-cell">
                     <div class="stat-cell-value">$0</div>
@@ -1271,7 +1271,7 @@
                     </div>
                     <div class="card-body">
                         <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.6;">
-                            Create a meme token in seconds. Every launch receives 1 SOL seeded to the allocation pool.
+                            Create a meme token in seconds with a vanity address ending in "launchr".
                         </p>
                         <button class="btn btn-primary" style="width:100%;" onclick="showCreateModal()">
                             Launch Token
@@ -1379,7 +1379,7 @@
                 const res = await fetch('/api/stats');
                 const stats = await res.json();
                 document.querySelector('.stat-cell:nth-child(1) .stat-cell-value').textContent = stats.totalLaunches || 0;
-                document.querySelector('.stat-cell:nth-child(2) .stat-cell-value').textContent = stats.solSeeded || 0;
+                document.querySelector('.stat-cell:nth-child(2) .stat-cell-value').textContent = stats.vanityTokens || stats.totalLaunches || 0;
                 document.querySelector('.stat-cell:nth-child(3) .stat-cell-value').textContent = formatVolume(stats.totalVolume || 0);
                 document.querySelector('.stat-cell:nth-child(4) .stat-cell-value').textContent = (stats.holderRewards || 0).toFixed(1);
                 document.querySelector('.stat-cell:nth-child(5) .stat-cell-value').textContent = stats.graduated || 0;
@@ -1414,7 +1414,7 @@
                     <div style="padding:60px 20px;text-align:center;">
                         <div style="font-size:40px;margin-bottom:16px;opacity:0.3;">&#x1F680;</div>
                         <div style="color:var(--text-secondary);font-size:15px;margin-bottom:8px;">No tokens launched yet</div>
-                        <div style="color:var(--text-muted);font-size:13px;">Be the first to launch and get 1 SOL seeded</div>
+                        <div style="color:var(--text-muted);font-size:13px;">Be the first to launch on LAUNCHR</div>
                         <button class="btn btn-primary" style="margin-top:20px;" onclick="showCreateModal()">Launch First Token</button>
                     </div>
                 `;
@@ -1455,7 +1455,7 @@
                 list.innerHTML = `
                     <div style="padding:40px 20px;text-align:center;">
                         <div style="color:var(--text-secondary);font-size:14px;margin-bottom:6px;">No competition data</div>
-                        <div style="color:var(--text-muted);font-size:12px;">Launch tokens to compete for +1 SOL rewards</div>
+                        <div style="color:var(--text-muted);font-size:12px;">Launch tokens to compete for rewards</div>
                     </div>
                 `;
                 return;
@@ -1590,7 +1590,7 @@
 
         function updateDeployBtn() {
             const btn = document.getElementById('deployBtn');
-            btn.textContent = connectedWallet ? 'Deploy Token + Receive 1 SOL' : 'Connect Wallet to Launch';
+            btn.textContent = connectedWallet ? 'Deploy Token' : 'Connect Wallet to Launch';
         }
 
         // ═══════════════════════════════════════════════════════════════════════

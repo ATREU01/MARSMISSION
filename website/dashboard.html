@@ -1213,8 +1213,8 @@
                 </div>
 
                 <div class="seed-hint">
-                    <div class="seed-hint-icon">1</div>
-                    <span class="seed-hint-text">Your launch receives <strong>1 SOL</strong> seeded to allocation pool</span>
+                    <div class="seed-hint-icon">&#x1F680;</div>
+                    <span class="seed-hint-text">Token address will end in <strong>launchr</strong> (vanity address)</span>
                 </div>
 
                 <button class="btn btn-primary" style="width:100%;justify-content:center;" id="launchTokenBtn" onclick="launchToken()">
@@ -1415,7 +1415,7 @@
 
         function updateLaunchButton() {
             const btn = document.getElementById('launchTokenBtn');
-            btn.textContent = connectedWallet ? 'Deploy Token + Receive 1 SOL' : 'Connect Wallet to Launch';
+            btn.textContent = connectedWallet ? 'Deploy Token' : 'Connect Wallet to Launch';
         }
 
         // ═══════════════════════════════════════════════════════════════════════
