@@ -2055,6 +2055,72 @@
                 </div>
             </div>
 
+            <!-- Statistics & Controls Row -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px;">
+                <!-- Statistics Panel -->
+                <div class="fee-card" style="margin-bottom:0;">
+                    <div class="fee-card-header">
+                        <span class="fee-card-title">Statistics</span>
+                    </div>
+                    <div class="fee-card-body" style="padding:16px;">
+                        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+                            <span style="color:var(--text-muted);font-size:13px;">Balance</span>
+                            <span style="color:var(--text);font-weight:600;" id="statBalance">-- SOL</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+                            <span style="color:var(--text-muted);font-size:13px;">Total Claimed</span>
+                            <span style="color:var(--text);font-weight:600;" id="statTotalClaimed">-- SOL</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+                            <span style="color:var(--text-muted);font-size:13px;">Total Distributed</span>
+                            <span style="color:var(--text);font-weight:600;" id="statTotalDistributed">-- SOL</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:8px 0;">
+                            <span style="color:var(--text-muted);font-size:13px;">RSI</span>
+                            <span style="color:var(--gold);font-weight:600;" id="statRSI">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Automation Panel -->
+                <div class="fee-card" style="margin-bottom:0;">
+                    <div class="fee-card-header">
+                        <span class="fee-card-title">Automation</span>
+                    </div>
+                    <div class="fee-card-body" style="padding:16px;">
+                        <div style="margin-bottom:16px;">
+                            <span class="status-badge" id="autoBadge" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(239,68,68,0.1);color:#ef4444;">
+                                <span style="width:8px;height:8px;border-radius:50%;background:currentColor;"></span>
+                                <span id="autoStatusText">Inactive</span>
+                            </span>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+                            <button class="btn" onclick="startAutomation()" id="startAutoBtn" disabled style="background:#22c55e;color:white;padding:12px;font-weight:600;">START</button>
+                            <button class="btn" onclick="stopAutomation()" id="stopAutoBtn" disabled style="background:#ef4444;color:white;padding:12px;font-weight:600;">STOP</button>
+                        </div>
+                        <button class="btn btn-primary" onclick="claimNow()" id="claimNowBtn" disabled style="width:100%;padding:12px;">CLAIM NOW</button>
+                    </div>
+                </div>
+
+                <!-- Distribute From Wallet -->
+                <div class="fee-card" style="margin-bottom:0;background:linear-gradient(135deg,rgba(249,115,22,0.1),rgba(234,88,12,0.1));border:2px solid #f97316;">
+                    <div class="fee-card-header">
+                        <span class="fee-card-title" style="color:#f97316;">🔥 Distribute From Wallet</span>
+                    </div>
+                    <div class="fee-card-body" style="padding:16px;">
+                        <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Use your wallet SOL directly - runs all mechanisms instantly!</p>
+                        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+                            <input type="number" id="distributeAmount" value="0.5" step="0.1" min="0.01" style="flex:1;font-size:18px;padding:12px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-weight:bold;text-align:center;">
+                            <span style="color:var(--text);font-size:14px;font-weight:bold;">SOL</span>
+                        </div>
+                        <button class="btn" onclick="distributeFromWallet()" id="distributeBtn" disabled style="background:linear-gradient(135deg,#f97316,#ea580c);width:100%;padding:16px;font-size:16px;font-weight:bold;color:white;">
+                            🚀 DISTRIBUTE NOW
+                        </button>
+                        <div id="distributeResult" style="margin-top:8px;font-size:12px;display:none;"></div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Activity -->
             <div class="activity-card" id="activity">
                 <div class="activity-header">
@@ -2410,6 +2476,193 @@
         }
 
         // ═══════════════════════════════════════════════════════════════════════
+        // AUTOMATION & DISTRIBUTION CONTROLS
+        // ═══════════════════════════════════════════════════════════════════════
+
+        let automationActive = false;
+
+        // Update automation status badge
+        function updateAutomationBadge(active) {
+            automationActive = active;
+            const badge = document.getElementById('autoBadge');
+            const text = document.getElementById('autoStatusText');
+            if (badge && text) {
+                if (active) {
+                    badge.style.background = 'rgba(34,197,94,0.1)';
+                    badge.style.color = '#22c55e';
+                    text.textContent = 'Active';
+                } else {
+                    badge.style.background = 'rgba(239,68,68,0.1)';
+                    badge.style.color = '#ef4444';
+                    text.textContent = 'Inactive';
+                }
+            }
+        }
+
+        // Start automation
+        async function startAutomation() {
+            const btn = document.getElementById('startAutoBtn');
+            if (btn) btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/automation/start', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    updateAutomationBadge(true);
+                    showNotification('Automation started!', 'success');
+                } else {
+                    throw new Error(data.error || 'Failed to start');
+                }
+            } catch (e) {
+                showNotification('Error: ' + e.message, 'error');
+            }
+
+            if (btn) btn.disabled = false;
+        }
+
+        // Stop automation
+        async function stopAutomation() {
+            const btn = document.getElementById('stopAutoBtn');
+            if (btn) btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/automation/stop', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    updateAutomationBadge(false);
+                    showNotification('Automation stopped', 'success');
+                } else {
+                    throw new Error(data.error || 'Failed to stop');
+                }
+            } catch (e) {
+                showNotification('Error: ' + e.message, 'error');
+            }
+
+            if (btn) btn.disabled = false;
+        }
+
+        // Claim now
+        async function claimNow() {
+            const btn = document.getElementById('claimNowBtn');
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = 'CLAIMING...';
+            }
+
+            try {
+                const res = await fetch('/api/claim', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    const claimed = (data.claimed / 1e9).toFixed(4);
+                    showNotification(`Claimed ${claimed} SOL!`, 'success');
+                    await fetchEngineStatus(); // Refresh stats
+                } else {
+                    throw new Error(data.error || 'Claim failed');
+                }
+            } catch (e) {
+                showNotification('Error: ' + e.message, 'error');
+            }
+
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'CLAIM NOW';
+            }
+        }
+
+        // Distribute from wallet
+        async function distributeFromWallet() {
+            const btn = document.getElementById('distributeBtn');
+            const resultDiv = document.getElementById('distributeResult');
+            const amountInput = document.getElementById('distributeAmount');
+            const amount = parseFloat(amountInput?.value) || 0.5;
+
+            if (amount < 0.01) {
+                showNotification('Minimum 0.01 SOL', 'error');
+                return;
+            }
+
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = 'DISTRIBUTING...';
+            }
+            if (resultDiv) resultDiv.style.display = 'none';
+
+            try {
+                const res = await fetch('/api/distribute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount: amount * 1e9 }) // Convert to lamports
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    const distributed = (data.distributed / 1e9).toFixed(4);
+                    if (resultDiv) {
+                        resultDiv.innerHTML = `✅ Distributed ${distributed} SOL!`;
+                        resultDiv.style.color = 'var(--success)';
+                        resultDiv.style.display = 'block';
+                    }
+                    showNotification(`Distributed ${distributed} SOL!`, 'success');
+                    await fetchEngineStatus(); // Refresh stats
+                } else {
+                    throw new Error(data.error || 'Distribution failed');
+                }
+            } catch (e) {
+                if (resultDiv) {
+                    resultDiv.innerHTML = `❌ ${e.message}`;
+                    resultDiv.style.color = 'var(--error)';
+                    resultDiv.style.display = 'block';
+                }
+                showNotification('Error: ' + e.message, 'error');
+            }
+
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = '🚀 DISTRIBUTE NOW';
+            }
+        }
+
+        // Fetch engine status and update stats
+        async function fetchEngineStatus() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+
+                if (data.configured) {
+                    // Update stats
+                    const balance = document.getElementById('statBalance');
+                    const claimed = document.getElementById('statTotalClaimed');
+                    const distributed = document.getElementById('statTotalDistributed');
+                    const rsi = document.getElementById('statRSI');
+
+                    if (balance) balance.textContent = (data.balance || 0).toFixed(4) + ' SOL';
+                    if (claimed) claimed.textContent = ((data.stats?.totalClaimed || 0) / 1e9).toFixed(4) + ' SOL';
+                    if (distributed) distributed.textContent = ((data.stats?.totalDistributed || 0) / 1e9).toFixed(4) + ' SOL';
+                    if (rsi) rsi.textContent = data.rsi?.toFixed(1) || data.analyzer?.metrics?.rsi?.toFixed(1) || '--';
+
+                    // Update automation badge
+                    updateAutomationBadge(data.autoClaimActive);
+
+                    // Enable buttons
+                    const startBtn = document.getElementById('startAutoBtn');
+                    const stopBtn = document.getElementById('stopAutoBtn');
+                    const claimBtn = document.getElementById('claimNowBtn');
+                    const distBtn = document.getElementById('distributeBtn');
+
+                    if (startBtn) startBtn.disabled = false;
+                    if (stopBtn) stopBtn.disabled = false;
+                    if (claimBtn) claimBtn.disabled = false;
+                    if (distBtn) distBtn.disabled = false;
+                }
+            } catch (e) {
+                console.error('[STATUS] Error fetching engine status:', e);
+            }
+        }
+
+        // Poll engine status every 30 seconds
+        setInterval(fetchEngineStatus, 30000);
+
+        // ═══════════════════════════════════════════════════════════════════════
         // CONFIGURATION
         // ═══════════════════════════════════════════════════════════════════════
         const SOLANA_RPC = window.LAUNCHR_CONFIG?.SOLANA_RPC || 'https://api.mainnet-beta.solana.com';
@@ -2433,6 +2686,7 @@
 
             // Fetch initial stats
             fetchDashboardStats();
+            fetchEngineStatus(); // Load automation/distribution stats
 
             // Initialize allocation total on page load
             updateTotal();
