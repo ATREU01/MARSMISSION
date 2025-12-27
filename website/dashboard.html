@@ -2027,6 +2027,7 @@
         function showWalletSelectModal() {
             const hasPhantom = window.solana?.isPhantom;
             const hasSolflare = window.solflare?.isSolflare;
+            const hasPrivy = PRIVY_APP_ID && PRIVY_APP_ID !== 'YOUR_PRIVY_APP_ID';
 
             const modal = document.createElement('div');
             modal.className = 'modal-overlay';
@@ -2043,6 +2044,16 @@
                             Choose your preferred wallet to connect
                         </p>
                         <div style="display:flex;flex-direction:column;gap:10px;">
+                            ${hasPrivy ? `
+                            <button class="wallet-option privy-option" onclick="connectPrivy()">
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <rect width="24" height="24" rx="6" fill="#8B5CF6"/>
+                                    <path d="M12 6L18 10V14L12 18L6 14V10L12 6Z" fill="white"/>
+                                </svg>
+                                <span>Privy</span>
+                                <span class="wallet-detected">Email, Google, Twitter</span>
+                            </button>
+                            ` : ''}
                             <button class="wallet-option ${hasPhantom ? '' : 'disabled'}" onclick="${hasPhantom ? 'connectPhantom()' : ''}" ${hasPhantom ? '' : 'disabled'}>
                                 <img src="https://phantom.app/img/phantom-logo.svg" alt="Phantom" style="width:28px;height:28px;">
                                 <span>Phantom</span>
@@ -2054,7 +2065,7 @@
                                 ${hasSolflare ? '<span class="wallet-detected">Detected</span>' : '<span class="wallet-not-detected">Not installed</span>'}
                             </button>
                         </div>
-                        ${!hasPhantom && !hasSolflare ? `
+                        ${!hasPhantom && !hasSolflare && !hasPrivy ? `
                         <div style="margin-top:20px;padding:14px;background:var(--gold-dim);border-radius:var(--radius);text-align:center;">
                             <p style="color:var(--gold);font-size:13px;margin-bottom:10px;">No wallet detected</p>
                             <a href="https://phantom.app" target="_blank" class="btn btn-secondary" style="font-size:12px;">Install Phantom</a>
@@ -2075,8 +2086,41 @@
                     .wallet-option span:first-of-type { flex:1;text-align:left; }
                     .wallet-detected { font-size:11px;color:var(--success);background:var(--success-dim);padding:3px 8px;border-radius:10px; }
                     .wallet-not-detected { font-size:11px;color:var(--text-muted); }
+                    .wallet-option.privy-option { border-color:rgba(139,92,246,0.3);background:rgba(139,92,246,0.1); }
+                    .wallet-option.privy-option:hover { border-color:#8B5CF6;background:rgba(139,92,246,0.2); }
                 `;
                 document.head.appendChild(style);
+            }
+        }
+
+        async function connectPrivy() {
+            document.getElementById('walletSelectModal')?.remove();
+            try {
+                if (!privyClient && typeof window.Privy !== 'undefined') {
+                    privyClient = new window.Privy({
+                        appId: PRIVY_APP_ID,
+                        config: {
+                            loginMethods: ['email', 'wallet', 'google', 'twitter'],
+                            appearance: { theme: 'dark', accentColor: '#FFD966' },
+                            embeddedWallets: { createOnLogin: 'users-without-wallets' },
+                            solanaClusters: [{ name: 'mainnet-beta', rpcUrl: SOLANA_RPC }],
+                        },
+                    });
+                }
+                if (privyClient) {
+                    await privyClient.login();
+                    const user = await privyClient.getUser();
+                    if (user?.wallet?.address) {
+                        handleWalletConnected(user.wallet.address);
+                    } else {
+                        showNotification('Please connect a wallet in Privy', 'error');
+                    }
+                } else {
+                    showNotification('Privy not available', 'error');
+                }
+            } catch (e) {
+                console.error('[PRIVY]', e);
+                showNotification('Failed to connect with Privy', 'error');
             }
         }
 
