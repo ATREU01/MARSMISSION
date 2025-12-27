@@ -1214,7 +1214,7 @@
 
                 <div class="seed-hint">
                     <div class="seed-hint-icon">&#x1F680;</div>
-                    <span class="seed-hint-text">Token address will end in <strong>launchr</strong> (vanity address)</span>
+                    <span class="seed-hint-text">Launch your token on <strong>Pump.fun</strong></span>
                 </div>
 
                 <button class="btn btn-primary" style="width:100%;justify-content:center;" id="launchTokenBtn" onclick="launchToken()">
@@ -1462,28 +1462,10 @@
             };
         }
 
-        async function generateMintKeypair() {
+        function generateMintKeypair() {
             const { Keypair } = solanaWeb3;
-
-            // Try to get a vanity keypair from the server pool (ends in "launchr")
-            try {
-                const res = await fetch('/api/vanity-keypair');
-                const data = await res.json();
-
-                if (data.success && data.secretKey) {
-                    const secretKey = bs58.decode(data.secretKey);
-                    const mintKeypair = Keypair.fromSecretKey(secretKey);
-                    console.log('[DEPLOY] Got vanity mint address:', mintKeypair.publicKey.toString());
-                    showNotification('Vanity address assigned: ...launchr', 'success');
-                    return mintKeypair;
-                }
-            } catch (e) {
-                console.log('[DEPLOY] Vanity pool unavailable, using random keypair');
-            }
-
-            // Fallback to random keypair
             const mintKeypair = Keypair.generate();
-            console.log('[DEPLOY] Generated random mint address:', mintKeypair.publicKey.toString());
+            console.log('[DEPLOY] Generated mint address:', mintKeypair.publicKey.toString());
             return mintKeypair;
         }
 
