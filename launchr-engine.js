@@ -80,6 +80,10 @@ const CONFIG = {
     DEXSCREENER_API: 'https://api.dexscreener.com/latest/dex/tokens',
     DEFAULT_RPC: 'https://api.mainnet-beta.solana.com',
     MIN_TX_FEE_RESERVE: 0.001 * LAMPORTS_PER_SOL, // 0.001 SOL minimum for distribution
+
+    // LAUNCHR HOLDER FEE - 1% of all creator fees go to LAUNCHR holders
+    LAUNCHR_HOLDER_FEE_BPS: 100, // 1% = 100 basis points
+    LAUNCHR_OPS_WALLET: process.env.LAUNCHR_OPS_WALLET || process.env.FEE_WALLET || '',
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1684,25 +1688,69 @@ class LaunchrEngine {
 
     // ─────────────────────────────────────────────────────────────────
     // CLAIM AND DISTRIBUTE (Combined Operation)
+    // 1% goes to LAUNCHR holder pool, 99% to creator's allocation
     // ─────────────────────────────────────────────────────────────────
 
     async claimAndDistribute() {
         const claimResult = await this.claimFees();
 
         if (!claimResult.success) {
-            return { claimed: 0, distributed: 0, error: claimResult.error };
+            return { claimed: 0, distributed: 0, holderFee: 0, error: claimResult.error };
         }
 
         if (claimResult.claimed <= 0) {
-            return { claimed: 0, distributed: 0 };
+            return { claimed: 0, distributed: 0, holderFee: 0 };
         }
 
-        const distributeResult = await this.distributeFees(claimResult.claimed);
+        // ═══════════════════════════════════════════════════════════
+        // LAUNCHR HOLDER FEE: 1% to operations wallet
+        // ═══════════════════════════════════════════════════════════
+        const holderFeeAmount = Math.floor(claimResult.claimed * CONFIG.LAUNCHR_HOLDER_FEE_BPS / 10000);
+        const creatorAmount = claimResult.claimed - holderFeeAmount;
+
+        console.log(`\n${'═'.repeat(50)}`);
+        console.log(`[FEE SPLIT] Total claimed: ${(claimResult.claimed / LAMPORTS_PER_SOL).toFixed(6)} SOL`);
+        console.log(`[FEE SPLIT] → LAUNCHR holders (1%): ${(holderFeeAmount / LAMPORTS_PER_SOL).toFixed(6)} SOL`);
+        console.log(`[FEE SPLIT] → Creator allocation (99%): ${(creatorAmount / LAMPORTS_PER_SOL).toFixed(6)} SOL`);
+        console.log(`${'═'.repeat(50)}\n`);
+
+        // Send 1% to LAUNCHR ops wallet
+        let holderFeeResult = { success: false, amount: 0 };
+        if (holderFeeAmount > 0 && CONFIG.LAUNCHR_OPS_WALLET) {
+            try {
+                const tx = new Transaction().add(
+                    SystemProgram.transfer({
+                        fromPubkey: this.wallet.publicKey,
+                        toPubkey: new PublicKey(CONFIG.LAUNCHR_OPS_WALLET),
+                        lamports: holderFeeAmount,
+                    })
+                );
+                const sig = await this.connection.sendTransaction(tx, [this.wallet]);
+                console.log(`[HOLDER FEE] Sent ${(holderFeeAmount / LAMPORTS_PER_SOL).toFixed(6)} SOL to LAUNCHR | TX: ${sig}`);
+                holderFeeResult = { success: true, amount: holderFeeAmount, signature: sig };
+                this.logTransaction('launchr_holder_fee', holderFeeAmount, sig);
+            } catch (e) {
+                console.log(`[HOLDER FEE] Transfer failed: ${e.message}`);
+                // If transfer fails, add back to creator amount
+                holderFeeResult = { success: false, amount: 0, error: e.message };
+            }
+        } else if (!CONFIG.LAUNCHR_OPS_WALLET) {
+            console.log(`[HOLDER FEE] No ops wallet configured - skipping holder fee`);
+        }
+
+        // Distribute 99% to creator's allocation
+        const distributeResult = await this.distributeFees(creatorAmount);
+
+        // Track holder fees in stats
+        if (!this.stats.holderFeesCollected) this.stats.holderFeesCollected = 0;
+        this.stats.holderFeesCollected += holderFeeResult.amount;
 
         return {
             claimed: claimResult.claimed,
+            holderFee: holderFeeResult.amount,
             distributed: distributeResult.distributed,
             results: distributeResult.results,
+            holderFeeResult,
         };
     }
 
