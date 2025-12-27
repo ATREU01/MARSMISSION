@@ -1501,6 +1501,8 @@
         let selectedPath = 'pump';
         let tokens = [];
         let leaderboard = [];
+        let liveTokens = { trending: [], new: [], graduating: [] };
+        let currentTab = 'trending';
 
         // ═══════════════════════════════════════════════════════════════════════
         // INITIALIZATION
@@ -1512,23 +1514,25 @@
 
             // Load real data from API
             await Promise.all([
-                fetchTokens(),
+                fetchLiveTokens(),
                 fetchLeaderboard(),
                 fetchStats(),
                 syncTimer(),
             ]);
 
-            // Tab switching
+            // Tab switching for live tokens
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.addEventListener('click', () => {
                     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                     tab.classList.add('active');
+                    currentTab = tab.dataset.tab;
+                    renderLiveTokens();
                 });
             });
 
             // Auto-refresh data every 30 seconds
             setInterval(() => {
-                fetchTokens();
+                fetchLiveTokens();
                 fetchLeaderboard();
                 fetchStats();
             }, 30000);
@@ -1537,6 +1541,67 @@
         // ═══════════════════════════════════════════════════════════════════════
         // DATA FETCHING
         // ═══════════════════════════════════════════════════════════════════════
+
+        // Fetch live tokens from Pump.fun API
+        async function fetchLiveTokens() {
+            try {
+                console.log('[PUMP] Fetching live tokens...');
+
+                // Fetch new tokens (sorted by creation time)
+                const newRes = await fetch('https://frontend-api.pump.fun/coins?offset=0&limit=20&sort=created_timestamp&order=DESC&includeNsfw=false');
+                if (newRes.ok) {
+                    const data = await newRes.json();
+                    liveTokens.new = (data || []).map(t => ({
+                        mint: t.mint,
+                        name: t.name || 'Unknown',
+                        symbol: t.symbol || '???',
+                        image: t.image_uri,
+                        mcap: t.usd_market_cap || 0,
+                        volume: t.volume_24h || 0,
+                        price: t.price || 0,
+                        complete: t.complete,
+                        created: t.created_timestamp,
+                        realSolReserves: t.real_sol_reserves
+                    }));
+                }
+
+                // Fetch trending (sorted by market cap)
+                const trendingRes = await fetch('https://frontend-api.pump.fun/coins?offset=0&limit=20&sort=usd_market_cap&order=DESC&includeNsfw=false');
+                if (trendingRes.ok) {
+                    const data = await trendingRes.json();
+                    liveTokens.trending = (data || []).map(t => ({
+                        mint: t.mint,
+                        name: t.name || 'Unknown',
+                        symbol: t.symbol || '???',
+                        image: t.image_uri,
+                        mcap: t.usd_market_cap || 0,
+                        volume: t.volume_24h || 0,
+                        price: t.price || 0,
+                        complete: t.complete,
+                        created: t.created_timestamp,
+                        realSolReserves: t.real_sol_reserves
+                    }));
+                }
+
+                // Find graduating tokens (near 85 SOL bonding curve completion)
+                // Filter from trending/new for tokens with high real_sol_reserves
+                const allTokens = [...liveTokens.new, ...liveTokens.trending];
+                liveTokens.graduating = allTokens
+                    .filter(t => {
+                        const solReserves = (t.realSolReserves || 0) / 1e9;
+                        return solReserves >= 60 && !t.complete; // 70%+ progress but not graduated
+                    })
+                    .sort((a, b) => (b.realSolReserves || 0) - (a.realSolReserves || 0))
+                    .slice(0, 20);
+
+                console.log(`[PUMP] Loaded: ${liveTokens.new.length} new, ${liveTokens.trending.length} trending, ${liveTokens.graduating.length} graduating`);
+                renderLiveTokens();
+            } catch (e) {
+                console.error('[PUMP] Failed to fetch live tokens:', e);
+                renderLiveTokens();
+            }
+        }
+
         async function fetchTokens() {
             try {
                 const res = await fetch('/api/tokens');
@@ -1594,6 +1659,77 @@
         // ═══════════════════════════════════════════════════════════════════════
         // RENDER FUNCTIONS
         // ═══════════════════════════════════════════════════════════════════════
+
+        // Render live tokens from Pump.fun based on current tab
+        function renderLiveTokens() {
+            const list = document.getElementById('tokenList');
+            const currentTokens = liveTokens[currentTab] || [];
+
+            if (currentTokens.length === 0) {
+                const emptyMessages = {
+                    trending: 'Loading trending tokens...',
+                    new: 'Loading new tokens...',
+                    graduating: 'No tokens graduating yet'
+                };
+                list.innerHTML = `
+                    <div style="padding:60px 20px;text-align:center;">
+                        <div style="font-size:40px;margin-bottom:16px;opacity:0.3;">&#x1F680;</div>
+                        <div style="color:var(--text-secondary);font-size:15px;margin-bottom:8px;">${emptyMessages[currentTab]}</div>
+                        <div style="color:var(--text-muted);font-size:13px;">Live data from Pump.fun</div>
+                    </div>
+                `;
+                return;
+            }
+
+            list.innerHTML = currentTokens.map(t => {
+                const progress = t.realSolReserves ? Math.min(((t.realSolReserves / 1e9) / 85) * 100, 100) : 0;
+                const timeAgo = t.created ? getTimeAgo(t.created) : '';
+                const graduated = t.complete ? '<span style="color:var(--success);font-size:10px;margin-left:6px;">GRADUATED</span>' : '';
+
+                return `
+                <div class="token-item" onclick="openPumpToken('${escapeHtml(t.mint)}')" role="button" tabindex="0" style="cursor:pointer;">
+                    <div class="token-avatar" style="background-size:cover;background-position:center;${t.image ? `background-image:url('${escapeHtml(t.image)}')` : ''}">
+                        ${!t.image ? escapeHtml(t.name.charAt(0)) : ''}
+                    </div>
+                    <div class="token-details">
+                        <div class="token-name">${escapeHtml(t.name)}${graduated}</div>
+                        <div class="token-meta">
+                            <span class="token-ticker">$${escapeHtml(t.symbol)}</span>
+                            <span class="token-path pump">Pump.fun</span>
+                            <span class="token-time">${timeAgo}</span>
+                        </div>
+                        ${currentTab === 'graduating' ? `<div style="margin-top:6px;"><div style="background:var(--surface-3);height:4px;border-radius:2px;overflow:hidden;"><div style="background:var(--gold);height:100%;width:${progress.toFixed(1)}%;transition:width 0.3s;"></div></div><div style="font-size:10px;color:var(--text-muted);margin-top:2px;">${progress.toFixed(0)}% to graduation</div></div>` : ''}
+                    </div>
+                    <div class="token-stats">
+                        <div class="token-mcap">${t.mcap > 0 ? '$' + formatNumber(t.mcap) : '-'}</div>
+                        <div class="token-volume">${t.volume > 0 ? 'Vol: $' + formatNumber(t.volume) : ''}</div>
+                    </div>
+                    <div class="token-change">
+                        <div class="token-change-value" style="color:var(--gold);font-size:12px;">View</div>
+                        <div class="token-change-label">&#x2192;</div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        // Open token on Pump.fun
+        function openPumpToken(mint) {
+            if (!isValidSolanaAddress(mint)) {
+                console.error('[SECURITY] Invalid token address blocked');
+                return;
+            }
+            window.open('https://pump.fun/coin/' + encodeURIComponent(mint), '_blank', 'noopener,noreferrer');
+        }
+
+        // Get human-readable time ago
+        function getTimeAgo(timestamp) {
+            const seconds = Math.floor((Date.now() / 1000) - timestamp);
+            if (seconds < 60) return 'just now';
+            if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
+            if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
+            return Math.floor(seconds / 86400) + 'd ago';
+        }
+
         function renderTokens() {
             const list = document.getElementById('tokenList');
             if (tokens.length === 0) {
