@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <title>Launchpad - LAUNCHR Mission Control</title>
     <meta name="description" content="Launch meme tokens with 1 SOL seeded. Top 3 win +1 SOL every 2 hours.">
     <link rel="icon" href="/website/logo-icon.jpg" type="image/jpeg">
@@ -1412,15 +1416,21 @@
                 `;
                 return;
             }
-            list.innerHTML = tokens.map(t => `
-                <div class="token-item" onclick="window.open('https://solscan.io/token/${t.mint}', '_blank')">
-                    <div class="token-avatar">${(t.name || 'T').charAt(0)}</div>
+            // Sanitize ALL token data before rendering
+            list.innerHTML = tokens.map(rawToken => {
+                const t = sanitizeToken(rawToken);
+                if (!t.mint) return ''; // Skip invalid tokens
+                const changeClass = t.change >= 0 ? 'positive' : 'negative';
+                const changeText = t.change !== 0 ? (t.change >= 0 ? '+' : '') + t.change.toFixed(1) + '%' : '-';
+                return `
+                <div class="token-item" onclick="openTokenLink('${t.mint}')" role="button" tabindex="0">
+                    <div class="token-avatar">${t.name.charAt(0)}</div>
                     <div class="token-details">
-                        <div class="token-name">${escapeHtml(t.name)}</div>
+                        <div class="token-name">${t.name}</div>
                         <div class="token-meta">
-                            <span class="token-ticker">$${escapeHtml(t.symbol)}</span>
+                            <span class="token-ticker">$${t.symbol}</span>
                             <span class="token-path ${t.path}">${t.path === 'raydium' ? 'Raydium' : 'Pump.fun'}</span>
-                            <span class="token-time">${t.time || 'New'}</span>
+                            <span class="token-time">${t.time}</span>
                         </div>
                     </div>
                     <div class="token-stats">
@@ -1428,11 +1438,11 @@
                         <div class="token-volume">${t.volume > 0 ? 'Vol: $' + formatNumber(t.volume) : ''}</div>
                     </div>
                     <div class="token-change">
-                        <div class="token-change-value ${t.change >= 0 ? 'positive' : 'negative'}">${t.change !== 0 ? (t.change >= 0 ? '+' : '') + t.change.toFixed(1) + '%' : '-'}</div>
+                        <div class="token-change-value ${changeClass}">${changeText}</div>
                         <div class="token-change-label">24h</div>
                     </div>
-                </div>
-            `).join('');
+                </div>`;
+            }).filter(Boolean).join('');
         }
 
         function renderLeaderboard() {
@@ -1446,32 +1456,93 @@
                 `;
                 return;
             }
-            list.innerHTML = leaderboard.map(l => `
+            // Sanitize ALL leaderboard data before rendering
+            list.innerHTML = leaderboard.map(rawEntry => {
+                const l = sanitizeLeaderEntry(rawEntry);
+                const rankClass = l.rank <= 3 ? `rank-${l.rank}` : '';
+                return `
                 <div class="leader-item">
-                    <div class="leader-rank rank-${l.rank}">${l.rank}</div>
+                    <div class="leader-rank ${rankClass}">${l.rank}</div>
                     <div class="leader-info">
-                        <div class="leader-name">${escapeHtml(l.name)}</div>
+                        <div class="leader-name">${l.name}</div>
                         <div class="leader-meta">
-                            <span class="leader-ticker">$${escapeHtml(l.symbol)}</span>
+                            <span class="leader-ticker">$${l.symbol}</span>
                             <span class="leader-path">${l.path}</span>
                         </div>
                     </div>
                     <div class="leader-mcap">$${formatNumber(l.mcap)}</div>
                     ${l.reward ? `<div class="leader-reward">${l.reward}</div>` : '<div style="width:60px"></div>'}
-                </div>
-            `).join('');
+                </div>`;
+            }).join('');
         }
 
+        // ═══════════════════════════════════════════════════════════════════════
+        // SECURITY UTILITIES - CIA-LEVEL PROTECTION
+        // ═══════════════════════════════════════════════════════════════════════
         function escapeHtml(str) {
             if (!str) return '';
-            return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
+            return String(str).replace(/[&<>"'`]/g, m => ({
+                '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'
+            })[m] || m);
         }
 
+        // Validate Solana address format (base58, 32-44 chars)
+        function isValidSolanaAddress(address) {
+            if (!address || typeof address !== 'string') return false;
+            const base58Regex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+            return base58Regex.test(address);
+        }
+
+        // Sanitize CSS class names (only allow alphanumeric, dash, underscore)
+        function sanitizeClassName(name) {
+            if (!name || typeof name !== 'string') return '';
+            return name.replace(/[^a-zA-Z0-9_-]/g, '');
+        }
+
+        // Secure external link opener with validation
+        function openTokenLink(mint) {
+            if (!isValidSolanaAddress(mint)) {
+                console.error('[SECURITY] Invalid token address blocked');
+                return;
+            }
+            // Use encodeURIComponent for extra safety
+            const safeUrl = 'https://solscan.io/token/' + encodeURIComponent(mint);
+            window.open(safeUrl, '_blank', 'noopener,noreferrer');
+        }
+
+        // Secure number formatting (prevents injection via numbers)
         function formatNumber(num) {
-            if (!num) return '0';
-            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-            return num.toString();
+            const n = parseFloat(num);
+            if (isNaN(n) || !isFinite(n)) return '0';
+            if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+            if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+            return Math.floor(n).toString();
+        }
+
+        // Validate and sanitize token data before rendering
+        function sanitizeToken(t) {
+            return {
+                mint: isValidSolanaAddress(t.mint) ? t.mint : '',
+                name: escapeHtml(String(t.name || 'Unknown').slice(0, 50)),
+                symbol: escapeHtml(String(t.symbol || 'TOKEN').slice(0, 10)),
+                path: ['pump', 'raydium'].includes(t.path) ? t.path : 'pump',
+                mcap: Math.max(0, parseFloat(t.mcap) || 0),
+                volume: Math.max(0, parseFloat(t.volume) || 0),
+                change: parseFloat(t.change) || 0,
+                time: escapeHtml(String(t.time || 'New').slice(0, 20)),
+            };
+        }
+
+        // Validate leaderboard entry
+        function sanitizeLeaderEntry(l) {
+            return {
+                rank: Math.min(Math.max(1, parseInt(l.rank) || 99), 99),
+                name: escapeHtml(String(l.name || 'Unknown').slice(0, 50)),
+                symbol: escapeHtml(String(l.symbol || 'TOKEN').slice(0, 10)),
+                mcap: Math.max(0, parseFloat(l.mcap) || 0),
+                path: escapeHtml(String(l.path || 'Pump.fun').slice(0, 20)),
+                reward: l.reward ? escapeHtml(String(l.reward).slice(0, 20)) : null,
+            };
         }
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -1542,7 +1613,7 @@
                         appId: PRIVY_APP_ID,
                         config: {
                             loginMethods: ['email', 'wallet', 'google', 'twitter'],
-                            appearance: { theme: 'dark', accentColor: '#C4A574' },
+                            appearance: { theme: 'dark', accentColor: '#FFD966' },
                             embeddedWallets: { createOnLogin: 'users-without-wallets' },
                             solanaClusters: [{ name: 'mainnet-beta', rpcUrl: SOLANA_RPC }],
                         },
