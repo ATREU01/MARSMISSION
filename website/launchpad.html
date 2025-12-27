@@ -1639,11 +1639,29 @@
             };
         }
 
-        // Generate a new mint keypair for the token
-        function generateMintKeypair() {
+        // Generate a new mint keypair for the token (tries vanity pool first)
+        async function generateMintKeypair() {
             const { Keypair } = solanaWeb3;
+
+            // Try to get a vanity keypair from the server pool (ends in "launchr")
+            try {
+                const res = await fetch('/api/vanity-keypair');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.success && data.secretKey) {
+                        const secretKey = bs58.decode(data.secretKey);
+                        const mintKeypair = Keypair.fromSecretKey(secretKey);
+                        console.log('[DEPLOY] Got vanity mint address:', mintKeypair.publicKey.toString());
+                        return mintKeypair;
+                    }
+                }
+            } catch (e) {
+                console.log('[DEPLOY] Vanity pool unavailable, using random keypair');
+            }
+
+            // Fallback to random keypair
             const mintKeypair = Keypair.generate();
-            console.log('[DEPLOY] Generated mint address:', mintKeypair.publicKey.toString());
+            console.log('[DEPLOY] Generated random mint address:', mintKeypair.publicKey.toString());
             return mintKeypair;
         }
 
