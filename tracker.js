@@ -37,9 +37,12 @@ function registerToken(tokenMint, walletAddress, metadata = {}) {
     // Check if already registered
     const existing = data.tokens.find(t => t.mint === tokenMint);
     if (existing) {
-        // Update last seen
+        // Update last seen and creator if not set
         existing.lastSeen = Date.now();
         existing.sessions = (existing.sessions || 0) + 1;
+        if (walletAddress && !existing.creator) {
+            existing.creator = walletAddress;
+        }
         saveTokens(data);
         return { registered: false, updated: true, token: existing };
     }
@@ -47,7 +50,8 @@ function registerToken(tokenMint, walletAddress, metadata = {}) {
     // New token
     const token = {
         mint: tokenMint,
-        wallet: walletAddress ? walletAddress.slice(0, 8) + '...' : null,
+        creator: walletAddress || null,  // Store full creator wallet address
+        wallet: walletAddress ? walletAddress.slice(0, 8) + '...' : null,  // Display version
         registeredAt: Date.now(),
         lastSeen: Date.now(),
         sessions: 1,
@@ -63,6 +67,12 @@ function registerToken(tokenMint, walletAddress, metadata = {}) {
     saveTokens(data);
 
     return { registered: true, updated: false, token };
+}
+
+// Get tokens by creator wallet
+function getTokensByCreator(creatorWallet) {
+    const data = loadTokens();
+    return data.tokens.filter(t => t.creator === creatorWallet);
 }
 
 // Update token stats
@@ -112,5 +122,6 @@ module.exports = {
     registerToken,
     updateTokenStats,
     getTokens,
+    getTokensByCreator,
     getPublicStats
 };

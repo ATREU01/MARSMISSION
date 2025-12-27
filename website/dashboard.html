@@ -1211,6 +1211,110 @@
             font-weight: 600;
         }
 
+        /* My Launches Grid */
+        .my-launches-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+        .my-launches-header {
+            padding: 16px 20px;
+            background: var(--bg-elevated);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .my-launches-title {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-secondary);
+        }
+        .my-launches-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+            padding: 20px;
+        }
+        .token-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .token-card:hover {
+            border-color: var(--gold);
+            background: var(--gold-dim);
+        }
+        .token-card.selected {
+            border-color: var(--gold);
+            background: var(--gold-dim);
+        }
+        .token-card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .token-card-img {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius);
+            background: var(--surface-3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--gold);
+            overflow: hidden;
+        }
+        .token-card-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .token-card-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .token-card-symbol {
+            font-size: 12px;
+            color: var(--gold);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .token-card-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 11px;
+        }
+        .token-card-stat {
+            display: flex;
+            justify-content: space-between;
+        }
+        .token-card-stat-label { color: var(--text-muted); }
+        .token-card-stat-value { font-family: 'JetBrains Mono', monospace; }
+        .token-card-mint {
+            font-size: 10px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border-subtle);
+        }
+        .my-launches-empty {
+            padding: 40px 20px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
         /* Responsive */
         @media (max-width: 1200px) {
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -1318,7 +1422,21 @@
                 </div>
                 <div class="token-selector-path">
                     <span class="path-badge pumpfun" id="tokenPath">-</span>
-                    <button class="btn btn-secondary btn-sm">Switch Token</button>
+                    <button class="btn btn-secondary btn-sm" onclick="refreshMyTokens()">Refresh</button>
+                </div>
+            </div>
+
+            <!-- My Launches Section -->
+            <div class="my-launches-card" id="myLaunchesCard" style="display:none;">
+                <div class="my-launches-header">
+                    <span class="my-launches-title">My Launches</span>
+                    <span style="font-size:11px;color:var(--text-muted);" id="myLaunchesCount">0 tokens</span>
+                </div>
+                <div id="myLaunchesContent">
+                    <div class="my-launches-empty">
+                        <p>No tokens launched yet.</p>
+                        <button class="btn btn-primary btn-sm" onclick="showLaunchModal()" style="margin-top:12px;">Launch Your First Token</button>
+                    </div>
                 </div>
             </div>
 
@@ -1993,6 +2111,9 @@
             localStorage.setItem('connectedWallet', address);
             updateLaunchButton();
             document.getElementById('tokenSelector').style.display = 'flex';
+            document.getElementById('myLaunchesCard').style.display = 'block';
+            // Fetch user's launched tokens
+            await fetchMyTokens();
         }
 
         async function fetchBalance(address) {
@@ -2019,6 +2140,7 @@
             document.getElementById('connectBtn').textContent = 'Connect Wallet';
             document.getElementById('connectBtn').classList.remove('wallet-connected');
             document.getElementById('tokenSelector').style.display = 'none';
+            document.getElementById('myLaunchesCard').style.display = 'none';
             closeWalletModal();
             updateLaunchButton();
         }
@@ -2409,6 +2531,9 @@
                 showLaunchSuccess(name, symbol, mintAddress, signature);
                 closeLaunchModal();
 
+                // Register the token in our tracker
+                await registerTokenAfterLaunch(mintAddress, name, symbol, tokenMetadata.metadataUri, socials);
+
             } catch (error) {
                 console.error('[DEPLOY] Error:', error);
                 showNotification(error.message || 'Token launch failed', 'error');
@@ -2582,6 +2707,161 @@
                 updateTokenAnalytics();
             }, 500);
         });
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // MY TOKENS FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════════════
+
+        let myTokens = [];
+        let selectedToken = null;
+
+        async function fetchMyTokens() {
+            if (!connectedWallet) return;
+
+            try {
+                const res = await fetch(`/api/my-tokens?wallet=${connectedWallet}`);
+                const data = await res.json();
+                myTokens = data.tokens || [];
+                renderMyTokens();
+            } catch (e) {
+                console.error('[MY-TOKENS] Failed to fetch:', e);
+                myTokens = [];
+                renderMyTokens();
+            }
+        }
+
+        function refreshMyTokens() {
+            fetchMyTokens();
+            showNotification('Refreshing tokens...', 'info');
+        }
+
+        function renderMyTokens() {
+            const container = document.getElementById('myLaunchesContent');
+            const countEl = document.getElementById('myLaunchesCount');
+
+            countEl.textContent = `${myTokens.length} token${myTokens.length !== 1 ? 's' : ''}`;
+
+            if (myTokens.length === 0) {
+                container.innerHTML = `
+                    <div class="my-launches-empty">
+                        <p>No tokens launched yet.</p>
+                        <button class="btn btn-primary btn-sm" onclick="showLaunchModal()" style="margin-top:12px;">Launch Your First Token</button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="my-launches-grid">
+                    ${myTokens.map(token => `
+                        <div class="token-card ${selectedToken === token.mint ? 'selected' : ''}" onclick="selectToken('${token.mint}')">
+                            <div class="token-card-header">
+                                <div class="token-card-img">
+                                    ${token.image ? `<img src="${escapeHtml(token.image)}" alt="${escapeHtml(token.symbol)}">` : token.symbol?.slice(0, 2) || '??'}
+                                </div>
+                                <div>
+                                    <div class="token-card-name">${escapeHtml(token.name)}</div>
+                                    <div class="token-card-symbol">$${escapeHtml(token.symbol)}</div>
+                                </div>
+                            </div>
+                            <div class="token-card-stats">
+                                <div class="token-card-stat">
+                                    <span class="token-card-stat-label">MCap</span>
+                                    <span class="token-card-stat-value">${formatNum(token.mcap)}</span>
+                                </div>
+                                <div class="token-card-stat">
+                                    <span class="token-card-stat-label">Volume</span>
+                                    <span class="token-card-stat-value">${formatNum(token.volume)}</span>
+                                </div>
+                                <div class="token-card-stat">
+                                    <span class="token-card-stat-label">Holders</span>
+                                    <span class="token-card-stat-value">${token.holders || 0}</span>
+                                </div>
+                                <div class="token-card-stat">
+                                    <span class="token-card-stat-label">Launched</span>
+                                    <span class="token-card-stat-value">${token.time || 'Recently'}</span>
+                                </div>
+                            </div>
+                            <div class="token-card-mint">${token.mint.slice(0, 8)}...${token.mint.slice(-6)}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function selectToken(mint) {
+            selectedToken = mint;
+            const token = myTokens.find(t => t.mint === mint);
+
+            if (token) {
+                // Update token selector
+                document.getElementById('tokenName').textContent = token.name || 'Unknown Token';
+                document.getElementById('tokenMint').textContent = mint;
+                document.getElementById('tokenAvatar').innerHTML = token.image
+                    ? `<img src="${escapeHtml(token.image)}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">`
+                    : token.symbol?.slice(0, 2) || '??';
+                document.getElementById('tokenPath').textContent = token.path === 'launchr' ? 'LAUNCHR' : 'PUMP';
+                document.getElementById('tokenPath').className = `path-badge ${token.path === 'launchr' ? 'launchr' : 'pumpfun'}`;
+
+                // Update analytics with token data (demo values for now)
+                updateTokenAnalytics({
+                    marketCap: token.mcap || 0,
+                    liquidity: (token.mcap || 0) * 0.35,
+                    volume24h: token.volume || 0,
+                    holders: token.holders || 0,
+                    transactions: Math.floor((token.volume || 0) / 50),
+                    score: 75,
+                    priceChange1m: Math.random() * 10 - 5,
+                    priceChange5m: Math.random() * 20 - 10,
+                    priceChange1h: Math.random() * 30 - 15,
+                    priceChange24h: token.change || 0,
+                    buys24h: Math.floor(Math.random() * 500) + 100,
+                    sells24h: Math.floor(Math.random() * 300) + 50,
+                    liqDepth: 10 + Math.random() * 10,
+                    volMcapRatio: token.mcap > 0 ? (token.volume || 0) / token.mcap : 0,
+                    flow5m: Math.random() * 5000 - 2500,
+                    momentum: 60 + Math.floor(Math.random() * 30),
+                    top10Pct: 20 + Math.random() * 20,
+                    noMint: true,
+                    noFreeze: true,
+                    organic: 70 + Math.floor(Math.random() * 20),
+                    bundlerPct: Math.random() * 5,
+                    insiderPct: Math.random() * 10,
+                    devHoldPct: Math.random() * 5,
+                    verified: true
+                });
+            }
+
+            // Re-render to show selection
+            renderMyTokens();
+        }
+
+        // Register token after successful launch
+        async function registerTokenAfterLaunch(mint, name, symbol, imageUri, socials) {
+            try {
+                const res = await fetch('/api/register-token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        mint,
+                        creator: connectedWallet,
+                        name,
+                        symbol,
+                        image: imageUri,
+                        path: 'pump',
+                        socials
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    console.log('[REGISTER] Token registered:', mint);
+                    // Refresh the token list
+                    await fetchMyTokens();
+                }
+            } catch (e) {
+                console.error('[REGISTER] Failed to register token:', e);
+            }
+        }
     </script>
 </body>
 </html>
