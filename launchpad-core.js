@@ -57,7 +57,6 @@ const LAUNCHPAD_CONFIG = {
 
     // Launchr allocation
     ALLOCATION: {
-        SEED_AMOUNT: 1 * LAMPORTS_PER_SOL, // 1 SOL seeded per launch
         HOLDER_FEE_BPS: 100, // 1% to LAUNCHR holders
         DEFAULT_STRATEGY: 'balanced', // balanced, growth, burn, lp
     },
@@ -708,9 +707,8 @@ class LaunchrLaunchpad {
             this.engines.set(result.launch.mint, result.engine);
             this.saveLaunches();
 
-            // Seed allocation pool (1 SOL from Launchr treasury)
-            console.log(`[LAUNCHR] Seeding 1 SOL to allocation pool...`);
-            // In production, this would transfer 1 SOL to the allocation pool
+            // Log successful launch
+            console.log(`[LAUNCHR] Token launched successfully: ${result.launch.mint}`);
         }
 
         return result;

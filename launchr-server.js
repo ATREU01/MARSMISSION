@@ -25,8 +25,8 @@ const PRODUCTION_CONFIG = {
     // Fee Structure
     PLATFORM_FEE_PERCENT: 1,      // 1% of all fees to LAUNCHR holders
     CREATOR_FEE_PERCENT: 99,       // 99% to creator's allocation engine
-    SEED_SOL_PER_LAUNCH: 1,        // 1 SOL seeded per launch
-    TOP3_REWARD_SOL: 1,            // +1 SOL to top 3 every 2 hours
+    // Competition rewards are handled separately
+    TOP3_REWARD_ENABLED: true,      // Top 3 win rewards every 2 hours
 };
 
 // Get fee wallet public key if private key is set
@@ -1884,7 +1884,7 @@ The 4 percentages must sum to 100.`;
                     symbol: t.symbol || 'TOKEN',
                     mcap: t.mcap || 0,
                     path: t.path === 'raydium' ? 'Raydium' : 'Pump.fun',
-                    reward: index < 3 ? '+1 SOL' : null,
+                    reward: index < 3 ? 'Winner' : null,
                 }));
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ leaderboard }));
@@ -1902,7 +1902,7 @@ The 4 percentages must sum to 100.`;
             const tokens = data.tokens || [];
             const stats = {
                 totalLaunches: tokens.length,
-                solSeeded: tokens.length, // 1 SOL per launch
+                vanityTokens: tokens.length, // Tokens with vanity addresses
                 totalVolume: tokens.reduce((sum, t) => sum + (t.volume || 0), 0),
                 holderRewards: (data.stats?.totalDistributed || 0) * 0.01, // 1% to holders
                 graduated: tokens.filter(t => t.graduated).length,
@@ -1911,7 +1911,7 @@ The 4 percentages must sum to 100.`;
             res.end(JSON.stringify(stats));
         } catch (e) {
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ totalLaunches: 0, solSeeded: 0, totalVolume: 0, holderRewards: 0, graduated: 0 }));
+            res.end(JSON.stringify({ totalLaunches: 0, vanityTokens: 0, totalVolume: 0, holderRewards: 0, graduated: 0 }));
         }
         return;
     }
