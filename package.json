@@ -8,6 +8,8 @@
   },
   "scripts": {
     "start": "node launchr-server.js",
+    "build": "cd frontend && npm install && npm run build",
+    "build:frontend": "cd frontend && npm run build",
     "bot": "node telegram-bot.js",
     "cli": "node cli.js",
     "auto": "node index.js",

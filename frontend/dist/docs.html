@@ -1,0 +1,1810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <title>LAUNCHR /Docs - Official Documentation</title>
+    <meta name="description" content="Official LAUNCHR documentation. The complete guide to launching tokens with programmable fee allocation on Solana.">
+
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://www.launchronsol.xyz/docs">
+    <meta property="og:title" content="LAUNCHR Documentation">
+    <meta property="og:description" content="The complete guide to launching tokens with programmable fee allocation on Solana.">
+    <meta property="og:image" content="https://www.launchronsol.xyz/website/logo-full.jpg">
+
+    <link rel="icon" href="/favicon.ico" type="image/jpeg">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/jpeg">
+    <link rel="apple-touch-icon" href="/website/logo-icon.jpg">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0b;
+            --bg-elevated: #111113;
+            --surface: #161618;
+            --surface-2: #1c1c1f;
+            --surface-3: #232326;
+            --border: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(255, 255, 255, 0.15);
+            --text: #fafafa;
+            --text-secondary: #a1a1aa;
+            --text-muted: #71717a;
+            --gold: #fbbf24;
+            --gold-light: #fcd34d;
+            --gold-dim: rgba(251, 191, 36, 0.12);
+            --gold-glow: rgba(251, 191, 36, 0.08);
+            --emerald: #10b981;
+            --emerald-dim: rgba(16, 185, 129, 0.12);
+            --cyan: #06b6d4;
+            --cyan-dim: rgba(6, 182, 212, 0.12);
+            --purple: #a855f7;
+            --purple-dim: rgba(168, 85, 247, 0.12);
+            --rose: #f43f5e;
+            --rose-dim: rgba(244, 63, 94, 0.12);
+            --orange: #f97316;
+            --orange-dim: rgba(249, 115, 22, 0.12);
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+            font-size: 15px;
+        }
+
+        ::selection {
+            background: var(--gold);
+            color: var(--bg);
+        }
+
+        /* Top Navigation */
+        .topnav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: rgba(10, 10, 11, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+        }
+
+        .topnav-logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 700;
+            font-size: 17px;
+            color: var(--text);
+            text-decoration: none;
+        }
+
+        .topnav-logo img {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+        }
+
+        .topnav-logo span {
+            color: var(--text-muted);
+            font-weight: 400;
+            margin-left: 2px;
+        }
+
+        .topnav-back {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: auto;
+            padding: 8px 14px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .topnav-back:hover {
+            background: var(--surface-2);
+            border-color: var(--border-hover);
+            color: var(--text);
+        }
+
+        /* Layout */
+        .layout {
+            display: flex;
+            padding-top: 56px;
+        }
+
+        /* Left Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 56px;
+            bottom: 0;
+            width: 260px;
+            background: var(--bg);
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+            padding: 20px 0;
+            scrollbar-width: thin;
+            scrollbar-color: var(--surface-3) transparent;
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: var(--surface-3);
+            border-radius: 3px;
+        }
+
+        .sidebar-section {
+            margin-bottom: 28px;
+        }
+
+        .sidebar-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--text-muted);
+            padding: 0 20px;
+            margin-bottom: 8px;
+        }
+
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 20px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 450;
+            transition: all 0.15s;
+            border-left: 2px solid transparent;
+        }
+
+        .sidebar-link:hover {
+            color: var(--text);
+            background: var(--gold-glow);
+        }
+
+        .sidebar-link.active {
+            color: var(--gold);
+            background: var(--gold-dim);
+            border-left-color: var(--gold);
+        }
+
+        .sidebar-link svg {
+            width: 16px;
+            height: 16px;
+            opacity: 0.6;
+        }
+
+        .sidebar-link.active svg {
+            opacity: 1;
+        }
+
+        /* Main Content */
+        .main {
+            margin-left: 260px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .content-wrapper {
+            display: flex;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .content {
+            flex: 1;
+            max-width: 820px;
+            padding: 48px 56px 120px;
+            min-width: 0;
+        }
+
+        /* Right TOC */
+        .toc {
+            position: sticky;
+            top: 80px;
+            width: 220px;
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+            padding: 0 24px;
+            flex-shrink: 0;
+        }
+
+        .toc-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .toc-link {
+            display: block;
+            padding: 6px 0;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 13px;
+            transition: color 0.15s;
+            border-left: 1px solid var(--border);
+            padding-left: 12px;
+            margin-left: 1px;
+        }
+
+        .toc-link:hover {
+            color: var(--text-secondary);
+        }
+
+        .toc-link.active {
+            color: var(--gold);
+            border-left-color: var(--gold);
+        }
+
+        /* Typography */
+        .page-header {
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-size: 36px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 0;
+            color: var(--text);
+        }
+
+        h2 {
+            font-size: 24px;
+            font-weight: 600;
+            margin: 56px 0 20px;
+            padding-top: 32px;
+            border-top: 1px solid var(--border);
+            color: var(--text);
+            letter-spacing: -0.3px;
+        }
+
+        h2:first-of-type {
+            margin-top: 0;
+            border-top: none;
+            padding-top: 0;
+        }
+
+        h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 36px 0 14px;
+            color: var(--text);
+        }
+
+        h4 {
+            font-size: 15px;
+            font-weight: 600;
+            margin: 28px 0 10px;
+            color: var(--text);
+        }
+
+        p {
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        p strong {
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        /* Links */
+        a.inline-link {
+            color: var(--gold);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: border-color 0.15s;
+        }
+
+        a.inline-link:hover {
+            border-bottom-color: var(--gold);
+        }
+
+        /* Code */
+        code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            background: var(--surface-2);
+            padding: 3px 7px;
+            border-radius: 5px;
+            color: var(--cyan);
+        }
+
+        .code-block {
+            position: relative;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin: 20px 0 28px;
+            overflow: hidden;
+        }
+
+        .code-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px;
+            background: var(--surface-2);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .code-lang {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .copy-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .copy-btn:hover {
+            background: var(--surface-3);
+            color: var(--text);
+            border-color: var(--border-hover);
+        }
+
+        .copy-btn.copied {
+            color: var(--emerald);
+            border-color: var(--emerald);
+        }
+
+        .code-content {
+            padding: 16px 20px;
+            overflow-x: auto;
+        }
+
+        .code-content pre {
+            margin: 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+
+        .code-comment { color: var(--text-muted); }
+        .code-keyword { color: var(--rose); }
+        .code-string { color: var(--emerald); }
+        .code-number { color: var(--orange); }
+        .code-function { color: var(--cyan); }
+        .code-property { color: var(--purple); }
+
+        /* Callouts */
+        .callout {
+            border-radius: 10px;
+            padding: 18px 20px;
+            margin: 24px 0;
+            border: 1px solid;
+        }
+
+        .callout-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .callout-icon {
+            width: 18px;
+            height: 18px;
+        }
+
+        .callout p {
+            margin: 0;
+            font-size: 14px;
+        }
+
+        .callout-info {
+            background: var(--cyan-dim);
+            border-color: rgba(6, 182, 212, 0.25);
+        }
+        .callout-info .callout-header { color: var(--cyan); }
+
+        .callout-warning {
+            background: var(--orange-dim);
+            border-color: rgba(249, 115, 22, 0.25);
+        }
+        .callout-warning .callout-header { color: var(--orange); }
+
+        .callout-danger {
+            background: var(--rose-dim);
+            border-color: rgba(244, 63, 94, 0.25);
+        }
+        .callout-danger .callout-header { color: var(--rose); }
+
+        .callout-success {
+            background: var(--emerald-dim);
+            border-color: rgba(16, 185, 129, 0.25);
+        }
+        .callout-success .callout-header { color: var(--emerald); }
+
+        .callout-why {
+            background: var(--purple-dim);
+            border-color: rgba(168, 85, 247, 0.25);
+        }
+        .callout-why .callout-header { color: var(--purple); }
+
+        /* Tables */
+        .table-wrapper {
+            overflow-x: auto;
+            margin: 20px 0 28px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            background: var(--surface);
+        }
+
+        td {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: var(--surface);
+        }
+
+        /* Lists */
+        ul, ol {
+            margin: 16px 0;
+            padding-left: 24px;
+            color: var(--text-secondary);
+        }
+
+        li {
+            margin-bottom: 10px;
+            padding-left: 4px;
+        }
+
+        li::marker {
+            color: var(--gold);
+        }
+
+        li strong {
+            color: var(--text);
+        }
+
+        /* Feature Cards */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin: 28px 0;
+        }
+
+        .feature-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 22px;
+            transition: all 0.2s;
+        }
+
+        .feature-card:hover {
+            border-color: var(--gold);
+            transform: translateY(-2px);
+        }
+
+        .feature-icon {
+            width: 44px;
+            height: 44px;
+            background: var(--gold-dim);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-bottom: 14px;
+        }
+
+        .feature-card h4 {
+            margin: 0 0 8px 0;
+            font-size: 15px;
+        }
+
+        .feature-card p {
+            margin: 0;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        /* Flywheel Cards */
+        .flywheel-grid {
+            display: grid;
+            gap: 12px;
+            margin: 24px 0;
+        }
+
+        .flywheel-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: border-color 0.2s;
+        }
+
+        .flywheel-card:hover {
+            border-color: var(--border-hover);
+        }
+
+        .flywheel-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+
+        .flywheel-content h4 {
+            margin: 0 0 6px 0;
+            font-size: 15px;
+        }
+
+        .flywheel-content p {
+            margin: 0;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-gold { background: var(--gold-dim); color: var(--gold); }
+        .badge-emerald { background: var(--emerald-dim); color: var(--emerald); }
+        .badge-purple { background: var(--purple-dim); color: var(--purple); }
+        .badge-cyan { background: var(--cyan-dim); color: var(--cyan); }
+
+        /* Steps */
+        .steps {
+            margin: 24px 0;
+            counter-reset: step;
+        }
+
+        .step {
+            display: flex;
+            gap: 16px;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .step:last-child {
+            border-bottom: none;
+        }
+
+        .step-number {
+            width: 32px;
+            height: 32px;
+            background: var(--gold-dim);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--gold);
+            flex-shrink: 0;
+        }
+
+        .step-content h4 {
+            margin: 0 0 6px 0;
+            font-size: 15px;
+        }
+
+        .step-content p {
+            margin: 0;
+            font-size: 14px;
+        }
+
+        /* Flow Diagram */
+        .flow-diagram {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            margin: 28px 0;
+            text-align: center;
+        }
+
+        .flow-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 12px 0;
+        }
+
+        .flow-box {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 24px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .flow-box-highlight {
+            background: var(--gold-dim);
+            border-color: var(--gold);
+            color: var(--gold);
+        }
+
+        .flow-arrow {
+            color: var(--text-muted);
+            font-size: 18px;
+        }
+
+        /* Stats */
+        .stats-bar {
+            display: flex;
+            gap: 32px;
+            padding: 24px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin: 24px 0;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--gold);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 4px;
+        }
+
+        /* Divider */
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin: 40px 0;
+        }
+
+        /* Section anchors */
+        section {
+            scroll-margin-top: 80px;
+        }
+
+        /* Footer */
+        .docs-footer {
+            margin-top: 80px;
+            padding-top: 32px;
+            border-top: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .docs-footer p {
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .docs-footer-links {
+            display: flex;
+            gap: 24px;
+            justify-content: center;
+            margin-top: 12px;
+        }
+
+        .docs-footer-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 13px;
+            transition: color 0.15s;
+        }
+
+        .docs-footer-links a:hover {
+            color: var(--gold);
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .toc { display: none; }
+        }
+
+        @media (max-width: 900px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; }
+            .content { padding: 32px 24px; }
+            .feature-grid { grid-template-columns: 1fr; }
+            .stats-bar { flex-wrap: wrap; justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Navigation -->
+    <nav class="topnav">
+        <a href="/" class="topnav-logo">
+            <img src="/website/logo-icon.jpg" alt="LAUNCHR">
+            LAUNCHR <span>/Docs</span>
+        </a>
+        <a href="/" class="topnav-back">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+            Back to App
+        </a>
+    </nav>
+
+    <div class="layout">
+        <!-- Left Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-title">Getting Started</div>
+                <a href="#introduction" class="sidebar-link active">Introduction</a>
+                <a href="#quick-start" class="sidebar-link">Quick Start Guide</a>
+                <a href="#how-it-works" class="sidebar-link">How It Works</a>
+                <a href="#create-account" class="sidebar-link">Create Account</a>
+                <a href="#deposit" class="sidebar-link">Deposit & Withdraw</a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">Platform Features</div>
+                <a href="#token-explorer" class="sidebar-link">Token Explorer</a>
+                <a href="#launch-coin" class="sidebar-link">Launch Coin</a>
+                <a href="#vanity-ca" class="sidebar-link">Vanity CA</a>
+                <a href="#your-dashboard" class="sidebar-link">Your Dashboard</a>
+                <a href="#dev-buy" class="sidebar-link">Dev Buy</a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">Allocation Engine</div>
+                <a href="#allocation-overview" class="sidebar-link">Overview</a>
+                <a href="#allocation-comparison" class="sidebar-link">Strategy Comparison</a>
+                <a href="#market-making" class="sidebar-link">Market Making</a>
+                <a href="#buyback-burn" class="sidebar-link">Buyback & Burn</a>
+                <a href="#liquidity-boost" class="sidebar-link">Liquidity Boost</a>
+                <a href="#creator-revenue" class="sidebar-link">Creator Revenue</a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">Advanced</div>
+                <a href="#smart-optimizer" class="sidebar-link">Smart Optimizer</a>
+                <a href="#api-reference" class="sidebar-link">API Reference</a>
+                <a href="#security" class="sidebar-link">Security</a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">Resources</div>
+                <a href="#fee-structure" class="sidebar-link">Fee Structure</a>
+                <a href="#faq" class="sidebar-link">Q&A (FAQs)</a>
+                <a href="#glossary" class="sidebar-link">Glossary</a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main">
+            <div class="content-wrapper">
+                <div class="content">
+                    <!-- Introduction -->
+                    <section id="introduction">
+                        <div class="page-header">
+                            <h1>Introduction to LAUNCHR</h1>
+                        </div>
+
+                        <p><strong>LAUNCHR is an advanced launchpad built on top of Pump.fun.</strong> Launch standard Pump.fun coins with 10+ extra features that automatically reward your community and drive organic growth.</p>
+
+                        <p>Every coin launched through LAUNCHR uses the standard Pump.fun bonding curve and fees &mdash; we don't add any extra trading fees. Instead, we take a portion of the Creator Fee that Pump.fun already provides and split it across powerful allocation systems.</p>
+
+                        <div class="callout callout-why">
+                            <div class="callout-header">
+                                <svg class="callout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                Why LAUNCHR?
+                            </div>
+                            <p>Standard Pump.fun launches give creators fees but no tools to grow. LAUNCHR turns those fees into automated growth engines. No marketing budget needed &mdash; the allocation systems do the work.</p>
+                        </div>
+
+                        <h3>Allocation Systems</h3>
+                        <p>Allocation systems are automated reward systems that distribute creator fees to maximize your token's value:</p>
+
+                        <ul>
+                            <li><strong>Market Making</strong> &mdash; Reduces volatility and tightens spreads for better charts</li>
+                            <li><strong>Buyback & Burn</strong> &mdash; Accumulates fees for massive buybacks and permanent token burns</li>
+                            <li><strong>Liquidity Boost</strong> &mdash; Deepens pools for lower slippage and better execution</li>
+                            <li><strong>Creator Revenue</strong> &mdash; Direct SOL to your wallet for marketing, team, or personal use</li>
+                        </ul>
+
+                        <div class="feature-grid">
+                            <div class="feature-card">
+                                <div class="feature-icon">🚀</div>
+                                <h4>Launch in Seconds</h4>
+                                <p>Create tokens with custom metadata, vanity addresses, and dev buy options instantly.</p>
+                            </div>
+                            <div class="feature-card">
+                                <div class="feature-icon">⚡</div>
+                                <h4>Smart Fee Routing</h4>
+                                <p>Programmable allocation engine distributes fees automatically based on your strategy.</p>
+                            </div>
+                            <div class="feature-card">
+                                <div class="feature-icon">🎯</div>
+                                <h4>Vanity Addresses</h4>
+                                <p>Stand out with memorable contract addresses ending in custom suffixes like "lchr".</p>
+                            </div>
+                            <div class="feature-card">
+                                <div class="feature-icon">📊</div>
+                                <h4>Real-Time Analytics</h4>
+                                <p>Track fee accumulation, allocation metrics, and token performance live.</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Quick Start -->
+                    <section id="quick-start">
+                        <h2>Quick Start Guide</h2>
+                        <p>Get your first token launched in under 2 minutes with this step-by-step guide.</p>
+
+                        <div class="steps">
+                            <div class="step">
+                                <div class="step-number">1</div>
+                                <div class="step-content">
+                                    <h4>Connect Your Wallet</h4>
+                                    <p>Click "Connect Wallet" and choose Phantom, Solflare, or use Privy for email/social login. New to crypto? Privy creates a wallet automatically.</p>
+                                </div>
+                            </div>
+                            <div class="step">
+                                <div class="step-number">2</div>
+                                <div class="step-content">
+                                    <h4>Configure Your Token</h4>
+                                    <p>Fill in name, symbol, description, and upload a logo. Add optional banner image and social links for more visibility.</p>
+                                </div>
+                            </div>
+                            <div class="step">
+                                <div class="step-number">3</div>
+                                <div class="step-content">
+                                    <h4>Set Allocation Strategy</h4>
+                                    <p>Choose how your creator fees are distributed: Market Making, Buyback & Burn, Liquidity, or Revenue. Use the Smart Optimizer for AI recommendations.</p>
+                                </div>
+                            </div>
+                            <div class="step">
+                                <div class="step-number">4</div>
+                                <div class="step-content">
+                                    <h4>Optional: Dev Buy</h4>
+                                    <p>Purchase 0.01-5 SOL worth of tokens at launch to establish your initial position at the best price.</p>
+                                </div>
+                            </div>
+                            <div class="step">
+                                <div class="step-number">5</div>
+                                <div class="step-content">
+                                    <h4>Launch!</h4>
+                                    <p>Sign the transaction and your token goes live on Pump.fun instantly. Track performance in your Dashboard.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="callout callout-success">
+                            <div class="callout-header">
+                                <svg class="callout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                Zero Platform Fees
+                            </div>
+                            <p>LAUNCHR charges 0% on token creation. You only pay standard Solana network fees (~0.01 SOL).</p>
+                        </div>
+                    </section>
+
+                    <!-- How It Works -->
+                    <section id="how-it-works">
+                        <h2>How It Works</h2>
+                        <p>LAUNCHR integrates directly with Pump.fun's bonding curve mechanism while adding programmable fee allocation on top.</p>
+
+                        <h3>Token Lifecycle</h3>
+
+                        <div class="flow-diagram">
+                            <div class="flow-row">
+                                <div class="flow-box">Token Created</div>
+                                <span class="flow-arrow">→</span>
+                                <div class="flow-box">Bonding Curve</div>
+                                <span class="flow-arrow">→</span>
+                                <div class="flow-box">Graduate to Raydium</div>
+                            </div>
+                            <div style="margin: 20px 0; color: var(--text-muted);">↓ Creator fees accumulate throughout</div>
+                            <div class="flow-row">
+                                <div class="flow-box flow-box-highlight">Allocation Engine Routes Fees</div>
+                            </div>
+                        </div>
+
+                        <h3>Fee Distribution</h3>
+                        <p>Pump.fun charges 1% on every trade:</p>
+                        <ul>
+                            <li><strong>0.5%</strong> goes to Pump.fun as platform fee</li>
+                            <li><strong>0.5%</strong> goes to the token creator (you!)</li>
+                        </ul>
+                        <p>LAUNCHR's allocation engine lets you programmatically route your 0.5% creator fee to maximize token value. Of your creator fees:</p>
+                        <ul>
+                            <li><strong>1%</strong> goes to LAUNCHR holder reward pool</li>
+                            <li><strong>99%</strong> goes to your chosen allocation strategy</li>
+                        </ul>
+                    </section>
+
+                    <!-- Create Account -->
+                    <section id="create-account">
+                        <h2>Create Account</h2>
+                        <p>LAUNCHR supports multiple wallet options to fit your preferences.</p>
+
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Wallet</th>
+                                        <th>Type</th>
+                                        <th>Best For</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>Privy</strong></td>
+                                        <td>Email / Social</td>
+                                        <td>New users, easy onboarding, no extension needed</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Phantom</strong></td>
+                                        <td>Browser Extension</td>
+                                        <td>Power users, full control, most popular</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Solflare</strong></td>
+                                        <td>Browser Extension</td>
+                                        <td>Advanced features, staking integration</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="callout callout-info">
+                            <div class="callout-header">
+                                <svg class="callout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                Privy for Beginners
+                            </div>
+                            <p>Don't have a crypto wallet? Privy lets you sign in with email, Google, or Twitter and automatically creates a Solana wallet for you. No browser extensions required.</p>
+                        </div>
+                    </section>
+
+                    <!-- Deposit & Withdraw -->
+                    <section id="deposit">
+                        <h2>Deposit & Withdraw</h2>
+                        <p>LAUNCHR is non-custodial &mdash; we never hold your funds. All SOL stays in your connected wallet.</p>
+
+                        <h4>To Fund Your Wallet</h4>
+                        <ol>
+                            <li>Connect your wallet to LAUNCHR</li>
+                            <li>Copy your wallet address from the header</li>
+                            <li>Send SOL from an exchange (Coinbase, Binance, Kraken) or another wallet</li>
+                            <li>Funds appear instantly (Solana confirms in ~400ms)</li>
+                        </ol>
+
+                        <h4>Recommended Amounts</h4>
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Action</th>
+                                        <th>SOL Needed</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Token Creation (no dev buy)</td>
+                                        <td>~0.02 SOL</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Token Creation + Dev Buy</td>
+                                        <td>0.02 + dev buy amount</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Recommended Minimum</td>
+                                        <td>0.5 SOL</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <!-- Token Explorer -->
+                    <section id="token-explorer">
+                        <h2>Token Explorer</h2>
+                        <p>Browse all tokens launched through LAUNCHR with real-time metrics.</p>
+
+                        <h4>Available Metrics</h4>
+                        <ul>
+                            <li><strong>Market Cap</strong> &mdash; Current fully diluted valuation</li>
+                            <li><strong>24h Volume</strong> &mdash; Trading volume in last 24 hours</li>
+                            <li><strong>Holders</strong> &mdash; Number of unique wallet holders</li>
+                            <li><strong>Age</strong> &mdash; Time since token launch</li>
+                            <li><strong>Allocation Strategy</strong> &mdash; Creator's chosen fee distribution</li>
+                        </ul>
+                    </section>
+
+                    <!-- Launch Coin -->
+                    <section id="launch-coin">
+                        <h2>Launch Coin</h2>
+                        <p>Create your token on Pump.fun's infrastructure using PumpPortal API.</p>
+
+                        <h3>Required Fields</h3>
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Field</th>
+                                        <th>Requirements</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>Name</strong></td>
+                                        <td>1-32 characters</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Symbol</strong></td>
+                                        <td>1-10 characters, uppercase recommended</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Description</strong></td>
+                                        <td>Max 500 characters</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Image</strong></td>
+                                        <td>PNG/JPG/GIF, max 5MB, 500x500 recommended</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <h3>Optional Fields</h3>
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Field</th>
+                                        <th>Format</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>Banner</strong></td>
+                                        <td>1200x400 recommended</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Twitter</strong></td>
+                                        <td>twitter.com or x.com link</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Telegram</strong></td>
+                                        <td>t.me link</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Website</strong></td>
+                                        <td>Any valid URL</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Discord</strong></td>
+                                        <td>discord.gg link</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="callout callout-success">
+                            <div class="callout-header">
+                                <svg class="callout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                Pro Tip
+                            </div>
+                            <p>Tokens with complete social profiles receive 3x more attention from traders. Fill in all available links before launch.</p>
+                        </div>
+                    </section>
+
+                    <!-- Vanity CA -->
+                    <section id="vanity-ca">
+                        <h2>Vanity Contract Address</h2>
+                        <p>Launch tokens with memorable contract addresses that end in custom suffixes.</p>
+
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span class="code-lang">Examples</span>
+                            </div>
+                            <div class="code-content">
+<pre><span class="code-comment">// Vanity address examples</span>
+<span class="code-string">"7xK9mN2...lchr"</span>   <span class="code-comment">// Ends in "lchr"</span>
+<span class="code-string">"4mN2qP1...pump"</span>   <span class="code-comment">// Ends in "pump"</span>
+<span class="code-string">"8bQ1zR9...moon"</span>   <span class="code-comment">// Ends in "moon"</span></pre>
+                            </div>
+                        </div>
+
+                        <h3>Generation Time</h3>
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Pattern Length</th>
+                                        <th>Probability</th>
+                                        <th>Avg Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>3 characters</td>
+                                        <td>1 in 39,304</td>
+                                        <td>~0.4 seconds</td>
+                                    </tr>
+                                    <tr>
+                                        <td>4 characters</td>
+                                        <td>1 in 1.3M</td>
+                                        <td>~13 seconds</td>
+                                    </tr>
+                                    <tr>
+                                        <td>5 characters</td>
+                                        <td>1 in 45M</td>
+                                        <td>~8 minutes</td>
+                                    </tr>
+                                    <tr>
+                                        <td>6 characters</td>
+                                        <td>1 in 1.5B</td>
+                                        <td>~4 hours</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="callout callout-info">
+                            <div class="callout-header">
+                                <svg class="callout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                Base58 Alphabet
+                            </div>
+                            <p>Solana addresses use Base58 which excludes 0, O, I, and l to avoid confusion. Valid characters: <code>123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz</code></p>
+                        </div>
+                    </section>
+
+                    <!-- Your Dashboard -->
+                    <section id="your-dashboard">
+                        <h2>Your Dashboard</h2>
+                        <p>The command center for all tokens you've launched through LAUNCHR.</p>
+
+                        <h4>Dashboard Features</h4>
+                        <ul>
+                            <li><strong>My Launches</strong> &mdash; All tokens you've created with live metrics</li>
+                            <li><strong>Fee Analytics</strong> &mdash; Track accumulated and distributed fees</li>
+                            <li><strong>Allocation Controls</strong> &mdash; Adjust your strategy in real-time</li>
+                            <li><strong>LAUNCHR Holder Pool</strong> &mdash; Your share of platform rewards</li>
+                        </ul>
+
+                        <h4>Metrics Tracked</h4>
+                        <ul>
+                            <li>Total Fees Collected (SOL)</li>
+                            <li>Fees Distributed by Channel</li>
+                            <li>Tokens Burned (Supply Reduction %)</li>
+                            <li>Liquidity Added to Pools</li>
+                        </ul>
+                    </section>
+
+                    <!-- Dev Buy -->
+                    <section id="dev-buy">
+                        <h2>Dev Buy</h2>
+                        <p>Purchase tokens at launch to establish your initial position on the bonding curve.</p>
+
+                        <h4>Benefits</h4>
+                        <ul>
+                            <li><strong>Best Price</strong> &mdash; Buy at the absolute bottom of the curve</li>
+                            <li><strong>Skin in the Game</strong> &mdash; Shows community you're committed</li>
+                            <li><strong>Liquidity Signal</strong> &mdash; Initial buy creates trading activity</li>
+                        </ul>
+
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Parameter</th>
+                                        <th>Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Minimum</td>
+                                        <td>0.01 SOL</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Maximum</td>
+                                        <td>5 SOL</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Slippage</td>
+                                        <td>5% default</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="callout callout-warning">
+                            <div class="callout-header">
+                                <svg class="callout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                Optional Feature
+                            </div>
+                            <p>Dev buy is completely optional. You can launch tokens without it &mdash; your token will still be created and tradeable.</p>
+                        </div>
+                    </section>
+
+                    <!-- Allocation Overview -->
+                    <section id="allocation-overview">
+                        <h2>Allocation Engine Overview</h2>
+                        <p>The Allocation Engine is LAUNCHR's core feature. It automatically distributes your 99% creator share across four strategic channels that you control.</p>
+
+                        <div class="flywheel-grid">
+                            <div class="flywheel-card">
+                                <div class="flywheel-icon" style="background: var(--cyan-dim);">🎯</div>
+                                <div class="flywheel-content">
+                                    <h4>Market Making</h4>
+                                    <p>Reduces price volatility by providing liquidity on both sides. Results in tighter spreads and more stable charts.</p>
+                                </div>
+                            </div>
+                            <div class="flywheel-card">
+                                <div class="flywheel-icon" style="background: var(--rose-dim);">🔥</div>
+                                <div class="flywheel-content">
+                                    <h4>Buyback & Burn</h4>
+                                    <p>Accumulates fees for massive single-candle buybacks and permanent token burns. Creates deflationary pressure.</p>
+                                </div>
+                            </div>
+                            <div class="flywheel-card">
+                                <div class="flywheel-icon" style="background: var(--emerald-dim);">💧</div>
+                                <div class="flywheel-content">
+                                    <h4>Liquidity Boost</h4>
+                                    <p>Deepens liquidity pools for lower slippage and better trade execution. Improves the trading experience.</p>
+                                </div>
+                            </div>
+                            <div class="flywheel-card">
+                                <div class="flywheel-icon" style="background: var(--gold-dim);">💰</div>
+                                <div class="flywheel-content">
+                                    <h4>Creator Revenue</h4>
+                                    <p>Direct SOL to your wallet for marketing, team compensation, or personal use. Pure extraction.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Allocation Comparison -->
+                    <section id="allocation-comparison">
+                        <h2>Strategy Comparison</h2>
+                        <p>Choose your allocation strategy based on your token's lifecycle stage and goals.</p>
+
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Strategy</th>
+                                        <th>Best For</th>
+                                        <th>Suggested Split</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>Aggressive Growth</strong></td>
+                                        <td>New launches, building momentum</td>
+                                        <td>40% Burn, 30% MM, 20% Liq, 10% Rev</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Stability Focus</strong></td>
+                                        <td>Established tokens, reduce volatility</td>
+                                        <td>50% MM, 20% Burn, 20% Liq, 10% Rev</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Liquidity First</strong></td>
+                                        <td>Low liquidity tokens, improve trading</td>
+                                        <td>40% Liq, 30% MM, 20% Burn, 10% Rev</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Revenue Extraction</strong></td>
+                                        <td>Mature tokens, maximize income</td>
+                                        <td>40% Rev, 25% Burn, 20% MM, 15% Liq</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span class="code-lang">JSON</span>
+                                <button class="copy-btn" onclick="copyCode(this)">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                    Copy
+                                </button>
+                            </div>
+                            <div class="code-content">
+<pre><span class="code-comment">// Aggressive growth strategy example</span>
+{
+  <span class="code-property">"marketMaking"</span>: <span class="code-number">30</span>,
+  <span class="code-property">"buybackBurn"</span>: <span class="code-number">40</span>,
+  <span class="code-property">"liquidity"</span>: <span class="code-number">20</span>,
+  <span class="code-property">"creatorRevenue"</span>: <span class="code-number">10</span>
+}</pre>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Market Making -->
+                    <section id="market-making">
+                        <h2>Market Making</h2>
+                        <p>Uses fees to automatically market make, generating volume and stabilizing price action.</p>
+
+                        <h4>How It Works</h4>
+                        <ol>
+                            <li>Fees accumulate in the market making pool</li>
+                            <li>Bot places limit orders on both bid and ask sides</li>
+                            <li>Spreads tighten as liquidity increases</li>
+                            <li>Price volatility decreases over time</li>
+                        </ol>
+
+                        <h4>Benefits</h4>
+                        <ul>
+                            <li>Tighter bid-ask spreads</li>
+                            <li>More stable price charts</li>
+                            <li>Increased trading volume</li>
+                            <li>Better execution for traders</li>
+                        </ul>
+                    </section>
+
+                    <!-- Buyback & Burn -->
+                    <section id="buyback-burn">
+                        <h2>Buyback & Burn</h2>
+                        <p>Accumulates fees for massive single-candle buybacks and permanent token burns.</p>
+
+                        <h4>How It Works</h4>
+                        <ol>
+                            <li>Fees accumulate in the burn pool</li>
+                            <li>At threshold, executes large market buy</li>
+                            <li>Purchased tokens are permanently burned</li>
+                            <li>Circulating supply decreases forever</li>
+                        </ol>
+
+                        <h4>Benefits</h4>
+                        <ul>
+                            <li>Deflationary tokenomics</li>
+                            <li>Visible green candles from buybacks</li>
+                            <li>Permanent supply reduction</li>
+                            <li>Price support during dips</li>
+                        </ul>
+
+                        <div class="callout callout-info">
+                            <div class="callout-header">
+                                <svg class="callout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                Burn Verification
+                            </div>
+                            <p>All burns are verifiable on-chain. Tokens are sent to the standard Solana burn address and permanently removed from circulation.</p>
+                        </div>
+                    </section>
+
+                    <!-- Liquidity Boost -->
+                    <section id="liquidity-boost">
+                        <h2>Liquidity Boost</h2>
+                        <p>Deepens liquidity pools for lower slippage and better trade execution.</p>
+
+                        <h4>How It Works</h4>
+                        <ol>
+                            <li>Fees accumulate in the liquidity pool</li>
+                            <li>SOL is added to Raydium/Jupiter pools</li>
+                            <li>Pool depth increases proportionally</li>
+                            <li>Slippage decreases for all traders</li>
+                        </ol>
+
+                        <h4>Benefits</h4>
+                        <ul>
+                            <li>Lower slippage on trades</li>
+                            <li>Better execution for whales</li>
+                            <li>Increased pool TVL</li>
+                            <li>More attractive to traders</li>
+                        </ul>
+                    </section>
+
+                    <!-- Creator Revenue -->
+                    <section id="creator-revenue">
+                        <h2>Creator Revenue</h2>
+                        <p>Direct SOL extraction to your wallet for any purpose.</p>
+
+                        <h4>Use Cases</h4>
+                        <ul>
+                            <li>Marketing and promotion budget</li>
+                            <li>Team compensation</li>
+                            <li>Development costs</li>
+                            <li>Personal income</li>
+                        </ul>
+
+                        <div class="callout callout-warning">
+                            <div class="callout-header">
+                                <svg class="callout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                Balance Extraction
+                            </div>
+                            <p>High creator revenue allocation is visible to your community. Balance short-term income with long-term token health for best results.</p>
+                        </div>
+                    </section>
+
+                    <!-- Smart Optimizer -->
+                    <section id="smart-optimizer">
+                        <h2>Smart Optimizer (MAXIMUS)</h2>
+                        <p>AI-powered allocation optimization that adapts to market conditions.</p>
+
+                        <h4>How MAXIMUS Works</h4>
+                        <ol>
+                            <li>Analyzes current price action and volume</li>
+                            <li>Evaluates liquidity depth and market sentiment</li>
+                            <li>Calculates optimal allocation split</li>
+                            <li>One-click apply to update your strategy</li>
+                        </ol>
+
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span class="code-lang">JSON</span>
+                                <button class="copy-btn" onclick="copyCode(this)">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                    Copy
+                                </button>
+                            </div>
+                            <div class="code-content">
+<pre><span class="code-comment">// MAXIMUS optimization output</span>
+{
+  <span class="code-property">"recommendation"</span>: {
+    <span class="code-property">"marketMaking"</span>: <span class="code-number">35</span>,
+    <span class="code-property">"buybackBurn"</span>: <span class="code-number">30</span>,
+    <span class="code-property">"liquidity"</span>: <span class="code-number">25</span>,
+    <span class="code-property">"creatorRevenue"</span>: <span class="code-number">10</span>
+  },
+  <span class="code-property">"reasoning"</span>: <span class="code-string">"High volatility detected. Increased MM recommended."</span>,
+  <span class="code-property">"confidence"</span>: <span class="code-number">0.87</span>
+}</pre>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- API Reference -->
+                    <section id="api-reference">
+                        <h2>API Reference</h2>
+                        <p>LAUNCHR backend API endpoints for advanced integrations.</p>
+
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span class="code-lang">Base URL</span>
+                            </div>
+                            <div class="code-content">
+<pre>https://launchronsol.xyz/api</pre>
+                            </div>
+                        </div>
+
+                        <h3>Endpoints</h3>
+
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Endpoint</th>
+                                        <th>Method</th>
+                                        <th>Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><code>/api/vanity-keypair</code></td>
+                                        <td>GET</td>
+                                        <td>Get pre-generated vanity keypair</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>/api/my-tokens</code></td>
+                                        <td>GET</td>
+                                        <td>Get tokens created by wallet</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>/api/tokens</code></td>
+                                        <td>GET</td>
+                                        <td>Get all LAUNCHR tokens</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>/api/tracker/stats</code></td>
+                                        <td>GET</td>
+                                        <td>Get platform statistics</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>/api/register-token</code></td>
+                                        <td>POST</td>
+                                        <td>Register new token launch</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span class="code-lang">Example Request</span>
+                                <button class="copy-btn" onclick="copyCode(this)">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                    Copy
+                                </button>
+                            </div>
+                            <div class="code-content">
+<pre><span class="code-keyword">curl</span> https://launchronsol.xyz/api/vanity-keypair
+
+<span class="code-comment">// Response</span>
+{
+  <span class="code-property">"publicKey"</span>: <span class="code-string">"7xK9m...lchr"</span>,
+  <span class="code-property">"pattern"</span>: {
+    <span class="code-property">"suffix"</span>: <span class="code-string">"lchr"</span>
+  }
+}</pre>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Security -->
+                    <section id="security">
+                        <h2>Security</h2>
+                        <p>LAUNCHR implements multiple security layers to protect users and funds.</p>
+
+                        <h3>5-Layer Mission Control Security</h3>
+                        <ol>
+                            <li><strong>Wallet Verification</strong> &mdash; All transactions require explicit user signature</li>
+                            <li><strong>Non-Custodial</strong> &mdash; We never hold your private keys or funds</li>
+                            <li><strong>On-Chain Transparency</strong> &mdash; All operations verifiable on Solana explorer</li>
+                            <li><strong>Rate Limiting</strong> &mdash; API protection against abuse</li>
+                            <li><strong>Input Validation</strong> &mdash; All user inputs sanitized and validated</li>
+                        </ol>
+
+                        <div class="callout callout-danger">
+                            <div class="callout-header">
+                                <svg class="callout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                Security Notice
+                            </div>
+                            <p>Never share your private key or seed phrase. LAUNCHR will never ask for these. Always verify transaction details before signing.</p>
+                        </div>
+
+                        <h4>Smart Contract Security</h4>
+                        <p>Token creation uses Pump.fun's audited contracts. Fee distribution operates through verified on-chain programs.</p>
+
+                        <h4>Reporting Issues</h4>
+                        <p>Found a vulnerability? Contact us at <code>security@launchronsol.xyz</code> for responsible disclosure.</p>
+                    </section>
+
+                    <!-- Fee Structure -->
+                    <section id="fee-structure">
+                        <h2>Fee Structure</h2>
+                        <p>Complete breakdown of all fees on the LAUNCHR platform.</p>
+
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Fee Type</th>
+                                        <th>Amount</th>
+                                        <th>Destination</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Token Creation</td>
+                                        <td><span class="badge badge-emerald">0%</span></td>
+                                        <td>Free (only Solana network fees ~0.01 SOL)</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Trading (Pump.fun)</td>
+                                        <td><span class="badge badge-gold">1%</span></td>
+                                        <td>0.5% Pump.fun, 0.5% Creator</td>
+                                    </tr>
+                                    <tr>
+                                        <td>LAUNCHR Holder Fee</td>
+                                        <td><span class="badge badge-purple">1%</span></td>
+                                        <td>1% of creator fees → LAUNCHR holder pool</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Creator Allocation</td>
+                                        <td><span class="badge badge-cyan">99%</span></td>
+                                        <td>99% of creator fees → Your allocation engine</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <!-- FAQ -->
+                    <section id="faq">
+                        <h2>Q&A (FAQs)</h2>
+
+                        <h4>What blockchain does LAUNCHR use?</h4>
+                        <p>LAUNCHR is built on Solana and integrates with Pump.fun for token creation.</p>
+
+                        <h4>Do I need to pay to launch a token?</h4>
+                        <p>LAUNCHR charges 0% fees. You only pay standard Solana network fees (~0.01 SOL).</p>
+
+                        <h4>Is LAUNCHR custodial?</h4>
+                        <p>No. LAUNCHR is fully non-custodial. We never hold your private keys or funds.</p>
+
+                        <h4>Can I change my allocation strategy after launch?</h4>
+                        <p>Yes. You can adjust your allocation percentages at any time from the Dashboard.</p>
+
+                        <h4>What happens when my token graduates to Raydium?</h4>
+                        <p>Your token automatically migrates to Raydium at ~$69K market cap. Creator fees continue to accumulate and route through your allocation engine.</p>
+
+                        <h4>How do I claim my creator revenue?</h4>
+                        <p>Revenue allocated to "Creator Revenue" is automatically sent to your connected wallet.</p>
+
+                        <h4>What is the LAUNCHR holder pool?</h4>
+                        <p>1% of all creator fees across all LAUNCHR tokens go to a pool that rewards $LAUNCHR token holders.</p>
+                    </section>
+
+                    <!-- Glossary -->
+                    <section id="glossary">
+                        <h2>Glossary</h2>
+
+                        <h4>Bonding Curve</h4>
+                        <p>A mathematical curve that determines token price based on supply. Pump.fun uses a bonding curve for early trading before Raydium migration.</p>
+
+                        <h4>Creator Fee</h4>
+                        <p>0.5% of every trade that goes to the token creator. This is what LAUNCHR's allocation engine routes.</p>
+
+                        <h4>Dev Buy</h4>
+                        <p>Purchasing tokens at launch to establish an initial position at the bottom of the bonding curve.</p>
+
+                        <h4>Graduation</h4>
+                        <p>When a Pump.fun token reaches ~$69K market cap and migrates to Raydium for full DEX trading.</p>
+
+                        <h4>Market Making</h4>
+                        <p>Providing liquidity on both buy and sell sides to reduce volatility and tighten spreads.</p>
+
+                        <h4>Slippage</h4>
+                        <p>The difference between expected and actual trade price due to insufficient liquidity.</p>
+
+                        <h4>Vanity Address</h4>
+                        <p>A contract address with a custom suffix like "lchr" for branding purposes.</p>
+                    </section>
+
+                    <!-- Footer -->
+                    <div class="docs-footer">
+                        <p>&copy; 2024 LAUNCHR. Built for Solana.</p>
+                        <div class="docs-footer-links">
+                            <a href="https://twitter.com/LaunchrTG" target="_blank">Twitter</a>
+                            <a href="https://t.me/LaunchrTG" target="_blank">Telegram</a>
+                            <a href="https://discord.gg/launchr" target="_blank">Discord</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right TOC -->
+                <aside class="toc">
+                    <div class="toc-title">On This Page</div>
+                    <a href="#quick-start" class="toc-link">Quick Start</a>
+                    <a href="#allocation-overview" class="toc-link">Allocation Engine</a>
+                    <a href="#fee-structure" class="toc-link">Fee Structure</a>
+                    <a href="#faq" class="toc-link">Q&A (FAQs)</a>
+                </aside>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Copy code functionality
+        function copyCode(btn) {
+            const codeBlock = btn.closest('.code-block');
+            const code = codeBlock.querySelector('pre').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.classList.add('copied');
+                btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Copied';
+                setTimeout(() => {
+                    btn.classList.remove('copied');
+                    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy';
+                }, 2000);
+            });
+        }
+
+        // Active sidebar link on scroll
+        const sections = document.querySelectorAll('section[id]');
+        const sidebarLinks = document.querySelectorAll('.sidebar-link');
+        const tocLinks = document.querySelectorAll('.toc-link');
+
+        function updateActiveLink() {
+            const scrollPos = window.scrollY + 120;
+
+            sections.forEach(section => {
+                const top = section.offsetTop;
+                const height = section.offsetHeight;
+                const id = section.getAttribute('id');
+
+                if (scrollPos >= top && scrollPos < top + height) {
+                    sidebarLinks.forEach(link => {
+                        link.classList.remove('active');
+                        if (link.getAttribute('href') === '#' + id) {
+                            link.classList.add('active');
+                        }
+                    });
+                    tocLinks.forEach(link => {
+                        link.classList.remove('active');
+                        if (link.getAttribute('href') === '#' + id) {
+                            link.classList.add('active');
+                        }
+                    });
+                }
+            });
+        }
+
+        window.addEventListener('scroll', updateActiveLink);
+        updateActiveLink();
+    </script>
+</body>
+</html>

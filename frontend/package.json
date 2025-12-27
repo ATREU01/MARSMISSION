@@ -1,0 +1,19 @@
+{
+  "name": "launchr-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@privy-io/js-sdk-core": "^0.58.5",
+    "@solana/web3.js": "^1.87.6",
+    "bs58": "^5.0.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}
