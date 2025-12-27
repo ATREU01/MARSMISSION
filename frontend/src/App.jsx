@@ -2,23 +2,46 @@ import { useEffect, useMemo } from 'react'
 import { usePrivy, useWallets } from '@privy-io/react-auth'
 import './App.css'
 
+// Debug logger
+const DEBUG = true
+const log = (...args) => DEBUG && console.log('[PRIVY-DEBUG]', ...args)
+
 function App() {
   const { ready, authenticated, user, login, logout } = usePrivy()
   const { wallets } = useWallets()
 
+  // Debug: Log all state changes
+  useEffect(() => {
+    log('=== STATE UPDATE ===')
+    log('ready:', ready)
+    log('authenticated:', authenticated)
+    log('user:', user)
+    log('wallets:', wallets)
+    log('window.solana:', window.solana)
+    log('window.solana?.isPhantom:', window.solana?.isPhantom)
+    log('window.phantom:', window.phantom)
+    log('linkedAccounts:', user?.linkedAccounts)
+  }, [ready, authenticated, user, wallets])
+
   // Get wallet address - prefer Solana, accept any
   const walletAddress = useMemo(() => {
+    log('=== FINDING WALLET ===')
+
     // 1. Check linkedAccounts for Solana wallets
     const linkedSolana = user?.linkedAccounts?.find(
       (acc) => acc.type === 'wallet' && acc.chainType === 'solana'
     )
+    log('linkedSolana:', linkedSolana)
     if (linkedSolana?.address) {
+      log('Using linkedSolana address:', linkedSolana.address)
       return linkedSolana.address
     }
 
     // 2. Check connected wallets - find non-Ethereum
     const solanaWallet = wallets?.find(w => !w.address?.startsWith('0x'))
+    log('solanaWallet from wallets:', solanaWallet)
     if (solanaWallet?.address) {
+      log('Using solanaWallet address:', solanaWallet.address)
       return solanaWallet.address
     }
 
@@ -26,10 +49,13 @@ function App() {
     const anyWallet = user?.linkedAccounts?.find(
       (acc) => acc.type === 'wallet' && acc.address && !acc.address.startsWith('0x')
     )
+    log('anyWallet:', anyWallet)
     if (anyWallet?.address) {
+      log('Using anyWallet address:', anyWallet.address)
       return anyWallet.address
     }
 
+    log('No wallet found!')
     return null
   }, [user, wallets])
 
