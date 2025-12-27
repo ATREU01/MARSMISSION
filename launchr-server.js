@@ -1233,6 +1233,22 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    // Serve favicon
+    if (url.pathname === '/favicon.ico' && req.method === 'GET') {
+        try {
+            const favicon = fs.readFileSync(path.join(__dirname, 'website', 'logo-icon.jpg'));
+            res.writeHead(200, {
+                'Content-Type': 'image/jpeg',
+                'Cache-Control': 'public, max-age=604800'  // Cache for 1 week
+            });
+            res.end(favicon);
+        } catch (e) {
+            res.writeHead(404);
+            res.end();
+        }
+        return;
+    }
+
     // Serve Launchpad (with config injection)
     if (url.pathname === '/launchpad' && req.method === 'GET') {
         try {
@@ -1250,6 +1266,19 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/dashboard' && req.method === 'GET') {
         try {
             const html = fs.readFileSync(path.join(__dirname, 'website', 'dashboard.html'), 'utf8');
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(injectConfig(html));
+        } catch (e) {
+            res.writeHead(302, { 'Location': '/' });
+            res.end();
+        }
+        return;
+    }
+
+    // Serve Documentation (with config injection)
+    if (url.pathname === '/docs' && req.method === 'GET') {
+        try {
+            const html = fs.readFileSync(path.join(__dirname, 'website', 'docs.html'), 'utf8');
             res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
             res.end(injectConfig(html));
         } catch (e) {
