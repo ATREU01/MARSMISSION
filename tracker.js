@@ -242,6 +242,70 @@ function getGraduationStats() {
     };
 }
 
+// Update token metrics from pump.fun API
+async function updateTokenMetrics(tokenMint) {
+    const data = loadTokens();
+    const token = data.tokens.find(t => t.mint === tokenMint);
+
+    if (!token) return null;
+
+    try {
+        const response = await axios.get(
+            `https://frontend-api.pump.fun/coins/${tokenMint}`,
+            { timeout: 10000 }
+        );
+
+        if (response.data) {
+            const d = response.data;
+            token.mcap = d.usd_market_cap || 0;
+            token.price = d.price || 0;
+            token.volume = d.volume_24h || 0;
+            token.realSolReserves = (d.real_sol_reserves || 0) / 1e9;
+            token.virtualSolReserves = (d.virtual_sol_reserves || 0) / 1e9;
+            token.progress = Math.min((token.realSolReserves / GRADUATION_THRESHOLD_SOL) * 100, 100);
+            token.graduated = d.complete === true;
+            token.image = d.image_uri || token.image;
+            token.name = d.name || token.name;
+            token.symbol = d.symbol || token.symbol;
+            token.lastMetricsUpdate = Date.now();
+
+            if (token.graduated && !token.graduatedAt) {
+                token.graduatedAt = Date.now();
+            }
+
+            saveTokens(data);
+            return { success: true, token };
+        }
+    } catch (e) {
+        console.log(`[TRACKER] Failed to update metrics for ${tokenMint.slice(0, 8)}...: ${e.message}`);
+    }
+
+    return { success: false };
+}
+
+// Update metrics for all tokens (runs periodically)
+async function updateAllTokenMetrics() {
+    const data = loadTokens();
+    const tokens = data.tokens || [];
+
+    console.log(`[TRACKER] Updating metrics for ${tokens.length} tokens...`);
+
+    let updated = 0;
+    for (const token of tokens) {
+        try {
+            const result = await updateTokenMetrics(token.mint);
+            if (result?.success) updated++;
+            // Rate limit - 500ms between API calls
+            await new Promise(r => setTimeout(r, 500));
+        } catch (e) {
+            console.log(`[TRACKER] Error updating ${token.mint.slice(0, 8)}...: ${e.message}`);
+        }
+    }
+
+    console.log(`[TRACKER] Updated metrics for ${updated}/${tokens.length} tokens`);
+    return { updated, total: tokens.length };
+}
+
 module.exports = {
     registerToken,
     updateTokenStats,
@@ -252,5 +316,7 @@ module.exports = {
     updateGraduationStatus,
     checkAllGraduations,
     getGraduationStats,
+    updateTokenMetrics,
+    updateAllTokenMetrics,
     GRADUATION_THRESHOLD_SOL,
 };

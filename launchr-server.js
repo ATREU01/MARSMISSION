@@ -45,7 +45,7 @@ console.log(`  - Helius RPC: ${PRODUCTION_CONFIG.HELIUS_RPC ? 'SET' : 'NOT SET'}
 console.log(`  - Fee Wallet: ${FEE_WALLET_PUBLIC_KEY ? 'SET' : 'NOT SET'}`);
 
 // ═══════════════════════════════════════════════════════════════════════════
-// VANITY KEYPAIR POOL - Pre-generated keypairs ending in "launchr"
+// VANITY KEYPAIR POOL - Pre-generated keypairs ending in "lncr" (LNCR ticker)
 // ═══════════════════════════════════════════════════════════════════════════
 
 // Use /app/data/ for Railway volume persistence, fallback to local for dev
@@ -53,7 +53,7 @@ const DATA_DIR = process.env.RAILWAY_ENVIRONMENT ? '/app/data' : __dirname;
 try { if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) {}
 
 const VANITY_POOL_FILE = path.join(DATA_DIR, '.vanity-pool.json');
-const VANITY_SUFFIX = 'lchr'; // 4 chars = findable in minutes
+const VANITY_SUFFIX = 'lncr'; // 4 chars = LNCR ticker, findable in minutes
 const VANITY_POOL_TARGET = 10; // Keep 10 keypairs ready
 const VANITY_POOL_MIN = 3; // Start generating when below this
 
@@ -383,7 +383,7 @@ function getTermsHTML() {
 </html>`;
 }
 
-// Product Roadmap Page - Clean and Accurate
+// Product Roadmap Page - Premium Design
 function getRoadmapHTML() {
     return `<!DOCTYPE html>
 <html lang="en">
@@ -391,261 +391,178 @@ function getRoadmapHTML() {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Roadmap - LAUNCHR</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        :root {
-            --gold: #FFD700;
-            --gold-dim: rgba(255, 215, 0, 0.1);
-            --bg: #050508;
-            --bg-card: #0A0A0F;
-            --border: rgba(255, 215, 0, 0.1);
-            --text: #F5F5F7;
-            --text-secondary: rgba(255,255,255,0.6);
-            --text-muted: rgba(255,255,255,0.4);
-        }
-        body {
-            font-family: 'Inter', -apple-system, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            line-height: 1.6;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 60px 24px;
-        }
-        .back-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--text-muted);
-            text-decoration: none;
-            font-size: 14px;
-            margin-bottom: 40px;
-            transition: color 0.2s;
-        }
-        .back-link:hover { color: var(--gold); }
-        .back-link svg { width: 16px; height: 16px; }
-        h1 {
-            font-size: 48px;
-            font-weight: 700;
-            margin-bottom: 16px;
-            letter-spacing: -1px;
-        }
-        h1 span { color: var(--gold); }
-        .subtitle {
-            font-size: 18px;
-            color: var(--text-secondary);
-            margin-bottom: 60px;
-            max-width: 600px;
-        }
-        .section {
-            margin-bottom: 60px;
-        }
-        .section-title {
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: var(--gold);
-            margin-bottom: 24px;
-        }
-        .card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 32px;
-            margin-bottom: 16px;
-        }
-        .card h3 {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .card p {
-            color: var(--text-secondary);
-            font-size: 15px;
-        }
-        .badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 100px;
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .badge-live {
-            background: rgba(16, 185, 129, 0.15);
-            color: #10b981;
-        }
-        .badge-next {
-            background: var(--gold-dim);
-            color: var(--gold);
-        }
-        .badge-planned {
-            background: rgba(255,255,255,0.05);
-            color: var(--text-muted);
-        }
-        .features {
-            margin-top: 20px;
-            display: grid;
-            gap: 8px;
-        }
-        .feature {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 16px;
-            background: rgba(255,255,255,0.02);
-            border-radius: 8px;
-            font-size: 14px;
-            color: var(--text-secondary);
-        }
-        .feature-icon {
-            width: 20px;
-            height: 20px;
-            border-radius: 4px;
-            background: var(--gold-dim);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-        .feature-icon svg {
-            width: 12px;
-            height: 12px;
-            stroke: var(--gold);
-        }
-        .cta {
-            text-align: center;
-            padding: 60px 0;
-            border-top: 1px solid var(--border);
-        }
-        .cta h2 {
-            font-size: 28px;
-            margin-bottom: 24px;
-        }
-        .btn {
-            display: inline-block;
-            padding: 14px 28px;
-            background: var(--gold);
-            color: #000;
-            font-weight: 600;
-            font-size: 15px;
-            border-radius: 10px;
-            text-decoration: none;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(255, 215, 0, 0.25);
-        }
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--gold:#F7B32B;--gold-glow:rgba(247,179,43,0.12);--green:#10B981;--green-glow:rgba(16,185,129,0.12);--bg:#000;--surface:#080808;--surface-2:#0f0f0f;--border:rgba(255,255,255,0.06);--text:#fff;--text-2:rgba(255,255,255,0.7);--text-3:rgba(255,255,255,0.4);--red:#ef4444}
+        body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+        .nav{position:fixed;top:0;left:0;right:0;padding:16px 32px;display:flex;justify-content:space-between;align-items:center;z-index:100;background:rgba(0,0,0,0.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
+        .nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text);font-weight:700;font-size:16px}
+        .nav-logo img{width:28px;height:28px;border-radius:6px}
+        .nav-links{display:flex;gap:28px}
+        .nav-links a{color:var(--text-2);text-decoration:none;font-size:13px;font-weight:500;transition:color .2s}
+        .nav-links a:hover{color:var(--gold)}
+        .nav-btn{padding:8px 16px;background:var(--gold);color:#000;font-weight:600;font-size:13px;border-radius:6px;text-decoration:none;transition:all .2s}
+        .nav-btn:hover{box-shadow:0 4px 12px rgba(247,179,43,0.3)}
+        .hero{min-height:60vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:140px 24px 60px;background:radial-gradient(ellipse 70% 50% at 50% 0%,rgba(247,179,43,0.06),transparent)}
+        .hero-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;background:var(--gold-glow);border:1px solid rgba(247,179,43,0.15);border-radius:100px;font-size:11px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:24px}
+        .hero-badge::before{content:'';width:6px;height:6px;background:var(--gold);border-radius:50%;animation:pulse 2s infinite}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+        .hero h1{font-size:clamp(40px,8vw,72px);font-weight:900;letter-spacing:-2px;line-height:1;margin-bottom:20px}
+        .hero h1 span{color:var(--gold)}
+        .hero-sub{font-size:18px;color:var(--text-2);max-width:500px}
+        .content{max-width:900px;margin:0 auto;padding:0 24px 60px}
+        .phase{margin-bottom:60px}
+        .phase-header{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+        .phase-dot{width:10px;height:10px;border-radius:50%}
+        .phase-dot.live{background:var(--green);box-shadow:0 0 12px var(--green)}
+        .phase-dot.building{background:var(--gold);box-shadow:0 0 12px var(--gold)}
+        .phase-dot.planned{background:var(--text-3)}
+        .phase-label{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-3)}
+        .phase-label.live{color:var(--green)}
+        .phase-label.building{color:var(--gold)}
+        .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+        .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;transition:all .25s}
+        .card:hover{border-color:rgba(247,179,43,0.2);transform:translateY(-2px);box-shadow:0 16px 32px rgba(0,0,0,0.3)}
+        .card-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+        .card-icon.green{background:var(--green-glow)}
+        .card-icon.green svg{stroke:var(--green)}
+        .card-icon.gold{background:var(--gold-glow)}
+        .card-icon.gold svg{stroke:var(--gold)}
+        .card-icon.gray{background:rgba(255,255,255,0.05)}
+        .card-icon.gray svg{stroke:var(--text-3)}
+        .card-icon svg{width:20px;height:20px}
+        .card h3{font-size:16px;font-weight:700;margin-bottom:8px;letter-spacing:-0.3px}
+        .card p{font-size:13px;color:var(--text-2);line-height:1.5}
+        .card-checks{margin-top:16px;display:flex;flex-direction:column;gap:6px}
+        .card-check{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2)}
+        .card-check svg{width:14px;height:14px;stroke:var(--green);flex-shrink:0}
+        .cta{text-align:center;padding:60px 24px;background:var(--surface);border-top:1px solid var(--border)}
+        .cta h2{font-size:28px;font-weight:800;margin-bottom:12px;letter-spacing:-0.5px}
+        .cta p{color:var(--text-2);margin-bottom:24px;font-size:15px}
+        .cta-btn{display:inline-flex;align-items:center;gap:8px;padding:14px 28px;background:var(--gold);color:#000;font-weight:700;font-size:15px;border-radius:10px;text-decoration:none;transition:all .2s}
+        .cta-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(247,179,43,0.3)}
+        .cta-btn svg{width:18px;height:18px}
+        .disclaimer{max-width:900px;margin:0 auto;padding:40px 24px;border-top:1px solid var(--border)}
+        .disclaimer-box{padding:20px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.15);border-radius:12px}
+        .disclaimer-box p{font-size:11px;color:var(--text-3);text-align:center;line-height:1.7}
+        .disclaimer-box strong{color:var(--red)}
+        .disclaimer-links{display:flex;justify-content:center;gap:16px;margin-top:16px}
+        .disclaimer-links a{font-size:11px;color:var(--gold);text-decoration:none}
+        .disclaimer-links a:hover{text-decoration:underline}
+        @media(max-width:768px){.nav-links{display:none}.cards{grid-template-columns:1fr}}
     </style>
 </head>
 <body>
-    <div class="container">
-        <a href="/" class="back-link">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-            Back to Home
-        </a>
+    <nav class="nav">
+        <a href="/" class="nav-logo"><img src="/website/logo-icon.jpg" alt="">LAUNCHR</a>
+        <div class="nav-links">
+            <a href="/">Home</a>
+            <a href="/launchpad">Launchpad</a>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/docs">Docs</a>
+        </div>
+        <a href="/launchpad" class="nav-btn">Launch</a>
+    </nav>
 
-        <h1>LAUNCHR <span>Roadmap</span></h1>
-        <p class="subtitle">
-            Building the best pump.fun launch experience. 1% of creator fees go to our distribution pool.
-        </p>
+    <section class="hero">
+        <div class="hero-badge">Roadmap 2025</div>
+        <h1>Building <span>LAUNCHR</span></h1>
+        <p class="hero-sub">The infrastructure layer for pump.fun launches. Ship fast, iterate faster.</p>
+    </section>
 
-        <div class="section">
-            <div class="section-title">Live Now</div>
-
-            <div class="card">
-                <h3><span class="badge badge-live">Live</span> Pump.fun Integration</h3>
-                <p>Launch tokens directly on pump.fun with our streamlined interface and fee allocation system.</p>
-                <div class="features">
-                    <div class="feature">
-                        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
-                        One-click token launch on pump.fun
-                    </div>
-                    <div class="feature">
-                        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
-                        1% distribution pool for LAUNCHR holders
-                    </div>
-                    <div class="feature">
-                        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
-                        Real-time graduation tracking
+    <div class="content">
+        <div class="phase">
+            <div class="phase-header">
+                <div class="phase-dot live"></div>
+                <span class="phase-label live">Live &mdash; Shipped</span>
+            </div>
+            <div class="cards">
+                <div class="card">
+                    <div class="card-icon green"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+                    <h3>Pump.fun Launch</h3>
+                    <p>One-click token deployment with automatic fee routing.</p>
+                    <div class="card-checks">
+                        <div class="card-check"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>Instant token creation</div>
+                        <div class="card-check"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>1% distribution pool</div>
+                        <div class="card-check"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>Graduation tracking</div>
                     </div>
                 </div>
-            </div>
-
-            <div class="card">
-                <h3><span class="badge badge-live">Live</span> Creator Dashboard</h3>
-                <p>Full control over your token's fee allocation strategy.</p>
-                <div class="features">
-                    <div class="feature">
-                        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
-                        99% creator fee allocation (market making, buyback, burn, LP, revenue)
-                    </div>
-                    <div class="feature">
-                        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
-                        Strategy presets (Aggressive, Balanced, Sustainable, Revenue)
-                    </div>
-                    <div class="feature">
-                        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
-                        Auto-claim and fee routing
+                <div class="card">
+                    <div class="card-icon green"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></div>
+                    <h3>Creator Dashboard</h3>
+                    <p>Full control over your 99% fee allocation.</p>
+                    <div class="card-checks">
+                        <div class="card-check"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>Buyback, burn, LP, revenue</div>
+                        <div class="card-check"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>Strategy presets</div>
+                        <div class="card-check"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>Auto-claim engine</div>
                     </div>
                 </div>
-            </div>
-
-            <div class="card">
-                <h3><span class="badge badge-live">Live</span> Telegram Bot</h3>
-                <p>Manage your tokens from Telegram.</p>
-                <div class="features">
-                    <div class="feature">
-                        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
-                        Token launch and management
-                    </div>
-                    <div class="feature">
-                        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
-                        Real-time notifications
+                <div class="card">
+                    <div class="card-icon green"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
+                    <h3>Telegram Bot</h3>
+                    <p>Launch and manage from Telegram.</p>
+                    <div class="card-checks">
+                        <div class="card-check"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>/launch command</div>
+                        <div class="card-check"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>Real-time alerts</div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="section">
-            <div class="section-title">Coming Soon</div>
-
-            <div class="card">
-                <h3><span class="badge badge-next">Next</span> Advanced Analytics</h3>
-                <p>Deeper insights into your token performance and fee distribution.</p>
+        <div class="phase">
+            <div class="phase-header">
+                <div class="phase-dot building"></div>
+                <span class="phase-label building">Building &mdash; In Progress</span>
             </div>
-
-            <div class="card">
-                <h3><span class="badge badge-next">Next</span> Multi-Token Dashboard</h3>
-                <p>Manage multiple token launches from a single interface.</p>
-            </div>
-        </div>
-
-        <div class="section">
-            <div class="section-title">Future</div>
-
-            <div class="card">
-                <h3><span class="badge badge-planned">Planned</span> Raydium Native Launch</h3>
-                <p>Direct Raydium AMM pool creation for advanced users.</p>
-            </div>
-
-            <div class="card">
-                <h3><span class="badge badge-planned">Planned</span> Automated Strategy Switching</h3>
-                <p>AI-powered fee allocation based on market conditions.</p>
+            <div class="cards">
+                <div class="card">
+                    <div class="card-icon gold"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg></div>
+                    <h3>Advanced Analytics</h3>
+                    <p>Deep insights into performance, holders, and fee metrics.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon gold"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg></div>
+                    <h3>Multi-Token Manager</h3>
+                    <p>Manage all launches from one dashboard.</p>
+                </div>
             </div>
         </div>
 
-        <div class="cta">
-            <h2>Ready to launch?</h2>
-            <a href="/launchpad" class="btn">Launch Token</a>
+        <div class="phase">
+            <div class="phase-header">
+                <div class="phase-dot planned"></div>
+                <span class="phase-label">Planned &mdash; Future</span>
+            </div>
+            <div class="cards">
+                <div class="card">
+                    <div class="card-icon gray"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+                    <h3>Raydium Native</h3>
+                    <p>Direct AMM pool creation for advanced strategies.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon gray"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg></div>
+                    <h3>Auto-Strategy</h3>
+                    <p>Intelligent allocation based on market conditions.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section class="cta">
+        <h2>Start building today</h2>
+        <p>Launch your token in under a minute.</p>
+        <a href="/launchpad" class="cta-btn">Launch Token <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+    </section>
+
+    <div class="disclaimer">
+        <div class="disclaimer-box">
+            <p><strong>DISCLAIMER:</strong> LAUNCHR is a meme coin with no intrinsic value or expectation of financial return. This is NOT financial advice. Cryptocurrency investments are extremely risky and may result in total loss of funds. DYOR. Only invest what you can afford to lose.</p>
+            <div class="disclaimer-links">
+                <a href="/terms">Terms & Conditions</a>
+                <a href="/docs">Documentation</a>
+                <a href="https://t.me/LAUNCHR_V2_BOT">Telegram</a>
+            </div>
         </div>
     </div>
 </body>
@@ -1609,12 +1526,18 @@ The 4 percentages must sum to 100.`;
                     mint: t.mint,
                     name: t.name || 'Unknown Token',
                     symbol: t.symbol || 'TOKEN',
+                    image: t.image || null,
                     path: t.path || 'pump',
                     mcap: t.mcap || 0,
                     volume: t.volume || 0,
+                    price: t.price || 0,
                     change: t.change || 0,
+                    progress: t.progress || 0,
+                    graduated: t.graduated || false,
+                    graduatedAt: t.graduatedAt || null,
                     time: formatTimeAgo(t.lastSeen || t.registeredAt),
                     createdAt: t.registeredAt,
+                    lastMetricsUpdate: t.lastMetricsUpdate || null,
                 }));
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ tokens }));
@@ -1674,11 +1597,16 @@ The 4 percentages must sum to 100.`;
                     path: t.path || 'pump',
                     mcap: t.mcap || 0,
                     volume: t.volume || 0,
+                    price: t.price || 0,
                     change: t.change || 0,
                     holders: t.holders || 0,
+                    progress: t.progress || 0,
+                    graduated: t.graduated || false,
+                    graduatedAt: t.graduatedAt || null,
                     createdAt: t.registeredAt,
                     time: formatTimeAgo(t.registeredAt),
-                    stats: t.stats || { totalClaimed: 0, totalDistributed: 0 }
+                    stats: t.stats || { totalClaimed: 0, totalDistributed: 0 },
+                    lastMetricsUpdate: t.lastMetricsUpdate || null,
                 }));
 
             res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -1704,7 +1632,11 @@ The 4 percentages must sum to 100.`;
                     mint: t.mint,
                     name: t.name || 'Unknown Token',
                     symbol: t.symbol || 'TOKEN',
+                    image: t.image || null,
                     mcap: t.mcap || 0,
+                    volume: t.volume || 0,
+                    progress: t.progress || 0,
+                    graduated: t.graduated || false,
                     path: t.path === 'launchr' ? 'Launchr' : 'Pump.fun',
                     reward: index < 3 ? 'Winner' : null,
                 }));
@@ -3423,6 +3355,18 @@ server.listen(PORT, async () => {
     }, 5 * 60 * 1000);
     // Run first check after 30 seconds
     setTimeout(() => tracker.checkAllGraduations().catch(() => {}), 30000);
+
+    // Start metrics updater (update token mcap/volume/price every 10 minutes)
+    console.log('[METRICS] Starting token metrics updater...');
+    setInterval(async () => {
+        try {
+            await tracker.updateAllTokenMetrics();
+        } catch (e) {
+            console.log('[METRICS] Updater error: ' + e.message);
+        }
+    }, 10 * 60 * 1000);
+    // Run first update after 60 seconds
+    setTimeout(() => tracker.updateAllTokenMetrics().catch(() => {}), 60000);
 
     // Start Telegram bot if token is configured
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
