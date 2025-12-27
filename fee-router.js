@@ -4,10 +4,10 @@
  * Handles fee routing for all launches on LAUNCHR:
  *
  * When creator fees are claimed:
- *   1% → LAUNCHR holder pool (automatic)
+ *   1% → LAUNCHR Distribution Pool (automatic)
  *   99% → Creator's allocation engine (buyback, burn, LP, revenue)
  *
- * The holder pool distributes to LAUNCHR token holders proportionally.
+ * The distribution pool distributes to LAUNCHR token holders proportionally.
  */
 
 const { Connection, PublicKey, Keypair, Transaction, SystemProgram, LAMPORTS_PER_SOL } = require('@solana/web3.js');
