@@ -2562,33 +2562,9 @@
 
         async function connectPrivy() {
             document.getElementById('walletSelectModal')?.remove();
-            try {
-                if (!privyClient && typeof window.Privy !== 'undefined') {
-                    privyClient = new window.Privy({
-                        appId: PRIVY_APP_ID,
-                        config: {
-                            loginMethods: ['wallet'],  // Simplified: wallet-only (no Magic Link required)
-                            appearance: { theme: 'dark', accentColor: '#FFD966' },
-                            embeddedWallets: { createOnLogin: 'users-without-wallets' },
-                            solanaClusters: [{ name: 'mainnet-beta', rpcUrl: SOLANA_RPC }],
-                        },
-                    });
-                }
-                if (privyClient) {
-                    await privyClient.login();
-                    const user = await privyClient.getUser();
-                    if (user?.wallet?.address) {
-                        handleWalletConnected(user.wallet.address);
-                    } else {
-                        showNotification('Please connect a wallet in Privy', 'error');
-                    }
-                } else {
-                    showNotification('Privy not available', 'error');
-                }
-            } catch (e) {
-                console.error('[PRIVY]', e);
-                showNotification('Failed to connect with Privy', 'error');
-            }
+            // Privy embedded wallets coming soon - use Phantom or Solflare for now
+            showNotification('Privy embedded wallets coming soon! Please use Phantom or Solflare to launch tokens.', 'info');
+            setTimeout(() => showWalletSelectModal(), 500);
         }
 
         async function connectPhantom() {

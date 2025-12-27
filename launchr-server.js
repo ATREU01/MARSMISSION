@@ -1321,10 +1321,10 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    // Serve Creator Dashboard (React SPA with config injection)
+    // Serve Creator Dashboard (full featured)
     if (url.pathname === '/dashboard' && req.method === 'GET') {
         try {
-            const html = fs.readFileSync(path.join(__dirname, 'frontend', 'dist', 'index.html'), 'utf8');
+            const html = fs.readFileSync(path.join(__dirname, 'website', 'dashboard.html'), 'utf8');
             res.writeHead(200, {
                 'Content-Type': 'text/html; charset=utf-8',
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
