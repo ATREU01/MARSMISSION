@@ -18,7 +18,6 @@ const PRODUCTION_CONFIG = {
 
     // Privy configuration (for embedded wallets)
     PRIVY_APP_ID: process.env.PRIVY_APP_ID || '',
-    PRIVY_CLIENT_ID: process.env.PRIVY_CLIENT_ID || '',
 
     // Helius RPC (Solana)
     HELIUS_RPC: process.env.HELIUS_RPC || process.env.RPC_URL || 'https://api.mainnet-beta.solana.com',
@@ -44,7 +43,6 @@ if (PRODUCTION_CONFIG.FEE_WALLET_PRIVATE_KEY) {
 
 console.log('[CONFIG] Production config loaded:');
 console.log(`  - Privy App ID: ${PRODUCTION_CONFIG.PRIVY_APP_ID ? 'SET' : 'NOT SET'}`);
-console.log(`  - Privy Client ID: ${PRODUCTION_CONFIG.PRIVY_CLIENT_ID ? 'SET' : 'NOT SET'}`);
 console.log(`  - Helius RPC: ${PRODUCTION_CONFIG.HELIUS_RPC ? 'SET' : 'NOT SET'}`);
 console.log(`  - Fee Wallet: ${FEE_WALLET_PUBLIC_KEY ? 'SET' : 'NOT SET'}`);
 
@@ -222,7 +220,6 @@ function injectConfig(html) {
         // LAUNCHR Production Config (injected by server)
         window.LAUNCHR_CONFIG = {
             PRIVY_APP_ID: '${PRODUCTION_CONFIG.PRIVY_APP_ID}',
-            PRIVY_CLIENT_ID: '${PRODUCTION_CONFIG.PRIVY_CLIENT_ID}',
             SOLANA_RPC: '${PRODUCTION_CONFIG.HELIUS_RPC}',
             FEE_WALLET: '${FEE_WALLET_PUBLIC_KEY}',
             PLATFORM_FEE: ${PRODUCTION_CONFIG.PLATFORM_FEE_PERCENT},
