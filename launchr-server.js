@@ -6,6 +6,7 @@ const { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey } = require('@solana/we
 const { LaunchrEngine } = require('./launchr-engine');
 const bs58 = require('bs58');
 const tracker = require('./tracker');
+const profiles = require('./profiles');
 const { LaunchrBot } = require('./telegram-bot');
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -912,6 +913,22 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    // Serve Profile page (with config injection)
+    if (url.pathname.startsWith('/profile/') && req.method === 'GET') {
+        try {
+            const html = fs.readFileSync(path.join(__dirname, 'website', 'profile.html'), 'utf8');
+            res.writeHead(200, {
+                'Content-Type': 'text/html; charset=utf-8',
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
+            });
+            res.end(injectConfig(html));
+        } catch (e) {
+            res.writeHead(302, { 'Location': '/' });
+            res.end();
+        }
+        return;
+    }
+
     // Phantom Wallet Integration - Manifest
     if ((url.pathname === '/phantom/manifest.json' || url.pathname === '/.well-known/phantom.json') && req.method === 'GET') {
         try {
@@ -1645,6 +1662,239 @@ The 4 percentages must sum to 100.`;
         } catch (e) {
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ leaderboard: [] }));
+        }
+        return;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PROFILE API ENDPOINTS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // API: Check username availability (must be before general profile GET)
+    if (url.pathname === '/api/profile/check-username' && req.method === 'GET') {
+        try {
+            const username = url.searchParams.get('username');
+            const wallet = url.searchParams.get('wallet');
+
+            if (!username) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Username required' }));
+                return;
+            }
+
+            const available = profiles.isUsernameAvailable(username, wallet);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ available }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Internal server error' }));
+        }
+        return;
+    }
+
+    // API: Get followers list (must be before general profile GET)
+    if (url.pathname.match(/^\/api\/profile\/[^/]+\/followers$/) && req.method === 'GET') {
+        try {
+            const wallet = url.pathname.split('/')[3];
+            const limit = parseInt(url.searchParams.get('limit') || '50');
+            const offset = parseInt(url.searchParams.get('offset') || '0');
+
+            const followers = profiles.getFollowers(wallet, limit, offset);
+            const total = profiles.getFollowerCount(wallet);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ followers, total }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Internal server error' }));
+        }
+        return;
+    }
+
+    // API: Get following list (must be before general profile GET)
+    if (url.pathname.match(/^\/api\/profile\/[^/]+\/following$/) && req.method === 'GET') {
+        try {
+            const wallet = url.pathname.split('/')[3];
+            const limit = parseInt(url.searchParams.get('limit') || '50');
+            const offset = parseInt(url.searchParams.get('offset') || '0');
+
+            const following = profiles.getFollowing(wallet, limit, offset);
+            const total = profiles.getFollowingCount(wallet);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ following, total }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Internal server error' }));
+        }
+        return;
+    }
+
+    // API: Get user profile by wallet or username
+    if (url.pathname.startsWith('/api/profile/') && req.method === 'GET') {
+        try {
+            const identifier = url.pathname.split('/api/profile/')[1];
+            if (!identifier) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Wallet or username required' }));
+                return;
+            }
+
+            let profile;
+            // Check if it's a wallet address (base58, typically 32-44 chars)
+            if (identifier.length >= 32 && identifier.length <= 44) {
+                profile = profiles.getProfile(identifier);
+            } else {
+                // Try to find by username
+                profile = profiles.getProfileByUsername(identifier);
+            }
+
+            if (!profile) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Profile not found' }));
+                return;
+            }
+
+            // Get user's created tokens
+            const createdTokens = tracker.getTokensByCreator(profile.wallet);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                profile,
+                createdCoins: createdTokens.length,
+                tokens: createdTokens.map(t => ({
+                    mint: t.mint,
+                    name: t.name || 'Unknown',
+                    symbol: t.symbol || 'TOKEN',
+                    image: t.image || null,
+                    mcap: t.mcap || 0,
+                    createdAt: t.registeredAt,
+                    graduated: t.graduated || false
+                }))
+            }));
+        } catch (e) {
+            console.error('[API] profile error:', e);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Internal server error' }));
+        }
+        return;
+    }
+
+    // API: Update user profile
+    if (url.pathname === '/api/profile' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', () => {
+            try {
+                const data = JSON.parse(body);
+                const { wallet, username, displayName, avatar, bio, twitter, telegram, website } = data;
+
+                if (!wallet) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Wallet address required' }));
+                    return;
+                }
+
+                // Check if username is taken
+                if (username && !profiles.isUsernameAvailable(username, wallet)) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Username already taken' }));
+                    return;
+                }
+
+                const updatedProfile = profiles.updateProfile(wallet, {
+                    username,
+                    displayName,
+                    avatar,
+                    bio,
+                    twitter,
+                    telegram,
+                    website
+                });
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ profile: updatedProfile }));
+            } catch (e) {
+                console.error('[API] update profile error:', e);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Internal server error' }));
+            }
+        });
+        return;
+    }
+
+    // API: Follow a user
+    if (url.pathname === '/api/follow' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', () => {
+            try {
+                const data = JSON.parse(body);
+                const { follower, following } = data;
+
+                if (!follower || !following) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Follower and following wallets required' }));
+                    return;
+                }
+
+                const result = profiles.followUser(follower, following);
+                res.writeHead(result.success ? 200 : 400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(result));
+            } catch (e) {
+                console.error('[API] follow error:', e);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Internal server error' }));
+            }
+        });
+        return;
+    }
+
+    // API: Unfollow a user
+    if (url.pathname === '/api/unfollow' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', () => {
+            try {
+                const data = JSON.parse(body);
+                const { follower, following } = data;
+
+                if (!follower || !following) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Follower and following wallets required' }));
+                    return;
+                }
+
+                const result = profiles.unfollowUser(follower, following);
+                res.writeHead(result.success ? 200 : 400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(result));
+            } catch (e) {
+                console.error('[API] unfollow error:', e);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Internal server error' }));
+            }
+        });
+        return;
+    }
+
+    // API: Check if following
+    if (url.pathname === '/api/is-following' && req.method === 'GET') {
+        try {
+            const follower = url.searchParams.get('follower');
+            const following = url.searchParams.get('following');
+
+            if (!follower || !following) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Follower and following wallets required' }));
+                return;
+            }
+
+            const isFollowing = profiles.isFollowing(follower, following);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ isFollowing }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Internal server error' }));
         }
         return;
     }
