@@ -1032,9 +1032,12 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
-            await initPrivy();
+            // Check for Privy wallet first (from /auth redirect)
+            checkPrivyWallet();
+
+            // Then check localStorage for any stored wallet
             const stored = localStorage.getItem('connectedWallet');
-            if (stored) handleWalletConnected(stored);
+            if (stored && !connectedWallet) handleWalletConnected(stored);
         });
 
         async function initPrivy() {
@@ -1148,8 +1151,18 @@
 
         async function connectPrivy() {
             document.getElementById('walletSelectModal')?.remove();
-            // Redirect to dashboard where React Privy is properly initialized
-            window.location.href = '/dashboard';
+            // Redirect to Privy auth page with return URL
+            const returnUrl = encodeURIComponent(window.location.href);
+            window.location.href = '/auth?returnTo=' + returnUrl;
+        }
+
+        // Check for Privy wallet on page load
+        function checkPrivyWallet() {
+            const privyWallet = localStorage.getItem('privyWallet');
+            const privyConnected = localStorage.getItem('privyConnected');
+            if (privyConnected === 'true' && privyWallet) {
+                handleWalletConnected(privyWallet);
+            }
         }
 
         async function handleWalletConnected(address) {
