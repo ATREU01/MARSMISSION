@@ -2337,18 +2337,18 @@
 
                 // Handle specific errors with better UX
                 if (errorMsg.includes('insufficient') || errorMsg.includes('SOL')) {
-                    errorMsg = '⚠️ Insufficient SOL. Add more SOL to your wallet and try again.';
+                    errorMsg = 'Insufficient SOL. Add more SOL to your wallet and try again.';
                 } else if (errorMsg.includes('Buffer') || errorMsg.includes('serialize')) {
-                    errorMsg = '🔄 Network issue. Refreshing... Please try again in 15 seconds.';
+                    errorMsg = 'Network issue. Refreshing... Please try again in 15 seconds.';
                     // Auto-retry after 15 seconds
                     setTimeout(() => {
-                        btn.textContent = '✨ Ready to retry';
+                        btn.textContent = 'Ready to retry';
                         btn.disabled = false;
                     }, 15000);
                 } else if (errorMsg.includes('User rejected')) {
-                    errorMsg = '❌ Transaction cancelled by user';
+                    errorMsg = 'Transaction cancelled by user';
                 } else {
-                    errorMsg = '💡 ' + errorMsg + ' - Please try again';
+                    errorMsg = errorMsg + ' - Please try again';
                 }
 
                 showNotification(errorMsg, 'error');
@@ -2436,11 +2436,13 @@
             modal.innerHTML = `
                 <div class="modal" style="max-width:500px;">
                     <div class="modal-header" style="background: linear-gradient(135deg, var(--success-dim), var(--surface));">
-                        <span class="modal-title" style="color: var(--success);">🚀 Token Launched!</span>
+                        <span class="modal-title" style="color: var(--success);">Token Launched!</span>
                         <button class="modal-close" onclick="document.getElementById('successModal').remove()">&times;</button>
                     </div>
                     <div class="modal-body" style="text-align:center;">
-                        <div style="font-size:48px;margin-bottom:16px;">🎉</div>
+                        <div style="font-size:48px;margin-bottom:16px;color:var(--success);">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        </div>
                         <h3 style="font-size:24px;margin-bottom:8px;">${escapeHtml(name)}</h3>
                         <div style="color:var(--gold);font-size:18px;margin-bottom:20px;">$${escapeHtml(symbol)}</div>
 
