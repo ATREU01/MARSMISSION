@@ -6,17 +6,9 @@ function App() {
   const { ready, authenticated, user, login, logout } = usePrivy()
   const { wallets } = useWallets()
 
-  // Get wallet address from multiple sources:
-  // 1. Privy embedded wallet (user.wallet) - created for email/social login
-  // 2. Linked Solana wallets in user.linkedAccounts
-  // 3. External wallets from useWallets() hook
+  // Get SOLANA wallet address - prioritize Solana over Ethereum
   const walletAddress = useMemo(() => {
-    // Check embedded wallet first
-    if (user?.wallet?.address) {
-      return user.wallet.address
-    }
-
-    // Check linkedAccounts for Solana wallets
+    // 1. Check linkedAccounts for Solana wallets first
     const linkedSolana = user?.linkedAccounts?.find(
       (acc) => acc.type === 'wallet' && acc.chainType === 'solana'
     )
@@ -24,9 +16,20 @@ function App() {
       return linkedSolana.address
     }
 
-    // Fall back to external wallets
-    const externalWallet = wallets?.find(w => w.walletClientType === 'solana') || wallets?.[0]
-    return externalWallet?.address
+    // 2. Check external Solana wallets from useWallets()
+    const externalSolana = wallets?.find(w => w.chainType === 'solana' || w.walletClientType?.includes('solana'))
+    if (externalSolana?.address) {
+      return externalSolana.address
+    }
+
+    // 3. Check if embedded wallet is Solana (not 0x prefix)
+    if (user?.wallet?.address && !user.wallet.address.startsWith('0x')) {
+      return user.wallet.address
+    }
+
+    // 4. Last resort - any non-Ethereum wallet
+    const anyWallet = wallets?.find(w => !w.address?.startsWith('0x'))
+    return anyWallet?.address || null
   }, [user, wallets])
 
   const isPopup = !!window.opener
@@ -62,13 +65,25 @@ function App() {
           <h2>LAUNCHR Auth</h2>
           {authenticated ? (
             <div className="auth-success">
-              <p>Connected!</p>
-              <p className="address">{walletAddress?.slice(0,8) || 'Loading...'}...</p>
-              <p className="closing">{walletAddress ? 'Closing...' : 'Getting wallet...'}</p>
+              {walletAddress ? (
+                <>
+                  <p>Connected!</p>
+                  <p className="address">{walletAddress.slice(0,8)}...{walletAddress.slice(-4)}</p>
+                  <p className="closing">Closing...</p>
+                  <button onClick={() => window.close()} className="btn-close">Close</button>
+                </>
+              ) : (
+                <>
+                  <p>No Solana Wallet Found</p>
+                  <p className="hint">Please connect a Solana wallet (Phantom, Solflare, etc.)</p>
+                  <button onClick={logout} className="btn-disconnect">Try Again</button>
+                  <button onClick={() => window.close()} className="btn-close">Close</button>
+                </>
+              )}
             </div>
           ) : (
             <div className="auth-prompt">
-              <p>Connecting to Privy...</p>
+              <p>Connect your Solana wallet</p>
               <button onClick={login} className="btn-connect">Connect Wallet</button>
             </div>
           )}
