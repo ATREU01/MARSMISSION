@@ -2474,21 +2474,19 @@
         // WALLET FUNCTIONS
         // ═══════════════════════════════════════════════════════════════════════
         async function initPrivy() {
-            try {
-                if (typeof window.Privy !== 'undefined') {
-                    privyClient = new window.Privy({
-                        appId: PRIVY_APP_ID,
-                        config: {
-                            loginMethods: ['wallet'],  // Simplified: wallet-only (no Magic Link required)
-                            appearance: { theme: 'dark', accentColor: '#FFD966' },
-                            embeddedWallets: { createOnLogin: 'users-without-wallets' },
-                            solanaClusters: [{ name: 'mainnet-beta', rpcUrl: SOLANA_RPC }],
-                        },
-                    });
-                    const user = await privyClient.getUser();
-                    if (user?.wallet) handleWalletConnected(user.wallet.address);
+            if (!PRIVY_APP_ID) {
+                console.log('[PRIVY] App ID not configured - Privy disabled');
+                return;
+            }
+            // Listen for messages from Privy auth popup
+            window.addEventListener('message', (e) => {
+                if (e.data?.type === 'privy-auth-success' && e.data?.address) {
+                    console.log('[PRIVY] Received wallet from popup:', e.data.address);
+                    handleWalletConnected(e.data.address);
+                    showNotification('Connected with Privy wallet!', 'success');
                 }
-            } catch (e) { console.error('[PRIVY]', e); }
+            });
+            console.log('[PRIVY] Ready - will use popup auth');
         }
 
         async function connectWallet() {
@@ -2602,32 +2600,25 @@
 
         async function connectPrivy() {
             document.getElementById('walletSelectModal')?.remove();
-            try {
-                if (!privyClient && typeof window.Privy !== 'undefined') {
-                    privyClient = new window.Privy({
-                        appId: PRIVY_APP_ID,
-                        config: {
-                            loginMethods: ['wallet'],  // Simplified: wallet-only (no Magic Link required)
-                            appearance: { theme: 'dark', accentColor: '#FFD966' },
-                            embeddedWallets: { createOnLogin: 'users-without-wallets' },
-                            solanaClusters: [{ name: 'mainnet-beta', rpcUrl: SOLANA_RPC }],
-                        },
-                    });
-                }
-                if (privyClient) {
-                    await privyClient.login();
-                    const user = await privyClient.getUser();
-                    if (user?.wallet?.address) {
-                        handleWalletConnected(user.wallet.address);
-                    } else {
-                        showNotification('Please connect a wallet in Privy', 'error');
-                    }
-                } else {
-                    showNotification('Privy not available', 'error');
-                }
-            } catch (e) {
-                console.error('[PRIVY]', e);
-                showNotification('Failed to connect with Privy', 'error');
+
+            if (!PRIVY_APP_ID) {
+                showNotification('Privy not configured', 'error');
+                return;
+            }
+
+            // Open popup for Privy auth (React app handles the Privy SDK)
+            const width = 450;
+            const height = 650;
+            const left = window.screenX + (window.outerWidth - width) / 2;
+            const top = window.screenY + (window.outerHeight - height) / 2;
+            const popup = window.open(
+                '/auth',
+                'privy-auth',
+                `width=${width},height=${height},left=${left},top=${top},scrollbars=yes`
+            );
+
+            if (!popup) {
+                showNotification('Popup blocked - please allow popups', 'error');
             }
         }
 
