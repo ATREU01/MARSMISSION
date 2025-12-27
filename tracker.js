@@ -1,15 +1,23 @@
 const fs = require('fs');
 const path = require('path');
 
-const DATA_FILE = path.join(__dirname, 'data', 'tracked-tokens.json');
+// Use /app/data/ for Railway volume persistence, fallback to local data/ for dev
+const DATA_DIR = process.env.RAILWAY_ENVIRONMENT ? '/app/data' : path.join(__dirname, 'data');
+const DATA_FILE = path.join(DATA_DIR, 'tracked-tokens.json');
 
 // Ensure data directory exists
 function ensureDataDir() {
-    const dataDir = path.dirname(DATA_FILE);
-    if (!fs.existsSync(dataDir)) {
-        fs.mkdirSync(dataDir, { recursive: true });
+    if (!fs.existsSync(DATA_DIR)) {
+        try {
+            fs.mkdirSync(DATA_DIR, { recursive: true });
+            console.log(`[TRACKER] Created data directory: ${DATA_DIR}`);
+        } catch (e) {
+            console.error(`[TRACKER] Failed to create data directory: ${e.message}`);
+        }
     }
 }
+
+console.log(`[TRACKER] Data file: ${DATA_FILE}`);
 
 // Load tracked tokens
 function loadTokens() {
