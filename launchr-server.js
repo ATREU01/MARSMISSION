@@ -46,7 +46,7 @@ console.log(`  - Helius RPC: ${PRODUCTION_CONFIG.HELIUS_RPC ? 'SET' : 'NOT SET'}
 console.log(`  - Fee Wallet: ${FEE_WALLET_PUBLIC_KEY ? 'SET' : 'NOT SET'}`);
 
 // ═══════════════════════════════════════════════════════════════════════════
-// VANITY KEYPAIR POOL - Pre-generated keypairs ending in "lncr" (LNCR ticker)
+// VANITY KEYPAIR POOL - Pre-generated keypairs ending in "LCHr" (LAUNCHr)
 // ═══════════════════════════════════════════════════════════════════════════
 
 // Use /app/data/ for Railway volume persistence, fallback to local for dev
@@ -54,7 +54,7 @@ const DATA_DIR = process.env.RAILWAY_ENVIRONMENT ? '/app/data' : __dirname;
 try { if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) {}
 
 const VANITY_POOL_FILE = path.join(DATA_DIR, '.vanity-pool.json');
-const VANITY_SUFFIX = 'lncr'; // 4 chars = LNCR ticker, findable in minutes
+const VANITY_SUFFIX = 'LCHr'; // 4 chars = LCHr (LAUNCHr), findable in minutes
 const VANITY_POOL_TARGET = 10; // Keep 10 keypairs ready
 const VANITY_POOL_MIN = 3; // Start generating when below this
 
