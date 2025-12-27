@@ -3833,7 +3833,7 @@
 
         async function fetchPumpFunTokenData(mint) {
             try {
-                const response = await fetch(`https://frontend-api.pump.fun/coins/${mint}`);
+                const response = await fetch(`/api/pump/coin/${mint}`);
                 if (response.ok) {
                     const data = await response.json();
                     return {
@@ -3864,7 +3864,7 @@
         async function fetchLiveTokens() {
             try {
                 // Fetch new tokens from Pump.fun
-                const response = await fetch('https://frontend-api.pump.fun/coins?offset=0&limit=50&sort=created_timestamp&order=DESC&includeNsfw=false');
+                const response = await fetch('/api/pump/coins?offset=0&limit=50&sort=created_timestamp&order=DESC');
                 if (response.ok) {
                     const tokens = await response.json();
                     return tokens.map(t => ({

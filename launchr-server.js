@@ -1565,6 +1565,77 @@ The 4 percentages must sum to 100.`;
         return;
     }
 
+    // API: Proxy for Pump.fun individual token (avoids CORS issues)
+    if (url.pathname.startsWith('/api/pump/coin/') && req.method === 'GET') {
+        try {
+            const mint = url.pathname.replace('/api/pump/coin/', '');
+            if (!mint || mint.length < 30) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Invalid mint address' }));
+                return;
+            }
+
+            const pumpUrl = `https://frontend-api.pump.fun/coins/${mint}`;
+            const pumpRes = await fetch(pumpUrl, {
+                headers: {
+                    'Accept': 'application/json',
+                    'User-Agent': 'Mozilla/5.0 (compatible; LAUNCHR/1.0)'
+                }
+            });
+
+            if (!pumpRes.ok) {
+                throw new Error(`Pump.fun API returned ${pumpRes.status}`);
+            }
+
+            const data = await pumpRes.json();
+            res.writeHead(200, {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            });
+            res.end(JSON.stringify(data));
+        } catch (e) {
+            console.error('[API] Pump.fun token proxy error:', e.message);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Failed to fetch token from Pump.fun', details: e.message }));
+        }
+        return;
+    }
+
+    // API: Proxy for Pump.fun API (avoids CORS issues)
+    if (url.pathname === '/api/pump/coins' && req.method === 'GET') {
+        try {
+            const sort = url.searchParams.get('sort') || 'created_timestamp';
+            const order = url.searchParams.get('order') || 'DESC';
+            const limit = url.searchParams.get('limit') || '20';
+            const offset = url.searchParams.get('offset') || '0';
+
+            const pumpUrl = `https://frontend-api.pump.fun/coins?offset=${offset}&limit=${limit}&sort=${sort}&order=${order}&includeNsfw=false`;
+
+            const pumpRes = await fetch(pumpUrl, {
+                headers: {
+                    'Accept': 'application/json',
+                    'User-Agent': 'Mozilla/5.0 (compatible; LAUNCHR/1.0)'
+                }
+            });
+
+            if (!pumpRes.ok) {
+                throw new Error(`Pump.fun API returned ${pumpRes.status}`);
+            }
+
+            const data = await pumpRes.json();
+            res.writeHead(200, {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            });
+            res.end(JSON.stringify(data));
+        } catch (e) {
+            console.error('[API] Pump.fun proxy error:', e.message);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Failed to fetch from Pump.fun', details: e.message }));
+        }
+        return;
+    }
+
     // API: Register a new token (called after successful launch)
     if (url.pathname === '/api/register-token' && req.method === 'POST') {
         try {

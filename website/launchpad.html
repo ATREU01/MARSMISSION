@@ -1574,8 +1574,8 @@
             try {
                 console.log('[PUMP] Fetching live tokens...');
 
-                // Fetch new tokens (sorted by creation time)
-                const newRes = await fetch('https://frontend-api.pump.fun/coins?offset=0&limit=20&sort=created_timestamp&order=DESC&includeNsfw=false');
+                // Fetch new tokens (sorted by creation time) via proxy
+                const newRes = await fetch('/api/pump/coins?offset=0&limit=20&sort=created_timestamp&order=DESC');
                 if (newRes.ok) {
                     const data = await newRes.json();
                     liveTokens.new = (data || []).map(t => ({
@@ -1592,8 +1592,8 @@
                     }));
                 }
 
-                // Fetch trending (sorted by market cap)
-                const trendingRes = await fetch('https://frontend-api.pump.fun/coins?offset=0&limit=20&sort=usd_market_cap&order=DESC&includeNsfw=false');
+                // Fetch trending (sorted by market cap) via proxy
+                const trendingRes = await fetch('/api/pump/coins?offset=0&limit=20&sort=usd_market_cap&order=DESC');
                 if (trendingRes.ok) {
                     const data = await trendingRes.json();
                     liveTokens.trending = (data || []).map(t => ({
