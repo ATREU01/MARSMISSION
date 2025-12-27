@@ -2029,6 +2029,89 @@ The 4 percentages must sum to 100.`;
         return;
     }
 
+    // API: Create LAUNCHR native token (SPL token with Raydium liquidity)
+    if (url.pathname === '/api/launchr/create-token' && req.method === 'POST') {
+        try {
+            const data = await parseBody(req);
+
+            if (!data.creator || !data.name || !data.symbol) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'creator, name, and symbol required' }));
+                return;
+            }
+
+            console.log('[LAUNCHR] Creating native token:', data.name, '(' + data.symbol + ')');
+            console.log('[LAUNCHR] Creator:', data.creator);
+            console.log('[LAUNCHR] Initial liquidity:', data.initialLiquidity || 0, 'SOL');
+
+            // Use the launchpad-core for LAUNCHR path
+            const { LaunchrLaunchpad } = require('./launchpad-core');
+
+            // Initialize connection (uses the same RPC as server)
+            const { Connection, Keypair } = require('@solana/web3.js');
+            const connection = new Connection(process.env.SOLANA_RPC || 'https://api.mainnet-beta.solana.com', 'confirmed');
+
+            // For LAUNCHR tokens, we need a platform wallet to create the token
+            // In production, this would be the LAUNCHR platform wallet
+            let platformWallet;
+            if (process.env.PLATFORM_PRIVATE_KEY) {
+                const bs58 = require('bs58');
+                platformWallet = Keypair.fromSecretKey(bs58.decode(process.env.PLATFORM_PRIVATE_KEY));
+            } else {
+                // Dev mode - generate temporary keypair (won't persist)
+                console.log('[LAUNCHR] WARNING: No platform wallet configured, using dev mode');
+                platformWallet = Keypair.generate();
+            }
+
+            // Initialize launchpad
+            const launchpad = new LaunchrLaunchpad(connection, platformWallet, {
+                heliusApiKey: process.env.HELIUS_API_KEY
+            });
+
+            // Launch via Raydium path
+            const result = await launchpad.launch({
+                path: 'raydium',
+                name: data.name,
+                symbol: data.symbol,
+                description: data.description || '',
+                image: data.metadataUri || null,
+                initialLiquidity: data.initialLiquidity || 1, // Min 1 SOL for Raydium
+                allocationStrategy: 'balanced',
+            });
+
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to create LAUNCHR token');
+            }
+
+            // Register the token in tracker
+            tracker.registerToken(result.launch.mint, data.creator, {
+                name: data.name,
+                symbol: data.symbol,
+                image: data.metadataUri || null,
+                path: 'launchr',
+                description: data.description || '',
+                socials: data.socials || {}
+            });
+
+            console.log('[LAUNCHR] Token created successfully:', result.launch.mint);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                mint: result.launch.mint,
+                signature: result.launch.pool?.status === 'pending' ? 'pending_raydium' : 'created',
+                raydiumPool: result.launch.pool || null,
+                path: 'launchr'
+            }));
+
+        } catch (e) {
+            console.error('[LAUNCHR] Token creation error:', e);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
     // API: Get tokens by creator wallet (My Launches)
     if (url.pathname === '/api/my-tokens' && req.method === 'GET') {
         try {
