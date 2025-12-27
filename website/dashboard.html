@@ -2406,8 +2406,8 @@
         // WALLET FUNCTIONS
         // ═══════════════════════════════════════════════════════════════════════
         async function initPrivy() {
-            if (!PRIVY_APP_ID || !PRIVY_CLIENT_ID) {
-                console.log('[PRIVY] App ID or Client ID not configured - Privy disabled');
+            if (!PRIVY_APP_ID) {
+                console.log('[PRIVY] App ID not configured - Privy disabled');
                 return;
             }
 
@@ -2415,11 +2415,9 @@
                 // Dynamic import of Privy SDK from esm.sh
                 const { default: Privy, LocalStorage } = await import('https://esm.sh/@privy-io/js-sdk-core@0.58.5');
 
-                // Initialize Privy client
+                // Initialize Privy client (appId only required)
                 privyClient = new Privy({
                     appId: PRIVY_APP_ID,
-                    clientId: PRIVY_CLIENT_ID,
-                    supportedChains: [], // Solana-only, no EVM chains
                     storage: new LocalStorage()
                 });
 
