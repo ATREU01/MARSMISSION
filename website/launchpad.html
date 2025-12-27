@@ -1170,7 +1170,7 @@
 
                     <div class="form-hint">
                         <span class="form-hint-icon">&#x1F680;</span>
-                        <span>Token address will end in <strong>launchr</strong> (vanity address)</span>
+                        <span>Launch your token on <strong>Pump.fun</strong></span>
                     </div>
 
                     <button class="btn btn-primary" style="width:100%;padding:14px;" id="deployBtn" onclick="deployToken()">
@@ -1215,7 +1215,7 @@
                 </div>
                 <div class="stat-cell">
                     <div class="stat-cell-value gold">0</div>
-                    <div class="stat-cell-label">Vanity Tokens</div>
+                    <div class="stat-cell-label">Active Tokens</div>
                 </div>
                 <div class="stat-cell">
                     <div class="stat-cell-value">$0</div>
@@ -1271,7 +1271,7 @@
                     </div>
                     <div class="card-body">
                         <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.6;">
-                            Create a meme token in seconds with a vanity address ending in "launchr".
+                            Create a meme token in seconds on Pump.fun.
                         </p>
                         <button class="btn btn-primary" style="width:100%;" onclick="showCreateModal()">
                             Launch Token
@@ -1646,15 +1646,14 @@
             // Try to get a vanity keypair from the server pool (ends in "launchr")
             try {
                 const res = await fetch('/api/vanity-keypair');
-                const data = await res.json();
-
-                if (data.success && data.secretKey) {
-                    // Reconstruct keypair from server-provided secret key
-                    const secretKey = bs58.decode(data.secretKey);
-                    const mintKeypair = Keypair.fromSecretKey(secretKey);
-                    console.log('[DEPLOY] Got vanity mint address:', mintKeypair.publicKey.toString());
-                    showNotification('Vanity address assigned: ...launchr', 'success');
-                    return mintKeypair;
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.success && data.secretKey) {
+                        const secretKey = bs58.decode(data.secretKey);
+                        const mintKeypair = Keypair.fromSecretKey(secretKey);
+                        console.log('[DEPLOY] Got vanity mint address:', mintKeypair.publicKey.toString());
+                        return mintKeypair;
+                    }
                 }
             } catch (e) {
                 console.log('[DEPLOY] Vanity pool unavailable, using random keypair');

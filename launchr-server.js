@@ -55,7 +55,7 @@ const DATA_DIR = process.env.RAILWAY_ENVIRONMENT ? '/app/data' : __dirname;
 try { if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) {}
 
 const VANITY_POOL_FILE = path.join(DATA_DIR, '.vanity-pool.json');
-const VANITY_SUFFIX = 'launchr';
+const VANITY_SUFFIX = 'lchr'; // 4 chars = findable in minutes
 const VANITY_POOL_TARGET = 10; // Keep 10 keypairs ready
 const VANITY_POOL_MIN = 3; // Start generating when below this
 
