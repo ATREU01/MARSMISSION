@@ -1,16 +1,32 @@
-import { StrictMode } from 'react'
+import { StrictMode, useState, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 import { PrivyProvider } from '@privy-io/react-auth'
 import App from './App.jsx'
 import './index.css'
 
-// Get config from server-injected global
-const PRIVY_APP_ID = window.LAUNCHR_CONFIG?.PRIVY_APP_ID || ''
+// PrivyGate - waits for config before initializing Privy
+function PrivyGate({ children }) {
+  const [appId, setAppId] = useState(null)
+  const [rpcUrl, setRpcUrl] = useState(null)
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const id = window.LAUNCHR_CONFIG?.PRIVY_APP_ID
+      const rpc = window.LAUNCHR_CONFIG?.SOLANA_RPC
+      if (id) {
+        setAppId(id)
+        setRpcUrl(rpc || 'https://api.mainnet-beta.solana.com')
+      }
+    }
+  }, [])
+
+  if (!appId) {
+    return <div className="loading">Loading...</div>
+  }
+
+  return (
     <PrivyProvider
-      appId={PRIVY_APP_ID}
+      appId={appId}
       config={{
         loginMethods: ['email', 'wallet'],
         appearance: {
@@ -21,11 +37,19 @@ createRoot(document.getElementById('root')).render(
           createOnLogin: 'users-without-wallets',
         },
         solanaClusters: [
-          { name: 'mainnet-beta', rpcUrl: window.LAUNCHR_CONFIG?.SOLANA_RPC || 'https://api.mainnet-beta.solana.com' }
+          { name: 'mainnet-beta', rpcUrl: rpcUrl }
         ],
       }}
     >
-      <App />
+      {children}
     </PrivyProvider>
+  )
+}
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <PrivyGate>
+      <App />
+    </PrivyGate>
   </StrictMode>,
 )
