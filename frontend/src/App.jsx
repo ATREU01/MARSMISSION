@@ -52,6 +52,20 @@ function App() {
     }
   }, [isPopup, ready, authenticated, login])
 
+  // Auto-logout if authenticated but no Solana wallet found (only Ethereum)
+  useEffect(() => {
+    if (authenticated && ready && !walletAddress) {
+      // Give it a moment to find wallets, then logout if still none
+      const timer = setTimeout(() => {
+        if (!walletAddress) {
+          console.log('[AUTH] No Solana wallet found, logging out...')
+          logout()
+        }
+      }, 2000)
+      return () => clearTimeout(timer)
+    }
+  }, [authenticated, ready, walletAddress, logout])
+
   if (!ready) {
     return <div className="loading">Loading Privy...</div>
   }
