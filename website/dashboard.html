@@ -311,6 +311,54 @@
             border-color: rgba(196, 165, 116, 0.3) !important;
         }
 
+        /* Wallet Dropdown */
+        .wallet-dropdown {
+            position: relative;
+        }
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            min-width: 200px;
+            display: none;
+            overflow: hidden;
+            z-index: 200;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+        .dropdown-menu.show {
+            display: block;
+        }
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            color: var(--text);
+            text-decoration: none;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+        }
+        .dropdown-item:hover {
+            background: var(--surface-2);
+        }
+        .dropdown-item.logout {
+            color: var(--error);
+            border-top: 1px solid var(--border);
+        }
+        .dropdown-item svg {
+            width: 16px;
+            height: 16px;
+        }
+
         /* Token Selector */
         .token-selector {
             background: var(--surface);
@@ -1627,7 +1675,23 @@
                     <p class="page-subtitle">Manage your token's fee routing and allocation strategy</p>
                 </div>
                 <div style="display:flex;gap:12px;">
-                    <button class="btn btn-secondary" id="connectBtn" onclick="connectWallet()">Connect Wallet</button>
+                    <div class="wallet-dropdown">
+                        <button class="btn btn-secondary" id="connectBtn" onclick="connectWallet()">Connect Wallet</button>
+                        <div class="dropdown-menu" id="walletDropdown">
+                            <button class="dropdown-item" onclick="viewProfile()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+                                Profile
+                            </button>
+                            <button class="dropdown-item" onclick="copyWalletAddress()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                                Copy address
+                            </button>
+                            <button class="dropdown-item logout" onclick="disconnectWallet()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                                Log out
+                            </button>
+                        </div>
+                    </div>
                     <button class="btn btn-primary" id="launchBtn" onclick="showLaunchModal()">
                         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                         New Launch
@@ -2518,6 +2582,8 @@
             const btn = document.getElementById('connectBtn');
             btn.textContent = address.slice(0, 4) + '...' + address.slice(-4);
             btn.classList.add('wallet-connected');
+            // Switch to dropdown toggle when connected
+            btn.onclick = toggleWalletDropdown;
             await fetchBalance(address);
             // Security: Don't persist wallet - session only
             updateLaunchButton();
@@ -2549,11 +2615,15 @@
             connectedWallet = null;
             walletBalance = 0;
             localStorage.removeItem('connectedWallet');
-            document.getElementById('connectBtn').textContent = 'Connect Wallet';
-            document.getElementById('connectBtn').classList.remove('wallet-connected');
+            const btn = document.getElementById('connectBtn');
+            btn.textContent = 'Connect Wallet';
+            btn.classList.remove('wallet-connected');
+            // Reset to connect function when disconnected
+            btn.onclick = connectWallet;
             document.getElementById('tokenSelector').style.display = 'none';
             document.getElementById('myLaunchesCard').style.display = 'none';
             closeWalletModal();
+            closeWalletDropdown();
             updateLaunchButton();
         }
 
@@ -2570,7 +2640,34 @@
 
         function copyWalletAddress() {
             navigator.clipboard.writeText(connectedWallet);
+            showNotification('Address copied!', 'success');
+            closeWalletDropdown();
         }
+
+        function viewProfile() {
+            if (connectedWallet) {
+                window.location.href = '/profile/' + connectedWallet;
+            }
+        }
+
+        function toggleWalletDropdown() {
+            const dropdown = document.getElementById('walletDropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        function closeWalletDropdown() {
+            const dropdown = document.getElementById('walletDropdown');
+            dropdown.classList.remove('show');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            const dropdown = document.getElementById('walletDropdown');
+            const connectBtn = document.getElementById('connectBtn');
+            if (dropdown && !dropdown.contains(e.target) && e.target !== connectBtn) {
+                dropdown.classList.remove('show');
+            }
+        });
 
         // ═══════════════════════════════════════════════════════════════════════
         // LAUNCH MODAL

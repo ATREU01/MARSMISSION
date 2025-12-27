@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - LAUNCHR</title>
+    <meta name="description" content="User profile on LAUNCHR">
+    <link rel="icon" href="/favicon.ico" type="image/jpeg">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-deep: #030303;
+            --bg: #050508;
+            --bg-elevated: #0A0A0F;
+            --surface: #0E0E14;
+            --surface-2: #14141C;
+            --surface-3: #1A1A24;
+            --surface-4: #22222E;
+            --border: rgba(255, 215, 100, 0.1);
+            --border-subtle: rgba(255, 255, 255, 0.04);
+            --border-active: rgba(255, 215, 100, 0.25);
+            --text: #F5F5F7;
+            --text-secondary: #A0A0A8;
+            --text-muted: #606068;
+            --gold: #FFD966;
+            --gold-light: #FFE699;
+            --gold-dim: rgba(255, 217, 102, 0.15);
+            --teal: #00E5FF;
+            --teal-dim: rgba(0, 229, 255, 0.12);
+            --success: #4ADE80;
+            --success-dim: rgba(74, 222, 128, 0.12);
+            --error: #F43F5E;
+            --purple: #A855F7;
+            --radius-sm: 6px;
+            --radius: 10px;
+            --radius-lg: 14px;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        .ambient {
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 100% 60% at 50% -20%, rgba(255, 217, 102, 0.12) 0%, transparent 50%),
+                radial-gradient(ellipse 60% 40% at 100% 0%, rgba(0, 229, 255, 0.06) 0%, transparent 40%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Header */
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(5, 5, 8, 0.9);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--text);
+        }
+        .logo img {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+        }
+        .logo span {
+            font-weight: 700;
+            font-size: 18px;
+            background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .nav {
+            display: flex;
+            gap: 8px;
+        }
+        .nav a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .nav a:hover, .nav a.active {
+            color: var(--text);
+            background: var(--gold-dim);
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .btn {
+            padding: 10px 20px;
+            border-radius: var(--radius);
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
+            color: #000;
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 20px rgba(255, 217, 102, 0.4);
+        }
+        .btn-secondary {
+            background: var(--surface-2);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        .btn-secondary:hover {
+            background: var(--surface-3);
+            border-color: var(--border-active);
+        }
+        .wallet-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .wallet-btn.connected {
+            background: var(--gold-dim);
+            border-color: var(--gold);
+        }
+        .wallet-dropdown {
+            position: relative;
+        }
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            min-width: 200px;
+            display: none;
+            overflow: hidden;
+            z-index: 200;
+        }
+        .dropdown-menu.show {
+            display: block;
+        }
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            color: var(--text);
+            text-decoration: none;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .dropdown-item:hover {
+            background: var(--surface-2);
+        }
+        .dropdown-item.logout {
+            color: var(--error);
+            border-top: 1px solid var(--border);
+        }
+
+        /* Main Content */
+        .main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Back Button */
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            margin-bottom: 20px;
+            transition: color 0.2s;
+        }
+        .back-btn:hover {
+            color: var(--text);
+        }
+
+        /* Profile Header */
+        .profile-header {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-bottom: 32px;
+        }
+        .profile-info {
+            display: flex;
+            gap: 20px;
+        }
+        .avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: var(--surface-2);
+            border: 3px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            overflow: hidden;
+        }
+        .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .profile-details {
+            flex: 1;
+        }
+        .profile-name {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        .profile-name h1 {
+            font-size: 24px;
+            font-weight: 700;
+        }
+        .profile-wallet {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+        .profile-wallet a {
+            color: var(--text-secondary);
+            text-decoration: none;
+        }
+        .profile-wallet a:hover {
+            color: var(--gold);
+        }
+        .copy-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+        }
+        .copy-btn:hover {
+            color: var(--gold);
+        }
+        .profile-stats {
+            display: flex;
+            gap: 24px;
+        }
+        .stat {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text);
+        }
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Created Coins Section */
+        .created-section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+        }
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+        .coin-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .coin-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: var(--surface-2);
+            border-radius: var(--radius);
+            text-decoration: none;
+            color: var(--text);
+            transition: all 0.2s;
+        }
+        .coin-item:hover {
+            background: var(--surface-3);
+            transform: translateX(4px);
+        }
+        .coin-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius);
+            background: var(--surface-3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .coin-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .coin-info {
+            flex: 1;
+        }
+        .coin-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .coin-symbol {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .coin-mcap {
+            text-align: right;
+        }
+        .coin-mcap-value {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--gold);
+        }
+        .coin-mcap-time {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 24px;
+        }
+        .tab {
+            padding: 12px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: none;
+            border: none;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .tab:hover {
+            color: var(--text);
+        }
+        .tab.active {
+            color: var(--gold);
+            border-bottom-color: var(--gold);
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Balances Table */
+        .balances-table {
+            width: 100%;
+        }
+        .balance-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .balance-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: var(--surface-2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .balance-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .balance-info {
+            flex: 1;
+        }
+        .balance-name {
+            font-weight: 600;
+            font-size: 15px;
+        }
+        .balance-amount {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        .balance-value {
+            font-weight: 600;
+            font-size: 15px;
+            text-align: right;
+        }
+
+        /* Followers Grid */
+        .followers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+        }
+        .follower-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            text-decoration: none;
+            color: var(--text);
+            transition: all 0.2s;
+        }
+        .follower-card:hover {
+            background: var(--surface-2);
+            border-color: var(--border-active);
+        }
+        .follower-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: var(--surface-3);
+            overflow: hidden;
+        }
+        .follower-info {
+            flex: 1;
+        }
+        .follower-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .follower-wallet {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Follow Button */
+        .follow-btn {
+            padding: 8px 20px;
+            border-radius: var(--radius);
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: var(--surface-2);
+            color: var(--text);
+            transition: all 0.2s;
+        }
+        .follow-btn:hover {
+            background: var(--gold-dim);
+            border-color: var(--gold);
+        }
+        .follow-btn.following {
+            background: var(--gold);
+            color: #000;
+            border-color: var(--gold);
+        }
+
+        /* Edit Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s;
+        }
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 480px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+        .modal-close:hover {
+            color: var(--text);
+        }
+        .modal-body {
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: var(--gold);
+        }
+        .form-input::placeholder {
+            color: var(--text-muted);
+        }
+        .form-hint {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+        .avatar-upload {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .avatar-preview {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--surface-3);
+            border: 2px solid var(--border);
+            overflow: hidden;
+        }
+        .avatar-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 60px;
+            color: var(--text-muted);
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-size: 14px;
+            z-index: 2000;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+        }
+        .notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        .notification.success {
+            border-color: var(--success);
+            background: var(--success-dim);
+        }
+        .notification.error {
+            border-color: var(--error);
+        }
+
+        @media (max-width: 768px) {
+            .profile-header {
+                grid-template-columns: 1fr;
+            }
+            .header-left {
+                gap: 16px;
+            }
+            .nav {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="ambient"></div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <a href="/" class="logo">
+                <img src="/website/logo-icon.jpg" alt="LAUNCHR">
+                <span>LAUNCHR</span>
+            </a>
+            <nav class="nav">
+                <a href="/">Home</a>
+                <a href="/launchpad">Launchpad</a>
+                <a href="/dashboard">Dashboard</a>
+            </nav>
+        </div>
+        <div class="header-right">
+            <div class="wallet-dropdown">
+                <button class="wallet-btn" id="connectBtn" onclick="showWalletModal()">
+                    Connect Wallet
+                </button>
+                <div class="dropdown-menu" id="walletDropdown">
+                    <a href="#" class="dropdown-item" onclick="viewProfile()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+                        Profile
+                    </a>
+                    <a href="#" class="dropdown-item" onclick="copyAddress()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                        Copy address
+                    </a>
+                    <a href="#" class="dropdown-item logout" onclick="disconnectWallet()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                        Log out
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <a href="javascript:history.back()" class="back-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            Back
+        </a>
+
+        <!-- Profile Header -->
+        <div class="profile-header">
+            <div class="profile-info">
+                <div class="avatar" id="profileAvatar">
+                    <span id="avatarPlaceholder">?</span>
+                </div>
+                <div class="profile-details">
+                    <div class="profile-name">
+                        <h1 id="profileName">Loading...</h1>
+                        <button class="btn btn-secondary" id="editBtn" style="display:none;" onclick="showEditModal()">edit</button>
+                        <button class="follow-btn" id="followBtn" style="display:none;" onclick="toggleFollow()">Follow</button>
+                    </div>
+                    <div class="profile-wallet">
+                        <span id="profileWallet">...</span>
+                        <button class="copy-btn" onclick="copyProfileWallet()" title="Copy address">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                        </button>
+                        <a href="#" id="solscanLink" target="_blank" title="View on Solscan">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        </a>
+                    </div>
+                    <div class="profile-stats">
+                        <div class="stat">
+                            <div class="stat-value" id="followersCount">0</div>
+                            <div class="stat-label">Followers</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value" id="followingCount">0</div>
+                            <div class="stat-label">Following</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value" id="coinsCount">0</div>
+                            <div class="stat-label">Created coins</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="created-section">
+                <div class="section-title">Created coins (<span id="createdCoinsCount">0</span>)</div>
+                <div class="coin-list" id="createdCoinsList">
+                    <div class="loading">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" data-tab="balances">Balances</button>
+            <button class="tab" data-tab="coins">Coins</button>
+            <button class="tab" data-tab="followers">Followers</button>
+            <button class="tab" data-tab="following">Following</button>
+        </div>
+
+        <!-- Tab Contents -->
+        <div class="tab-content active" id="balances-tab">
+            <div class="balances-table" id="balancesTable">
+                <div class="empty-state">
+                    <div class="empty-state-icon">-</div>
+                    <p>Connect wallet to view balances</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-content" id="coins-tab">
+            <div class="coin-list" id="coinsList">
+                <div class="empty-state">
+                    <div class="empty-state-icon">-</div>
+                    <p>No coins held</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-content" id="followers-tab">
+            <div class="followers-grid" id="followersList">
+                <div class="loading">Loading followers...</div>
+            </div>
+        </div>
+
+        <div class="tab-content" id="following-tab">
+            <div class="followers-grid" id="followingList">
+                <div class="loading">Loading following...</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Edit Profile Modal -->
+    <div class="modal-overlay" id="editModal">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">Edit Profile</span>
+                <button class="modal-close" onclick="hideEditModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Avatar URL</label>
+                    <div class="avatar-upload">
+                        <div class="avatar-preview" id="avatarPreview"></div>
+                        <input type="text" class="form-input" id="avatarInput" placeholder="https://...">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <input type="text" class="form-input" id="usernameInput" placeholder="Choose a username">
+                    <div class="form-hint" id="usernameHint">3-20 characters, letters, numbers, underscores only</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Display Name</label>
+                    <input type="text" class="form-input" id="displayNameInput" placeholder="Your display name">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Bio</label>
+                    <textarea class="form-input" id="bioInput" rows="3" placeholder="Tell us about yourself"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Twitter</label>
+                    <input type="text" class="form-input" id="twitterInput" placeholder="@username">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Website</label>
+                    <input type="text" class="form-input" id="websiteInput" placeholder="https://...">
+                </div>
+                <button class="btn btn-primary" style="width:100%" onclick="saveProfile()">Save Profile</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div class="notification" id="notification"></div>
+
+    <script>
+        const API_BASE = '';
+        const SOLANA_RPC = 'https://api.mainnet-beta.solana.com';
+
+        let connectedWallet = null;
+        let profileWallet = null;
+        let profileData = null;
+        let isOwnProfile = false;
+        let isFollowingProfile = false;
+
+        // Get wallet from URL or default to connected wallet
+        function getProfileWallet() {
+            const path = window.location.pathname;
+            const match = path.match(/\/profile\/([a-zA-Z0-9]+)/);
+            return match ? match[1] : null;
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Security: Don't auto-reconnect
+            localStorage.removeItem('connectedWallet');
+
+            profileWallet = getProfileWallet();
+            if (!profileWallet) {
+                showNotification('No profile specified', 'error');
+                return;
+            }
+
+            await loadProfile();
+            setupTabs();
+        });
+
+        // Load profile data
+        async function loadProfile() {
+            try {
+                const res = await fetch(`${API_BASE}/api/profile/${profileWallet}`);
+                const data = await res.json();
+
+                if (!res.ok) {
+                    showNotification(data.error || 'Profile not found', 'error');
+                    return;
+                }
+
+                profileData = data;
+                renderProfile(data);
+            } catch (e) {
+                console.error('Error loading profile:', e);
+                showNotification('Failed to load profile', 'error');
+            }
+        }
+
+        // Render profile data
+        function renderProfile(data) {
+            const { profile, tokens, createdCoins } = data;
+
+            // Avatar
+            const avatar = document.getElementById('profileAvatar');
+            const placeholder = document.getElementById('avatarPlaceholder');
+            if (profile.avatar) {
+                avatar.innerHTML = `<img src="${profile.avatar}" alt="Avatar">`;
+            } else {
+                placeholder.textContent = (profile.username || profile.wallet.slice(0, 2)).toUpperCase().slice(0, 2);
+            }
+
+            // Name
+            document.getElementById('profileName').textContent = profile.displayName || profile.username || profile.wallet.slice(0, 8) + '...';
+
+            // Wallet
+            const shortWallet = profile.wallet.slice(0, 4) + '...' + profile.wallet.slice(-4);
+            document.getElementById('profileWallet').textContent = shortWallet;
+            document.getElementById('solscanLink').href = `https://solscan.io/account/${profile.wallet}`;
+
+            // Stats
+            document.getElementById('followersCount').textContent = profile.followers || 0;
+            document.getElementById('followingCount').textContent = profile.following || 0;
+            document.getElementById('coinsCount').textContent = createdCoins || 0;
+            document.getElementById('createdCoinsCount').textContent = createdCoins || 0;
+
+            // Created coins
+            const coinsList = document.getElementById('createdCoinsList');
+            if (tokens && tokens.length > 0) {
+                coinsList.innerHTML = tokens.map(t => `
+                    <a href="/token/${t.mint}" class="coin-item">
+                        <div class="coin-icon">
+                            ${t.image ? `<img src="${t.image}" alt="${t.name}">` : t.symbol?.slice(0, 2) || '?'}
+                        </div>
+                        <div class="coin-info">
+                            <div class="coin-name">${t.name || 'Unknown'}</div>
+                            <div class="coin-symbol">${t.symbol || 'TOKEN'}</div>
+                        </div>
+                        <div class="coin-mcap">
+                            <div class="coin-mcap-value">$${formatNumber(t.mcap || 0)}</div>
+                            <div class="coin-mcap-time">${formatTimeAgo(t.createdAt)}</div>
+                        </div>
+                    </a>
+                `).join('');
+            } else {
+                coinsList.innerHTML = '<div class="empty-state"><p>No coins created yet</p></div>';
+            }
+
+            // Update follow button state
+            updateFollowButton();
+
+            // Load followers/following tabs
+            loadFollowers();
+            loadFollowing();
+        }
+
+        // Check if own profile
+        function checkOwnProfile() {
+            isOwnProfile = connectedWallet && connectedWallet === profileWallet;
+
+            if (isOwnProfile) {
+                document.getElementById('editBtn').style.display = 'inline-flex';
+                document.getElementById('followBtn').style.display = 'none';
+            } else if (connectedWallet) {
+                document.getElementById('editBtn').style.display = 'none';
+                document.getElementById('followBtn').style.display = 'inline-flex';
+                checkIfFollowing();
+            }
+        }
+
+        // Check if following this profile
+        async function checkIfFollowing() {
+            if (!connectedWallet || !profileWallet) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/is-following?follower=${connectedWallet}&following=${profileWallet}`);
+                const data = await res.json();
+                isFollowingProfile = data.isFollowing;
+                updateFollowButton();
+            } catch (e) {
+                console.error('Error checking follow status:', e);
+            }
+        }
+
+        // Update follow button state
+        function updateFollowButton() {
+            const btn = document.getElementById('followBtn');
+            if (isFollowingProfile) {
+                btn.textContent = 'Following';
+                btn.classList.add('following');
+            } else {
+                btn.textContent = 'Follow';
+                btn.classList.remove('following');
+            }
+        }
+
+        // Toggle follow
+        async function toggleFollow() {
+            if (!connectedWallet) {
+                showWalletModal();
+                return;
+            }
+
+            try {
+                const endpoint = isFollowingProfile ? '/api/unfollow' : '/api/follow';
+                const res = await fetch(`${API_BASE}${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        follower: connectedWallet,
+                        following: profileWallet
+                    })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    isFollowingProfile = !isFollowingProfile;
+                    updateFollowButton();
+
+                    // Update follower count
+                    const count = parseInt(document.getElementById('followersCount').textContent);
+                    document.getElementById('followersCount').textContent = isFollowingProfile ? count + 1 : count - 1;
+
+                    showNotification(isFollowingProfile ? 'Followed!' : 'Unfollowed', 'success');
+                } else {
+                    showNotification(data.error || 'Action failed', 'error');
+                }
+            } catch (e) {
+                console.error('Error toggling follow:', e);
+                showNotification('Failed to update', 'error');
+            }
+        }
+
+        // Load followers
+        async function loadFollowers() {
+            try {
+                const res = await fetch(`${API_BASE}/api/profile/${profileWallet}/followers`);
+                const data = await res.json();
+
+                const list = document.getElementById('followersList');
+                if (data.followers && data.followers.length > 0) {
+                    list.innerHTML = data.followers.map(f => `
+                        <a href="/profile/${f.wallet}" class="follower-card">
+                            <div class="follower-avatar">
+                                ${f.avatar ? `<img src="${f.avatar}" alt="">` : ''}
+                            </div>
+                            <div class="follower-info">
+                                <div class="follower-name">${f.displayName || f.username || 'Anonymous'}</div>
+                                <div class="follower-wallet">${f.wallet.slice(0, 4)}...${f.wallet.slice(-4)}</div>
+                            </div>
+                        </a>
+                    `).join('');
+                } else {
+                    list.innerHTML = '<div class="empty-state"><p>No followers yet</p></div>';
+                }
+            } catch (e) {
+                console.error('Error loading followers:', e);
+            }
+        }
+
+        // Load following
+        async function loadFollowing() {
+            try {
+                const res = await fetch(`${API_BASE}/api/profile/${profileWallet}/following`);
+                const data = await res.json();
+
+                const list = document.getElementById('followingList');
+                if (data.following && data.following.length > 0) {
+                    list.innerHTML = data.following.map(f => `
+                        <a href="/profile/${f.wallet}" class="follower-card">
+                            <div class="follower-avatar">
+                                ${f.avatar ? `<img src="${f.avatar}" alt="">` : ''}
+                            </div>
+                            <div class="follower-info">
+                                <div class="follower-name">${f.displayName || f.username || 'Anonymous'}</div>
+                                <div class="follower-wallet">${f.wallet.slice(0, 4)}...${f.wallet.slice(-4)}</div>
+                            </div>
+                        </a>
+                    `).join('');
+                } else {
+                    list.innerHTML = '<div class="empty-state"><p>Not following anyone</p></div>';
+                }
+            } catch (e) {
+                console.error('Error loading following:', e);
+            }
+        }
+
+        // Setup tabs
+        function setupTabs() {
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+                    tab.classList.add('active');
+                    document.getElementById(tab.dataset.tab + '-tab').classList.add('active');
+                });
+            });
+        }
+
+        // Show edit modal
+        function showEditModal() {
+            if (!profileData) return;
+
+            const { profile } = profileData;
+            document.getElementById('avatarInput').value = profile.avatar || '';
+            document.getElementById('usernameInput').value = profile.username || '';
+            document.getElementById('displayNameInput').value = profile.displayName || '';
+            document.getElementById('bioInput').value = profile.bio || '';
+            document.getElementById('twitterInput').value = profile.twitter || '';
+            document.getElementById('websiteInput').value = profile.website || '';
+
+            document.getElementById('editModal').classList.add('show');
+        }
+
+        function hideEditModal() {
+            document.getElementById('editModal').classList.remove('show');
+        }
+
+        // Save profile
+        async function saveProfile() {
+            if (!connectedWallet) return;
+
+            const data = {
+                wallet: connectedWallet,
+                avatar: document.getElementById('avatarInput').value.trim(),
+                username: document.getElementById('usernameInput').value.trim(),
+                displayName: document.getElementById('displayNameInput').value.trim(),
+                bio: document.getElementById('bioInput').value.trim(),
+                twitter: document.getElementById('twitterInput').value.trim(),
+                website: document.getElementById('websiteInput').value.trim()
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/api/profile`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await res.json();
+                if (res.ok) {
+                    showNotification('Profile saved!', 'success');
+                    hideEditModal();
+                    loadProfile();
+                } else {
+                    showNotification(result.error || 'Failed to save', 'error');
+                }
+            } catch (e) {
+                console.error('Error saving profile:', e);
+                showNotification('Failed to save profile', 'error');
+            }
+        }
+
+        // Wallet functions
+        function showWalletModal() {
+            const hasPhantom = window.solana?.isPhantom;
+            const hasSolflare = window.solflare?.isSolflare;
+
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay show';
+            modal.id = 'walletModal';
+            modal.onclick = (e) => { if(e.target === modal) modal.remove(); };
+            modal.innerHTML = `
+                <div class="modal" style="max-width:380px;">
+                    <div class="modal-header">
+                        <span class="modal-title">Connect Wallet</span>
+                        <button class="modal-close" onclick="document.getElementById('walletModal').remove()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px;text-align:center;">
+                            Choose your wallet to connect
+                        </p>
+                        <div style="display:flex;flex-direction:column;gap:10px;">
+                            <button class="btn btn-secondary" style="width:100%;justify-content:flex-start;gap:12px;display:flex;align-items:center;"
+                                onclick="${hasPhantom ? 'connectPhantom()' : ''}" ${hasPhantom ? '' : 'disabled'}>
+                                <img src="/website/phantom_icon.png" alt="Phantom" style="width:24px;height:24px;border-radius:6px;">
+                                <span>Phantom</span>
+                                <span style="margin-left:auto;font-size:11px;color:${hasPhantom ? 'var(--success)' : 'var(--text-muted)'};">
+                                    ${hasPhantom ? 'Detected' : 'Not installed'}
+                                </span>
+                            </button>
+                            <button class="btn btn-secondary" style="width:100%;justify-content:flex-start;gap:12px;display:flex;align-items:center;"
+                                onclick="${hasSolflare ? 'connectSolflare()' : ''}" ${hasSolflare ? '' : 'disabled'}>
+                                <img src="https://solflare.com/favicon.ico" alt="Solflare" style="width:24px;height:24px;border-radius:6px;">
+                                <span>Solflare</span>
+                                <span style="margin-left:auto;font-size:11px;color:${hasSolflare ? 'var(--success)' : 'var(--text-muted)'};">
+                                    ${hasSolflare ? 'Detected' : 'Not installed'}
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        async function connectPhantom() {
+            document.getElementById('walletModal')?.remove();
+            try {
+                const res = await window.solana.connect();
+                handleWalletConnected(res.publicKey.toString());
+            } catch (e) {
+                console.error('[PHANTOM]', e);
+                showNotification('Failed to connect Phantom', 'error');
+            }
+        }
+
+        async function connectSolflare() {
+            document.getElementById('walletModal')?.remove();
+            try {
+                await window.solflare.connect();
+                handleWalletConnected(window.solflare.publicKey.toString());
+            } catch (e) {
+                console.error('[SOLFLARE]', e);
+                showNotification('Failed to connect Solflare', 'error');
+            }
+        }
+
+        function handleWalletConnected(address) {
+            connectedWallet = address;
+            const btn = document.getElementById('connectBtn');
+            btn.textContent = address.slice(0, 4) + '...' + address.slice(-4);
+            btn.classList.add('connected');
+            btn.onclick = toggleWalletDropdown;
+
+            checkOwnProfile();
+        }
+
+        function toggleWalletDropdown() {
+            const dropdown = document.getElementById('walletDropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        function viewProfile() {
+            if (connectedWallet) {
+                window.location.href = `/profile/${connectedWallet}`;
+            }
+        }
+
+        function copyAddress() {
+            if (connectedWallet) {
+                navigator.clipboard.writeText(connectedWallet);
+                showNotification('Address copied!', 'success');
+            }
+            document.getElementById('walletDropdown').classList.remove('show');
+        }
+
+        function copyProfileWallet() {
+            if (profileWallet) {
+                navigator.clipboard.writeText(profileWallet);
+                showNotification('Address copied!', 'success');
+            }
+        }
+
+        function disconnectWallet() {
+            connectedWallet = null;
+            const btn = document.getElementById('connectBtn');
+            btn.textContent = 'Connect Wallet';
+            btn.classList.remove('connected');
+            btn.onclick = showWalletModal;
+            document.getElementById('walletDropdown').classList.remove('show');
+            document.getElementById('editBtn').style.display = 'none';
+            document.getElementById('followBtn').style.display = 'none';
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.wallet-dropdown')) {
+                document.getElementById('walletDropdown').classList.remove('show');
+            }
+        });
+
+        // Utility functions
+        function formatNumber(num) {
+            if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toFixed(2);
+        }
+
+        function formatTimeAgo(timestamp) {
+            if (!timestamp) return '';
+            const seconds = Math.floor((Date.now() - timestamp) / 1000);
+            if (seconds < 60) return 'just now';
+            if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
+            if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
+            return Math.floor(seconds / 86400) + 'd ago';
+        }
+
+        function showNotification(message, type = 'info') {
+            const notif = document.getElementById('notification');
+            notif.textContent = message;
+            notif.className = 'notification show ' + type;
+            setTimeout(() => notif.classList.remove('show'), 3000);
+        }
+    </script>
+</body>
+</html>
