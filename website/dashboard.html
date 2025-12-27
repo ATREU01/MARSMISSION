@@ -2350,7 +2350,6 @@
         // ═══════════════════════════════════════════════════════════════════════
         const SOLANA_RPC = window.LAUNCHR_CONFIG?.SOLANA_RPC || 'https://api.mainnet-beta.solana.com';
         const PRIVY_APP_ID = window.LAUNCHR_CONFIG?.PRIVY_APP_ID || '';
-        const PRIVY_CLIENT_ID = window.LAUNCHR_CONFIG?.PRIVY_CLIENT_ID || '';
         const FEE_WALLET = window.LAUNCHR_CONFIG?.FEE_WALLET || '';
 
         let privyClient = null;
@@ -2413,44 +2412,66 @@
 
             try {
                 // Dynamic import of Privy SDK from esm.sh
-                const { default: Privy, LocalStorage } = await import('https://esm.sh/@privy-io/js-sdk-core@0.58.5');
+                console.log('[PRIVY] Loading SDK from esm.sh...');
+                const privyModule = await import('https://esm.sh/@privy-io/js-sdk-core@0.58.5');
+                console.log('[PRIVY] Module loaded, exports:', Object.keys(privyModule));
 
-                // Initialize Privy client (appId only required)
-                privyClient = new Privy({
+                // Get the Privy constructor - try named export first, then default
+                const PrivyClass = privyModule.Privy || privyModule.PrivyClient || privyModule.default;
+
+                if (!PrivyClass) {
+                    console.error('[PRIVY] Could not find Privy class in module. Available exports:', Object.keys(privyModule));
+                    return;
+                }
+
+                // Custom storage adapter using localStorage
+                const storage = {
+                    get: (key) => localStorage.getItem(key),
+                    put: (key, value) => localStorage.setItem(key, value),
+                    del: (key) => localStorage.removeItem(key),
+                    getKeys: () => Object.keys(localStorage),
+                };
+
+                // Initialize Privy client
+                console.log('[PRIVY] Initializing with appId:', PRIVY_APP_ID.substring(0, 8) + '...');
+                privyClient = new PrivyClass({
                     appId: PRIVY_APP_ID,
-                    storage: new LocalStorage()
+                    storage: storage
                 });
 
-                // Set up iframe for embedded wallet secure context
-                const iframeUrl = privyClient.embeddedWallet.getURL();
-                privyIframe = document.createElement('iframe');
-                privyIframe.src = iframeUrl;
-                privyIframe.style.cssText = 'display:none;position:absolute;width:0;height:0;border:none;';
-                privyIframe.id = 'privy-iframe';
-                document.body.appendChild(privyIframe);
+                // Check if embeddedWallet is available
+                if (privyClient.embeddedWallet && typeof privyClient.embeddedWallet.getURL === 'function') {
+                    // Set up iframe for embedded wallet secure context
+                    const iframeUrl = privyClient.embeddedWallet.getURL();
+                    privyIframe = document.createElement('iframe');
+                    privyIframe.src = iframeUrl;
+                    privyIframe.style.cssText = 'display:none;position:absolute;width:0;height:0;border:none;';
+                    privyIframe.id = 'privy-iframe';
+                    document.body.appendChild(privyIframe);
 
-                // Set up message posting for iframe communication
-                privyClient.setMessagePoster(privyIframe.contentWindow);
-                window.addEventListener('message', (e) => {
-                    if (e.source === privyIframe.contentWindow) {
-                        privyClient.embeddedWallet.onMessage(e.data);
-                    }
-                });
+                    // Wait for iframe to load before setting up message poster
+                    privyIframe.onload = () => {
+                        if (privyClient.setMessagePoster) {
+                            privyClient.setMessagePoster(privyIframe.contentWindow);
+                        }
+                        console.log('[PRIVY] Iframe loaded and message poster set');
+                    };
 
-                // Check if user is already authenticated
-                const session = await privyClient.auth.getSession();
-                if (session?.user) {
-                    privyUser = session.user;
-                    const solanaWallet = session.user.linkedAccounts?.find(a => a.type === 'wallet' && a.chainType === 'solana');
-                    if (solanaWallet?.address) {
-                        handleWalletConnected(solanaWallet.address);
-                    }
+                    // Set up message listener for iframe communication
+                    window.addEventListener('message', (e) => {
+                        if (privyIframe && e.source === privyIframe.contentWindow) {
+                            if (privyClient.embeddedWallet?.onMessage) {
+                                privyClient.embeddedWallet.onMessage(e.data);
+                            }
+                        }
+                    });
+                } else {
+                    console.log('[PRIVY] Embedded wallet not available, using standard auth');
                 }
 
                 console.log('[PRIVY] Initialized successfully');
             } catch (e) {
-                console.error('[PRIVY] Init error:', e);
-                // Privy failed to load - disable Privy button will be handled in showWalletSelectModal
+                console.error('[PRIVY] Init error:', e.message, e);
             }
         }
 
@@ -2462,7 +2483,7 @@
         function showWalletSelectModal() {
             const hasPhantom = window.solana?.isPhantom;
             const hasSolflare = window.solflare?.isSolflare;
-            const hasPrivy = !!privyClient;
+            const hasPrivy = !!PRIVY_APP_ID;
 
             const modal = document.createElement('div');
             modal.className = 'modal-overlay';
@@ -2479,13 +2500,13 @@
                             Choose your preferred wallet to connect
                         </p>
                         <div style="display:flex;flex-direction:column;gap:10px;">
-                            <button class="wallet-option privy-option ${hasPrivy ? '' : 'disabled'}" onclick="${hasPrivy ? 'connectPrivy()' : ''}" ${hasPrivy ? '' : 'disabled'}>
+                            <button class="wallet-option privy-option" onclick="connectPrivy()">
                                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <rect width="24" height="24" rx="6" fill="#8B5CF6"/>
                                     <path d="M12 6L18 10V14L12 18L6 14V10L12 6Z" fill="white"/>
                                 </svg>
                                 <span>Privy</span>
-                                ${hasPrivy ? '<span class="wallet-detected">Email Wallet</span>' : '<span class="wallet-not-detected">Not configured</span>'}
+                                <span class="wallet-detected">Email Wallet</span>
                             </button>
                             <button class="wallet-option ${hasPhantom ? '' : 'disabled'}" onclick="${hasPhantom ? 'connectPhantom()' : ''}" ${hasPhantom ? '' : 'disabled'}>
                                 <img src="/website/phantom_icon.png" alt="Phantom" style="width:28px;height:28px;border-radius:6px;">
@@ -2498,11 +2519,6 @@
                                 ${hasSolflare ? '<span class="wallet-detected">Detected</span>' : '<span class="wallet-not-detected">Not installed</span>'}
                             </button>
                         </div>
-                        ${!hasPhantom && !hasSolflare && !hasPrivy ? `
-                        <div style="margin-top:20px;padding:14px;background:var(--surface-2);border-radius:var(--radius);text-align:center;">
-                            <p style="color:var(--text-secondary);font-size:12px;">No wallet available. Install <a href="https://phantom.app" target="_blank" style="color:var(--gold);">Phantom</a> or contact support to enable Privy.</p>
-                        </div>
-                        ` : ''}
                     </div>
                 </div>
             `;
@@ -2551,7 +2567,7 @@
             document.getElementById('walletSelectModal')?.remove();
 
             if (!privyClient) {
-                showNotification('Privy not initialized. Check PRIVY_APP_ID and PRIVY_CLIENT_ID configuration.', 'error');
+                showNotification('Privy not initialized. Please check browser console for details.', 'error');
                 return;
             }
 
