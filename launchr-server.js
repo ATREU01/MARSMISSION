@@ -383,642 +383,271 @@ function getTermsHTML() {
 </html>`;
 }
 
-// Product Roadmap Page - Premium Big 5 Style
+// Product Roadmap Page - Clean and Accurate
 function getRoadmapHTML() {
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Product Roadmap - LAUNCHR</title>
+    <title>Roadmap - LAUNCHR</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
         :root {
-            --accent: #10b981;
-            --accent-glow: rgba(16, 185, 129, 0.15);
-            --bg-dark: #0a0a0a;
-            --bg-card: #0f0f0f;
-            --border: rgba(255,255,255,0.06);
-            --text-primary: #ffffff;
-            --text-secondary: rgba(255,255,255,0.7);
+            --gold: #FFD700;
+            --gold-dim: rgba(255, 215, 0, 0.1);
+            --bg: #050508;
+            --bg-card: #0A0A0F;
+            --border: rgba(255, 215, 0, 0.1);
+            --text: #F5F5F7;
+            --text-secondary: rgba(255,255,255,0.6);
             --text-muted: rgba(255,255,255,0.4);
         }
-
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--bg-dark);
-            color: var(--text-primary);
-            line-height: 1.7;
-            overflow-x: hidden;
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
         }
-
-        /* Hero Section */
-        .hero {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
             padding: 60px 24px;
-            position: relative;
-            background:
-                radial-gradient(ellipse 80% 50% at 50% -20%, rgba(16, 185, 129, 0.08), transparent),
-                radial-gradient(ellipse 60% 40% at 80% 60%, rgba(16, 185, 129, 0.03), transparent),
-                var(--bg-dark);
         }
-
-        .hero::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, var(--accent), transparent);
-            opacity: 0.3;
-        }
-
-        .badge {
+        .back-link {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            background: var(--accent-glow);
-            border: 1px solid rgba(16, 185, 129, 0.2);
-            border-radius: 100px;
-            padding: 8px 20px;
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--accent);
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 14px;
             margin-bottom: 40px;
+            transition: color 0.2s;
         }
-
-        .badge::before {
-            content: '';
-            width: 6px;
-            height: 6px;
-            background: var(--accent);
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
-        }
-
-        .hero h1 {
-            font-size: clamp(48px, 8vw, 96px);
-            font-weight: 800;
-            letter-spacing: -3px;
-            line-height: 1;
-            margin-bottom: 32px;
-            background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .hero h1 span {
-            background: linear-gradient(135deg, var(--accent) 0%, #34d399 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-        }
-
-        .hero-subtitle {
-            font-size: clamp(18px, 2.5vw, 24px);
-            font-weight: 300;
-            color: var(--text-secondary);
-            max-width: 700px;
-            margin-bottom: 60px;
-        }
-
-        /* Stats Bar */
-        .stats-bar {
-            display: flex;
-            gap: 60px;
-            padding: 40px 0;
-            border-top: 1px solid var(--border);
-            border-bottom: 1px solid var(--border);
-            margin-top: 40px;
-        }
-
-        .stat {
-            text-align: center;
-        }
-
-        .stat-value {
-            font-size: 42px;
+        .back-link:hover { color: var(--gold); }
+        .back-link svg { width: 16px; height: 16px; }
+        h1 {
+            font-size: 48px;
             font-weight: 700;
-            color: var(--accent);
+            margin-bottom: 16px;
             letter-spacing: -1px;
         }
-
-        .stat-label {
+        h1 span { color: var(--gold); }
+        .subtitle {
+            font-size: 18px;
+            color: var(--text-secondary);
+            margin-bottom: 60px;
+            max-width: 600px;
+        }
+        .section {
+            margin-bottom: 60px;
+        }
+        .section-title {
             font-size: 12px;
             text-transform: uppercase;
             letter-spacing: 2px;
-            color: var(--text-muted);
-            margin-top: 8px;
-        }
-
-        /* Purpose Section */
-        .purpose {
-            padding: 120px 24px;
-            max-width: 900px;
-            margin: 0 auto;
-        }
-
-        .purpose-label {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            color: var(--accent);
+            color: var(--gold);
             margin-bottom: 24px;
         }
-
-        .purpose h2 {
-            font-size: clamp(28px, 4vw, 44px);
-            font-weight: 600;
-            line-height: 1.3;
-            margin-bottom: 32px;
-            letter-spacing: -1px;
-        }
-
-        .purpose p {
-            font-size: 18px;
-            color: var(--text-secondary);
-            font-weight: 300;
-        }
-
-        /* Phases Section */
-        .phases {
-            padding: 80px 24px 120px;
-            background: linear-gradient(180deg, transparent 0%, rgba(16, 185, 129, 0.02) 100%);
-        }
-
-        .phases-header {
-            text-align: center;
-            max-width: 600px;
-            margin: 0 auto 80px;
-        }
-
-        .phases-header h2 {
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            color: var(--text-muted);
-            margin-bottom: 16px;
-        }
-
-        .phases-header h3 {
-            font-size: clamp(32px, 5vw, 48px);
-            font-weight: 700;
-            letter-spacing: -1.5px;
-        }
-
-        .phases-grid {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: grid;
-            gap: 24px;
-        }
-
-        .phase-card {
+        .card {
             background: var(--bg-card);
             border: 1px solid var(--border);
-            border-radius: 24px;
-            padding: 48px;
-            display: grid;
-            grid-template-columns: 120px 1fr;
-            gap: 48px;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .phase-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, var(--accent), transparent);
-            opacity: 0;
-            transition: opacity 0.4s;
-        }
-
-        .phase-card:hover {
-            border-color: rgba(16, 185, 129, 0.2);
-            transform: translateY(-4px);
-            box-shadow: 0 24px 48px rgba(0,0,0,0.4);
-        }
-
-        .phase-card:hover::before {
-            opacity: 0.5;
-        }
-
-        .phase-number {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 16px;
-        }
-
-        .phase-num {
-            width: 72px;
-            height: 72px;
-            border-radius: 20px;
-            background: linear-gradient(135deg, var(--accent-glow), transparent);
-            border: 1px solid rgba(16, 185, 129, 0.2);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-            font-weight: 700;
-            color: var(--accent);
-        }
-
-        .phase-line {
-            width: 2px;
-            flex: 1;
-            background: linear-gradient(180deg, var(--accent), transparent);
-            opacity: 0.3;
-        }
-
-        .phase-content h4 {
-            font-size: 28px;
-            font-weight: 600;
+            border-radius: 16px;
+            padding: 32px;
             margin-bottom: 16px;
-            letter-spacing: -0.5px;
         }
-
-        .phase-content > p {
-            font-size: 16px;
-            color: var(--text-secondary);
-            margin-bottom: 32px;
-            font-weight: 300;
-        }
-
-        .deliverables {
-            display: grid;
+        .card h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
             gap: 12px;
         }
-
-        .deliverable {
+        .card p {
+            color: var(--text-secondary);
+            font-size: 15px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 100px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .badge-live {
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+        }
+        .badge-next {
+            background: var(--gold-dim);
+            color: var(--gold);
+        }
+        .badge-planned {
+            background: rgba(255,255,255,0.05);
+            color: var(--text-muted);
+        }
+        .features {
+            margin-top: 20px;
+            display: grid;
+            gap: 8px;
+        }
+        .feature {
             display: flex;
-            align-items: flex-start;
-            gap: 16px;
-            padding: 16px 20px;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
             background: rgba(255,255,255,0.02);
-            border-radius: 12px;
-            border: 1px solid transparent;
-            transition: all 0.3s;
+            border-radius: 8px;
+            font-size: 14px;
+            color: var(--text-secondary);
         }
-
-        .deliverable:hover {
-            background: rgba(16, 185, 129, 0.05);
-            border-color: rgba(16, 185, 129, 0.1);
-        }
-
-        .deliverable-icon {
-            width: 24px;
-            height: 24px;
-            border-radius: 6px;
-            background: var(--accent-glow);
+        .feature-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            background: var(--gold-dim);
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            margin-top: 2px;
         }
-
-        .deliverable-icon svg {
-            width: 14px;
-            height: 14px;
-            stroke: var(--accent);
+        .feature-icon svg {
+            width: 12px;
+            height: 12px;
+            stroke: var(--gold);
         }
-
-        .deliverable span {
-            font-size: 15px;
-            color: var(--text-secondary);
-            line-height: 1.5;
-        }
-
-        /* Footer */
-        .roadmap-footer {
-            padding: 80px 24px;
+        .cta {
             text-align: center;
+            padding: 60px 0;
             border-top: 1px solid var(--border);
         }
-
-        .footer-cta {
-            font-size: clamp(24px, 4vw, 36px);
-            font-weight: 600;
-            margin-bottom: 40px;
-            letter-spacing: -1px;
+        .cta h2 {
+            font-size: 28px;
+            margin-bottom: 24px;
         }
-
-        .footer-cta span {
-            color: var(--accent);
-        }
-
-        .back-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 12px;
-            padding: 16px 32px;
-            background: var(--accent);
+        .btn {
+            display: inline-block;
+            padding: 14px 28px;
+            background: var(--gold);
             color: #000;
             font-weight: 600;
             font-size: 15px;
-            border-radius: 12px;
+            border-radius: 10px;
             text-decoration: none;
-            transition: all 0.3s;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
-
-        .back-btn:hover {
+        .btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 12px 24px rgba(16, 185, 129, 0.3);
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .stats-bar {
-                flex-direction: column;
-                gap: 32px;
-            }
-
-            .phase-card {
-                grid-template-columns: 1fr;
-                gap: 24px;
-                padding: 32px;
-            }
-
-            .phase-number {
-                flex-direction: row;
-            }
-
-            .phase-line {
-                display: none;
-            }
+            box-shadow: 0 8px 24px rgba(255, 215, 0, 0.25);
         }
     </style>
 </head>
 <body>
-    <section class="hero">
-        <div class="badge">Product Roadmap 2025</div>
-        <h1>Building the Future<br>of <span>Token Launches</span></h1>
-        <p class="hero-subtitle">
-            Neutral, programmable infrastructure that adapts liquidity strategy
-            across every stage of a token's lifecycle.
-        </p>
-
-        <div class="stats-bar">
-            <div class="stat">
-                <div class="stat-value">$1.5M+</div>
-                <div class="stat-label">Trading Volume</div>
-            </div>
-            <div class="stat">
-                <div class="stat-value">6</div>
-                <div class="stat-label">Phases Planned</div>
-            </div>
-            <div class="stat">
-                <div class="stat-value">∞</div>
-                <div class="stat-label">Possibilities</div>
-            </div>
-        </div>
-    </section>
-
-    <section class="purpose">
-        <div class="purpose-label">Our Vision</div>
-        <h2>We're not forcing a single launch path. We're giving creators the tools to adapt.</h2>
-        <p>
-            This roadmap outlines how Launchr will support all major launchpads alongside our own
-            native launchpad, with continuous upgrades to our Telegram tooling and programmable
-            fee infrastructure.
-        </p>
-    </section>
-
-    <section class="phases">
-        <div class="phases-header">
-            <h2>The Journey</h2>
-            <h3>Six Phases to Transform Token Launches</h3>
-        </div>
-
-        <div class="phases-grid">
-            <!-- Phase 1 -->
-            <div class="phase-card">
-                <div class="phase-number">
-                    <div class="phase-num">01</div>
-                    <div class="phase-line"></div>
-                </div>
-                <div class="phase-content">
-                    <h4>Foundation & Core Engine</h4>
-                    <p>Launch the core programmable creator fee engine that powers everything.</p>
-                    <div class="deliverables">
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
-                            <span>Deploy adjustable creator fee routing in real time</span>
-                        </div>
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
-                            <span>Enable dynamic allocation across LP, buybacks, burns, market making, and creator revenue</span>
-                        </div>
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
-                            <span>Allow instant reweighting, pausing, and restarting of strategies</span>
-                        </div>
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
-                            <span>Release creator dashboards for live fee management</span>
-                        </div>
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
-                            <span>Harden contracts for security, transparency, and future upgrades</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Phase 2 -->
-            <div class="phase-card">
-                <div class="phase-number">
-                    <div class="phase-num">02</div>
-                    <div class="phase-line"></div>
-                </div>
-                <div class="phase-content">
-                    <h4>Multi-Launchpad Support</h4>
-                    <p>Position Launchr as neutral infrastructure usable across the entire ecosystem.</p>
-                    <div class="deliverables">
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg></div>
-                            <span>Integrate Launchr with all major existing launchpads</span>
-                        </div>
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg></div>
-                            <span>Allow creators to use Launchr mechanics regardless of launch venue</span>
-                        </div>
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg></div>
-                            <span>Standardize fee routing behavior across platforms</span>
-                        </div>
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg></div>
-                            <span>Ensure creators are never locked into a single distribution path</span>
-                        </div>
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg></div>
-                            <span>Establish Launchr as the programmable layer beneath launches, not a gatekeeper</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Phase 3 -->
-            <div class="phase-card">
-                <div class="phase-number">
-                    <div class="phase-num">03</div>
-                    <div class="phase-line"></div>
-                </div>
-                <div class="phase-content">
-                    <h4>Launchr Native Launchpad</h4>
-                    <p>Release the custom-built Launchr launchpad with native integration.</p>
-                    <div class="deliverables">
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
-                            <span>Native integration with the Launchr fee engine</span>
-                        </div>
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
-                            <span>Advanced defaults designed for early-stage liquidity survival</span>
-                        </div>
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
-                            <span>Strategy presets based on market cap and liquidity depth</span>
-                        </div>
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
-                            <span>Optional guardrails for new launches without removing creator control</span>
-                        </div>
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
-                            <span>Full compatibility with external Launchr-enabled launchpads</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Phase 4 -->
-            <div class="phase-card">
-                <div class="phase-number">
-                    <div class="phase-num">04</div>
-                    <div class="phase-line"></div>
-                </div>
-                <div class="phase-content">
-                    <h4>Telegram Bot Expansion</h4>
-                    <p>Continuously evolve Launchr's Telegram bot as a primary control surface.</p>
-                    <div class="deliverables">
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
-                            <span>Launch and manage tokens directly from Telegram</span>
-                        </div>
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
-                            <span>Modify fee strategies in real time via bot commands</span>
-                        </div>
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
-                            <span>View liquidity depth, volume, and routing status</span>
-                        </div>
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
-                            <span>Push alerts for strategy-relevant market changes</span>
-                        </div>
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
-                            <span>Granular permissions for creators, teams, and communities</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Phase 5 -->
-            <div class="phase-card">
-                <div class="phase-number">
-                    <div class="phase-num">05</div>
-                    <div class="phase-line"></div>
-                </div>
-                <div class="phase-content">
-                    <h4>Automation & Strategy Layers</h4>
-                    <p>Introduce optional automation without removing manual control.</p>
-                    <div class="deliverables">
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg></div>
-                            <span>Threshold-based strategy switching using market cap, volume, and LP depth</span>
-                        </div>
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg></div>
-                            <span>Automated transitions between LP focus, buy pressure, and market making</span>
-                        </div>
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg></div>
-                            <span>Pre-built strategy templates for different token archetypes</span>
-                        </div>
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg></div>
-                            <span>Manual override always available to creators</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Phase 6 -->
-            <div class="phase-card">
-                <div class="phase-number">
-                    <div class="phase-num">06</div>
-                    <div class="phase-line"></div>
-                </div>
-                <div class="phase-content">
-                    <h4>Ecosystem & Scale</h4>
-                    <p>Focus on durability, integrations, and long-term trust.</p>
-                    <div class="deliverables">
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
-                            <span>Public APIs for analytics and third-party tooling</span>
-                        </div>
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
-                            <span>Selective expansion to additional chains where launchpad activity is meaningful</span>
-                        </div>
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
-                            <span>Long-term emphasis on reliability, uptime, and capital efficiency</span>
-                        </div>
-                        <div class="deliverable">
-                            <div class="deliverable-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
-                            <span>Ship, iterate, and stay</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <footer class="roadmap-footer">
-        <p class="footer-cta">Ready to <span>launch</span>?</p>
-        <a href="/" class="back-btn">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M19 12H5M12 19l-7-7 7-7"/>
-            </svg>
-            Back to Dashboard
+    <div class="container">
+        <a href="/" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            Back to Home
         </a>
-    </footer>
+
+        <h1>LAUNCHR <span>Roadmap</span></h1>
+        <p class="subtitle">
+            Building the best pump.fun launch experience. 1% of creator fees go to our distribution pool.
+        </p>
+
+        <div class="section">
+            <div class="section-title">Live Now</div>
+
+            <div class="card">
+                <h3><span class="badge badge-live">Live</span> Pump.fun Integration</h3>
+                <p>Launch tokens directly on pump.fun with our streamlined interface and fee allocation system.</p>
+                <div class="features">
+                    <div class="feature">
+                        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
+                        One-click token launch on pump.fun
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
+                        1% distribution pool for LAUNCHR holders
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
+                        Real-time graduation tracking
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3><span class="badge badge-live">Live</span> Creator Dashboard</h3>
+                <p>Full control over your token's fee allocation strategy.</p>
+                <div class="features">
+                    <div class="feature">
+                        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
+                        99% creator fee allocation (market making, buyback, burn, LP, revenue)
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
+                        Strategy presets (Aggressive, Balanced, Sustainable, Revenue)
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
+                        Auto-claim and fee routing
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3><span class="badge badge-live">Live</span> Telegram Bot</h3>
+                <p>Manage your tokens from Telegram.</p>
+                <div class="features">
+                    <div class="feature">
+                        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
+                        Token launch and management
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
+                        Real-time notifications
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Coming Soon</div>
+
+            <div class="card">
+                <h3><span class="badge badge-next">Next</span> Advanced Analytics</h3>
+                <p>Deeper insights into your token performance and fee distribution.</p>
+            </div>
+
+            <div class="card">
+                <h3><span class="badge badge-next">Next</span> Multi-Token Dashboard</h3>
+                <p>Manage multiple token launches from a single interface.</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Future</div>
+
+            <div class="card">
+                <h3><span class="badge badge-planned">Planned</span> Raydium Native Launch</h3>
+                <p>Direct Raydium AMM pool creation for advanced users.</p>
+            </div>
+
+            <div class="card">
+                <h3><span class="badge badge-planned">Planned</span> Automated Strategy Switching</h3>
+                <p>AI-powered fee allocation based on market conditions.</p>
+            </div>
+        </div>
+
+        <div class="cta">
+            <h2>Ready to launch?</h2>
+            <a href="/launchpad" class="btn">Launch Token</a>
+        </div>
+    </div>
 </body>
 </html>`;
 }
