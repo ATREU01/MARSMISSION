@@ -2029,7 +2029,8 @@ The 4 percentages must sum to 100.`;
         return;
     }
 
-    // API: Create LAUNCHR native token (SPL token with Raydium liquidity)
+    // API: Create LAUNCHR native token with bonding curve
+    // Token starts on bonding curve, graduates to Raydium at 85 SOL
     if (url.pathname === '/api/launchr/create-token' && req.method === 'POST') {
         try {
             const data = await parseBody(req);
@@ -2040,74 +2041,252 @@ The 4 percentages must sum to 100.`;
                 return;
             }
 
-            console.log('[LAUNCHR] Creating native token:', data.name, '(' + data.symbol + ')');
+            console.log('[LAUNCHR] Creating native token with bonding curve');
+            console.log('[LAUNCHR] Name:', data.name, '(' + data.symbol + ')');
             console.log('[LAUNCHR] Creator:', data.creator);
-            console.log('[LAUNCHR] Initial liquidity:', data.initialLiquidity || 0, 'SOL');
 
-            // Use the launchpad-core for LAUNCHR path
-            const { LaunchrLaunchpad } = require('./launchpad-core');
+            const { Keypair } = require('@solana/web3.js');
+            const { LaunchrCurveManager } = require('./launchr-curve');
 
-            // Initialize connection (uses the same RPC as server)
-            const { Connection, Keypair } = require('@solana/web3.js');
-            const connection = new Connection(process.env.SOLANA_RPC || 'https://api.mainnet-beta.solana.com', 'confirmed');
+            // Generate mint address for the token
+            const mintKeypair = Keypair.generate();
+            const mint = mintKeypair.publicKey.toBase58();
 
-            // For LAUNCHR tokens, we need a platform wallet to create the token
-            // In production, this would be the LAUNCHR platform wallet
-            let platformWallet;
-            if (process.env.PLATFORM_PRIVATE_KEY) {
-                const bs58 = require('bs58');
-                platformWallet = Keypair.fromSecretKey(bs58.decode(process.env.PLATFORM_PRIVATE_KEY));
-            } else {
-                // Dev mode - generate temporary keypair (won't persist)
-                console.log('[LAUNCHR] WARNING: No platform wallet configured, using dev mode');
-                platformWallet = Keypair.generate();
-            }
+            console.log('[LAUNCHR] Generated mint:', mint);
 
-            // Initialize launchpad
-            const launchpad = new LaunchrLaunchpad(connection, platformWallet, {
-                heliusApiKey: process.env.HELIUS_API_KEY
-            });
-
-            // Launch via Raydium path
-            const result = await launchpad.launch({
-                path: 'raydium',
-                name: data.name,
-                symbol: data.symbol,
-                description: data.description || '',
-                image: data.metadataUri || null,
-                initialLiquidity: data.initialLiquidity || 1, // Min 1 SOL for Raydium
-                allocationStrategy: 'balanced',
-            });
-
-            if (!result.success) {
-                throw new Error(result.error || 'Failed to create LAUNCHR token');
-            }
+            // Initialize curve manager and create bonding curve
+            const curveManager = new LaunchrCurveManager(null, null);
+            const curve = curveManager.createCurve(
+                mint,
+                data.creator,
+                data.name,
+                data.symbol
+            );
 
             // Register the token in tracker
-            tracker.registerToken(result.launch.mint, data.creator, {
+            tracker.registerToken(mint, data.creator, {
                 name: data.name,
                 symbol: data.symbol,
                 image: data.metadataUri || null,
                 path: 'launchr',
                 description: data.description || '',
-                socials: data.socials || {}
+                socials: data.socials || {},
+                bondingCurve: true,
+                graduated: false
             });
 
-            console.log('[LAUNCHR] Token created successfully:', result.launch.mint);
+            // Get initial curve status
+            const curveStatus = curve.getStatus();
+
+            console.log('[LAUNCHR] Token created with bonding curve');
+            console.log('[LAUNCHR] Initial price:', curveStatus.price.toFixed(10), 'SOL');
+            console.log('[LAUNCHR] Graduation at: 85 SOL (~$69K mcap)');
 
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 success: true,
-                mint: result.launch.mint,
-                signature: result.launch.pool?.status === 'pending' ? 'pending_raydium' : 'created',
-                raydiumPool: result.launch.pool || null,
-                path: 'launchr'
+                mint,
+                signature: 'curve_created',
+                path: 'launchr',
+                bondingCurve: {
+                    active: true,
+                    price: curveStatus.price,
+                    progress: 0,
+                    graduationThreshold: 85,
+                    tokensAvailable: curveStatus.tokensRemaining,
+                },
+                message: 'Token launched on LAUNCHR bonding curve. Trade to progress toward graduation!'
             }));
 
         } catch (e) {
             console.error('[LAUNCHR] Token creation error:', e);
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // LAUNCHR BONDING CURVE APIs
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // API: Get curve status
+    if (url.pathname === '/api/curve/status' && req.method === 'GET') {
+        try {
+            const { LaunchrCurveManager } = require('./launchr-curve');
+            const curveManager = new LaunchrCurveManager(null, null);
+
+            const mint = url.searchParams.get('mint');
+            if (mint) {
+                const curve = curveManager.getCurve(mint);
+                if (!curve) {
+                    res.writeHead(404, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Curve not found' }));
+                    return;
+                }
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(curve.getStatus()));
+            } else {
+                // Return all active curves
+                const curves = curveManager.getActiveCurves().map(c => c.getStatus());
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ curves, count: curves.length }));
+            }
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: e.message }));
+        }
+        return;
+    }
+
+    // API: Get buy quote
+    if (url.pathname === '/api/curve/quote/buy' && req.method === 'GET') {
+        try {
+            const { LaunchrCurveManager } = require('./launchr-curve');
+            const curveManager = new LaunchrCurveManager(null, null);
+
+            const mint = url.searchParams.get('mint');
+            const amount = parseFloat(url.searchParams.get('amount') || '0');
+
+            if (!mint || !amount) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'mint and amount required' }));
+                return;
+            }
+
+            const curve = curveManager.getCurve(mint);
+            if (!curve) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Curve not found' }));
+                return;
+            }
+
+            const quote = curve.quoteBuy(amount);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(quote));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: e.message }));
+        }
+        return;
+    }
+
+    // API: Get sell quote
+    if (url.pathname === '/api/curve/quote/sell' && req.method === 'GET') {
+        try {
+            const { LaunchrCurveManager } = require('./launchr-curve');
+            const curveManager = new LaunchrCurveManager(null, null);
+
+            const mint = url.searchParams.get('mint');
+            const amount = parseFloat(url.searchParams.get('amount') || '0');
+
+            if (!mint || !amount) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'mint and amount required' }));
+                return;
+            }
+
+            const curve = curveManager.getCurve(mint);
+            if (!curve) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Curve not found' }));
+                return;
+            }
+
+            const quote = curve.quoteSell(amount);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(quote));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: e.message }));
+        }
+        return;
+    }
+
+    // API: Execute buy on curve
+    if (url.pathname === '/api/curve/buy' && req.method === 'POST') {
+        try {
+            const data = await parseBody(req);
+            const { mint, amount, buyer } = data;
+
+            if (!mint || !amount || !buyer) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'mint, amount, and buyer required' }));
+                return;
+            }
+
+            const { LaunchrCurveManager } = require('./launchr-curve');
+            const curveManager = new LaunchrCurveManager(null, null);
+
+            const result = await curveManager.buy(mint, amount, buyer);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(result));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Execute sell on curve
+    if (url.pathname === '/api/curve/sell' && req.method === 'POST') {
+        try {
+            const data = await parseBody(req);
+            const { mint, amount, seller } = data;
+
+            if (!mint || !amount || !seller) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'mint, amount, and seller required' }));
+                return;
+            }
+
+            const { LaunchrCurveManager } = require('./launchr-curve');
+            const curveManager = new LaunchrCurveManager(null, null);
+
+            const result = await curveManager.sell(mint, amount, seller);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(result));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Get curve leaderboard
+    if (url.pathname === '/api/curve/leaderboard' && req.method === 'GET') {
+        try {
+            const { LaunchrCurveManager } = require('./launchr-curve');
+            const curveManager = new LaunchrCurveManager(null, null);
+
+            const limit = parseInt(url.searchParams.get('limit') || '10');
+            const leaderboard = curveManager.getLeaderboard(limit);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ tokens: leaderboard }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: e.message }));
+        }
+        return;
+    }
+
+    // API: Get trending curves
+    if (url.pathname === '/api/curve/trending' && req.method === 'GET') {
+        try {
+            const { LaunchrCurveManager } = require('./launchr-curve');
+            const curveManager = new LaunchrCurveManager(null, null);
+
+            const limit = parseInt(url.searchParams.get('limit') || '10');
+            const trending = curveManager.getTrending(limit);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ tokens: trending }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: e.message }));
         }
         return;
     }
