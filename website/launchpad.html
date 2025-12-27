@@ -3,38 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LAUNCHR - The #1 Meme Launchpad</title>
-    <meta name="description" content="Launch meme tokens with 1 SOL seeded, compete for rewards, and earn 1% of all fees as a holder.">
-
-    <!-- Open Graph -->
-    <meta property="og:title" content="LAUNCHR - The #1 Meme Launchpad">
-    <meta property="og:description" content="1 SOL seeded per launch. Top 3 win +1 SOL every 2 hours. 1% of fees to holders.">
-    <meta property="og:image" content="/website/logo-full.jpg">
-
+    <title>Launchpad - LAUNCHR Mission Control</title>
+    <meta name="description" content="Launch meme tokens with 1 SOL seeded. Top 3 win +1 SOL every 2 hours.">
     <link rel="icon" href="/website/logo-icon.jpg" type="image/jpeg">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-
-    <!-- Privy SDK -->
     <script src="https://cdn.privy.io/privy-browser.min.js"></script>
 
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
-            --bg: #030303;
-            --surface: #0a0a0a;
-            --surface-2: #111111;
-            --border: rgba(255,255,255,0.06);
-            --border-active: rgba(255,255,255,0.15);
-            --text: #fafafa;
-            --text-secondary: rgba(255,255,255,0.5);
-            --text-muted: rgba(255,255,255,0.3);
-            --accent: #00ff88;
-            --accent-dim: rgba(0,255,136,0.15);
-            --red: #ff4444;
-            --gold: #ffd700;
-            --silver: #c0c0c0;
-            --bronze: #cd7f32;
+            /* Background Layers */
+            --bg-deep: #030303;
+            --bg: #050505;
+            --bg-elevated: #080808;
+            --surface: #0C0C0C;
+            --surface-2: #121212;
+            --surface-3: #181818;
+            --surface-4: #1E1E1E;
+
+            /* Borders */
+            --border: rgba(196, 165, 116, 0.08);
+            --border-subtle: rgba(255, 255, 255, 0.04);
+            --border-active: rgba(196, 165, 116, 0.2);
+            --border-strong: rgba(196, 165, 116, 0.35);
+
+            /* Text */
+            --text: #E8E4DE;
+            --text-secondary: #9A9590;
+            --text-muted: #5C5955;
+            --text-dim: #3D3A37;
+
+            /* Primary - Muted Gold */
+            --gold: #C4A574;
+            --gold-light: #D4B894;
+            --gold-dark: #9A8055;
+            --gold-dim: rgba(196, 165, 116, 0.12);
+            --gold-glow: rgba(196, 165, 116, 0.06);
+
+            /* Secondary - Teal */
+            --teal: #64B5A0;
+            --teal-dim: rgba(100, 181, 160, 0.12);
+
+            /* Semantic */
+            --success: #7CB66A;
+            --success-dim: rgba(124, 182, 106, 0.12);
+            --warning: #D4A84A;
+            --warning-dim: rgba(212, 168, 74, 0.12);
+            --error: #C75050;
+            --error-dim: rgba(199, 80, 80, 0.12);
+
+            /* Rank Colors */
+            --rank-gold: linear-gradient(135deg, #C4A574 0%, #8B6F45 100%);
+            --rank-silver: linear-gradient(135deg, #A8A8A8 0%, #6B6B6B 100%);
+            --rank-bronze: linear-gradient(135deg, #A67C52 0%, #6B4F35 100%);
+
+            /* Spacing & Radius */
+            --radius-sm: 6px;
+            --radius: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
         }
 
         html { scroll-behavior: smooth; }
@@ -45,1613 +73,1238 @@
             color: var(--text);
             line-height: 1.5;
             -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
             min-height: 100vh;
         }
 
-        /* Grain texture overlay */
-        .grain {
+        /* Ambient Background */
+        .ambient {
             position: fixed;
             inset: 0;
+            background:
+                radial-gradient(ellipse 80% 50% at 50% -10%, var(--gold-glow) 0%, transparent 50%),
+                radial-gradient(ellipse 40% 30% at 90% 90%, rgba(100, 181, 160, 0.03) 0%, transparent 40%),
+                radial-gradient(ellipse 50% 40% at 10% 80%, rgba(196, 165, 116, 0.02) 0%, transparent 40%);
             pointer-events: none;
-            z-index: 1000;
-            opacity: 0.08;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-            mix-blend-mode: overlay;
+            z-index: 0;
         }
 
-        /* Header */
-        header {
+        /* ═══════════════════════════════════════════════════════════════════════
+           NAVIGATION
+           ═══════════════════════════════════════════════════════════════════════ */
+        .nav {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 100;
-            background: rgba(3,3,3,0.9);
-            backdrop-filter: blur(20px);
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            background: rgba(5, 5, 5, 0.92);
+            backdrop-filter: blur(24px) saturate(180%);
             border-bottom: 1px solid var(--border);
         }
-
-        .header-inner {
-            max-width: 1400px;
+        .nav-inner {
+            max-width: 1440px;
             margin: 0 auto;
-            padding: 12px 24px;
+            padding: 0 32px;
+            height: 64px;
             display: flex;
             align-items: center;
             justify-content: space-between;
         }
-
-        .logo {
+        .nav-brand {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             text-decoration: none;
             color: var(--text);
         }
-
-        .logo img {
-            height: 28px;
-            border-radius: 6px;
+        .nav-brand img {
+            height: 32px;
+            width: 32px;
+            border-radius: var(--radius-sm);
         }
-
-        .logo span {
-            font-weight: 600;
-            font-size: 15px;
-            letter-spacing: -0.01em;
+        .nav-brand-text {
+            display: flex;
+            flex-direction: column;
         }
-
+        .nav-brand-name {
+            font-weight: 700;
+            font-size: 16px;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+        }
+        .nav-brand-tag {
+            font-size: 10px;
+            color: var(--gold);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
         .nav-links {
             display: flex;
-            gap: 28px;
+            align-items: center;
+            gap: 4px;
         }
-
-        .nav-links a {
+        .nav-link {
+            padding: 8px 14px;
             color: var(--text-secondary);
             text-decoration: none;
             font-size: 13px;
             font-weight: 500;
-            transition: color 0.15s;
+            border-radius: var(--radius);
+            transition: all 0.15s ease;
         }
-
-        .nav-links a:hover, .nav-links a.active {
+        .nav-link:hover {
             color: var(--text);
+            background: var(--surface);
         }
-
-        .header-right {
+        .nav-link.active {
+            color: var(--gold);
+            background: var(--gold-dim);
+        }
+        .nav-divider {
+            width: 1px;
+            height: 24px;
+            background: var(--border);
+            margin: 0 8px;
+        }
+        .nav-actions {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
         }
 
-        .status {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 11px;
-            font-family: 'JetBrains Mono', monospace;
-            color: var(--text-muted);
-        }
-
-        .status-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: var(--accent);
-            animation: pulse 2s infinite;
-        }
-
-        .status-dot.error { background: var(--red); }
-        .status-dot.loading { background: #ffaa00; }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
+        /* Buttons */
         .btn {
-            padding: 8px 16px;
-            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 18px;
             font-size: 13px;
             font-weight: 600;
-            text-decoration: none;
-            cursor: pointer;
+            border-radius: var(--radius);
             border: none;
-            transition: all 0.15s;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.15s ease;
+            white-space: nowrap;
         }
-
         .btn-primary {
-            background: var(--text);
+            background: var(--gold);
             color: var(--bg);
         }
-
         .btn-primary:hover {
+            background: var(--gold-light);
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(255,255,255,0.15);
+            box-shadow: 0 4px 12px rgba(196, 165, 116, 0.25);
         }
-
         .btn-secondary {
-            background: transparent;
+            background: var(--surface-2);
             color: var(--text);
             border: 1px solid var(--border);
         }
-
         .btn-secondary:hover {
+            background: var(--surface-3);
             border-color: var(--border-active);
-            background: rgba(255,255,255,0.03);
+        }
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-secondary);
+        }
+        .btn-ghost:hover {
+            color: var(--text);
+            background: var(--surface);
+        }
+        .btn-sm {
+            padding: 7px 14px;
+            font-size: 12px;
+        }
+        .btn-icon {
+            padding: 8px;
+            min-width: 36px;
+        }
+        .wallet-connected {
+            background: var(--gold-dim) !important;
+            color: var(--gold) !important;
+            border-color: rgba(196, 165, 116, 0.3) !important;
         }
 
-        .btn-accent {
-            background: var(--accent);
-            color: #000;
-        }
-
-        /* Main layout */
-        main {
-            padding-top: 56px;
+        /* ═══════════════════════════════════════════════════════════════════════
+           LAYOUT
+           ═══════════════════════════════════════════════════════════════════════ */
+        .main {
+            padding-top: 64px;
             min-height: 100vh;
+            position: relative;
+            z-index: 1;
         }
 
-        /* Competition Banner */
-        .competition-banner {
-            background: linear-gradient(90deg, rgba(0,255,136,0.08) 0%, rgba(0,255,136,0.02) 100%);
-            border-bottom: 1px solid rgba(0,255,136,0.15);
-            padding: 16px 24px;
+        /* Page Header */
+        .page-header {
+            padding: 28px 32px;
+            background: var(--bg-elevated);
+            border-bottom: 1px solid var(--border);
         }
-
-        .competition-inner {
-            max-width: 1400px;
+        .page-header-inner {
+            max-width: 1440px;
             margin: 0 auto;
             display: flex;
-            align-items: center;
             justify-content: space-between;
+            align-items: center;
             gap: 24px;
-            flex-wrap: wrap;
         }
-
-        .competition-info {
+        .page-header-left {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+        .page-title-group {}
+        .page-title {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+        .page-subtitle {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+        .page-header-right {
             display: flex;
             align-items: center;
             gap: 16px;
         }
 
-        .competition-badge {
-            background: var(--accent);
-            color: #000;
-            padding: 4px 10px;
-            font-size: 10px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            border-radius: 4px;
-        }
-
-        .competition-text {
-            font-size: 14px;
-        }
-
-        .competition-text strong {
-            color: var(--accent);
-        }
-
-        .competition-timer {
+        /* Timer */
+        .timer-card {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 16px;
+            padding: 14px 20px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
         }
-
+        .timer-icon {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--gold-dim);
+            border-radius: var(--radius);
+        }
+        .timer-icon svg {
+            width: 18px;
+            height: 18px;
+            stroke: var(--gold);
+        }
+        .timer-content {}
         .timer-label {
             font-size: 11px;
             color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.08em;
         }
-
         .timer-value {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 24px;
+            font-size: 18px;
             font-weight: 600;
+            color: var(--gold);
             letter-spacing: -0.02em;
         }
 
-        /* Stats bar */
+        /* Stats Bar */
         .stats-bar {
+            padding: 20px 32px;
             background: var(--surface);
             border-bottom: 1px solid var(--border);
-            padding: 20px 24px;
         }
-
-        .stats-inner {
-            max-width: 1400px;
+        .stats-bar-inner {
+            max-width: 1440px;
             margin: 0 auto;
             display: grid;
-            grid-template-columns: repeat(6, 1fr);
-            gap: 24px;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 1px;
+            background: var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
         }
-
-        .stat {
+        .stat-cell {
+            padding: 16px 20px;
+            background: var(--bg-elevated);
             text-align: center;
         }
-
-        .stat-value {
-            font-size: 24px;
-            font-weight: 600;
+        .stat-cell-value {
             font-family: 'JetBrains Mono', monospace;
-            letter-spacing: -0.02em;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text);
         }
-
-        .stat-value.accent { color: var(--accent); }
-
-        .stat-label {
+        .stat-cell-value.gold { color: var(--gold); }
+        .stat-cell-value.teal { color: var(--teal); }
+        .stat-cell-value.success { color: var(--success); }
+        .stat-cell-label {
             font-size: 11px;
             color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.06em;
             margin-top: 4px;
         }
 
-        /* Leaderboard */
-        .leaderboard {
-            background: var(--surface);
-            border-bottom: 1px solid var(--border);
-            padding: 24px;
-        }
-
-        .leaderboard-inner {
-            max-width: 1400px;
+        /* Content Grid */
+        .content {
+            max-width: 1440px;
             margin: 0 auto;
-        }
-
-        .leaderboard-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 16px;
-        }
-
-        .leaderboard-title {
-            font-size: 11px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.15em;
-        }
-
-        .leaderboard-grid {
+            padding: 24px 32px;
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
+            grid-template-columns: 1fr 380px;
+            gap: 24px;
         }
 
-        .leader-card {
-            background: var(--surface-2);
+        /* Cards */
+        .card {
+            background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 16px;
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+        .card-header {
+            padding: 16px 20px;
+            background: var(--bg-elevated);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .card-title {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-secondary);
+        }
+        .card-badge {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .card-badge.live {
+            color: var(--success);
+        }
+        .card-badge.live::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: livePulse 2s infinite;
+        }
+        @keyframes livePulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .card-body {
+            padding: 16px 20px;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 2px;
+            padding: 3px;
+            background: var(--bg-deep);
+            border-radius: var(--radius);
+        }
+        .tab {
+            padding: 7px 14px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            background: transparent;
+            border: none;
+            border-radius: var(--radius-sm);
             cursor: pointer;
             transition: all 0.15s;
         }
-
-        .leader-card:hover {
-            border-color: var(--border-active);
-            background: rgba(255,255,255,0.02);
+        .tab:hover {
+            color: var(--text-secondary);
+        }
+        .tab.active {
+            background: var(--surface-2);
+            color: var(--gold);
         }
 
-        .leader-card.gold { border-color: rgba(255,215,0,0.3); background: rgba(255,215,0,0.05); }
-        .leader-card.silver { border-color: rgba(192,192,192,0.2); }
-        .leader-card.bronze { border-color: rgba(205,127,50,0.2); }
-
+        /* ═══════════════════════════════════════════════════════════════════════
+           LEADERBOARD
+           ═══════════════════════════════════════════════════════════════════════ */
+        .leaderboard {}
+        .leader-item {
+            display: grid;
+            grid-template-columns: 36px 1fr auto auto;
+            gap: 14px;
+            align-items: center;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border-subtle);
+            transition: background 0.12s ease;
+        }
+        .leader-item:hover {
+            background: var(--surface-2);
+        }
+        .leader-item:last-child {
+            border-bottom: none;
+        }
         .leader-rank {
             width: 32px;
             height: 32px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 700;
-            font-size: 14px;
-            border-radius: 6px;
-        }
-
-        .leader-rank.gold { color: var(--gold); background: rgba(255,215,0,0.1); }
-        .leader-rank.silver { color: var(--silver); background: rgba(192,192,192,0.1); }
-        .leader-rank.bronze { color: var(--bronze); background: rgba(205,127,50,0.1); }
-
-        .leader-token {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex: 1;
-        }
-
-        .leader-token img {
-            width: 36px;
-            height: 36px;
-            border-radius: 6px;
-            object-fit: cover;
-        }
-
-        .leader-token-placeholder {
-            width: 36px;
-            height: 36px;
-            border-radius: 6px;
-            background: rgba(255,255,255,0.05);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            font-weight: 600;
-        }
-
-        .leader-token-info h4 {
             font-size: 13px;
-            font-weight: 600;
-            margin-bottom: 2px;
-        }
-
-        .leader-token-info span {
-            font-size: 11px;
+            font-weight: 700;
+            border-radius: var(--radius);
+            background: var(--surface-3);
             color: var(--text-muted);
-            font-family: 'JetBrains Mono', monospace;
         }
-
+        .leader-rank.rank-1 {
+            background: var(--rank-gold);
+            color: var(--bg);
+        }
+        .leader-rank.rank-2 {
+            background: var(--rank-silver);
+            color: var(--bg);
+        }
+        .leader-rank.rank-3 {
+            background: var(--rank-bronze);
+            color: var(--bg);
+        }
+        .leader-info {
+            min-width: 0;
+        }
+        .leader-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .leader-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 2px;
+        }
+        .leader-ticker {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .leader-path {
+            font-size: 10px;
+            color: var(--teal);
+            background: var(--teal-dim);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
         .leader-mcap {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--gold);
             text-align: right;
         }
-
-        .leader-mcap-value {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 14px;
-            font-weight: 600;
-        }
-
         .leader-reward {
-            background: rgba(0,255,136,0.1);
-            border: 1px solid rgba(0,255,136,0.2);
-            padding: 6px 10px;
-            border-radius: 4px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 12px;
-            color: var(--accent);
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--success);
+            background: var(--success-dim);
+            padding: 5px 10px;
+            border-radius: var(--radius-sm);
             white-space: nowrap;
         }
 
-        /* Main content grid */
-        .content {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 24px;
-            display: grid;
-            grid-template-columns: 1fr 320px;
-            gap: 24px;
-        }
-
-        /* Tabs */
-        .tabs {
+        /* ═══════════════════════════════════════════════════════════════════════
+           TOKEN LIST
+           ═══════════════════════════════════════════════════════════════════════ */
+        .token-list {
             display: flex;
-            gap: 24px;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 12px;
-            margin-bottom: 20px;
+            flex-direction: column;
         }
-
-        .tab {
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            font-size: 12px;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            cursor: pointer;
-            padding: 0;
-            position: relative;
-        }
-
-        .tab.active {
-            color: var(--text);
-        }
-
-        .tab.active::after {
-            content: '';
-            position: absolute;
-            bottom: -13px;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: var(--text);
-        }
-
-        .tab.competition {
-            color: var(--accent);
-        }
-
-        /* Search */
-        .search {
-            margin-bottom: 16px;
-        }
-
-        .search input {
-            width: 100%;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 10px 14px;
-            color: var(--text);
-            font-size: 13px;
-            outline: none;
-            transition: border-color 0.15s;
-        }
-
-        .search input::placeholder {
-            color: var(--text-muted);
-        }
-
-        .search input:focus {
-            border-color: var(--border-active);
-        }
-
-        /* Token table */
-        .token-table {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        .token-header {
+        .token-item {
             display: grid;
-            grid-template-columns: 50px 1fr 100px 100px 80px 140px;
-            padding: 12px 16px;
-            background: var(--surface-2);
-            border-bottom: 1px solid var(--border);
-            font-size: 10px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-        }
-
-        .token-row {
-            display: grid;
-            grid-template-columns: 50px 1fr 100px 100px 80px 140px;
-            padding: 14px 16px;
-            border-bottom: 1px solid var(--border);
+            grid-template-columns: 52px 1fr auto auto;
+            gap: 16px;
             align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-subtle);
             cursor: pointer;
-            transition: background 0.1s;
+            transition: all 0.12s ease;
         }
-
-        .token-row:hover {
-            background: rgba(255,255,255,0.02);
+        .token-item:hover {
+            background: var(--surface-2);
         }
-
-        .token-row:last-child {
+        .token-item:last-child {
             border-bottom: none;
         }
-
-        .token-rank {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 12px;
-            color: var(--text-muted);
+        .token-avatar {
+            width: 52px;
+            height: 52px;
+            border-radius: var(--radius);
+            background: linear-gradient(135deg, var(--surface-3), var(--surface-4));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--gold);
+            border: 1px solid var(--border);
         }
-
-        .token-info {
+        .token-details {
+            min-width: 0;
+        }
+        .token-name {
+            font-weight: 600;
+            font-size: 15px;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+        .token-meta {
             display: flex;
             align-items: center;
             gap: 10px;
         }
-
-        .token-img {
-            width: 32px;
-            height: 32px;
-            border-radius: 6px;
-            object-fit: cover;
-        }
-
-        .token-img-placeholder {
-            width: 32px;
-            height: 32px;
-            border-radius: 6px;
-            background: rgba(255,255,255,0.05);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .token-ticker {
             font-size: 12px;
-            font-weight: 600;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
         }
-
-        .token-name {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-
-        .token-name h4 {
-            font-size: 13px;
+        .token-path {
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 4px;
             font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 6px;
         }
-
-        .token-name span {
+        .token-path.pump {
+            background: rgba(139, 92, 246, 0.15);
+            color: #A78BFA;
+        }
+        .token-path.raydium {
+            background: var(--teal-dim);
+            color: var(--teal);
+        }
+        .token-time {
             font-size: 11px;
             color: var(--text-muted);
-            font-family: 'JetBrains Mono', monospace;
         }
-
-        .badge-competing {
-            font-size: 9px;
-            padding: 2px 5px;
-            background: rgba(0,255,136,0.1);
-            color: var(--accent);
-            border-radius: 3px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+        .token-stats {
+            text-align: right;
+            min-width: 80px;
         }
-
-        .token-mcap, .token-pool, .token-sol {
+        .token-mcap {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--gold);
+        }
+        .token-volume {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+        .token-change {
+            min-width: 70px;
             text-align: right;
         }
-
-        .token-pool {
-            color: var(--accent);
+        .token-change-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 600;
         }
-
-        .token-progress {
-            padding-left: 16px;
-        }
-
-        .progress-bar {
-            height: 3px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 2px;
-            overflow: hidden;
-            margin-bottom: 4px;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: var(--text);
-            border-radius: 2px;
-            transition: width 0.3s;
-        }
-
-        .progress-fill.complete {
-            background: var(--accent);
-        }
-
-        .progress-text {
-            display: flex;
-            justify-content: space-between;
+        .token-change-value.positive { color: var(--success); }
+        .token-change-value.negative { color: var(--error); }
+        .token-change-label {
             font-size: 10px;
             color: var(--text-muted);
-            font-family: 'JetBrains Mono', monospace;
+            margin-top: 2px;
         }
 
-        /* Sidebar */
-        .sidebar {
+        /* ═══════════════════════════════════════════════════════════════════════
+           CREATE TOKEN FORM
+           ═══════════════════════════════════════════════════════════════════════ */
+        .create-section {
+            margin-top: 16px;
+        }
+        .create-form {
             display: flex;
             flex-direction: column;
             gap: 16px;
         }
-
-        .sidebar-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 16px;
-        }
-
-        .sidebar-title {
-            font-size: 10px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.15em;
-            margin-bottom: 12px;
+        .form-group {
             display: flex;
-            align-items: center;
+            flex-direction: column;
             gap: 6px;
         }
-
-        .sidebar-title .dot {
-            width: 5px;
-            height: 5px;
-            border-radius: 50%;
-            background: var(--accent);
-        }
-
-        /* Fee Distribution */
-        .fee-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-
-        .fee-item:last-child {
-            margin-bottom: 0;
-        }
-
-        .fee-label {
-            font-size: 12px;
+        .form-label {
+            font-size: 11px;
+            font-weight: 600;
             color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
         }
-
-        .fee-value {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 12px;
+        .form-input {
+            padding: 12px 14px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.15s;
         }
-
-        .fee-bar {
-            height: 2px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 1px;
-            margin-top: 4px;
+        .form-input:hover {
+            border-color: var(--border-active);
         }
-
-        .fee-bar-fill {
-            height: 100%;
-            border-radius: 1px;
+        .form-input:focus {
+            outline: none;
+            border-color: var(--gold);
+            background: var(--bg);
         }
-
-        .fee-bar-fill.accent { background: var(--accent); }
-        .fee-bar-fill.white { background: var(--text); }
-
-        /* Activity feed */
-        .activity-item {
+        .form-input::placeholder {
+            color: var(--text-dim);
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .form-hint {
+            padding: 14px 16px;
+            background: var(--gold-dim);
+            border: 1px solid rgba(196, 165, 116, 0.25);
+            border-radius: var(--radius);
+            font-size: 13px;
+            color: var(--gold);
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 8px 0;
-            border-top: 1px solid var(--border);
+        }
+        .form-hint-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--gold);
+            color: var(--bg);
+            border-radius: 50%;
             font-size: 11px;
+            font-weight: 700;
         }
 
-        .activity-item:first-child {
-            border-top: none;
-            padding-top: 0;
+        /* Path Toggle */
+        .path-toggle {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
         }
-
-        .activity-time {
-            color: var(--text-muted);
-            font-family: 'JetBrains Mono', monospace;
-            width: 32px;
+        .path-option {
+            padding: 16px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: all 0.15s;
         }
-
-        .activity-type {
+        .path-option:hover {
+            border-color: var(--border-active);
+        }
+        .path-option.active {
+            background: var(--gold-dim);
+            border-color: var(--gold);
+        }
+        .path-option-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+        .path-option-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .path-option.active .path-option-name {
+            color: var(--gold);
+        }
+        .path-option-badge {
+            font-size: 10px;
+            font-weight: 600;
             padding: 2px 6px;
             border-radius: 3px;
-            font-weight: 600;
             text-transform: uppercase;
-            font-size: 9px;
-            letter-spacing: 0.05em;
         }
-
-        .activity-type.buy { background: rgba(0,255,136,0.1); color: var(--accent); }
-        .activity-type.sell { background: rgba(255,68,68,0.1); color: var(--red); }
-        .activity-type.create { background: rgba(0,170,255,0.1); color: #00aaff; }
-
-        .activity-amount {
-            font-family: 'JetBrains Mono', monospace;
-            color: var(--text-secondary);
-            margin-left: auto;
+        .path-option-badge.simple {
+            background: rgba(139, 92, 246, 0.15);
+            color: #A78BFA;
         }
-
-        /* Allocation Pool Card */
-        .pool-balance {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
+        .path-option-badge.advanced {
+            background: var(--teal-dim);
+            color: var(--teal);
         }
-
-        .pool-value {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--accent);
-        }
-
-        .pool-actions {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-        }
-
-        .pool-btn {
-            padding: 10px;
-            background: transparent;
-            border: 1px solid var(--border);
-            color: var(--text-secondary);
-            font-size: 10px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            cursor: pointer;
-            border-radius: 4px;
-            transition: all 0.15s;
-        }
-
-        .pool-btn:hover {
-            border-color: var(--border-active);
-            color: var(--text);
-        }
-
-        /* Advantages card */
-        .advantage-item {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            padding: 10px 0;
-            border-top: 1px solid var(--border);
-        }
-
-        .advantage-item:first-child {
-            border-top: none;
-            padding-top: 0;
-        }
-
-        .advantage-icon {
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--accent-dim);
-            border-radius: 4px;
+        .path-option-desc {
             font-size: 12px;
-            flex-shrink: 0;
+            color: var(--text-muted);
         }
 
-        .advantage-text {
-            font-size: 12px;
-            color: var(--text-secondary);
-            line-height: 1.5;
-        }
-
-        .advantage-text strong {
-            color: var(--text);
-        }
-
-        /* Create modal */
+        /* ═══════════════════════════════════════════════════════════════════════
+           MODALS
+           ═══════════════════════════════════════════════════════════════════════ */
         .modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.9);
-            z-index: 200;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.2s;
-        }
-
-        .modal-overlay.active {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .modal {
-            width: 100%;
-            max-width: 480px;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            margin: 16px;
-            transform: translateY(20px);
-            transition: transform 0.2s;
-        }
-
-        .modal-overlay.active .modal {
-            transform: translateY(0);
-        }
-
-        .modal-header {
-            padding: 20px 24px;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .modal-title {
-            font-size: 11px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.15em;
-        }
-
-        .modal-close {
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            font-size: 20px;
-            cursor: pointer;
-            padding: 0;
-            line-height: 1;
-        }
-
-        .modal-banner {
-            padding: 14px 24px;
-            background: var(--accent-dim);
-            border-bottom: 1px solid rgba(0,255,136,0.1);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .modal-banner-dot {
-            width: 8px;
-            height: 8px;
-            background: var(--accent);
-            border-radius: 50%;
-        }
-
-        .modal-banner-text {
-            font-size: 13px;
-        }
-
-        .modal-banner-text strong {
-            color: var(--accent);
-            font-weight: 600;
-        }
-
-        .modal-body {
-            padding: 24px;
-        }
-
-        .form-group {
-            margin-bottom: 24px;
-        }
-
-        .form-label {
-            display: block;
-            font-size: 10px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            margin-bottom: 8px;
-        }
-
-        .form-input {
-            width: 100%;
-            background: transparent;
-            border: none;
-            border-bottom: 1px solid var(--border);
-            padding: 10px 0;
-            font-size: 16px;
-            color: var(--text);
-            outline: none;
-            transition: border-color 0.15s;
-        }
-
-        .form-input::placeholder {
-            color: var(--text-muted);
-        }
-
-        .form-input:focus {
-            border-color: var(--text);
-        }
-
-        .form-input.uppercase {
-            text-transform: uppercase;
-        }
-
-        .strategy-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-        }
-
-        .strategy-btn {
-            padding: 12px;
-            background: transparent;
-            border: 1px solid var(--border);
-            color: var(--text-secondary);
-            font-size: 10px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            cursor: pointer;
-            border-radius: 6px;
-            transition: all 0.15s;
-        }
-
-        .strategy-btn:hover, .strategy-btn.active {
-            border-color: var(--accent);
-            color: var(--accent);
-            background: var(--accent-dim);
-        }
-
-        .form-hint {
-            font-size: 11px;
-            color: var(--text-muted);
-            margin-top: 8px;
-        }
-
-        .modal-footer {
-            padding: 20px 24px;
-            border-top: 1px solid var(--border);
-        }
-
-        .modal-footer .btn {
-            width: 100%;
-            padding: 14px;
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-        }
-
-        /* Empty state */
-        .empty-state {
-            padding: 48px;
-            text-align: center;
-            color: var(--text-muted);
-        }
-
-        .empty-state p {
-            font-size: 13px;
-        }
-
-        /* Loading */
-        .loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 48px;
-            color: var(--text-muted);
-            font-size: 13px;
-            font-family: 'JetBrains Mono', monospace;
-        }
-
-        /* Responsive */
-        @media (max-width: 1024px) {
-            .content {
-                grid-template-columns: 1fr;
-            }
-
-            .stats-inner {
-                grid-template-columns: repeat(3, 1fr);
-            }
-
-            .leaderboard-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .token-header, .token-row {
-                grid-template-columns: 40px 1fr 80px 80px 100px;
-            }
-
-            .token-sol {
-                display: none;
-            }
-        }
-
-        @media (max-width: 640px) {
-            .nav-links {
-                display: none;
-            }
-
-            .stats-inner {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            .competition-inner {
-                flex-direction: column;
-                text-align: center;
-            }
-
-            .token-header, .token-row {
-                grid-template-columns: 1fr 80px 100px;
-            }
-
-            .token-rank, .token-pool {
-                display: none;
-            }
-        }
-
-        /* Wallet Modal Styles */
-        .wallet-modal {
             position: fixed;
             inset: 0;
             z-index: 2000;
             display: flex;
             align-items: center;
             justify-content: center;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
         }
-        .wallet-modal-backdrop {
-            position: absolute;
-            inset: 0;
-            background: rgba(0,0,0,0.8);
-            backdrop-filter: blur(4px);
-        }
-        .wallet-modal-content {
-            position: relative;
+        .modal {
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 24px;
+            border-radius: var(--radius-xl);
             width: 100%;
-            max-width: 400px;
+            max-width: 420px;
             margin: 20px;
+            overflow: hidden;
         }
-        .wallet-modal-header {
+        .modal-header {
+            padding: 20px 24px;
+            background: var(--bg-elevated);
+            border-bottom: 1px solid var(--border);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
         }
-        .wallet-modal-header h3 {
-            font-size: 18px;
+        .modal-title {
+            font-size: 16px;
             font-weight: 600;
         }
-        .wallet-modal-close {
-            background: none;
-            border: none;
-            color: var(--text-secondary);
-            font-size: 24px;
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text-muted);
+            font-size: 18px;
             cursor: pointer;
-            padding: 0;
-            line-height: 1;
+            transition: all 0.15s;
         }
-        .wallet-modal-close:hover { color: var(--text); }
-        .wallet-modal-body {
+        .modal-close:hover {
+            background: var(--surface-3);
+            color: var(--text);
+        }
+        .modal-body {
+            padding: 24px;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+        }
+        .modal-actions .btn {
+            flex: 1;
+        }
+
+        /* Wallet Modal */
+        .wallet-info {
             text-align: center;
             padding: 20px 0;
         }
         .wallet-address {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 14px;
+            font-size: 13px;
             color: var(--text);
             background: var(--bg);
-            padding: 12px 16px;
-            border-radius: 8px;
+            padding: 14px 16px;
+            border-radius: var(--radius);
             word-break: break-all;
-            margin-bottom: 12px;
+            margin-bottom: 16px;
         }
         .wallet-balance {
-            font-size: 24px;
+            font-size: 32px;
             font-weight: 700;
-            color: var(--accent);
+            color: var(--gold);
         }
-        .wallet-modal-actions {
+        .wallet-balance-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════════
+           FOOTER
+           ═══════════════════════════════════════════════════════════════════════ */
+        .footer {
+            padding: 24px 32px;
+            background: var(--bg-elevated);
+            border-top: 1px solid var(--border);
+            margin-top: 48px;
+        }
+        .footer-inner {
+            max-width: 1440px;
+            margin: 0 auto;
             display: flex;
-            gap: 12px;
-            margin-top: 20px;
+            justify-content: space-between;
+            align-items: center;
         }
-        .wallet-connected {
-            background: var(--accent-dim) !important;
-            color: var(--accent) !important;
-            border: 1px solid rgba(0,255,136,0.3) !important;
+        .footer-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .footer-brand img {
+            height: 22px;
+            width: 22px;
+            border-radius: 4px;
+            opacity: 0.7;
+        }
+        .footer-brand span {
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+        .footer-links {
+            display: flex;
+            gap: 20px;
+        }
+        .footer-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 12px;
+            transition: color 0.15s;
+        }
+        .footer-links a:hover {
+            color: var(--text-secondary);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════════
+           RESPONSIVE
+           ═══════════════════════════════════════════════════════════════════════ */
+        @media (max-width: 1200px) {
+            .content { grid-template-columns: 1fr 340px; }
+        }
+        @media (max-width: 1024px) {
+            .content { grid-template-columns: 1fr; }
+            .nav-links { display: none; }
+            .stats-bar-inner { grid-template-columns: repeat(3, 1fr); }
+        }
+        @media (max-width: 768px) {
+            .page-header-inner { flex-direction: column; align-items: flex-start; }
+            .stats-bar-inner { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 640px) {
+            .nav-inner, .page-header, .stats-bar, .content, .footer { padding-left: 16px; padding-right: 16px; }
+            .form-row { grid-template-columns: 1fr; }
+            .footer-inner { flex-direction: column; gap: 16px; }
+            .stats-bar-inner { grid-template-columns: 1fr 1fr; }
         }
     </style>
 </head>
 <body>
-    <div class="grain"></div>
+    <div class="ambient"></div>
 
-    <!-- Header -->
-    <header>
-        <div class="header-inner">
-            <a href="/" class="logo">
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-inner">
+            <a href="/" class="nav-brand">
                 <img src="/website/logo-icon.jpg" alt="LAUNCHR">
-                <span>LAUNCHR</span>
-            </a>
-
-            <nav class="nav-links">
-                <a href="/launchpad" class="active">Tokens</a>
-                <a href="#leaderboard">Leaderboard</a>
-                <a href="#rewards">Rewards</a>
-                <a href="/roadmap">Docs</a>
-            </nav>
-
-            <div class="header-right">
-                <div class="status">
-                    <div class="status-dot" id="statusDot"></div>
-                    <span id="statusText">LIVE</span>
+                <div class="nav-brand-text">
+                    <span class="nav-brand-name">LAUNCHR</span>
+                    <span class="nav-brand-tag">Mission Control</span>
                 </div>
-                <button class="btn btn-primary" id="launchBtn">Launch</button>
-                <button class="btn btn-secondary" id="connectBtn">Connect</button>
+            </a>
+            <div class="nav-links">
+                <a href="/" class="nav-link">Home</a>
+                <a href="/launchpad" class="nav-link active">Launchpad</a>
+                <a href="#leaderboard" class="nav-link">Leaderboard</a>
+                <div class="nav-divider"></div>
+                <a href="/dashboard" class="nav-link">Dashboard</a>
+                <a href="/roadmap" class="nav-link">Docs</a>
+                <div class="nav-divider"></div>
+                <a href="https://t.me/LAUNCHR_V2_BOT" class="nav-link" target="_blank">Telegram</a>
+                <a href="https://x.com/LaunchrTG" class="nav-link" target="_blank">Twitter</a>
+            </div>
+            <div class="nav-actions">
+                <button id="connectWallet" class="btn btn-secondary btn-sm" onclick="connectWallet()">Connect Wallet</button>
+                <button class="btn btn-primary btn-sm" onclick="showCreateModal()">Create Token</button>
             </div>
         </div>
-    </header>
+    </nav>
 
     <!-- Wallet Modal -->
-    <div id="walletModal" class="wallet-modal" style="display:none;">
-        <div class="wallet-modal-backdrop" onclick="closeWalletModal()"></div>
-        <div class="wallet-modal-content">
-            <div class="wallet-modal-header">
-                <h3>Connected Wallet</h3>
-                <button onclick="closeWalletModal()" class="wallet-modal-close">&times;</button>
+    <div id="walletModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeWalletModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">Wallet Connected</span>
+                <button class="modal-close" onclick="closeWalletModal()">&times;</button>
             </div>
-            <div class="wallet-modal-body">
-                <div class="wallet-address" id="walletAddress">-</div>
-                <div class="wallet-balance" id="walletBalance">- SOL</div>
-            </div>
-            <div class="wallet-modal-actions">
-                <button onclick="copyWalletAddress()" class="btn btn-secondary" style="flex:1;">Copy Address</button>
-                <button onclick="disconnectWallet()" class="btn btn-primary" style="flex:1;background:var(--red);">Disconnect</button>
+            <div class="modal-body">
+                <div class="wallet-info">
+                    <div class="wallet-address" id="walletAddress">-</div>
+                    <div class="wallet-balance" id="walletBalance">0.0000</div>
+                    <div class="wallet-balance-label">SOL Balance</div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="copyWalletAddress()">Copy Address</button>
+                    <button class="btn btn-primary" onclick="disconnectWallet()" style="background:var(--error);">Disconnect</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <main>
-        <!-- Competition Banner -->
-        <div class="competition-banner">
-            <div class="competition-inner">
-                <div class="competition-info">
-                    <span class="competition-badge">Live Competition</span>
-                    <span class="competition-text">Top 3 by market cap win <strong>+1 SOL</strong> each</span>
+    <!-- Create Token Modal -->
+    <div id="createModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeCreateModal()">
+        <div class="modal" style="max-width:480px;">
+            <div class="modal-header">
+                <span class="modal-title">Launch New Token</span>
+                <button class="modal-close" onclick="closeCreateModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="create-form">
+                    <div class="path-toggle">
+                        <div class="path-option active" data-path="pump" onclick="selectPath('pump')">
+                            <div class="path-option-header">
+                                <span class="path-option-name">Pump.fun</span>
+                                <span class="path-option-badge simple">Simple</span>
+                            </div>
+                            <div class="path-option-desc">One-click launch, auto bonding curve</div>
+                        </div>
+                        <div class="path-option" data-path="raydium" onclick="selectPath('raydium')">
+                            <div class="path-option-header">
+                                <span class="path-option-name">Raydium</span>
+                                <span class="path-option-badge advanced">Advanced</span>
+                            </div>
+                            <div class="path-option-desc">Custom curves, full control</div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Token Name</label>
+                            <input type="text" class="form-input" id="tokenName" placeholder="My Token">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Symbol</label>
+                            <input type="text" class="form-input" id="tokenSymbol" placeholder="TICKER" style="text-transform:uppercase;">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <input type="text" class="form-input" id="tokenDesc" placeholder="A brief description of your token...">
+                    </div>
+
+                    <div class="form-hint">
+                        <span class="form-hint-icon">1</span>
+                        <span>Your launch receives <strong>1 SOL</strong> seeded to allocation pool</span>
+                    </div>
+
+                    <button class="btn btn-primary" style="width:100%;padding:14px;" id="deployBtn" onclick="deployToken()">
+                        Connect Wallet to Launch
+                    </button>
                 </div>
-                <div class="competition-timer">
-                    <span class="timer-label">Ends in</span>
-                    <span class="timer-value" id="competitionTimer">1:59:42</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main -->
+    <main class="main">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="page-header-inner">
+                <div class="page-header-left">
+                    <div class="page-title-group">
+                        <h1 class="page-title">Launchpad</h1>
+                        <p class="page-subtitle">Launch tokens with 1 SOL seeded. Top 3 win +1 SOL every 2 hours.</p>
+                    </div>
+                </div>
+                <div class="page-header-right">
+                    <div class="timer-card">
+                        <div class="timer-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                        </div>
+                        <div class="timer-content">
+                            <div class="timer-label">Next Reward In</div>
+                            <div class="timer-value" id="timer">01:45:23</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Stats Bar -->
         <div class="stats-bar">
-            <div class="stats-inner">
-                <div class="stat">
-                    <div class="stat-value" id="statTvl">--</div>
-                    <div class="stat-label">TVL</div>
+            <div class="stats-bar-inner">
+                <div class="stat-cell">
+                    <div class="stat-cell-value gold">247</div>
+                    <div class="stat-cell-label">Total Launches</div>
                 </div>
-                <div class="stat">
-                    <div class="stat-value" id="statTokens">--</div>
-                    <div class="stat-label">Tokens</div>
+                <div class="stat-cell">
+                    <div class="stat-cell-value gold">247</div>
+                    <div class="stat-cell-label">SOL Seeded</div>
                 </div>
-                <div class="stat">
-                    <div class="stat-value" id="statCreators">--</div>
-                    <div class="stat-label">Creators</div>
+                <div class="stat-cell">
+                    <div class="stat-cell-value">$1.2M</div>
+                    <div class="stat-cell-label">Total Volume</div>
                 </div>
-                <div class="stat">
-                    <div class="stat-value" id="statVolume">--</div>
-                    <div class="stat-label">24h Volume</div>
+                <div class="stat-cell">
+                    <div class="stat-cell-value teal">24.7</div>
+                    <div class="stat-cell-label">Holder Rewards</div>
                 </div>
-                <div class="stat">
-                    <div class="stat-value accent" id="statSeeded">--</div>
-                    <div class="stat-label">Seeded</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-value accent" id="statHolderRewards">--</div>
-                    <div class="stat-label">To Holders</div>
+                <div class="stat-cell">
+                    <div class="stat-cell-value success">12</div>
+                    <div class="stat-cell-label">Graduated</div>
                 </div>
             </div>
         </div>
 
-        <!-- Leaderboard -->
-        <div class="leaderboard" id="leaderboard">
-            <div class="leaderboard-inner">
-                <div class="leaderboard-header">
-                    <span class="leaderboard-title">Current Leaders</span>
-                </div>
-                <div class="leaderboard-grid" id="leaderboardGrid">
-                    <!-- Leaders will be injected here -->
-                </div>
-            </div>
-        </div>
-
-        <!-- Main Content -->
+        <!-- Content -->
         <div class="content">
             <!-- Token List -->
-            <div class="token-list">
-                <div class="tabs">
-                    <button class="tab active" data-tab="all">All</button>
-                    <button class="tab competition" data-tab="competition">Competition</button>
-                    <button class="tab" data-tab="trending">Trending</button>
-                    <button class="tab" data-tab="new">New</button>
-                    <button class="tab" data-tab="graduating">Graduating</button>
-                </div>
-
-                <div class="search">
-                    <input type="text" placeholder="Search by name or symbol..." id="searchInput">
-                </div>
-
-                <div class="token-table">
-                    <div class="token-header">
-                        <div>#</div>
-                        <div>Token</div>
-                        <div style="text-align:right">Mcap</div>
-                        <div style="text-align:right">Pool</div>
-                        <div style="text-align:right">SOL</div>
-                        <div style="padding-left:16px">Progress</div>
+            <div>
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Live Tokens</span>
+                        <div class="tabs">
+                            <button class="tab active" data-tab="trending">Trending</button>
+                            <button class="tab" data-tab="new">New</button>
+                            <button class="tab" data-tab="graduating">Graduating</button>
+                        </div>
                     </div>
-                    <div id="tokenList">
-                        <div class="loading">Loading tokens...</div>
+                    <div class="token-list" id="tokenList">
+                        <!-- Rendered by JS -->
                     </div>
                 </div>
             </div>
 
             <!-- Sidebar -->
-            <div class="sidebar">
-                <!-- Selected Token Pool -->
-                <div class="sidebar-card" id="selectedTokenCard" style="display:none">
-                    <div class="sidebar-title">Allocation Pool</div>
-                    <div class="pool-balance">
-                        <span>Balance</span>
-                        <span class="pool-value" id="poolBalance">1.00 SOL</span>
+            <div>
+                <!-- Leaderboard -->
+                <div class="card" id="leaderboard">
+                    <div class="card-header">
+                        <span class="card-title">Leaderboard</span>
+                        <span class="card-badge live">Live</span>
                     </div>
-                    <div class="pool-actions">
-                        <button class="pool-btn">Buyback</button>
-                        <button class="pool-btn">Burn</button>
-                        <button class="pool-btn">LP Add</button>
+                    <div class="leaderboard" id="leaderboardList">
+                        <!-- Rendered by JS -->
                     </div>
                 </div>
 
-                <!-- Fee Distribution -->
-                <div class="sidebar-card">
-                    <div class="sidebar-title">Fee Distribution</div>
-                    <div class="fee-item">
-                        <span class="fee-label">Creator</span>
-                        <span class="fee-value">99%</span>
+                <!-- Quick Launch Card -->
+                <div class="card create-section">
+                    <div class="card-header">
+                        <span class="card-title">Quick Launch</span>
                     </div>
-                    <div class="fee-bar"><div class="fee-bar-fill white" style="width:99%"></div></div>
-                    <div class="fee-item" style="margin-top:12px">
-                        <span class="fee-label">LAUNCHR Holders</span>
-                        <span class="fee-value" style="color:var(--accent)">1%</span>
-                    </div>
-                    <div class="fee-bar"><div class="fee-bar-fill accent" style="width:100%"></div></div>
-                </div>
-
-                <!-- Why LAUNCHR -->
-                <div class="sidebar-card">
-                    <div class="sidebar-title">Why LAUNCHR</div>
-                    <div class="advantage-item">
-                        <div class="advantage-icon">1</div>
-                        <div class="advantage-text"><strong>1 SOL seeded</strong> to every launch vs pump.fun's 0.5 SOL only on graduation</div>
-                    </div>
-                    <div class="advantage-item">
-                        <div class="advantage-icon">3</div>
-                        <div class="advantage-text"><strong>Top 3 win +1 SOL</strong> every 2 hours - continuous rewards</div>
-                    </div>
-                    <div class="advantage-item">
-                        <div class="advantage-icon">%</div>
-                        <div class="advantage-text"><strong>1% of all fees</strong> to LAUNCHR holders - passive income</div>
-                    </div>
-                    <div class="advantage-item">
-                        <div class="advantage-icon">5</div>
-                        <div class="advantage-text"><strong>Mission Control</strong> 5-layer security with Merkle verification</div>
-                    </div>
-                </div>
-
-                <!-- Activity Feed -->
-                <div class="sidebar-card">
-                    <div class="sidebar-title">
-                        <span class="dot"></span>
-                        Activity
-                    </div>
-                    <div id="activityFeed">
-                        <div class="loading" style="padding:16px 0">Loading...</div>
+                    <div class="card-body">
+                        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.6;">
+                            Create a meme token in seconds. Every launch receives 1 SOL seeded to the allocation pool.
+                        </p>
+                        <button class="btn btn-primary" style="width:100%;" onclick="showCreateModal()">
+                            Launch Token
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
     </main>
 
-    <!-- Create Modal -->
-    <div class="modal-overlay" id="createModal">
-        <div class="modal">
-            <div class="modal-header">
-                <span class="modal-title">Launch Token</span>
-                <button class="modal-close" id="closeModal">&times;</button>
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <img src="/website/logo-icon.jpg" alt="LAUNCHR">
+                <span>LAUNCHR Mission Control</span>
             </div>
-            <div class="modal-banner">
-                <div class="modal-banner-dot"></div>
-                <span class="modal-banner-text">Your launch receives <strong>1 SOL</strong> seeded to allocation pool</span>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label class="form-label">Token Name</label>
-                    <input type="text" class="form-input" placeholder="My Awesome Token" id="tokenName">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Symbol</label>
-                    <input type="text" class="form-input uppercase" placeholder="$TICKER" id="tokenSymbol" maxlength="10">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Allocation Strategy</label>
-                    <div class="strategy-grid">
-                        <button class="strategy-btn active" data-strategy="buyback">Buyback</button>
-                        <button class="strategy-btn" data-strategy="burn">Burn</button>
-                        <button class="strategy-btn" data-strategy="lp">LP Add</button>
-                    </div>
-                    <p class="form-hint">Choose how your 1 SOL allocation will be used</p>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-accent" id="deployBtn" disabled>Connect Wallet</button>
+            <div class="footer-links">
+                <a href="/">Home</a>
+                <a href="/launchpad">Launchpad</a>
+                <a href="/dashboard">Dashboard</a>
+                <a href="/roadmap">Docs</a>
+                <a href="/terms">Terms</a>
+                <a href="https://t.me/LAUNCHR_V2_BOT" target="_blank">Telegram</a>
+                <a href="https://x.com/LaunchrTG" target="_blank">Twitter</a>
             </div>
         </div>
-    </div>
+    </footer>
 
     <script>
-        // ═══════════════════════════════════════════════════════════════
+        // ═══════════════════════════════════════════════════════════════════════
         // CONFIGURATION
-        // ═══════════════════════════════════════════════════════════════
+        // ═══════════════════════════════════════════════════════════════════════
+        const PRIVY_APP_ID = window.LAUNCHR_CONFIG?.PRIVY_APP_ID || 'YOUR_PRIVY_APP_ID';
+        const SOLANA_RPC = window.LAUNCHR_CONFIG?.SOLANA_RPC || 'https://api.mainnet-beta.solana.com';
 
-        const CONFIG = {
-            HELIUS_API_KEY: '', // Set via server or env
-            PROGRAM_ID: '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P',
-            GRADUATION_SOL: 85,
-            COMPETITION_HOURS: 2,
-        };
+        let privyClient = null;
+        let connectedWallet = null;
+        let walletBalance = 0;
+        let selectedPath = 'pump';
 
-        // ═══════════════════════════════════════════════════════════════
-        // STATE
-        // ═══════════════════════════════════════════════════════════════
+        // Sample data
+        const tokens = [
+            { name: 'Moon Dog', symbol: 'MDOG', mcap: 125000, volume: 45000, change: 45.2, path: 'pump', time: '2m ago' },
+            { name: 'Space Cat', symbol: 'SCAT', mcap: 89000, volume: 32000, change: 23.1, path: 'raydium', time: '5m ago' },
+            { name: 'Rocket Ape', symbol: 'RAPE', mcap: 67000, volume: 18000, change: -12.4, path: 'pump', time: '8m ago' },
+            { name: 'Lunar Pepe', symbol: 'LPEPE', mcap: 54000, volume: 12000, change: 8.7, path: 'pump', time: '12m ago' },
+            { name: 'Mars Doge', symbol: 'MARS', mcap: 43000, volume: 9500, change: 67.3, path: 'raydium', time: '15m ago' },
+            { name: 'Astro Shib', symbol: 'ASHIB', mcap: 38000, volume: 7200, change: -5.2, path: 'pump', time: '22m ago' },
+            { name: 'Orbit Cat', symbol: 'OCAT', mcap: 31000, volume: 5800, change: 12.1, path: 'pump', time: '28m ago' },
+            { name: 'Galaxy Frog', symbol: 'GFROG', mcap: 27000, volume: 4200, change: -3.8, path: 'raydium', time: '35m ago' },
+        ];
 
-        let state = {
-            tokens: [],
-            wallet: null,
-            selectedToken: null,
-            activeTab: 'all',
-            competitionEnd: Date.now() + (CONFIG.COMPETITION_HOURS * 3600 * 1000),
-            loading: true,
-            error: null,
-        };
+        const leaderboard = [
+            { rank: 1, name: 'Moon Dog', symbol: 'MDOG', mcap: 125000, path: 'Pump.fun', reward: '+1 SOL' },
+            { rank: 2, name: 'Space Cat', symbol: 'SCAT', mcap: 89000, path: 'Raydium', reward: '+1 SOL' },
+            { rank: 3, name: 'Rocket Ape', symbol: 'RAPE', mcap: 67000, path: 'Pump.fun', reward: '+1 SOL' },
+            { rank: 4, name: 'Lunar Pepe', symbol: 'LPEPE', mcap: 54000, path: 'Pump.fun', reward: null },
+            { rank: 5, name: 'Mars Doge', symbol: 'MARS', mcap: 43000, path: 'Raydium', reward: null },
+        ];
 
-        // ═══════════════════════════════════════════════════════════════
-        // UTILITIES
-        // ═══════════════════════════════════════════════════════════════
+        // ═══════════════════════════════════════════════════════════════════════
+        // INITIALIZATION
+        // ═══════════════════════════════════════════════════════════════════════
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initPrivy();
+            const stored = localStorage.getItem('connectedWallet');
+            if (stored) handleWalletConnected(stored);
 
-        const fmt = {
-            number: (n) => {
-                if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
-                if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
-                if (n >= 1e3) return (n / 1e3).toFixed(2) + 'K';
-                return n.toFixed(2);
-            },
-            sol: (n) => n?.toFixed(2) + ' SOL',
-            usd: (n) => '$' + fmt.number(n),
-            address: (a, c = 4) => a ? `${a.slice(0, c)}...${a.slice(-c)}` : '',
-            time: (ts) => {
-                const s = Math.floor((Date.now() / 1000) - ts);
-                if (s < 60) return s + 's';
-                if (s < 3600) return Math.floor(s / 60) + 'm';
-                if (s < 86400) return Math.floor(s / 3600) + 'h';
-                return Math.floor(s / 86400) + 'd';
-            },
-            countdown: (ms) => {
-                const s = Math.floor(ms / 1000);
-                const h = Math.floor(s / 3600);
-                const m = Math.floor((s % 3600) / 60);
-                const sec = s % 60;
-                return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
-            },
-        };
+            renderTokens();
+            renderLeaderboard();
+            startTimer();
 
-        // ═══════════════════════════════════════════════════════════════
-        // DATA FETCHING
-        // ═══════════════════════════════════════════════════════════════
+            // Tab switching
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                });
+            });
+        });
 
-        async function fetchTokens() {
-            // In production, this would call your backend which uses Helius
-            // For now, using mock data that matches the expected structure
-
-            try {
-                // Try to fetch from your API
-                const response = await fetch('/api/tokens');
-                if (response.ok) {
-                    const data = await response.json();
-                    state.tokens = data.tokens || [];
-                    state.loading = false;
-                    state.error = null;
-                    return;
-                }
-            } catch (e) {
-                // API not available, use mock
-            }
-
-            // Mock data for demonstration
-            state.tokens = generateMockTokens();
-            state.loading = false;
-        }
-
-        function generateMockTokens() {
-            const names = ['BONK', 'DOGE', 'PEPE', 'SHIB', 'WOJAK', 'MOON', 'ROCKET', 'MEME', 'APE', 'FROG'];
-            return names.map((symbol, i) => ({
-                mint: `${symbol}xxx...xxx`,
-                name: symbol + ' Token',
-                symbol: '$' + symbol,
-                image: null,
-                mcap: Math.random() * 100000 + 1000,
-                realSol: Math.random() * 85,
-                progress: Math.random() * 100,
-                allocationPool: 1 + Math.random() * 0.5,
-                inCompetition: i < 5,
-                createdAt: Date.now() / 1000 - Math.random() * 7200,
-            })).sort((a, b) => b.mcap - a.mcap);
-        }
-
-        async function fetchActivity() {
-            // Mock activity
-            return [
-                { type: 'buy', time: Date.now() / 1000 - 30, amount: 0.5 },
-                { type: 'sell', time: Date.now() / 1000 - 120, amount: 0.3 },
-                { type: 'create', time: Date.now() / 1000 - 300, amount: 0 },
-                { type: 'buy', time: Date.now() / 1000 - 450, amount: 1.2 },
-                { type: 'buy', time: Date.now() / 1000 - 600, amount: 0.8 },
-            ];
-        }
-
-        // ═══════════════════════════════════════════════════════════════
-        // RENDERING
-        // ═══════════════════════════════════════════════════════════════
-
-        function renderStats() {
-            const tokens = state.tokens;
-            const tvl = tokens.reduce((sum, t) => sum + (t.realSol || 0), 0);
-            const creators = new Set(tokens.map(t => t.creator)).size || tokens.length;
-            const seeded = tokens.length * 1; // 1 SOL per launch
-            const holderRewards = tvl * 0.01;
-
-            document.getElementById('statTvl').textContent = fmt.sol(tvl);
-            document.getElementById('statTokens').textContent = tokens.length;
-            document.getElementById('statCreators').textContent = creators;
-            document.getElementById('statVolume').textContent = fmt.usd(tvl * 10);
-            document.getElementById('statSeeded').textContent = fmt.sol(seeded);
-            document.getElementById('statHolderRewards').textContent = fmt.sol(holderRewards);
+        // ═══════════════════════════════════════════════════════════════════════
+        // RENDER FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════════════
+        function renderTokens() {
+            const list = document.getElementById('tokenList');
+            list.innerHTML = tokens.map(t => `
+                <div class="token-item">
+                    <div class="token-avatar">${t.name.charAt(0)}</div>
+                    <div class="token-details">
+                        <div class="token-name">${t.name}</div>
+                        <div class="token-meta">
+                            <span class="token-ticker">$${t.symbol}</span>
+                            <span class="token-path ${t.path}">${t.path === 'pump' ? 'Pump.fun' : 'Raydium'}</span>
+                            <span class="token-time">${t.time}</span>
+                        </div>
+                    </div>
+                    <div class="token-stats">
+                        <div class="token-mcap">$${formatNumber(t.mcap)}</div>
+                        <div class="token-volume">Vol: $${formatNumber(t.volume)}</div>
+                    </div>
+                    <div class="token-change">
+                        <div class="token-change-value ${t.change >= 0 ? 'positive' : 'negative'}">${t.change >= 0 ? '+' : ''}${t.change.toFixed(1)}%</div>
+                        <div class="token-change-label">24h</div>
+                    </div>
+                </div>
+            `).join('');
         }
 
         function renderLeaderboard() {
-            const leaders = state.tokens
-                .filter(t => t.inCompetition)
-                .sort((a, b) => b.mcap - a.mcap)
-                .slice(0, 3);
-
-            const grid = document.getElementById('leaderboardGrid');
-
-            if (leaders.length === 0) {
-                grid.innerHTML = '<div class="empty-state"><p>No tokens competing yet</p></div>';
-                return;
-            }
-
-            const ranks = ['gold', 'silver', 'bronze'];
-
-            grid.innerHTML = leaders.map((token, i) => `
-                <div class="leader-card ${ranks[i]}" data-mint="${token.mint}">
-                    <div class="leader-rank ${ranks[i]}">${i + 1}</div>
-                    <div class="leader-token">
-                        ${token.image
-                            ? `<img src="${token.image}" alt="${token.symbol}">`
-                            : `<div class="leader-token-placeholder">${token.symbol[1] || '?'}</div>`
-                        }
-                        <div class="leader-token-info">
-                            <h4>${token.name}</h4>
-                            <span>${token.symbol}</span>
+            const list = document.getElementById('leaderboardList');
+            list.innerHTML = leaderboard.map(l => `
+                <div class="leader-item">
+                    <div class="leader-rank rank-${l.rank}">${l.rank}</div>
+                    <div class="leader-info">
+                        <div class="leader-name">${l.name}</div>
+                        <div class="leader-meta">
+                            <span class="leader-ticker">$${l.symbol}</span>
+                            <span class="leader-path">${l.path}</span>
                         </div>
                     </div>
-                    <div class="leader-mcap">
-                        <div class="leader-mcap-value">${fmt.usd(token.mcap)}</div>
-                    </div>
-                    <div class="leader-reward">+1 SOL</div>
+                    <div class="leader-mcap">$${formatNumber(l.mcap)}</div>
+                    ${l.reward ? `<div class="leader-reward">${l.reward}</div>` : '<div style="width:60px"></div>'}
                 </div>
             `).join('');
         }
 
-        function renderTokens() {
-            const container = document.getElementById('tokenList');
-            const search = document.getElementById('searchInput').value.toLowerCase();
+        function formatNumber(num) {
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toString();
+        }
 
-            let tokens = state.tokens;
+        // ═══════════════════════════════════════════════════════════════════════
+        // TIMER
+        // ═══════════════════════════════════════════════════════════════════════
+        function startTimer() {
+            let seconds = 6323;
+            const tick = () => {
+                seconds = seconds > 0 ? seconds - 1 : 7200;
+                const h = Math.floor(seconds / 3600);
+                const m = Math.floor((seconds % 3600) / 60);
+                const s = seconds % 60;
+                document.getElementById('timer').textContent =
+                    `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+            };
+            tick();
+            setInterval(tick, 1000);
+        }
 
-            // Filter by tab
-            if (state.activeTab === 'competition') {
-                tokens = tokens.filter(t => t.inCompetition);
-            } else if (state.activeTab === 'new') {
-                tokens = tokens.filter(t => t.progress < 20);
-            } else if (state.activeTab === 'graduating') {
-                tokens = tokens.filter(t => t.progress >= 80);
-            }
-
-            // Filter by search
-            if (search) {
-                tokens = tokens.filter(t =>
-                    t.name?.toLowerCase().includes(search) ||
-                    t.symbol?.toLowerCase().includes(search)
-                );
-            }
-
-            if (state.loading) {
-                container.innerHTML = '<div class="loading">Loading tokens...</div>';
-                return;
-            }
-
-            if (tokens.length === 0) {
-                container.innerHTML = '<div class="empty-state"><p>No tokens found</p></div>';
-                return;
-            }
-
-            container.innerHTML = tokens.map((token, i) => `
-                <div class="token-row" data-mint="${token.mint}">
-                    <div class="token-rank">${String(i + 1).padStart(2, '0')}</div>
-                    <div class="token-info">
-                        ${token.image
-                            ? `<img src="${token.image}" class="token-img" alt="${token.symbol}">`
-                            : `<div class="token-img-placeholder">${token.symbol?.[1] || '?'}</div>`
-                        }
-                        <div class="token-name">
-                            <h4>
-                                ${token.name}
-                                ${token.inCompetition ? '<span class="badge-competing">Competing</span>' : ''}
-                            </h4>
-                            <span>${token.symbol}</span>
-                        </div>
-                    </div>
-                    <div class="token-mcap">${fmt.usd(token.mcap)}</div>
-                    <div class="token-pool">${fmt.sol(token.allocationPool || 1)}</div>
-                    <div class="token-sol">${(token.realSol || 0).toFixed(2)}</div>
-                    <div class="token-progress">
-                        <div class="progress-bar">
-                            <div class="progress-fill ${token.progress >= 100 ? 'complete' : ''}" style="width:${Math.min(token.progress || 0, 100)}%"></div>
-                        </div>
-                        <div class="progress-text">
-                            <span>curve</span>
-                            <span>${(token.progress || 0).toFixed(0)}%</span>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-
-            // Add click handlers
-            container.querySelectorAll('.token-row').forEach(row => {
-                row.addEventListener('click', () => selectToken(row.dataset.mint));
+        // ═══════════════════════════════════════════════════════════════════════
+        // PATH SELECTION
+        // ═══════════════════════════════════════════════════════════════════════
+        function selectPath(path) {
+            selectedPath = path;
+            document.querySelectorAll('.path-option').forEach(opt => {
+                opt.classList.toggle('active', opt.dataset.path === path);
             });
         }
 
-        async function renderActivity() {
-            const activity = await fetchActivity();
-            const container = document.getElementById('activityFeed');
-
-            container.innerHTML = activity.map(a => `
-                <div class="activity-item">
-                    <span class="activity-time">${fmt.time(a.time)}</span>
-                    <span class="activity-type ${a.type}">${a.type}</span>
-                    ${a.amount > 0 ? `<span class="activity-amount">${fmt.sol(a.amount)}</span>` : ''}
-                </div>
-            `).join('');
+        // ═══════════════════════════════════════════════════════════════════════
+        // MODALS
+        // ═══════════════════════════════════════════════════════════════════════
+        function showCreateModal() {
+            document.getElementById('createModal').style.display = 'flex';
+            updateDeployBtn();
         }
 
-        function selectToken(mint) {
-            const token = state.tokens.find(t => t.mint === mint);
-            if (!token) return;
-
-            state.selectedToken = token;
-
-            const card = document.getElementById('selectedTokenCard');
-            card.style.display = 'block';
-            document.getElementById('poolBalance').textContent = fmt.sol(token.allocationPool || 1);
+        function closeCreateModal() {
+            document.getElementById('createModal').style.display = 'none';
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // TIMER
-        // ═══════════════════════════════════════════════════════════════
+        function updateDeployBtn() {
+            const btn = document.getElementById('deployBtn');
+            btn.textContent = connectedWallet ? 'Deploy Token + Receive 1 SOL' : 'Connect Wallet to Launch';
+        }
 
-        function updateTimer() {
-            const remaining = state.competitionEnd - Date.now();
-
-            if (remaining <= 0) {
-                // Reset competition
-                state.competitionEnd = Date.now() + (CONFIG.COMPETITION_HOURS * 3600 * 1000);
+        function deployToken() {
+            if (!connectedWallet) {
+                connectWallet();
+                return;
             }
-
-            document.getElementById('competitionTimer').textContent = fmt.countdown(remaining);
+            const name = document.getElementById('tokenName').value;
+            const symbol = document.getElementById('tokenSymbol').value;
+            if (!name || !symbol) {
+                alert('Please enter token name and symbol');
+                return;
+            }
+            alert(`Deploying ${name} ($${symbol.toUpperCase()}) via ${selectedPath === 'pump' ? 'Pump.fun' : 'Raydium'}...`);
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // PRIVY WALLET CONFIGURATION
-        // ═══════════════════════════════════════════════════════════════
-
-        // Use server-injected config (window.LAUNCHR_CONFIG) or fallback
-        const PRIVY_APP_ID = window.LAUNCHR_CONFIG?.PRIVY_APP_ID || 'YOUR_PRIVY_APP_ID';
-        const SOLANA_RPC = window.LAUNCHR_CONFIG?.SOLANA_RPC || 'https://api.mainnet-beta.solana.com';
-        const FEE_WALLET = window.LAUNCHR_CONFIG?.FEE_WALLET || '';
-        let privyClient = null;
-        let walletBalance = 0;
-
+        // ═══════════════════════════════════════════════════════════════════════
+        // WALLET FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════════════
         async function initPrivy() {
             try {
                 if (typeof window.Privy !== 'undefined') {
@@ -1659,100 +1312,80 @@
                         appId: PRIVY_APP_ID,
                         config: {
                             loginMethods: ['email', 'wallet', 'google', 'twitter'],
-                            appearance: { theme: 'dark', accentColor: '#00ff88', showWalletLoginFirst: true },
+                            appearance: { theme: 'dark', accentColor: '#C4A574' },
                             embeddedWallets: { createOnLogin: 'users-without-wallets' },
                             solanaClusters: [{ name: 'mainnet-beta', rpcUrl: SOLANA_RPC }],
                         },
                     });
                     const user = await privyClient.getUser();
                     if (user?.wallet) handleWalletConnected(user.wallet.address);
-                    console.log('[PRIVY] Initialized');
                 }
-            } catch (e) {
-                console.error('[PRIVY] Init error:', e);
-            }
+            } catch (e) { console.error('[PRIVY]', e); }
         }
 
         async function connectWallet() {
-            if (state.wallet) {
-                showWalletModal();
-                return;
-            }
+            if (connectedWallet) { showWalletModal(); return; }
 
-            // Try Privy first
             if (privyClient) {
                 try {
                     const user = await privyClient.login();
                     if (user?.wallet) handleWalletConnected(user.wallet.address);
                     return;
-                } catch (e) {
-                    console.error('[PRIVY] Login error:', e);
-                }
+                } catch (e) { console.error('[PRIVY]', e); }
             }
 
-            // Fallback to Phantom/Solflare
-            try {
-                if (window.solana?.isPhantom) {
-                    const res = await window.solana.connect();
-                    handleWalletConnected(res.publicKey.toString());
-                } else if (window.solflare?.isSolflare) {
-                    await window.solflare.connect();
-                    handleWalletConnected(window.solflare.publicKey.toString());
-                } else {
-                    alert('Please install Phantom or Solflare wallet, or use email login with Privy');
-                }
-            } catch (e) {
-                console.error('Wallet connect failed:', e);
+            if (window.solana?.isPhantom) {
+                const res = await window.solana.connect();
+                handleWalletConnected(res.publicKey.toString());
+            } else if (window.solflare?.isSolflare) {
+                await window.solflare.connect();
+                handleWalletConnected(window.solflare.publicKey.toString());
+            } else {
+                alert('Please install Phantom or Solflare wallet');
             }
         }
 
         async function handleWalletConnected(address) {
-            state.wallet = address;
-            document.getElementById('connectBtn').textContent = fmt.address(address);
-            document.getElementById('connectBtn').classList.add('wallet-connected');
-            document.getElementById('deployBtn').textContent = 'Deploy + Receive 1 SOL';
-            document.getElementById('deployBtn').disabled = false;
+            connectedWallet = address;
+            const btn = document.getElementById('connectWallet');
+            btn.textContent = address.slice(0, 4) + '...' + address.slice(-4);
+            btn.classList.add('wallet-connected');
             await fetchBalance(address);
             localStorage.setItem('connectedWallet', address);
-            console.log('[WALLET] Connected:', address);
+            updateDeployBtn();
         }
 
         async function fetchBalance(address) {
             try {
-                const response = await fetch(SOLANA_RPC, {
+                const res = await fetch(SOLANA_RPC, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getBalance', params: [address] }),
                 });
-                const data = await response.json();
+                const data = await res.json();
                 if (data.result?.value !== undefined) {
                     walletBalance = data.result.value / 1e9;
-                    document.getElementById('walletBalance').textContent = walletBalance.toFixed(4) + ' SOL';
+                    document.getElementById('walletBalance').textContent = walletBalance.toFixed(4);
                 }
-            } catch (e) {
-                console.error('[BALANCE] Fetch error:', e);
-            }
+            } catch (e) { console.error('[BALANCE]', e); }
         }
 
         async function disconnectWallet() {
             if (privyClient) try { await privyClient.logout(); } catch (e) {}
             if (window.solana?.isPhantom) try { await window.solana.disconnect(); } catch (e) {}
-
-            state.wallet = null;
+            connectedWallet = null;
             walletBalance = 0;
             localStorage.removeItem('connectedWallet');
-            document.getElementById('connectBtn').textContent = 'Connect';
-            document.getElementById('connectBtn').classList.remove('wallet-connected');
-            document.getElementById('deployBtn').textContent = 'Connect Wallet';
-            document.getElementById('deployBtn').disabled = true;
+            document.getElementById('connectWallet').textContent = 'Connect Wallet';
+            document.getElementById('connectWallet').classList.remove('wallet-connected');
             closeWalletModal();
-            console.log('[WALLET] Disconnected');
+            updateDeployBtn();
         }
 
         function showWalletModal() {
-            if (!state.wallet) return;
-            document.getElementById('walletAddress').textContent = state.wallet;
-            document.getElementById('walletBalance').textContent = walletBalance.toFixed(4) + ' SOL';
+            if (!connectedWallet) return;
+            document.getElementById('walletAddress').textContent = connectedWallet;
+            document.getElementById('walletBalance').textContent = walletBalance.toFixed(4);
             document.getElementById('walletModal').style.display = 'flex';
         }
 
@@ -1761,84 +1394,8 @@
         }
 
         function copyWalletAddress() {
-            if (!state.wallet) return;
-            navigator.clipboard.writeText(state.wallet).then(() => alert('Address copied!'));
+            navigator.clipboard.writeText(connectedWallet);
         }
-
-        // ═══════════════════════════════════════════════════════════════
-        // MODAL
-        // ═══════════════════════════════════════════════════════════════
-
-        function openModal() {
-            document.getElementById('createModal').classList.add('active');
-        }
-
-        function closeModal() {
-            document.getElementById('createModal').classList.remove('active');
-        }
-
-        // ═══════════════════════════════════════════════════════════════
-        // EVENT LISTENERS
-        // ═══════════════════════════════════════════════════════════════
-
-        document.addEventListener('DOMContentLoaded', async () => {
-            // Initialize Privy
-            initPrivy();
-
-            // Check for stored wallet
-            const storedWallet = localStorage.getItem('connectedWallet');
-            if (storedWallet) handleWalletConnected(storedWallet);
-
-            // Initial render
-            await fetchTokens();
-            renderStats();
-            renderLeaderboard();
-            renderTokens();
-            renderActivity();
-
-            // Timer
-            updateTimer();
-            setInterval(updateTimer, 1000);
-
-            // Refresh data
-            setInterval(async () => {
-                await fetchTokens();
-                renderStats();
-                renderLeaderboard();
-                renderTokens();
-            }, 30000);
-
-            // Tab switching
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.addEventListener('click', () => {
-                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                    tab.classList.add('active');
-                    state.activeTab = tab.dataset.tab;
-                    renderTokens();
-                });
-            });
-
-            // Search
-            document.getElementById('searchInput').addEventListener('input', renderTokens);
-
-            // Wallet
-            document.getElementById('connectBtn').addEventListener('click', connectWallet);
-
-            // Modal
-            document.getElementById('launchBtn').addEventListener('click', openModal);
-            document.getElementById('closeModal').addEventListener('click', closeModal);
-            document.getElementById('createModal').addEventListener('click', (e) => {
-                if (e.target.id === 'createModal') closeModal();
-            });
-
-            // Strategy buttons
-            document.querySelectorAll('.strategy-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    document.querySelectorAll('.strategy-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                });
-            });
-        });
     </script>
 </body>
 </html>
