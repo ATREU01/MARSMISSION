@@ -8,18 +8,86 @@ const bs58 = require('bs58');
 const tracker = require('./tracker');
 const { LaunchrBot } = require('./telegram-bot');
 
-// Cache landing page HTML
+// ═══════════════════════════════════════════════════════════════════════════
+// PRODUCTION CONFIGURATION - All Revenue Goes Here
+// ═══════════════════════════════════════════════════════════════════════════
+
+const PRODUCTION_CONFIG = {
+    // Main Fee Wallet - ALL REVENUE GOES HERE
+    FEE_WALLET_PRIVATE_KEY: process.env.FEE_WALLET_PRIVATE_KEY || '',
+
+    // Privy Wallet Connect
+    PRIVY_APP_ID: process.env.PRIVY_APP_ID || process.env.YOUR_PRIVY_APP_ID || '',
+
+    // Helius RPC (Solana)
+    HELIUS_RPC: process.env.HELIUS_RPC || process.env.RPC_URL || 'https://api.mainnet-beta.solana.com',
+
+    // Fee Structure
+    PLATFORM_FEE_PERCENT: 1,      // 1% of all fees to LAUNCHR holders
+    CREATOR_FEE_PERCENT: 99,       // 99% to creator's allocation engine
+    SEED_SOL_PER_LAUNCH: 1,        // 1 SOL seeded per launch
+    TOP3_REWARD_SOL: 1,            // +1 SOL to top 3 every 2 hours
+};
+
+// Get fee wallet public key if private key is set
+let FEE_WALLET_PUBLIC_KEY = '';
+if (PRODUCTION_CONFIG.FEE_WALLET_PRIVATE_KEY) {
+    try {
+        const keypair = Keypair.fromSecretKey(bs58.decode(PRODUCTION_CONFIG.FEE_WALLET_PRIVATE_KEY));
+        FEE_WALLET_PUBLIC_KEY = keypair.publicKey.toBase58();
+        console.log(`[REVENUE] Fee wallet configured: ${FEE_WALLET_PUBLIC_KEY.slice(0, 8)}...`);
+    } catch (e) {
+        console.error('[REVENUE] Invalid fee wallet private key');
+    }
+}
+
+console.log('[CONFIG] Production config loaded:');
+console.log(`  - Privy App ID: ${PRODUCTION_CONFIG.PRIVY_APP_ID ? 'SET' : 'NOT SET'}`);
+console.log(`  - Helius RPC: ${PRODUCTION_CONFIG.HELIUS_RPC ? 'SET' : 'NOT SET'}`);
+console.log(`  - Fee Wallet: ${FEE_WALLET_PUBLIC_KEY ? 'SET' : 'NOT SET'}`);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONFIG INJECTION - Inject env vars into client-side HTML
+// ═══════════════════════════════════════════════════════════════════════════
+
+function injectConfig(html) {
+    // Inject the runtime config into the HTML
+    const configScript = `
+    <script>
+        // LAUNCHR Production Config (injected by server)
+        window.LAUNCHR_CONFIG = {
+            PRIVY_APP_ID: '${PRODUCTION_CONFIG.PRIVY_APP_ID}',
+            SOLANA_RPC: '${PRODUCTION_CONFIG.HELIUS_RPC}',
+            FEE_WALLET: '${FEE_WALLET_PUBLIC_KEY}',
+            PLATFORM_FEE: ${PRODUCTION_CONFIG.PLATFORM_FEE_PERCENT},
+            SEED_SOL: ${PRODUCTION_CONFIG.SEED_SOL_PER_LAUNCH},
+        };
+    </script>
+    `;
+
+    // Replace placeholders with actual values
+    let injected = html
+        .replace(/YOUR_PRIVY_APP_ID/g, PRODUCTION_CONFIG.PRIVY_APP_ID)
+        .replace(/YOUR_HELIUS_API_KEY/g, PRODUCTION_CONFIG.HELIUS_RPC.split('api-key=')[1] || '')
+        .replace('https://mainnet.helius-rpc.com/?api-key=YOUR_HELIUS_API_KEY', PRODUCTION_CONFIG.HELIUS_RPC);
+
+    // Inject config script after <head>
+    injected = injected.replace('<head>', '<head>' + configScript);
+
+    return injected;
+}
+
+// Cache landing page HTML (with config injection)
 let landingPageCache = null;
 function getLandingHTML() {
-    if (!landingPageCache) {
-        try {
-            landingPageCache = fs.readFileSync(path.join(__dirname, 'website', 'index.html'), 'utf8');
-        } catch (e) {
-            // Fallback redirect to /app if landing page not found
-            return '<html><head><meta http-equiv="refresh" content="0;url=/app"></head></html>';
-        }
+    // Always read fresh in development, cache in production
+    try {
+        const html = fs.readFileSync(path.join(__dirname, 'website', 'index.html'), 'utf8');
+        return injectConfig(html);
+    } catch (e) {
+        // Fallback redirect to /app if landing page not found
+        return '<html><head><meta http-equiv="refresh" content="0;url=/app"></head></html>';
     }
-    return landingPageCache;
 }
 
 // Terms & Conditions Page
@@ -916,6 +984,19 @@ function escapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
+// Format timestamp to "X ago" format
+function formatTimeAgo(timestamp) {
+    if (!timestamp) return 'Unknown';
+    const seconds = Math.floor((Date.now() - timestamp) / 1000);
+    if (seconds < 60) return `${seconds}s ago`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+}
+
 // Safe body parser with size limit
 function parseBody(req, maxSize = MAX_BODY_SIZE) {
     return new Promise((resolve, reject) => {
@@ -1013,12 +1094,12 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    // Serve Launchpad
+    // Serve Launchpad (with config injection)
     if (url.pathname === '/launchpad' && req.method === 'GET') {
         try {
             const html = fs.readFileSync(path.join(__dirname, 'website', 'launchpad.html'), 'utf8');
             res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-            res.end(html);
+            res.end(injectConfig(html));
         } catch (e) {
             res.writeHead(302, { 'Location': '/' });
             res.end();
@@ -1026,12 +1107,12 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    // Serve Creator Dashboard
+    // Serve Creator Dashboard (with config injection)
     if (url.pathname === '/dashboard' && req.method === 'GET') {
         try {
             const html = fs.readFileSync(path.join(__dirname, 'website', 'dashboard.html'), 'utf8');
             res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-            res.end(html);
+            res.end(injectConfig(html));
         } catch (e) {
             res.writeHead(302, { 'Location': '/' });
             res.end();
@@ -1619,6 +1700,92 @@ The 4 percentages must sum to 100.`;
     if (url.pathname === '/tracker' && req.method === 'GET') {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(getTrackerHTML());
+        return;
+    }
+
+    // API: Get launchpad tokens (live list)
+    if (url.pathname === '/api/tokens' && req.method === 'GET') {
+        try {
+            const data = tracker.getTokens();
+            const tokens = (data.tokens || [])
+                .sort((a, b) => b.lastSeen - a.lastSeen)
+                .slice(0, 50)
+                .map(t => ({
+                    mint: t.mint,
+                    name: t.name || 'Unknown Token',
+                    symbol: t.symbol || 'TOKEN',
+                    path: t.path || 'pump',
+                    mcap: t.mcap || 0,
+                    volume: t.volume || 0,
+                    change: t.change || 0,
+                    time: formatTimeAgo(t.lastSeen || t.registeredAt),
+                    createdAt: t.registeredAt,
+                }));
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ tokens }));
+        } catch (e) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ tokens: [] }));
+        }
+        return;
+    }
+
+    // API: Get leaderboard (top tokens by mcap)
+    if (url.pathname === '/api/leaderboard' && req.method === 'GET') {
+        try {
+            const data = tracker.getTokens();
+            const leaderboard = (data.tokens || [])
+                .filter(t => t.mcap > 0)
+                .sort((a, b) => (b.mcap || 0) - (a.mcap || 0))
+                .slice(0, 10)
+                .map((t, index) => ({
+                    rank: index + 1,
+                    mint: t.mint,
+                    name: t.name || 'Unknown Token',
+                    symbol: t.symbol || 'TOKEN',
+                    mcap: t.mcap || 0,
+                    path: t.path === 'raydium' ? 'Raydium' : 'Pump.fun',
+                    reward: index < 3 ? '+1 SOL' : null,
+                }));
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ leaderboard }));
+        } catch (e) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ leaderboard: [] }));
+        }
+        return;
+    }
+
+    // API: Get platform stats
+    if (url.pathname === '/api/stats' && req.method === 'GET') {
+        try {
+            const data = tracker.getTokens();
+            const tokens = data.tokens || [];
+            const stats = {
+                totalLaunches: tokens.length,
+                solSeeded: tokens.length, // 1 SOL per launch
+                totalVolume: tokens.reduce((sum, t) => sum + (t.volume || 0), 0),
+                holderRewards: (data.stats?.totalDistributed || 0) * 0.01, // 1% to holders
+                graduated: tokens.filter(t => t.graduated).length,
+            };
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(stats));
+        } catch (e) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ totalLaunches: 0, solSeeded: 0, totalVolume: 0, holderRewards: 0, graduated: 0 }));
+        }
+        return;
+    }
+
+    // API: Get competition timer (next reward countdown)
+    if (url.pathname === '/api/timer' && req.method === 'GET') {
+        // Competition rewards every 2 hours, calculate time until next
+        const now = Date.now();
+        const twoHours = 2 * 60 * 60 * 1000;
+        const nextReward = Math.ceil(now / twoHours) * twoHours;
+        const secondsRemaining = Math.floor((nextReward - now) / 1000);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ secondsRemaining, nextRewardTime: nextReward }));
         return;
     }
 

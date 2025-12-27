@@ -3,46 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Creator Dashboard - LAUNCHR</title>
+    <title>Creator Dashboard - LAUNCHR Mission Control</title>
+    <meta name="description" content="Manage your token's fee routing and allocation strategy.">
     <link rel="icon" href="/website/logo-icon.jpg" type="image/jpeg">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.privy.io/privy-browser.min.js"></script>
+
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
         :root {
-            --bg: #030303;
-            --surface: #0a0a0a;
-            --surface-2: #111;
-            --border: rgba(255,255,255,0.06);
-            --text: #fafafa;
-            --text-secondary: rgba(255,255,255,0.5);
-            --text-muted: rgba(255,255,255,0.3);
-            --accent: #00ff88;
-            --accent-dim: rgba(0,255,136,0.1);
-            --purple: #8b5cf6;
-            --red: #ff4444;
+            /* Background Layers */
+            --bg-deep: #030303;
+            --bg: #050505;
+            --bg-elevated: #080808;
+            --surface: #0C0C0C;
+            --surface-2: #121212;
+            --surface-3: #181818;
+            --surface-4: #1E1E1E;
+
+            /* Borders */
+            --border: rgba(196, 165, 116, 0.08);
+            --border-subtle: rgba(255, 255, 255, 0.04);
+            --border-active: rgba(196, 165, 116, 0.2);
+            --border-strong: rgba(196, 165, 116, 0.35);
+
+            /* Text */
+            --text: #E8E4DE;
+            --text-secondary: #9A9590;
+            --text-muted: #5C5955;
+            --text-dim: #3D3A37;
+
+            /* Primary - Muted Gold */
+            --gold: #C4A574;
+            --gold-light: #D4B894;
+            --gold-dark: #9A8055;
+            --gold-dim: rgba(196, 165, 116, 0.12);
+            --gold-glow: rgba(196, 165, 116, 0.06);
+
+            /* Secondary - Teal */
+            --teal: #64B5A0;
+            --teal-dim: rgba(100, 181, 160, 0.12);
+
+            /* Semantic */
+            --success: #7CB66A;
+            --success-dim: rgba(124, 182, 106, 0.12);
+            --warning: #D4A84A;
+            --warning-dim: rgba(212, 168, 74, 0.12);
+            --error: #C75050;
+            --error-dim: rgba(199, 80, 80, 0.12);
+            --purple: #A78BFA;
+            --purple-dim: rgba(139, 92, 246, 0.15);
+
+            /* Spacing & Radius */
+            --radius-sm: 6px;
+            --radius: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
         }
+
+        html { scroll-behavior: smooth; }
+
         body {
-            font-family: 'Inter', -apple-system, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--bg);
             color: var(--text);
             line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
             min-height: 100vh;
         }
-        .grain {
+
+        /* Ambient Background */
+        .ambient {
             position: fixed;
             inset: 0;
+            background:
+                radial-gradient(ellipse 80% 50% at 50% -10%, var(--gold-glow) 0%, transparent 50%),
+                radial-gradient(ellipse 40% 30% at 90% 90%, rgba(100, 181, 160, 0.03) 0%, transparent 40%);
             pointer-events: none;
-            z-index: 1000;
-            opacity: 0.06;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-            mix-blend-mode: overlay;
+            z-index: 0;
         }
 
         /* Layout */
         .layout {
             display: grid;
-            grid-template-columns: 240px 1fr;
+            grid-template-columns: 260px 1fr;
             min-height: 100vh;
+            position: relative;
+            z-index: 1;
         }
 
         /* Sidebar */
@@ -63,17 +112,29 @@
         .sidebar-header a {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             text-decoration: none;
             color: var(--text);
         }
         .sidebar-header img {
-            height: 28px;
-            border-radius: 6px;
+            height: 32px;
+            width: 32px;
+            border-radius: var(--radius-sm);
         }
-        .sidebar-header span {
-            font-weight: 600;
+        .sidebar-brand-text {
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar-brand-name {
+            font-weight: 700;
             font-size: 15px;
+            letter-spacing: -0.02em;
+        }
+        .sidebar-brand-tag {
+            font-size: 10px;
+            color: var(--gold);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
         }
         .sidebar-section {
             padding: 0 12px;
@@ -92,7 +153,7 @@
             align-items: center;
             gap: 10px;
             padding: 10px 12px;
-            border-radius: 6px;
+            border-radius: var(--radius);
             color: var(--text-secondary);
             text-decoration: none;
             font-size: 13px;
@@ -104,17 +165,15 @@
             color: var(--text);
         }
         .sidebar-link.active {
-            background: var(--accent-dim);
-            color: var(--accent);
+            background: var(--gold-dim);
+            color: var(--gold);
         }
         .sidebar-link svg {
             width: 18px;
             height: 18px;
             opacity: 0.7;
         }
-        .sidebar-link.active svg {
-            opacity: 1;
-        }
+        .sidebar-link.active svg { opacity: 1; }
 
         /* Main content */
         .main {
@@ -131,7 +190,7 @@
         }
         .page-title {
             font-size: 24px;
-            font-weight: 600;
+            font-weight: 700;
             letter-spacing: -0.02em;
         }
         .page-subtitle {
@@ -142,39 +201,54 @@
 
         /* Buttons */
         .btn {
-            padding: 10px 18px;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            border: none;
-            transition: all 0.15s;
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 8px;
+            padding: 10px 18px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: var(--radius);
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.15s ease;
+            white-space: nowrap;
         }
         .btn-primary {
-            background: var(--accent);
-            color: #000;
+            background: var(--gold);
+            color: var(--bg);
         }
         .btn-primary:hover {
-            box-shadow: 0 4px 12px rgba(0,255,136,0.3);
+            background: var(--gold-light);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(196, 165, 116, 0.25);
         }
         .btn-secondary {
-            background: transparent;
+            background: var(--surface-2);
             color: var(--text);
             border: 1px solid var(--border);
         }
         .btn-secondary:hover {
-            border-color: var(--text-muted);
+            background: var(--surface-3);
+            border-color: var(--border-active);
+        }
+        .btn-sm {
+            padding: 7px 14px;
+            font-size: 12px;
+        }
+        .wallet-connected {
+            background: var(--gold-dim) !important;
+            color: var(--gold) !important;
+            border-color: rgba(196, 165, 116, 0.3) !important;
         }
 
         /* Token Selector */
         .token-selector {
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 16px;
+            border-radius: var(--radius-lg);
+            padding: 16px 20px;
             margin-bottom: 24px;
             display: flex;
             align-items: center;
@@ -183,13 +257,15 @@
         .token-selector-img {
             width: 48px;
             height: 48px;
-            border-radius: 8px;
-            background: var(--surface-2);
+            border-radius: var(--radius);
+            background: linear-gradient(135deg, var(--surface-3), var(--surface-4));
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 18px;
-            font-weight: 600;
+            font-weight: 700;
+            color: var(--gold);
+            border: 1px solid var(--border);
         }
         .token-selector-info h3 {
             font-size: 16px;
@@ -204,23 +280,23 @@
             margin-left: auto;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
         }
         .path-badge {
-            padding: 4px 10px;
-            border-radius: 4px;
+            padding: 5px 12px;
+            border-radius: var(--radius-sm);
             font-size: 11px;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
         .path-badge.pumpfun {
-            background: rgba(139,92,246,0.15);
+            background: var(--purple-dim);
             color: var(--purple);
         }
         .path-badge.raydium {
-            background: var(--accent-dim);
-            color: var(--accent);
+            background: var(--teal-dim);
+            color: var(--teal);
         }
 
         /* Stats Grid */
@@ -228,19 +304,19 @@
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 16px;
-            margin-bottom: 32px;
+            margin-bottom: 24px;
         }
         .stat-card {
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: var(--radius-lg);
             padding: 20px;
         }
         .stat-card-label {
             font-size: 11px;
             color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.08em;
             margin-bottom: 8px;
         }
         .stat-card-value {
@@ -249,53 +325,114 @@
             font-family: 'JetBrains Mono', monospace;
             letter-spacing: -0.02em;
         }
-        .stat-card-value.accent { color: var(--accent); }
+        .stat-card-value.gold { color: var(--gold); }
+        .stat-card-value.teal { color: var(--teal); }
         .stat-card-change {
             font-size: 12px;
-            color: var(--accent);
+            color: var(--success);
             margin-top: 4px;
         }
-        .stat-card-change.negative { color: var(--red); }
+        .stat-card-change.negative { color: var(--error); }
+
+        /* Holder Pool Card */
+        .holder-pool {
+            background: linear-gradient(135deg, var(--gold-dim) 0%, rgba(196, 165, 116, 0.02) 100%);
+            border: 1px solid rgba(196, 165, 116, 0.2);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        .holder-pool-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+        .holder-pool-title {
+            font-size: 11px;
+            color: var(--gold);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+        }
+        .holder-pool-amount {
+            font-size: 36px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--gold);
+            margin-top: 4px;
+        }
+        .holder-pool-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        .holder-pool-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(196, 165, 116, 0.1);
+        }
+        .holder-stat-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        .holder-stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 15px;
+            font-weight: 600;
+            margin-top: 4px;
+        }
 
         /* Fee Routing Card */
         .fee-card {
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: var(--radius-lg);
             margin-bottom: 24px;
+            overflow: hidden;
         }
         .fee-card-header {
             padding: 16px 20px;
+            background: var(--bg-elevated);
             border-bottom: 1px solid var(--border);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
         .fee-card-title {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-secondary);
         }
         .fee-card-body {
-            padding: 20px;
+            padding: 24px;
         }
         .fee-split {
             display: flex;
-            gap: 32px;
+            gap: 24px;
+            align-items: center;
             margin-bottom: 24px;
         }
         .fee-split-item {
             flex: 1;
-            padding: 16px;
-            background: var(--surface-2);
-            border-radius: 6px;
+            padding: 20px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
             text-align: center;
         }
         .fee-split-percentage {
-            font-size: 32px;
-            font-weight: 600;
+            font-size: 36px;
+            font-weight: 700;
             font-family: 'JetBrains Mono', monospace;
         }
-        .fee-split-percentage.accent { color: var(--accent); }
+        .fee-split-percentage.gold { color: var(--gold); }
         .fee-split-label {
             font-size: 12px;
             color: var(--text-muted);
@@ -304,20 +441,20 @@
         .fee-arrow {
             display: flex;
             align-items: center;
-            color: var(--text-muted);
+            color: var(--text-dim);
             font-size: 20px;
         }
 
         /* Allocation Controls */
         .allocation-section {
-            margin-top: 24px;
+            margin-top: 32px;
         }
         .allocation-title {
             font-size: 12px;
             color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.1em;
-            margin-bottom: 12px;
+            letter-spacing: 0.08em;
+            margin-bottom: 16px;
         }
         .allocation-grid {
             display: grid;
@@ -325,9 +462,9 @@
             gap: 12px;
         }
         .allocation-item {
-            background: var(--surface-2);
+            background: var(--bg-elevated);
             border: 1px solid var(--border);
-            border-radius: 6px;
+            border-radius: var(--radius);
             padding: 16px;
         }
         .allocation-item-header {
@@ -344,11 +481,12 @@
             font-family: 'JetBrains Mono', monospace;
             font-size: 14px;
             font-weight: 600;
+            color: var(--gold);
         }
         .allocation-slider {
             width: 100%;
             height: 4px;
-            background: var(--border);
+            background: var(--surface-3);
             border-radius: 2px;
             appearance: none;
             cursor: pointer;
@@ -357,7 +495,7 @@
             appearance: none;
             width: 14px;
             height: 14px;
-            background: var(--text);
+            background: var(--gold);
             border-radius: 50%;
             cursor: pointer;
         }
@@ -370,7 +508,7 @@
         }
         .strategy-btn {
             padding: 8px 14px;
-            border-radius: 4px;
+            border-radius: var(--radius-sm);
             font-size: 12px;
             font-weight: 500;
             background: transparent;
@@ -380,30 +518,36 @@
             transition: all 0.15s;
         }
         .strategy-btn:hover {
-            border-color: var(--text-muted);
+            border-color: var(--border-active);
+            color: var(--text);
         }
         .strategy-btn.active {
-            background: var(--accent-dim);
-            color: var(--accent);
-            border-color: rgba(0,255,136,0.3);
+            background: var(--gold-dim);
+            color: var(--gold);
+            border-color: rgba(196, 165, 116, 0.3);
         }
 
         /* Activity Table */
         .activity-card {
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: var(--radius-lg);
+            overflow: hidden;
         }
         .activity-header {
             padding: 16px 20px;
+            background: var(--bg-elevated);
             border-bottom: 1px solid var(--border);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
         .activity-title {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-secondary);
             display: flex;
             align-items: center;
             gap: 8px;
@@ -411,7 +555,7 @@
         .activity-title .dot {
             width: 6px;
             height: 6px;
-            background: var(--accent);
+            background: var(--success);
             border-radius: 50%;
             animation: pulse 2s infinite;
         }
@@ -419,14 +563,12 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.4; }
         }
-        .activity-table {
-            width: 100%;
-        }
+        .activity-table { width: 100%; }
         .activity-row {
             display: grid;
             grid-template-columns: 80px 1fr 100px 120px 100px;
-            padding: 12px 20px;
-            border-bottom: 1px solid var(--border);
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border-subtle);
             align-items: center;
             font-size: 13px;
         }
@@ -438,130 +580,172 @@
         }
         .activity-type {
             display: inline-block;
-            padding: 3px 8px;
-            border-radius: 3px;
+            padding: 4px 10px;
+            border-radius: var(--radius-sm);
             font-size: 10px;
             font-weight: 600;
             text-transform: uppercase;
         }
-        .activity-type.claim { background: rgba(0,170,255,0.15); color: #00aaff; }
-        .activity-type.distribute { background: var(--accent-dim); color: var(--accent); }
-        .activity-type.buyback { background: rgba(139,92,246,0.15); color: var(--purple); }
-        .activity-type.burn { background: rgba(255,68,68,0.15); color: var(--red); }
+        .activity-type.claim { background: rgba(100, 181, 160, 0.15); color: var(--teal); }
+        .activity-type.distribute { background: var(--gold-dim); color: var(--gold); }
+        .activity-type.buyback { background: var(--purple-dim); color: var(--purple); }
+        .activity-type.burn { background: var(--error-dim); color: var(--error); }
         .activity-amount {
             font-family: 'JetBrains Mono', monospace;
             text-align: right;
         }
-        .activity-status {
-            text-align: right;
-        }
+        .activity-status { text-align: right; }
         .status-badge {
             display: inline-block;
-            padding: 3px 8px;
-            border-radius: 3px;
+            padding: 4px 10px;
+            border-radius: var(--radius-sm);
             font-size: 10px;
             font-weight: 500;
         }
-        .status-badge.success { background: var(--accent-dim); color: var(--accent); }
-        .status-badge.pending { background: rgba(255,170,0,0.15); color: #ffaa00; }
+        .status-badge.success { background: var(--success-dim); color: var(--success); }
+        .status-badge.pending { background: var(--warning-dim); color: var(--warning); }
         .activity-sig {
             font-family: 'JetBrains Mono', monospace;
             font-size: 11px;
             color: var(--text-muted);
         }
 
-        /* Holder Pool Card */
-        .holder-pool {
-            background: linear-gradient(135deg, rgba(0,255,136,0.08) 0%, rgba(0,255,136,0.02) 100%);
-            border: 1px solid rgba(0,255,136,0.2);
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 24px;
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
         }
-        .holder-pool-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
+        .empty-state-icon {
+            font-size: 40px;
+            opacity: 0.3;
             margin-bottom: 16px;
         }
-        .holder-pool-title {
-            font-size: 11px;
-            color: var(--accent);
-            text-transform: uppercase;
-            letter-spacing: 0.15em;
-        }
-        .holder-pool-amount {
-            font-size: 32px;
-            font-weight: 600;
-            font-family: 'JetBrains Mono', monospace;
-            color: var(--accent);
-        }
-        .holder-pool-desc {
-            font-size: 12px;
+        .empty-state-title {
+            font-size: 16px;
             color: var(--text-secondary);
-            margin-top: 4px;
+            margin-bottom: 8px;
         }
-        .holder-pool-stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin-top: 16px;
-            padding-top: 16px;
-            border-top: 1px solid rgba(0,255,136,0.1);
-        }
-        .holder-stat-label {
-            font-size: 10px;
+        .empty-state-desc {
+            font-size: 13px;
             color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-        }
-        .holder-stat-value {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 14px;
-            margin-top: 4px;
+            margin-bottom: 24px;
         }
 
-        /* Launch Path Toggle */
-        .launch-modal {
+        /* Modal */
+        .modal-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.9);
-            z-index: 200;
+            z-index: 2000;
             display: flex;
             align-items: center;
             justify-content: center;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.2s;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
         }
-        .launch-modal.active {
-            opacity: 1;
-            visibility: visible;
-        }
-        .launch-modal-content {
+        .modal {
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 12px;
+            border-radius: var(--radius-xl);
             width: 100%;
-            max-width: 600px;
-            margin: 16px;
+            max-width: 480px;
+            margin: 20px;
+            overflow: hidden;
         }
-        .launch-modal-header {
+        .modal-header {
             padding: 20px 24px;
+            background: var(--bg-elevated);
             border-bottom: 1px solid var(--border);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        .launch-modal-close {
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            font-size: 24px;
-            cursor: pointer;
+        .modal-title {
+            font-size: 16px;
+            font-weight: 600;
         }
-        .launch-modal-body {
-            padding: 24px;
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text-muted);
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .modal-close:hover {
+            background: var(--surface-3);
+            color: var(--text);
+        }
+        .modal-body { padding: 24px; }
+
+        /* Wallet Info */
+        .wallet-info {
+            text-align: center;
+            padding: 20px 0;
+        }
+        .wallet-address {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: var(--text);
+            background: var(--bg);
+            padding: 14px 16px;
+            border-radius: var(--radius);
+            word-break: break-all;
+            margin-bottom: 16px;
+        }
+        .wallet-balance {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--gold);
+        }
+        .wallet-balance-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        .modal-actions .btn { flex: 1; }
+
+        /* Form */
+        .form-group { margin-bottom: 20px; }
+        .form-label {
+            display: block;
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+        }
+        .form-input {
+            width: 100%;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px 14px;
+            color: var(--text);
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.15s;
+        }
+        .form-input:hover { border-color: var(--border-active); }
+        .form-input:focus {
+            outline: none;
+            border-color: var(--gold);
+            background: var(--bg);
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
         }
 
         /* Path Toggle */
@@ -573,21 +757,20 @@
         }
         .path-option {
             padding: 20px;
+            background: var(--bg-elevated);
             border: 2px solid var(--border);
-            border-radius: 8px;
+            border-radius: var(--radius);
             cursor: pointer;
             transition: all 0.15s;
         }
-        .path-option:hover {
-            border-color: var(--text-muted);
-        }
+        .path-option:hover { border-color: var(--border-active); }
         .path-option.active {
-            border-color: var(--accent);
-            background: var(--accent-dim);
+            border-color: var(--gold);
+            background: var(--gold-dim);
         }
         .path-option.active.purple {
             border-color: var(--purple);
-            background: rgba(139,92,246,0.1);
+            background: var(--purple-dim);
         }
         .path-option-header {
             display: flex;
@@ -599,6 +782,8 @@
             font-weight: 600;
             font-size: 15px;
         }
+        .path-option.active .path-option-name { color: var(--gold); }
+        .path-option.active.purple .path-option-name { color: var(--purple); }
         .path-option-badge {
             font-size: 9px;
             padding: 2px 6px;
@@ -607,12 +792,12 @@
             letter-spacing: 0.05em;
         }
         .path-option-badge.simple {
-            background: rgba(139,92,246,0.15);
+            background: var(--purple-dim);
             color: var(--purple);
         }
         .path-option-badge.advanced {
-            background: var(--accent-dim);
-            color: var(--accent);
+            background: var(--teal-dim);
+            color: var(--teal);
         }
         .path-option-desc {
             font-size: 12px;
@@ -620,48 +805,53 @@
             line-height: 1.5;
         }
 
-        /* Form */
-        .form-group {
+        /* Seed hint */
+        .seed-hint {
+            background: var(--gold-dim);
+            border: 1px solid rgba(196, 165, 116, 0.25);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
             margin-bottom: 20px;
         }
-        .form-label {
-            display: block;
-            font-size: 11px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            margin-bottom: 8px;
+        .seed-hint-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--gold);
+            color: var(--bg);
+            border-radius: 50%;
+            font-size: 12px;
+            font-weight: 700;
         }
-        .form-input {
-            width: 100%;
-            background: var(--surface-2);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 12px;
-            color: var(--text);
-            font-size: 14px;
-            outline: none;
-        }
-        .form-input:focus {
-            border-color: var(--text-muted);
-        }
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
+        .seed-hint-text {
+            font-size: 13px;
+            color: var(--gold);
         }
 
         /* Responsive */
+        @media (max-width: 1200px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .allocation-grid { grid-template-columns: repeat(2, 1fr); }
+        }
         @media (max-width: 1024px) {
             .layout { grid-template-columns: 1fr; }
             .sidebar { display: none; }
-            .stats-grid { grid-template-columns: repeat(2, 1fr); }
-            .allocation-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 768px) {
+            .main { padding: 16px; }
+            .page-header { flex-direction: column; align-items: flex-start; gap: 16px; }
+            .fee-split { flex-direction: column; }
+            .activity-row { grid-template-columns: 1fr 1fr; gap: 8px; }
         }
     </style>
 </head>
 <body>
-    <div class="grain"></div>
+    <div class="ambient"></div>
 
     <div class="layout">
         <!-- Sidebar -->
@@ -669,7 +859,10 @@
             <div class="sidebar-header">
                 <a href="/">
                     <img src="/website/logo-icon.jpg" alt="LAUNCHR">
-                    <span>LAUNCHR</span>
+                    <div class="sidebar-brand-text">
+                        <span class="sidebar-brand-name">LAUNCHR</span>
+                        <span class="sidebar-brand-tag">Mission Control</span>
+                    </div>
                 </a>
             </div>
 
@@ -711,6 +904,10 @@
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     Help
                 </a>
+                <a href="https://t.me/LAUNCHR_V2_BOT" class="sidebar-link" target="_blank">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                    Telegram
+                </a>
             </div>
         </aside>
 
@@ -720,24 +917,27 @@
             <div class="page-header">
                 <div>
                     <h1 class="page-title">Creator Dashboard</h1>
-                    <p class="page-subtitle">Manage your token's fee routing and allocation</p>
+                    <p class="page-subtitle">Manage your token's fee routing and allocation strategy</p>
                 </div>
-                <button class="btn btn-primary" id="launchBtn">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                    New Launch
-                </button>
+                <div style="display:flex;gap:12px;">
+                    <button class="btn btn-secondary" id="connectBtn" onclick="connectWallet()">Connect Wallet</button>
+                    <button class="btn btn-primary" id="launchBtn" onclick="showLaunchModal()">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        New Launch
+                    </button>
+                </div>
             </div>
 
-            <!-- Token Selector -->
-            <div class="token-selector">
-                <div class="token-selector-img">M</div>
+            <!-- Token Selector (shows when connected) -->
+            <div class="token-selector" id="tokenSelector" style="display:none;">
+                <div class="token-selector-img" id="tokenAvatar">-</div>
                 <div class="token-selector-info">
-                    <h3>MEME Token</h3>
-                    <p>MEMExxx...xxx</p>
+                    <h3 id="tokenName">Select Token</h3>
+                    <p id="tokenMint">Connect wallet to view your tokens</p>
                 </div>
                 <div class="token-selector-path">
-                    <span class="path-badge pumpfun">Pump.fun</span>
-                    <button class="btn btn-secondary" style="padding:6px 12px;font-size:11px">Switch Token</button>
+                    <span class="path-badge pumpfun" id="tokenPath">-</span>
+                    <button class="btn btn-secondary btn-sm">Switch Token</button>
                 </div>
             </div>
 
@@ -746,23 +946,23 @@
                 <div class="holder-pool-header">
                     <div>
                         <div class="holder-pool-title">LAUNCHR Holder Pool</div>
-                        <div class="holder-pool-amount">12.45 SOL</div>
+                        <div class="holder-pool-amount" id="holderPoolAmount">0 SOL</div>
                         <div class="holder-pool-desc">1% of all creator fees across LAUNCHR</div>
                     </div>
-                    <button class="btn btn-secondary" style="border-color:rgba(0,255,136,0.3);color:var(--accent)">Distribute Now</button>
+                    <button class="btn btn-secondary" style="border-color:rgba(196, 165, 116, 0.3);color:var(--gold)">Distribute Now</button>
                 </div>
                 <div class="holder-pool-stats">
                     <div>
                         <div class="holder-stat-label">Total Collected</div>
-                        <div class="holder-stat-value">156.78 SOL</div>
+                        <div class="holder-stat-value" id="totalCollected">0 SOL</div>
                     </div>
                     <div>
                         <div class="holder-stat-label">Total Distributed</div>
-                        <div class="holder-stat-value">144.33 SOL</div>
+                        <div class="holder-stat-value" id="totalDistributed">0 SOL</div>
                     </div>
                     <div>
                         <div class="holder-stat-label">Holders</div>
-                        <div class="holder-stat-value">1,247</div>
+                        <div class="holder-stat-value" id="holderCount">0</div>
                     </div>
                 </div>
             </div>
@@ -771,22 +971,22 @@
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-card-label">Total Claimed</div>
-                    <div class="stat-card-value">45.67</div>
-                    <div class="stat-card-change">+2.3 SOL today</div>
+                    <div class="stat-card-value" id="statClaimed">0</div>
+                    <div class="stat-card-change" id="statClaimedChange">-</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-card-label">To Holder Pool</div>
-                    <div class="stat-card-value accent">0.46</div>
+                    <div class="stat-card-value gold" id="statHolderPool">0</div>
                     <div class="stat-card-change">1% of fees</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-card-label">Distributed</div>
-                    <div class="stat-card-value">45.21</div>
+                    <div class="stat-card-value" id="statDistributed">0</div>
                     <div class="stat-card-change">99% to allocation</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-card-label">Pending</div>
-                    <div class="stat-card-value">0.00</div>
+                    <div class="stat-card-value" id="statPending">0</div>
                     <div class="stat-card-change">Auto-claims every 10m</div>
                 </div>
             </div>
@@ -803,9 +1003,9 @@
                             <div class="fee-split-percentage">100%</div>
                             <div class="fee-split-label">Creator Fees Claimed</div>
                         </div>
-                        <div class="fee-arrow">→</div>
+                        <div class="fee-arrow">&#8594;</div>
                         <div class="fee-split-item">
-                            <div class="fee-split-percentage accent">1%</div>
+                            <div class="fee-split-percentage gold">1%</div>
                             <div class="fee-split-label">LAUNCHR Holders</div>
                         </div>
                         <div class="fee-arrow">+</div>
@@ -819,12 +1019,12 @@
                         <div class="allocation-title">Your 99% Allocation Strategy</div>
 
                         <div class="strategy-presets">
-                            <button class="strategy-btn active">Balanced</button>
-                            <button class="strategy-btn">Growth</button>
-                            <button class="strategy-btn">Burn</button>
-                            <button class="strategy-btn">LP</button>
-                            <button class="strategy-btn">Revenue</button>
-                            <button class="strategy-btn">Custom</button>
+                            <button class="strategy-btn active" data-strategy="balanced">Balanced</button>
+                            <button class="strategy-btn" data-strategy="growth">Growth</button>
+                            <button class="strategy-btn" data-strategy="burn">Burn</button>
+                            <button class="strategy-btn" data-strategy="lp">LP</button>
+                            <button class="strategy-btn" data-strategy="revenue">Revenue</button>
+                            <button class="strategy-btn" data-strategy="custom">Custom</button>
                         </div>
 
                         <div class="allocation-grid">
@@ -868,131 +1068,324 @@
                         <span class="dot"></span>
                         Recent Activity
                     </div>
-                    <button class="btn btn-secondary" style="padding:6px 12px;font-size:11px">View All</button>
+                    <button class="btn btn-secondary btn-sm">View All</button>
                 </div>
-                <div class="activity-table">
-                    <div class="activity-row">
-                        <span class="activity-time">2m ago</span>
-                        <span class="activity-type claim">Claim</span>
-                        <span class="activity-amount">+0.45 SOL</span>
-                        <span class="activity-sig">4xK...fGh</span>
-                        <span class="activity-status"><span class="status-badge success">Success</span></span>
-                    </div>
-                    <div class="activity-row">
-                        <span class="activity-time">2m ago</span>
-                        <span class="activity-type distribute">Holder</span>
-                        <span class="activity-amount">0.0045 SOL</span>
-                        <span class="activity-sig">7yL...mNp</span>
-                        <span class="activity-status"><span class="status-badge success">Success</span></span>
-                    </div>
-                    <div class="activity-row">
-                        <span class="activity-time">2m ago</span>
-                        <span class="activity-type buyback">Buyback</span>
-                        <span class="activity-amount">0.11 SOL</span>
-                        <span class="activity-sig">2aB...cDe</span>
-                        <span class="activity-status"><span class="status-badge success">Success</span></span>
-                    </div>
-                    <div class="activity-row">
-                        <span class="activity-time">2m ago</span>
-                        <span class="activity-type burn">Burn</span>
-                        <span class="activity-amount">45.2K tokens</span>
-                        <span class="activity-sig">9qR...sTu</span>
-                        <span class="activity-status"><span class="status-badge success">Success</span></span>
-                    </div>
-                    <div class="activity-row">
-                        <span class="activity-time">12m ago</span>
-                        <span class="activity-type claim">Claim</span>
-                        <span class="activity-amount">+0.32 SOL</span>
-                        <span class="activity-sig">5vW...xYz</span>
-                        <span class="activity-status"><span class="status-badge success">Success</span></span>
+                <div class="activity-table" id="activityTable">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">&#x1F4CA;</div>
+                        <div class="empty-state-title">No activity yet</div>
+                        <div class="empty-state-desc">Connect your wallet to see your fee routing activity</div>
                     </div>
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- Launch Modal -->
-    <div class="launch-modal" id="launchModal">
-        <div class="launch-modal-content">
-            <div class="launch-modal-header">
-                <span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.15em">New Launch</span>
-                <button class="launch-modal-close" id="closeModal">&times;</button>
+    <!-- Wallet Modal -->
+    <div id="walletModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeWalletModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">Wallet Connected</span>
+                <button class="modal-close" onclick="closeWalletModal()">&times;</button>
             </div>
-            <div class="launch-modal-body">
-                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">Choose your launch path. Both paths route fees through LAUNCHR.</p>
+            <div class="modal-body">
+                <div class="wallet-info">
+                    <div class="wallet-address" id="walletAddress">-</div>
+                    <div class="wallet-balance" id="walletBalance">0.0000</div>
+                    <div class="wallet-balance-label">SOL Balance</div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="copyWalletAddress()">Copy Address</button>
+                    <button class="btn btn-primary" onclick="disconnectWallet()" style="background:var(--error);">Disconnect</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Launch Modal -->
+    <div id="launchModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeLaunchModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">Launch New Token</span>
+                <button class="modal-close" onclick="closeLaunchModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:20px;">Choose your launch path. Both paths route fees through LAUNCHR.</p>
 
                 <div class="path-toggle">
-                    <div class="path-option active purple" data-path="pumpfun">
+                    <div class="path-option active purple" data-path="pumpfun" onclick="selectPath('pumpfun')">
                         <div class="path-option-header">
                             <span class="path-option-name">Pump.fun</span>
                             <span class="path-option-badge simple">Simple</span>
                         </div>
-                        <p class="path-option-desc">One-click launch. Fast, opinionated, beginner-friendly. Graduate to Raydium later.</p>
+                        <p class="path-option-desc">One-click launch. Fast, beginner-friendly. Graduate to Raydium later.</p>
                     </div>
-                    <div class="path-option" data-path="raydium">
+                    <div class="path-option" data-path="raydium" onclick="selectPath('raydium')">
                         <div class="path-option-header">
                             <span class="path-option-name">Raydium</span>
                             <span class="path-option-badge advanced">Advanced</span>
                         </div>
-                        <p class="path-option-desc">Custom bonding curve. Full control over price discovery and liquidity mechanics.</p>
+                        <p class="path-option-desc">Custom bonding curve. Full control over price discovery.</p>
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Token Name</label>
-                        <input type="text" class="form-input" placeholder="My Token">
+                        <input type="text" class="form-input" id="tokenNameInput" placeholder="My Token">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Symbol</label>
-                        <input type="text" class="form-input" placeholder="$TICKER" style="text-transform:uppercase">
+                        <input type="text" class="form-input" id="tokenSymbolInput" placeholder="$TICKER" style="text-transform:uppercase">
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">Description</label>
-                    <input type="text" class="form-input" placeholder="A brief description...">
+                    <input type="text" class="form-input" id="tokenDescInput" placeholder="A brief description...">
                 </div>
 
-                <div style="background:var(--accent-dim);border:1px solid rgba(0,255,136,0.2);border-radius:6px;padding:12px;margin-bottom:20px;display:flex;align-items:center;gap:10px">
-                    <div style="width:8px;height:8px;background:var(--accent);border-radius:50%"></div>
-                    <span style="font-size:13px">Your launch receives <strong style="color:var(--accent)">1 SOL</strong> seeded to allocation pool</span>
+                <div class="seed-hint">
+                    <div class="seed-hint-icon">1</div>
+                    <span class="seed-hint-text">Your launch receives <strong>1 SOL</strong> seeded to allocation pool</span>
                 </div>
 
-                <button class="btn btn-primary" style="width:100%;justify-content:center">Launch Token</button>
+                <button class="btn btn-primary" style="width:100%;justify-content:center;" id="launchTokenBtn" onclick="launchToken()">
+                    Connect Wallet to Launch
+                </button>
             </div>
         </div>
     </div>
 
     <script>
-        // Modal
-        document.getElementById('launchBtn').addEventListener('click', () => {
-            document.getElementById('launchModal').classList.add('active');
+        // ═══════════════════════════════════════════════════════════════════════
+        // CONFIGURATION
+        // ═══════════════════════════════════════════════════════════════════════
+        const PRIVY_APP_ID = window.LAUNCHR_CONFIG?.PRIVY_APP_ID || 'YOUR_PRIVY_APP_ID';
+        const SOLANA_RPC = window.LAUNCHR_CONFIG?.SOLANA_RPC || 'https://api.mainnet-beta.solana.com';
+        const FEE_WALLET = window.LAUNCHR_CONFIG?.FEE_WALLET || '';
+
+        let privyClient = null;
+        let connectedWallet = null;
+        let walletBalance = 0;
+        let selectedLaunchPath = 'pumpfun';
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // INITIALIZATION
+        // ═══════════════════════════════════════════════════════════════════════
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initPrivy();
+            const stored = localStorage.getItem('connectedWallet');
+            if (stored) handleWalletConnected(stored);
+
+            // Fetch initial stats
+            fetchDashboardStats();
+
+            // Strategy preset buttons
+            document.querySelectorAll('.strategy-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.strategy-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    applyStrategy(btn.dataset.strategy);
+                });
+            });
+
+            // Allocation sliders
+            document.querySelectorAll('.allocation-slider').forEach(slider => {
+                slider.addEventListener('input', (e) => {
+                    const value = e.target.value;
+                    e.target.closest('.allocation-item').querySelector('.allocation-item-value').textContent = value + '%';
+                });
+            });
+
+            // Auto-refresh stats every 30 seconds
+            setInterval(fetchDashboardStats, 30000);
         });
-        document.getElementById('closeModal').addEventListener('click', () => {
-            document.getElementById('launchModal').classList.remove('active');
-        });
-        document.getElementById('launchModal').addEventListener('click', (e) => {
-            if (e.target.id === 'launchModal') {
-                document.getElementById('launchModal').classList.remove('active');
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // DATA FETCHING
+        // ═══════════════════════════════════════════════════════════════════════
+        async function fetchDashboardStats() {
+            try {
+                const res = await fetch('/api/tracker/stats');
+                const data = await res.json();
+
+                // Update holder pool
+                const holderPool = (data.totalDistributed || 0) * 0.01;
+                document.getElementById('holderPoolAmount').textContent = holderPool.toFixed(2) + ' SOL';
+                document.getElementById('totalCollected').textContent = (data.totalClaimed || 0).toFixed(2) + ' SOL';
+                document.getElementById('totalDistributed').textContent = (data.totalDistributed || 0).toFixed(2) + ' SOL';
+                document.getElementById('holderCount').textContent = data.totalTokens || 0;
+
+                // Update stats
+                document.getElementById('statClaimed').textContent = (data.totalClaimed || 0).toFixed(2);
+                document.getElementById('statHolderPool').textContent = holderPool.toFixed(2);
+                document.getElementById('statDistributed').textContent = ((data.totalDistributed || 0) * 0.99).toFixed(2);
+            } catch (e) {
+                console.error('[STATS] Failed to fetch:', e);
             }
-        });
+        }
 
-        // Path toggle
-        document.querySelectorAll('.path-option').forEach(opt => {
-            opt.addEventListener('click', () => {
-                document.querySelectorAll('.path-option').forEach(o => o.classList.remove('active'));
-                opt.classList.add('active');
-            });
-        });
+        // ═══════════════════════════════════════════════════════════════════════
+        // WALLET FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════════════
+        async function initPrivy() {
+            try {
+                if (typeof window.Privy !== 'undefined') {
+                    privyClient = new window.Privy({
+                        appId: PRIVY_APP_ID,
+                        config: {
+                            loginMethods: ['email', 'wallet', 'google', 'twitter'],
+                            appearance: { theme: 'dark', accentColor: '#C4A574' },
+                            embeddedWallets: { createOnLogin: 'users-without-wallets' },
+                            solanaClusters: [{ name: 'mainnet-beta', rpcUrl: SOLANA_RPC }],
+                        },
+                    });
+                    const user = await privyClient.getUser();
+                    if (user?.wallet) handleWalletConnected(user.wallet.address);
+                }
+            } catch (e) { console.error('[PRIVY]', e); }
+        }
 
-        // Strategy presets
-        document.querySelectorAll('.strategy-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.strategy-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
+        async function connectWallet() {
+            if (connectedWallet) { showWalletModal(); return; }
+
+            if (privyClient) {
+                try {
+                    const user = await privyClient.login();
+                    if (user?.wallet) handleWalletConnected(user.wallet.address);
+                    return;
+                } catch (e) { console.error('[PRIVY]', e); }
+            }
+
+            if (window.solana?.isPhantom) {
+                const res = await window.solana.connect();
+                handleWalletConnected(res.publicKey.toString());
+            } else if (window.solflare?.isSolflare) {
+                await window.solflare.connect();
+                handleWalletConnected(window.solflare.publicKey.toString());
+            } else {
+                alert('Please install Phantom or Solflare wallet');
+            }
+        }
+
+        async function handleWalletConnected(address) {
+            connectedWallet = address;
+            const btn = document.getElementById('connectBtn');
+            btn.textContent = address.slice(0, 4) + '...' + address.slice(-4);
+            btn.classList.add('wallet-connected');
+            await fetchBalance(address);
+            localStorage.setItem('connectedWallet', address);
+            updateLaunchButton();
+            document.getElementById('tokenSelector').style.display = 'flex';
+        }
+
+        async function fetchBalance(address) {
+            try {
+                const res = await fetch(SOLANA_RPC, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getBalance', params: [address] }),
+                });
+                const data = await res.json();
+                if (data.result?.value !== undefined) {
+                    walletBalance = data.result.value / 1e9;
+                    document.getElementById('walletBalance').textContent = walletBalance.toFixed(4);
+                }
+            } catch (e) { console.error('[BALANCE]', e); }
+        }
+
+        async function disconnectWallet() {
+            if (privyClient) try { await privyClient.logout(); } catch (e) {}
+            if (window.solana?.isPhantom) try { await window.solana.disconnect(); } catch (e) {}
+            connectedWallet = null;
+            walletBalance = 0;
+            localStorage.removeItem('connectedWallet');
+            document.getElementById('connectBtn').textContent = 'Connect Wallet';
+            document.getElementById('connectBtn').classList.remove('wallet-connected');
+            document.getElementById('tokenSelector').style.display = 'none';
+            closeWalletModal();
+            updateLaunchButton();
+        }
+
+        function showWalletModal() {
+            if (!connectedWallet) return;
+            document.getElementById('walletAddress').textContent = connectedWallet;
+            document.getElementById('walletBalance').textContent = walletBalance.toFixed(4);
+            document.getElementById('walletModal').style.display = 'flex';
+        }
+
+        function closeWalletModal() {
+            document.getElementById('walletModal').style.display = 'none';
+        }
+
+        function copyWalletAddress() {
+            navigator.clipboard.writeText(connectedWallet);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // LAUNCH MODAL
+        // ═══════════════════════════════════════════════════════════════════════
+        function showLaunchModal() {
+            document.getElementById('launchModal').style.display = 'flex';
+            updateLaunchButton();
+        }
+
+        function closeLaunchModal() {
+            document.getElementById('launchModal').style.display = 'none';
+        }
+
+        function selectPath(path) {
+            selectedLaunchPath = path;
+            document.querySelectorAll('.path-option').forEach(opt => {
+                opt.classList.remove('active', 'purple');
+                if (opt.dataset.path === path) {
+                    opt.classList.add('active');
+                    if (path === 'pumpfun') opt.classList.add('purple');
+                }
             });
-        });
+        }
+
+        function updateLaunchButton() {
+            const btn = document.getElementById('launchTokenBtn');
+            btn.textContent = connectedWallet ? 'Deploy Token + Receive 1 SOL' : 'Connect Wallet to Launch';
+        }
+
+        function launchToken() {
+            if (!connectedWallet) {
+                connectWallet();
+                return;
+            }
+            const name = document.getElementById('tokenNameInput').value;
+            const symbol = document.getElementById('tokenSymbolInput').value;
+            if (!name || !symbol) {
+                alert('Please enter token name and symbol');
+                return;
+            }
+            alert(`Deploying ${name} ($${symbol.toUpperCase()}) via ${selectedLaunchPath === 'pumpfun' ? 'Pump.fun' : 'Raydium'}...`);
+            closeLaunchModal();
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // ALLOCATION STRATEGIES
+        // ═══════════════════════════════════════════════════════════════════════
+        const strategies = {
+            balanced: [25, 25, 25, 25],
+            growth: [40, 10, 40, 10],
+            burn: [10, 60, 20, 10],
+            lp: [20, 10, 60, 10],
+            revenue: [10, 10, 10, 70],
+            custom: [25, 25, 25, 25],
+        };
+
+        function applyStrategy(name) {
+            const values = strategies[name] || strategies.balanced;
+            const sliders = document.querySelectorAll('.allocation-slider');
+            sliders.forEach((slider, i) => {
+                slider.value = values[i];
+                slider.closest('.allocation-item').querySelector('.allocation-item-value').textContent = values[i] + '%';
+            });
+        }
     </script>
 </body>
 </html>

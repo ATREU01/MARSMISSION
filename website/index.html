@@ -3,103 +3,157 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LAUNCHR - Programmable Liquidity Engine</title>
-    <meta name="description" content="The first AI-powered fee allocation engine for Solana. Route creator fees into market making, buybacks, and liquidity automatically.">
+    <title>LAUNCHR - Mission Control</title>
+    <meta name="description" content="The #1 Meme Launchpad on Solana. 1 SOL seeded per launch. 5-layer Mission Control security.">
 
-    <!-- Open Graph / Social Preview -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://www.launchronsol.xyz/">
-    <meta property="og:title" content="LAUNCHR - Programmable Liquidity Engine">
-    <meta property="og:description" content="The first AI-powered fee allocation engine for Solana. Route creator fees into market making, buybacks, and liquidity automatically.">
+    <meta property="og:title" content="LAUNCHR - Mission Control">
+    <meta property="og:description" content="The #1 Meme Launchpad on Solana. 1 SOL seeded per launch.">
     <meta property="og:image" content="https://www.launchronsol.xyz/website/logo-full.jpg">
 
-    <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="@LaunchrTG">
-    <meta name="twitter:title" content="LAUNCHR - Programmable Liquidity Engine">
-    <meta name="twitter:description" content="The first AI-powered fee allocation engine for Solana. Route creator fees into market making, buybacks, and liquidity.">
+    <meta name="twitter:title" content="LAUNCHR - Mission Control">
+    <meta name="twitter:description" content="The #1 Meme Launchpad on Solana. 1 SOL seeded per launch.">
     <meta name="twitter:image" content="https://www.launchronsol.xyz/website/logo-full.jpg">
 
     <link rel="icon" href="/website/logo-icon.jpg" type="image/jpeg">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.privy.io/privy-browser.min.js"></script>
+
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
         :root {
-            --bg: #030303;
-            --surface: #0a0a0a;
-            --border: rgba(255,255,255,0.08);
-            --text: #fafafa;
-            --text-secondary: rgba(255,255,255,0.5);
-            --accent: #8b5cf6;
-            --accent-glow: rgba(139,92,246,0.15);
+            --bg: #050505;
+            --bg-elevated: #0A0A0A;
+            --surface: #0F0F0F;
+            --surface-2: #161616;
+            --surface-3: #1C1C1C;
+            --border: rgba(196, 165, 116, 0.12);
+            --border-active: rgba(196, 165, 116, 0.25);
+            --text: #E8E4DE;
+            --text-secondary: #9A9590;
+            --text-muted: #5C5955;
+            --gold: #C4A574;
+            --gold-dim: rgba(196, 165, 116, 0.15);
+            --gold-glow: rgba(196, 165, 116, 0.08);
+            --success: #7CB66A;
+            --error: #C75050;
+            --radius: 8px;
+            --radius-lg: 12px;
         }
+
         html { scroll-behavior: smooth; }
+
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--bg);
             color: var(--text);
-            line-height: 1.6;
+            line-height: 1.5;
             -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
-        /* Subtle gradient backdrop */
-        .backdrop {
+        /* Lunar atmosphere */
+        .atmosphere {
             position: fixed;
             inset: 0;
             background:
-                radial-gradient(ellipse 80% 60% at 50% 0%, var(--accent-glow) 0%, transparent 50%);
+                radial-gradient(ellipse 100% 80% at 50% -20%, var(--gold-glow) 0%, transparent 50%),
+                radial-gradient(ellipse 60% 40% at 80% 100%, rgba(196, 165, 116, 0.03) 0%, transparent 40%);
             pointer-events: none;
             z-index: 0;
         }
 
-        /* Navigation */
-        nav {
+        /* ═══════════════════════════════════════════════════════════════
+           NAVIGATION - Consistent across all pages
+           ═══════════════════════════════════════════════════════════════ */
+        .nav {
             position: fixed;
             top: 0; left: 0; right: 0;
             z-index: 1000;
-            padding: 16px 32px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: rgba(3,3,3,0.8);
-            backdrop-filter: blur(20px) saturate(180%);
+            background: rgba(5, 5, 5, 0.85);
+            backdrop-filter: blur(20px) saturate(150%);
             border-bottom: 1px solid var(--border);
         }
-        .nav-logo {
-            height: 28px;
+        .nav-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 24px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--text);
+        }
+        .nav-brand img {
+            height: 32px;
+            width: 32px;
             border-radius: 6px;
         }
-        .nav-center {
-            display: flex;
-            gap: 32px;
+        .nav-brand span {
+            font-weight: 700;
+            font-size: 18px;
+            letter-spacing: -0.02em;
         }
-        .nav-center a {
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .nav-link {
+            padding: 8px 16px;
             color: var(--text-secondary);
             text-decoration: none;
             font-size: 14px;
             font-weight: 500;
-            transition: color 0.2s;
+            border-radius: var(--radius);
+            transition: all 0.15s ease;
         }
-        .nav-center a:hover { color: var(--text); }
-        .nav-right { display: flex; gap: 12px; align-items: center; }
+        .nav-link:hover {
+            color: var(--text);
+            background: var(--surface);
+        }
+        .nav-link.active {
+            color: var(--gold);
+            background: var(--gold-dim);
+        }
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
 
+        /* Buttons */
         .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
             padding: 10px 20px;
-            border-radius: 8px;
             font-size: 14px;
             font-weight: 600;
+            border-radius: var(--radius);
+            border: none;
+            cursor: pointer;
             text-decoration: none;
             transition: all 0.15s ease;
-            cursor: pointer;
-            border: none;
         }
         .btn-primary {
-            background: var(--text);
+            background: var(--gold);
             color: var(--bg);
         }
         .btn-primary:hover {
+            background: #D4B584;
             transform: translateY(-1px);
-            box-shadow: 0 4px 20px rgba(255,255,255,0.2);
         }
         .btn-secondary {
             background: transparent;
@@ -107,34 +161,52 @@
             border: 1px solid var(--border);
         }
         .btn-secondary:hover {
-            background: rgba(255,255,255,0.05);
-            border-color: rgba(255,255,255,0.15);
+            background: var(--surface);
+            border-color: var(--border-active);
+        }
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-secondary);
+        }
+        .btn-ghost:hover {
+            color: var(--text);
+            background: var(--surface);
+        }
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+        .wallet-connected {
+            background: var(--gold-dim) !important;
+            color: var(--gold) !important;
+            border-color: var(--gold) !important;
         }
 
-        /* Hero */
+        /* ═══════════════════════════════════════════════════════════════
+           HERO SECTION
+           ═══════════════════════════════════════════════════════════════ */
         .hero {
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 140px 32px 100px;
+            padding: 120px 24px 80px;
             position: relative;
             z-index: 1;
+            text-align: center;
         }
-
         .hero-banner {
-            max-width: 600px;
+            max-width: 480px;
             width: 100%;
+            border-radius: var(--radius-lg);
             margin-bottom: 48px;
-            border-radius: 16px;
             box-shadow:
                 0 0 0 1px var(--border),
-                0 20px 60px -20px rgba(0,0,0,0.5),
-                0 0 100px -20px var(--accent-glow);
+                0 32px 64px -16px rgba(0,0,0,0.5),
+                0 0 120px -40px var(--gold-glow);
         }
-
-        .hero-tag {
+        .hero-badge {
             display: inline-flex;
             align-items: center;
             gap: 8px;
@@ -144,288 +216,353 @@
             border-radius: 100px;
             font-size: 13px;
             font-weight: 600;
-            color: var(--accent);
-            margin-bottom: 32px;
+            color: var(--gold);
+            margin-bottom: 24px;
         }
-        .hero-tag::before {
+        .hero-badge::before {
             content: '';
             width: 6px;
             height: 6px;
-            background: var(--accent);
+            background: var(--gold);
             border-radius: 50%;
+            animation: pulse 2s infinite;
         }
-
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
         .hero-title {
-            font-size: clamp(36px, 5vw, 56px);
+            font-size: clamp(32px, 5vw, 52px);
             font-weight: 700;
-            text-align: center;
-            max-width: 800px;
-            letter-spacing: -0.02em;
+            letter-spacing: -0.03em;
             line-height: 1.1;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
+            max-width: 700px;
         }
-        .hero-title span {
-            background: linear-gradient(135deg, var(--accent), #a78bfa);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        .hero-title .highlight {
+            color: var(--gold);
         }
-
         .hero-subtitle {
-            font-size: 18px;
+            font-size: 17px;
             color: var(--text-secondary);
-            text-align: center;
-            max-width: 560px;
-            margin-bottom: 40px;
+            max-width: 520px;
+            margin: 0 auto 32px;
             line-height: 1.7;
         }
-
         .hero-actions {
             display: flex;
             gap: 12px;
-            margin-bottom: 64px;
+            margin-bottom: 48px;
         }
 
-        .hero-stats {
-            display: flex;
-            gap: 48px;
-            padding: 24px 40px;
-            background: var(--surface);
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1px;
+            background: var(--border);
             border: 1px solid var(--border);
-            border-radius: 16px;
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            max-width: 600px;
+            width: 100%;
         }
-        .stat {
+        .stat-item {
+            background: var(--surface);
+            padding: 20px 16px;
             text-align: center;
         }
         .stat-value {
-            font-size: 28px;
+            font-size: 24px;
             font-weight: 700;
             font-family: 'JetBrains Mono', monospace;
+            color: var(--gold);
         }
         .stat-label {
-            font-size: 13px;
-            color: var(--text-secondary);
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
             margin-top: 4px;
         }
 
         /* Contract Address */
-        .contract-address {
-            margin-top: 48px;
-            padding: 24px 40px;
-            background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(139,92,246,0.05));
-            border: 2px solid rgba(139,92,246,0.4);
-            border-radius: 16px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 12px;
-            position: relative;
-            max-width: 600px;
+        .contract-box {
+            margin-top: 32px;
+            padding: 20px 24px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            max-width: 500px;
             width: 100%;
         }
         .contract-label {
-            font-size: 14px;
-            font-weight: 700;
-            color: var(--accent);
+            font-size: 11px;
+            color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.1em;
+            margin-bottom: 8px;
         }
         .contract-value {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 15px;
-            color: var(--text);
-            word-break: break-all;
-            text-align: center;
-            padding: 12px 20px;
-            background: rgba(0,0,0,0.4);
-            border-radius: 8px;
-            width: 100%;
-        }
-        .contract-value.coming-soon {
-            color: var(--accent);
-            font-style: normal;
-            font-weight: 600;
-            font-size: 18px;
-        }
-        .copy-btn {
-            background: rgba(139,92,246,0.15);
-            border: 1px solid rgba(139,92,246,0.3);
-            border-radius: 8px;
-            padding: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
             display: flex;
             align-items: center;
-            justify-content: center;
+            gap: 12px;
+        }
+        .contract-value code {
+            flex: 1;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: var(--text);
+            background: var(--bg);
+            padding: 10px 14px;
+            border-radius: var(--radius);
+            word-break: break-all;
+        }
+        .copy-btn {
+            padding: 10px;
+            background: var(--gold-dim);
+            border: 1px solid var(--gold);
+            border-radius: var(--radius);
+            color: var(--gold);
+            cursor: pointer;
+            transition: all 0.15s;
         }
         .copy-btn:hover {
-            background: rgba(139,92,246,0.25);
-            border-color: var(--accent);
+            background: var(--gold);
+            color: var(--bg);
         }
         .copy-btn svg {
             width: 16px;
             height: 16px;
-            color: var(--accent);
-        }
-        .copy-btn.copied {
-            background: rgba(34,197,94,0.2);
-            border-color: #22c55e;
-        }
-        .copy-btn.copied svg {
-            color: #22c55e;
         }
 
-        /* Features */
-        .features {
-            padding: 120px 32px;
+        /* ═══════════════════════════════════════════════════════════════
+           SECTIONS
+           ═══════════════════════════════════════════════════════════════ */
+        .section {
+            padding: 100px 24px;
             position: relative;
             z-index: 1;
         }
-        .features-header {
+        .section-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        .section-header {
             text-align: center;
-            margin-bottom: 64px;
+            margin-bottom: 56px;
         }
-        .features-tag {
-            font-size: 13px;
+        .section-tag {
+            font-size: 12px;
             font-weight: 600;
-            color: var(--accent);
+            color: var(--gold);
             text-transform: uppercase;
-            letter-spacing: 0.1em;
-            margin-bottom: 16px;
+            letter-spacing: 0.15em;
+            margin-bottom: 12px;
         }
-        .features-title {
-            font-size: 36px;
+        .section-title {
+            font-size: 32px;
             font-weight: 700;
             letter-spacing: -0.02em;
         }
 
+        /* Dual Path Cards */
+        .paths-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        .path-card {
+            padding: 32px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            transition: all 0.2s ease;
+        }
+        .path-card:hover {
+            border-color: var(--border-active);
+            transform: translateY(-2px);
+        }
+        .path-card.featured {
+            border-color: var(--gold);
+            background: linear-gradient(135deg, var(--gold-dim), transparent);
+        }
+        .path-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .path-name {
+            font-size: 20px;
+            font-weight: 700;
+        }
+        .path-badge {
+            padding: 4px 10px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            border-radius: 4px;
+            background: var(--gold-dim);
+            color: var(--gold);
+        }
+        .path-desc {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        .path-features {
+            list-style: none;
+            margin-bottom: 24px;
+        }
+        .path-features li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        .path-features li::before {
+            content: '✓';
+            color: var(--success);
+            font-weight: 600;
+        }
+
+        /* Features Grid */
         .features-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 24px;
-            max-width: 1200px;
-            margin: 0 auto;
+            gap: 16px;
         }
         .feature-card {
-            padding: 32px 28px;
+            padding: 24px;
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 16px;
+            border-radius: var(--radius-lg);
             transition: all 0.2s ease;
         }
         .feature-card:hover {
-            border-color: rgba(139,92,246,0.3);
-            transform: translateY(-2px);
+            border-color: var(--border-active);
         }
         .feature-icon {
-            width: 48px;
-            height: 48px;
+            width: 40px;
+            height: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: var(--accent-glow);
-            border-radius: 12px;
-            margin-bottom: 20px;
+            background: var(--gold-dim);
+            border-radius: var(--radius);
+            margin-bottom: 16px;
         }
         .feature-icon svg {
-            width: 24px;
-            height: 24px;
-            stroke: var(--accent);
+            width: 20px;
+            height: 20px;
+            stroke: var(--gold);
         }
         .feature-name {
-            font-size: 17px;
+            font-size: 15px;
             font-weight: 600;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
         .feature-desc {
-            font-size: 14px;
+            font-size: 13px;
             color: var(--text-secondary);
-            line-height: 1.6;
+            line-height: 1.5;
         }
 
-        /* How it works */
-        .how {
-            padding: 100px 32px;
-            background: var(--surface);
-            border-top: 1px solid var(--border);
-            border-bottom: 1px solid var(--border);
-            position: relative;
-            z-index: 1;
-        }
-        .how-content {
-            max-width: 700px;
-            margin: 0 auto;
+        /* Mission Control Card */
+        .mission-card {
+            padding: 48px;
+            background: linear-gradient(135deg, var(--gold-dim), var(--surface));
+            border: 1px solid var(--gold);
+            border-radius: var(--radius-lg);
             text-align: center;
         }
-        .how-title {
-            font-size: 32px;
-            font-weight: 700;
-            margin-bottom: 20px;
-            letter-spacing: -0.02em;
-        }
-        .how-text {
-            font-size: 17px;
-            color: var(--text-secondary);
-            line-height: 1.8;
-            margin-bottom: 40px;
-        }
-
-        /* AI Section */
-        .ai-section {
-            padding: 120px 32px;
-            position: relative;
-            z-index: 1;
-        }
-        .ai-card {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 56px;
-            background: linear-gradient(135deg, rgba(139,92,246,0.08), rgba(139,92,246,0.02));
-            border: 1px solid rgba(139,92,246,0.2);
-            border-radius: 24px;
-            text-align: center;
-        }
-        .ai-badge {
+        .mission-badge {
             display: inline-block;
             padding: 6px 14px;
-            background: rgba(139,92,246,0.15);
+            background: var(--gold-dim);
             border-radius: 100px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 700;
-            color: var(--accent);
-            letter-spacing: 0.05em;
-            margin-bottom: 24px;
-        }
-        .ai-title {
-            font-size: 40px;
-            font-weight: 800;
-            margin-bottom: 16px;
-            letter-spacing: -0.02em;
-        }
-        .ai-desc {
-            font-size: 17px;
-            color: var(--text-secondary);
-            line-height: 1.7;
-            max-width: 500px;
-            margin: 0 auto;
-        }
-
-        /* CTA */
-        .cta {
-            padding: 140px 32px;
-            text-align: center;
-            position: relative;
-            z-index: 1;
-        }
-        .cta-title {
-            font-size: clamp(40px, 6vw, 64px);
-            font-weight: 800;
-            letter-spacing: -0.03em;
+            color: var(--gold);
+            letter-spacing: 0.1em;
             margin-bottom: 20px;
         }
-        .cta-subtitle {
-            font-size: 18px;
+        .mission-title {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+        .mission-desc {
+            font-size: 16px;
             color: var(--text-secondary);
-            margin-bottom: 40px;
+            max-width: 500px;
+            margin: 0 auto 32px;
+        }
+        .mission-layers {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            flex-wrap: wrap;
+        }
+        .mission-layer {
+            text-align: center;
+        }
+        .mission-layer-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--gold);
+        }
+        .mission-layer-desc {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* Competition Banner */
+        .competition-banner {
+            padding: 40px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            text-align: center;
+        }
+        .competition-tag {
+            font-size: 12px;
+            color: var(--success);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 12px;
+        }
+        .competition-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+        .competition-desc {
+            color: var(--text-secondary);
+            max-width: 500px;
+            margin: 0 auto 24px;
+        }
+
+        /* CTA Section */
+        .cta-section {
+            text-align: center;
+            padding: 120px 24px;
+        }
+        .cta-title {
+            font-size: clamp(32px, 5vw, 48px);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            margin-bottom: 16px;
+        }
+        .cta-subtitle {
+            font-size: 17px;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
         }
         .cta-actions {
             display: flex;
@@ -433,326 +570,507 @@
             justify-content: center;
         }
 
-        /* Footer */
-        footer {
-            padding: 32px;
+        /* ═══════════════════════════════════════════════════════════════
+           FOOTER
+           ═══════════════════════════════════════════════════════════════ */
+        .footer {
+            padding: 24px;
             border-top: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             position: relative;
             z-index: 1;
         }
-        .footer-left {
+        .footer-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .footer-brand {
             display: flex;
             align-items: center;
             gap: 12px;
         }
-        .footer-left img {
+        .footer-brand img {
             height: 24px;
+            width: 24px;
             border-radius: 4px;
         }
-        .footer-left span {
-            color: var(--text-secondary);
-            font-size: 14px;
+        .footer-brand span {
+            color: var(--text-muted);
+            font-size: 13px;
         }
         .footer-links {
             display: flex;
             gap: 24px;
         }
         .footer-links a {
-            color: var(--text-secondary);
+            color: var(--text-muted);
             text-decoration: none;
-            font-size: 14px;
-            transition: color 0.2s;
+            font-size: 13px;
+            transition: color 0.15s;
         }
-        .footer-links a:hover { color: var(--text); }
+        .footer-links a:hover {
+            color: var(--text);
+        }
 
-        /* Responsive */
+        /* ═══════════════════════════════════════════════════════════════
+           WALLET MODAL
+           ═══════════════════════════════════════════════════════════════ */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(8px);
+        }
+        .modal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            width: 100%;
+            max-width: 400px;
+            margin: 20px;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+        .modal-close:hover { color: var(--text); }
+        .modal-body {
+            text-align: center;
+            padding: 16px 0;
+        }
+        .wallet-address {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            background: var(--bg);
+            padding: 12px;
+            border-radius: var(--radius);
+            word-break: break-all;
+            margin-bottom: 12px;
+        }
+        .wallet-balance {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--gold);
+        }
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        .modal-actions .btn { flex: 1; }
+
+        /* ═══════════════════════════════════════════════════════════════
+           RESPONSIVE
+           ═══════════════════════════════════════════════════════════════ */
         @media (max-width: 1024px) {
             .features-grid { grid-template-columns: repeat(2, 1fr); }
-            .nav-center { display: none; }
-            .hero-stats { gap: 32px; padding: 20px 32px; }
+            .nav-links { display: none; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 768px) {
+            .paths-grid { grid-template-columns: 1fr; }
+            .hero { padding: 100px 20px 60px; }
+            .hero-actions { flex-direction: column; width: 100%; }
+            .hero-actions .btn { width: 100%; }
         }
         @media (max-width: 640px) {
-            nav { padding: 12px 20px; }
-            .hero { padding: 120px 20px 80px; }
-            .hero-banner { max-width: 100%; }
             .features-grid { grid-template-columns: 1fr; }
-            .hero-actions { flex-direction: column; width: 100%; }
-            .hero-actions .btn { width: 100%; text-align: center; }
-            .hero-stats { flex-direction: column; gap: 20px; }
-            .ai-card { padding: 40px 24px; }
-            footer { flex-direction: column; gap: 20px; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .footer-inner { flex-direction: column; gap: 16px; }
+            .cta-actions { flex-direction: column; }
+            .mission-layers { gap: 20px; }
         }
     </style>
 </head>
 <body>
-    <div class="backdrop"></div>
+    <div class="atmosphere"></div>
 
-    <nav>
-        <img src="/website/logo-icon.jpg" alt="LAUNCHR" class="nav-logo">
-        <div class="nav-center">
-            <a href="#features">Features</a>
-            <a href="/launchpad">Launchpad</a>
-            <a href="/dashboard">Dashboard</a>
-            <a href="https://t.me/LAUNCHR_V2_BOT" target="_blank">Telegram</a>
-            <a href="https://x.com/LaunchrTG" target="_blank">Twitter</a>
-        </div>
-        <div class="nav-right">
-            <a href="/launchpad" class="btn btn-primary">Launch Token</a>
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-inner">
+            <a href="/" class="nav-brand">
+                <img src="/website/logo-icon.jpg" alt="LAUNCHR">
+                <span>LAUNCHR</span>
+            </a>
+            <div class="nav-links">
+                <a href="/" class="nav-link active">Home</a>
+                <a href="/launchpad" class="nav-link">Launchpad</a>
+                <a href="/launchpad#leaderboard" class="nav-link">Leaderboard</a>
+                <a href="/dashboard" class="nav-link">Dashboard</a>
+                <a href="/roadmap" class="nav-link">Docs</a>
+            </div>
+            <div class="nav-actions">
+                <button id="connectWallet" class="btn btn-secondary btn-sm" onclick="connectWallet()">Connect</button>
+                <a href="/launchpad" class="btn btn-primary btn-sm">Launch</a>
+            </div>
         </div>
     </nav>
 
+    <!-- Wallet Modal -->
+    <div id="walletModal" class="modal-overlay" style="display:none;">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">Wallet</span>
+                <button class="modal-close" onclick="closeWalletModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="wallet-address" id="walletAddress">-</div>
+                <div class="wallet-balance" id="walletBalance">- SOL</div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="copyWalletAddress()">Copy</button>
+                <button class="btn btn-primary" onclick="disconnectWallet()" style="background:var(--error);">Disconnect</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hero -->
     <section class="hero">
         <img src="/website/logo-full.jpg" alt="LAUNCHR" class="hero-banner">
 
-        <div class="hero-tag">The #1 Meme Launchpad</div>
+        <div class="hero-badge">Mission Control Active</div>
 
         <h1 class="hero-title">
-            <span>Launch tokens.</span><br>Get 1 SOL seeded.
+            Launch tokens.<br><span class="highlight">Get 1 SOL seeded.</span>
         </h1>
 
         <p class="hero-subtitle">
-            Dual-path launchpad with programmable fee routing. Every launch gets 1 SOL seeded. Top 3 win +1 SOL every 2 hours. 1% of all fees go to LAUNCHR holders.
+            Dual-path launchpad with 5-layer security. Every launch gets 1 SOL seeded. Top 3 win +1 SOL every 2 hours.
         </p>
 
         <div class="hero-actions">
             <a href="/launchpad" class="btn btn-primary">Launch Token</a>
-            <a href="https://t.me/LAUNCHR_V2_BOT" class="btn btn-secondary">Connect via Telegram</a>
+            <a href="https://t.me/LAUNCHR_V2_BOT" class="btn btn-secondary">Telegram Bot</a>
         </div>
 
-        <div class="hero-stats">
-            <div class="stat">
-                <div class="stat-value" style="color:#00ff88">1 SOL</div>
-                <div class="stat-label">Seeded Per Launch</div>
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-value">1</div>
+                <div class="stat-label">SOL Seeded</div>
             </div>
-            <div class="stat">
-                <div class="stat-value">+1 SOL</div>
-                <div class="stat-label">Top 3 Rewards</div>
+            <div class="stat-item">
+                <div class="stat-value">+1</div>
+                <div class="stat-label">Top 3 Bonus</div>
             </div>
-            <div class="stat">
-                <div class="stat-value" style="color:#00ff88">1%</div>
+            <div class="stat-item">
+                <div class="stat-value">1%</div>
                 <div class="stat-label">To Holders</div>
             </div>
-            <div class="stat">
+            <div class="stat-item">
                 <div class="stat-value">5</div>
-                <div class="stat-label">Security Layers</div>
+                <div class="stat-label">Layers</div>
             </div>
         </div>
 
-        <div class="contract-address">
+        <div class="contract-box">
             <div class="contract-label">Contract Address</div>
-            <div class="contract-value" id="contractAddress">Coming Soon</div>
-            <button class="copy-btn" onclick="copyContract()" id="copyBtn" style="display: none;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="9" y="9" width="13" height="13" rx="2"></rect>
-                    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
-                </svg>
-            </button>
+            <div class="contract-value">
+                <code id="contractAddress">86ZnAujEVLmtnNazeCeT1zYR7hn2PeF5ZPEwUkTdpump</code>
+                <button class="copy-btn" onclick="copyContract()" id="copyBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+                        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
+                    </svg>
+                </button>
+            </div>
         </div>
     </section>
 
-    <!-- Dual Path Section -->
-    <section class="dual-path" id="features" style="padding:100px 32px;position:relative;z-index:1;">
-        <div style="max-width:1000px;margin:0 auto;">
-            <div style="text-align:center;margin-bottom:64px;">
-                <div class="features-tag">Two Ways to Launch</div>
-                <h2 class="features-title">Choose Your Path</h2>
+    <!-- Dual Paths -->
+    <section class="section" id="features">
+        <div class="section-inner">
+            <div class="section-header">
+                <div class="section-tag">Launch Paths</div>
+                <h2 class="section-title">Choose Your Mission</h2>
             </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
-                <!-- Pump.fun Path -->
-                <div style="padding:40px;background:linear-gradient(135deg,rgba(139,92,246,0.1),rgba(139,92,246,0.02));border:1px solid rgba(139,92,246,0.3);border-radius:16px;">
-                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
-                        <span style="font-size:24px;font-weight:700;">Pump.fun</span>
-                        <span style="background:rgba(139,92,246,0.2);color:var(--accent);padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;text-transform:uppercase;">Simple</span>
+            <div class="paths-grid">
+                <div class="path-card">
+                    <div class="path-header">
+                        <span class="path-name">Pump.fun</span>
+                        <span class="path-badge">Simple</span>
                     </div>
-                    <p style="color:var(--text-secondary);margin-bottom:24px;line-height:1.7;">One-click launch. Fast, beginner-friendly. Graduate to Raydium later.</p>
-                    <ul style="list-style:none;margin-bottom:24px;">
-                        <li style="color:var(--text-secondary);padding:8px 0;display:flex;align-items:center;gap:10px;"><span style="color:#00ff88;">✓</span> Launch in seconds</li>
-                        <li style="color:var(--text-secondary);padding:8px 0;display:flex;align-items:center;gap:10px;"><span style="color:#00ff88;">✓</span> Built-in bonding curve</li>
-                        <li style="color:var(--text-secondary);padding:8px 0;display:flex;align-items:center;gap:10px;"><span style="color:#00ff88;">✓</span> Auto-graduation to PumpSwap</li>
+                    <p class="path-desc">One-click launch. Fast, beginner-friendly. Graduate to Raydium on success.</p>
+                    <ul class="path-features">
+                        <li>Launch in seconds</li>
+                        <li>Built-in bonding curve</li>
+                        <li>Auto-graduation to PumpSwap</li>
                     </ul>
-                    <a href="/launchpad" class="btn btn-secondary" style="width:100%;text-align:center;">Launch on Pump.fun</a>
+                    <a href="/launchpad?path=pump" class="btn btn-secondary" style="width:100%;">Launch Simple</a>
                 </div>
 
-                <!-- Raydium Path -->
-                <div style="padding:40px;background:linear-gradient(135deg,rgba(0,255,136,0.08),rgba(0,255,136,0.02));border:1px solid rgba(0,255,136,0.3);border-radius:16px;">
-                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
-                        <span style="font-size:24px;font-weight:700;">Raydium</span>
-                        <span style="background:rgba(0,255,136,0.15);color:#00ff88;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;text-transform:uppercase;">Advanced</span>
+                <div class="path-card featured">
+                    <div class="path-header">
+                        <span class="path-name">Raydium</span>
+                        <span class="path-badge">Advanced</span>
                     </div>
-                    <p style="color:var(--text-secondary);margin-bottom:24px;line-height:1.7;">Custom bonding curves. Full control over price discovery and liquidity.</p>
-                    <ul style="list-style:none;margin-bottom:24px;">
-                        <li style="color:var(--text-secondary);padding:8px 0;display:flex;align-items:center;gap:10px;"><span style="color:#00ff88;">✓</span> Linear/Exponential/Sigmoid curves</li>
-                        <li style="color:var(--text-secondary);padding:8px 0;display:flex;align-items:center;gap:10px;"><span style="color:#00ff88;">✓</span> Custom initial liquidity</li>
-                        <li style="color:var(--text-secondary);padding:8px 0;display:flex;align-items:center;gap:10px;"><span style="color:#00ff88;">✓</span> Full allocation control</li>
+                    <p class="path-desc">Custom bonding curves. Full control over price discovery and liquidity mechanics.</p>
+                    <ul class="path-features">
+                        <li>Linear/Exponential/Sigmoid curves</li>
+                        <li>Custom initial liquidity</li>
+                        <li>Full allocation control</li>
                     </ul>
-                    <a href="/launchpad" class="btn btn-primary" style="width:100%;text-align:center;background:#00ff88;color:#000;">Launch on Raydium</a>
-                </div>
-            </div>
-
-            <!-- Both paths get -->
-            <div style="margin-top:40px;padding:24px 32px;background:var(--surface);border:1px solid var(--border);border-radius:12px;display:flex;justify-content:space-around;flex-wrap:wrap;gap:24px;">
-                <div style="text-align:center;">
-                    <div style="font-size:24px;font-weight:700;color:#00ff88;">1 SOL</div>
-                    <div style="font-size:12px;color:var(--text-secondary);">Seeded to every launch</div>
-                </div>
-                <div style="text-align:center;">
-                    <div style="font-size:24px;font-weight:700;">99%</div>
-                    <div style="font-size:12px;color:var(--text-secondary);">Fees to your allocation</div>
-                </div>
-                <div style="text-align:center;">
-                    <div style="font-size:24px;font-weight:700;color:#00ff88;">1%</div>
-                    <div style="font-size:12px;color:var(--text-secondary);">To LAUNCHR holders</div>
-                </div>
-                <div style="text-align:center;">
-                    <div style="font-size:24px;font-weight:700;">5</div>
-                    <div style="font-size:12px;color:var(--text-secondary);">Security layers</div>
+                    <a href="/launchpad?path=raydium" class="btn btn-primary" style="width:100%;">Launch Advanced</a>
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="features">
-        <div class="features-header">
-            <div class="features-tag">Fee Allocation</div>
-            <h2 class="features-title">Your 99% goes to four channels</h2>
-        </div>
-
-        <div class="features-grid">
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
-                        <path d="M3 3v18h18"/><path d="M18 17l-5-5-4 4-3-3"/>
-                    </svg>
-                </div>
-                <h3 class="feature-name">Market Making</h3>
-                <p class="feature-desc">RSI-timed trades create depth and stabilize price action automatically.</p>
+    <!-- Features -->
+    <section class="section" style="background:var(--bg-elevated);">
+        <div class="section-inner">
+            <div class="section-header">
+                <div class="section-tag">Fee Routing</div>
+                <h2 class="section-title">Your 99% Split Four Ways</h2>
             </div>
 
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
-                        <path d="M12 2v4m0 12v4M2 12h4m12 0h4"/><circle cx="12" cy="12" r="3"/>
-                    </svg>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17l-5-5-4 4-3-3"/></svg>
+                    </div>
+                    <h3 class="feature-name">Market Making</h3>
+                    <p class="feature-desc">RSI-timed trades create depth and stabilize price action.</p>
                 </div>
-                <h3 class="feature-name">Buyback & Burn</h3>
-                <p class="feature-desc">Automatic buybacks with permanent burns. Deflationary by design.</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
-                        <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/>
-                    </svg>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/><circle cx="12" cy="12" r="3"/></svg>
+                    </div>
+                    <h3 class="feature-name">Buyback & Burn</h3>
+                    <p class="feature-desc">Automatic buybacks with permanent burns. Deflationary.</p>
                 </div>
-                <h3 class="feature-name">Liquidity Pool</h3>
-                <p class="feature-desc">Auto-add to LP with permanent locks. Deeper liquidity over time.</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
-                        <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>
-                    </svg>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>
+                    </div>
+                    <h3 class="feature-name">Liquidity Pool</h3>
+                    <p class="feature-desc">Auto-add to LP with permanent locks. Deeper liquidity.</p>
                 </div>
-                <h3 class="feature-name">Creator Revenue</h3>
-                <p class="feature-desc">Direct revenue stream to fund development and growth.</p>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+                    </div>
+                    <h3 class="feature-name">Creator Revenue</h3>
+                    <p class="feature-desc">Direct revenue stream to fund development and growth.</p>
+                </div>
             </div>
         </div>
     </section>
 
-    <!-- Competition Section -->
-    <section class="how">
-        <div style="max-width:900px;margin:0 auto;text-align:center;">
-            <div style="background:linear-gradient(135deg,rgba(0,255,136,0.1),rgba(0,255,136,0.02));border:1px solid rgba(0,255,136,0.3);border-radius:16px;padding:48px;">
-                <div style="font-size:12px;color:#00ff88;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:16px;">Live Competition</div>
-                <h2 class="how-title" style="font-size:36px;">Top 3 win +1 SOL every 2 hours</h2>
-                <p class="how-text" style="max-width:500px;margin:0 auto 32px;">
-                    Launch your token and compete for the top market cap. The top 3 tokens every 2 hours receive an additional 1 SOL seeded to their allocation pool.
+    <!-- Competition -->
+    <section class="section">
+        <div class="section-inner">
+            <div class="competition-banner">
+                <div class="competition-tag">● Live Competition</div>
+                <h2 class="competition-title">Top 3 win +1 SOL every 2 hours</h2>
+                <p class="competition-desc">
+                    Launch your token and compete for the top market cap. Winners receive additional SOL seeded to their allocation pool.
                 </p>
-                <a href="/launchpad" class="btn btn-primary" style="background:#00ff88;color:#000;">Join Competition</a>
+                <a href="/launchpad#leaderboard" class="btn btn-primary">View Leaderboard</a>
             </div>
         </div>
     </section>
 
-    <!-- Security Section -->
-    <section class="ai-section">
-        <div class="ai-card" style="border-color:rgba(0,255,136,0.3);background:linear-gradient(135deg,rgba(0,255,136,0.08),rgba(0,255,136,0.02));">
-            <div class="ai-badge" style="background:rgba(0,255,136,0.15);color:#00ff88;">MISSION CONTROL</div>
-            <h2 class="ai-title">5-Layer Security</h2>
-            <p class="ai-desc">
-                Every transaction cryptographically verified. Merkle tree proofs, rate limiting, wallet authorization, risk scoring, and on-chain audit via Helius.
-            </p>
-            <div style="display:flex;justify-content:center;gap:32px;margin-top:32px;flex-wrap:wrap;">
-                <div style="text-align:center;"><div style="font-size:20px;font-weight:600;">Merkle</div><div style="font-size:11px;color:var(--text-secondary);">Tree Verification</div></div>
-                <div style="text-align:center;"><div style="font-size:20px;font-weight:600;">Ed25519</div><div style="font-size:11px;color:var(--text-secondary);">Signature Validation</div></div>
-                <div style="text-align:center;"><div style="font-size:20px;font-weight:600;">Rate</div><div style="font-size:11px;color:var(--text-secondary);">Limiting</div></div>
-                <div style="text-align:center;"><div style="font-size:20px;font-weight:600;">Risk</div><div style="font-size:11px;color:var(--text-secondary);">Scoring</div></div>
-                <div style="text-align:center;"><div style="font-size:20px;font-weight:600;">Helius</div><div style="font-size:11px;color:var(--text-secondary);">On-Chain Audit</div></div>
+    <!-- Mission Control Security -->
+    <section class="section" style="background:var(--bg-elevated);">
+        <div class="section-inner">
+            <div class="mission-card">
+                <div class="mission-badge">MISSION CONTROL</div>
+                <h2 class="mission-title">5-Layer Security</h2>
+                <p class="mission-desc">
+                    Every transaction cryptographically verified. Built for institutional-grade security on Solana.
+                </p>
+                <div class="mission-layers">
+                    <div class="mission-layer">
+                        <div class="mission-layer-name">Merkle</div>
+                        <div class="mission-layer-desc">Tree Verification</div>
+                    </div>
+                    <div class="mission-layer">
+                        <div class="mission-layer-name">Ed25519</div>
+                        <div class="mission-layer-desc">Signatures</div>
+                    </div>
+                    <div class="mission-layer">
+                        <div class="mission-layer-name">Rate</div>
+                        <div class="mission-layer-desc">Limiting</div>
+                    </div>
+                    <div class="mission-layer">
+                        <div class="mission-layer-name">Risk</div>
+                        <div class="mission-layer-desc">Scoring</div>
+                    </div>
+                    <div class="mission-layer">
+                        <div class="mission-layer-name">Helius</div>
+                        <div class="mission-layer-desc">On-Chain Audit</div>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
 
-    <section class="cta">
-        <h2 class="cta-title">Launch. Get Seeded. Win.</h2>
-        <p class="cta-subtitle">1 SOL seeded per launch. Top 3 win +1 SOL every 2 hours. 1% of all fees to holders.</p>
+    <!-- CTA -->
+    <section class="cta-section">
+        <h2 class="cta-title">Ready for Launch?</h2>
+        <p class="cta-subtitle">1 SOL seeded. Top 3 rewards. 1% to holders. Mission Control security.</p>
         <div class="cta-actions">
-            <a href="/launchpad" class="btn btn-primary" style="background:#00ff88;color:#000;">Launch Token</a>
-            <a href="/dashboard" class="btn btn-secondary">Creator Dashboard</a>
+            <a href="/launchpad" class="btn btn-primary">Launch Token</a>
+            <a href="/dashboard" class="btn btn-secondary">Dashboard</a>
         </div>
     </section>
 
-    <footer>
-        <div class="footer-left">
-            <img src="/website/logo-icon.jpg" alt="LAUNCHR">
-            <span>The #1 Meme Launchpad</span>
-        </div>
-        <div class="footer-links">
-            <a href="/launchpad">Launchpad</a>
-            <a href="/dashboard">Dashboard</a>
-            <a href="/roadmap">Roadmap</a>
-            <a href="/terms">Terms</a>
-            <a href="https://t.me/LAUNCHR_V2_BOT" target="_blank">Telegram</a>
-            <a href="https://x.com/LaunchrTG" target="_blank">Twitter</a>
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <img src="/website/logo-icon.jpg" alt="LAUNCHR">
+                <span>LAUNCHR — Mission Control</span>
+            </div>
+            <div class="footer-links">
+                <a href="/launchpad">Launchpad</a>
+                <a href="/dashboard">Dashboard</a>
+                <a href="/roadmap">Docs</a>
+                <a href="/terms">Terms</a>
+                <a href="https://t.me/LAUNCHR_V2_BOT" target="_blank">Telegram</a>
+                <a href="https://x.com/LaunchrTG" target="_blank">Twitter</a>
+            </div>
         </div>
     </footer>
 
     <script>
-        // Contract address - update this when token launches
+        // Config from server or fallback
+        const PRIVY_APP_ID = window.LAUNCHR_CONFIG?.PRIVY_APP_ID || 'YOUR_PRIVY_APP_ID';
+        const SOLANA_RPC = window.LAUNCHR_CONFIG?.SOLANA_RPC || 'https://api.mainnet-beta.solana.com';
         const CONTRACT_ADDRESS = '86ZnAujEVLmtnNazeCeT1zYR7hn2PeF5ZPEwUkTdpump';
 
-        // Initialize contract display
-        document.addEventListener('DOMContentLoaded', function() {
-            const contractEl = document.getElementById('contractAddress');
-            const copyBtn = document.getElementById('copyBtn');
+        let privyClient = null;
+        let connectedWallet = null;
+        let walletBalance = 0;
 
-            if (CONTRACT_ADDRESS && CONTRACT_ADDRESS.length > 0) {
-                contractEl.textContent = CONTRACT_ADDRESS;
-                contractEl.classList.remove('coming-soon');
-                copyBtn.style.display = 'flex';
-            } else {
-                contractEl.textContent = 'Coming Soon';
-                contractEl.classList.add('coming-soon');
-                copyBtn.style.display = 'none';
-            }
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initPrivy();
+            const stored = localStorage.getItem('connectedWallet');
+            if (stored) handleWalletConnected(stored);
         });
 
+        async function initPrivy() {
+            try {
+                if (typeof window.Privy !== 'undefined') {
+                    privyClient = new window.Privy({
+                        appId: PRIVY_APP_ID,
+                        config: {
+                            loginMethods: ['email', 'wallet', 'google', 'twitter'],
+                            appearance: { theme: 'dark', accentColor: '#C4A574' },
+                            embeddedWallets: { createOnLogin: 'users-without-wallets' },
+                            solanaClusters: [{ name: 'mainnet-beta', rpcUrl: SOLANA_RPC }],
+                        },
+                    });
+                    const user = await privyClient.getUser();
+                    if (user?.wallet) handleWalletConnected(user.wallet.address);
+                }
+            } catch (e) { console.error('[PRIVY]', e); }
+        }
+
+        async function connectWallet() {
+            if (connectedWallet) { showWalletModal(); return; }
+
+            if (privyClient) {
+                try {
+                    const user = await privyClient.login();
+                    if (user?.wallet) handleWalletConnected(user.wallet.address);
+                    return;
+                } catch (e) { console.error('[PRIVY]', e); }
+            }
+
+            // Fallback
+            if (window.solana?.isPhantom) {
+                const res = await window.solana.connect();
+                handleWalletConnected(res.publicKey.toString());
+            } else if (window.solflare?.isSolflare) {
+                await window.solflare.connect();
+                handleWalletConnected(window.solflare.publicKey.toString());
+            } else {
+                alert('Install Phantom or Solflare wallet');
+            }
+        }
+
+        async function handleWalletConnected(address) {
+            connectedWallet = address;
+            const btn = document.getElementById('connectWallet');
+            btn.textContent = address.slice(0,4) + '...' + address.slice(-4);
+            btn.classList.add('wallet-connected');
+            await fetchBalance(address);
+            localStorage.setItem('connectedWallet', address);
+        }
+
+        async function fetchBalance(address) {
+            try {
+                const res = await fetch(SOLANA_RPC, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getBalance', params: [address] }),
+                });
+                const data = await res.json();
+                if (data.result?.value !== undefined) {
+                    walletBalance = data.result.value / 1e9;
+                    document.getElementById('walletBalance').textContent = walletBalance.toFixed(4) + ' SOL';
+                }
+            } catch (e) { console.error('[BALANCE]', e); }
+        }
+
+        async function disconnectWallet() {
+            if (privyClient) try { await privyClient.logout(); } catch (e) {}
+            if (window.solana?.isPhantom) try { await window.solana.disconnect(); } catch (e) {}
+            connectedWallet = null;
+            walletBalance = 0;
+            localStorage.removeItem('connectedWallet');
+            document.getElementById('connectWallet').textContent = 'Connect';
+            document.getElementById('connectWallet').classList.remove('wallet-connected');
+            closeWalletModal();
+        }
+
+        function showWalletModal() {
+            if (!connectedWallet) return;
+            document.getElementById('walletAddress').textContent = connectedWallet;
+            document.getElementById('walletBalance').textContent = walletBalance.toFixed(4) + ' SOL';
+            document.getElementById('walletModal').style.display = 'flex';
+        }
+
+        function closeWalletModal() {
+            document.getElementById('walletModal').style.display = 'none';
+        }
+
+        function copyWalletAddress() {
+            navigator.clipboard.writeText(connectedWallet);
+        }
+
         function copyContract() {
-            if (!CONTRACT_ADDRESS) return;
-
-            navigator.clipboard.writeText(CONTRACT_ADDRESS).then(() => {
-                const btn = document.getElementById('copyBtn');
-                btn.classList.add('copied');
-                btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20,6 9,17 4,12"></polyline></svg>';
-
-                setTimeout(() => {
-                    btn.classList.remove('copied');
-                    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>';
-                }, 2000);
-            });
+            navigator.clipboard.writeText(CONTRACT_ADDRESS);
+            const btn = document.getElementById('copyBtn');
+            btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20,6 9,17 4,12"></polyline></svg>';
+            setTimeout(() => {
+                btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>';
+            }, 2000);
         }
     </script>
 </body>
