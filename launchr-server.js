@@ -1339,6 +1339,22 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    // Serve Auth page (React Privy popup)
+    if (url.pathname === '/auth' && req.method === 'GET') {
+        try {
+            const html = fs.readFileSync(path.join(__dirname, 'frontend', 'dist', 'index.html'), 'utf8');
+            res.writeHead(200, {
+                'Content-Type': 'text/html; charset=utf-8',
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
+            });
+            res.end(injectConfig(html));
+        } catch (e) {
+            res.writeHead(302, { 'Location': '/' });
+            res.end();
+        }
+        return;
+    }
+
     // Serve Documentation (with config injection)
     if (url.pathname === '/docs' && req.method === 'GET') {
         try {
