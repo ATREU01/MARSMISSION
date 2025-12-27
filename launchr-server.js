@@ -3783,6 +3783,18 @@ server.listen(PORT, async () => {
         console.log('[AUTO] No PRIVATE_KEY/TOKEN_MINT in env - manual configuration required');
     }
 
+    // Start graduation watcher (check every 5 minutes)
+    console.log('[GRADUATION] Starting graduation watcher...');
+    setInterval(async () => {
+        try {
+            await tracker.checkAllGraduations();
+        } catch (e) {
+            console.log('[GRADUATION] Watcher error: ' + e.message);
+        }
+    }, 5 * 60 * 1000);
+    // Run first check after 30 seconds
+    setTimeout(() => tracker.checkAllGraduations().catch(() => {}), 30000);
+
     // Start Telegram bot if token is configured
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     if (botToken) {
