@@ -1226,6 +1226,14 @@
             .footer-inner { flex-direction: column; gap: 16px; }
             .stats-bar-inner { grid-template-columns: 1fr 1fr; }
         }
+
+        /* Ensure Privy modal appears on top of everything */
+        [id^="privy"], [class*="privy"], iframe[src*="privy"] {
+            z-index: 99999 !important;
+        }
+        #privy-modal-content, #privy-dialog {
+            z-index: 99999 !important;
+        }
     </style>
 </head>
 <body>
