@@ -6,8 +6,9 @@ import App from './App.jsx'
 import './index.css'
 
 // Create Solana wallet connectors for Phantom, Solflare, etc.
+// shouldAutoConnect: false - require fresh login each time for security
 const solanaConnectors = toSolanaWalletConnectors({
-  shouldAutoConnect: true,
+  shouldAutoConnect: false,
 })
 
 // PrivyGate - waits for config before initializing Privy

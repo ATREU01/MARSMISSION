@@ -36,20 +36,14 @@ function App() {
   const isPopup = !!window.opener
   const isAuthPage = window.location.pathname === '/auth'
 
-  // When authenticated, store wallet in localStorage
+  // When authenticated in popup mode, notify parent (no localStorage - fresh login each time for security)
   useEffect(() => {
-    if (authenticated && walletAddress) {
-      localStorage.setItem('connectedWallet', walletAddress)
-      console.log('[AUTH] Wallet stored:', walletAddress)
-
-      // If popup mode, also notify parent
-      if (isPopup && window.opener) {
-        window.opener.postMessage({
-          type: 'privy-auth-success',
-          address: walletAddress
-        }, '*')
-        setTimeout(() => window.close(), 500)
-      }
+    if (authenticated && walletAddress && isPopup && window.opener) {
+      window.opener.postMessage({
+        type: 'privy-auth-success',
+        address: walletAddress
+      }, '*')
+      setTimeout(() => window.close(), 500)
     }
   }, [authenticated, walletAddress, isPopup])
 
@@ -91,7 +85,7 @@ function App() {
                 <>
                   <p>Connected!</p>
                   <p className="address">{walletAddress.slice(0,8)}...{walletAddress.slice(-4)}</p>
-                  <p className="hint">Wallet saved. You can return to the dashboard.</p>
+                  <p className="hint">Session active. Return to dashboard to continue.</p>
                   <button onClick={() => window.location.href = '/dashboard'} className="btn-connect">
                     Return to Dashboard
                   </button>
