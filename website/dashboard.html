@@ -2567,7 +2567,7 @@
         // ═══════════════════════════════════════════════════════════════════════
 
         let engineConfigured = false;
-        let authToken = null;  // Session auth token for engine API
+        let authToken = localStorage.getItem('engineAuthToken') || null;  // Persist auth token
 
         // Helper to make authenticated requests
         function authHeaders() {
@@ -2576,6 +2576,45 @@
                 headers['Authorization'] = 'Bearer ' + authToken;
             }
             return headers;
+        }
+
+        // Check if we have a stored auth token and restore session
+        async function restoreEngineSession() {
+            if (!authToken) return;
+
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+
+                if (data.configured) {
+                    engineConfigured = true;
+                    document.getElementById('engineConfigCard').style.display = 'none';
+                    document.getElementById('engineConnectedCard').style.display = 'block';
+                    document.getElementById('engineWalletDisplay').textContent = data.wallet ?
+                        data.wallet.slice(0, 8) + '...' + data.wallet.slice(-6) : 'Connected';
+
+                    // Enable buttons
+                    const startBtn = document.getElementById('startAutoBtn');
+                    const stopBtn = document.getElementById('stopAutoBtn');
+                    const claimBtn = document.getElementById('claimNowBtn');
+                    const distBtn = document.getElementById('distributeBtn');
+                    if (startBtn) startBtn.disabled = false;
+                    if (stopBtn) stopBtn.disabled = false;
+                    if (claimBtn) claimBtn.disabled = false;
+                    if (distBtn) distBtn.disabled = false;
+
+                    fetchEngineStatus();
+                    refreshEngineLogs();
+                } else {
+                    // Token invalid, clear it
+                    localStorage.removeItem('engineAuthToken');
+                    authToken = null;
+                }
+            } catch (e) {
+                console.log('[ENGINE] Session restore failed:', e.message);
+                localStorage.removeItem('engineAuthToken');
+                authToken = null;
+            }
         }
 
         // Configure engine with CA (token mint) and PK (private key)
@@ -2608,7 +2647,8 @@
 
                 if (data.success) {
                     engineConfigured = true;
-                    authToken = data.token;  // Store session token
+                    authToken = data.token;
+                    localStorage.setItem('engineAuthToken', authToken);  // Persist for page refresh
 
                     // Update UI
                     document.getElementById('engineConfigCard').style.display = 'none';
@@ -2650,6 +2690,7 @@
         function disconnectEngine() {
             engineConfigured = false;
             authToken = null;
+            localStorage.removeItem('engineAuthToken');  // Clear persisted token
             document.getElementById('enginePrivateKey').value = '';
             document.getElementById('engineConfigCard').style.display = 'block';
             document.getElementById('engineConnectedCard').style.display = 'none';
@@ -2783,7 +2824,7 @@
                 const res = await fetch('/api/distribute', {
                     method: 'POST',
                     headers: authHeaders(),
-                    body: JSON.stringify({ amount: amount * 1e9 }) // Convert to lamports
+                    body: JSON.stringify({ amount: amount }) // Send SOL amount (server converts to lamports)
                 });
                 const data = await res.json();
 
@@ -2917,8 +2958,11 @@
         // ═══════════════════════════════════════════════════════════════════════
         document.addEventListener('DOMContentLoaded', async () => {
             await initPrivy();
-            // Security: Don't auto-reconnect - require fresh login each time
+            // Security: Don't auto-reconnect wallet - require fresh login each time
             localStorage.removeItem('connectedWallet');
+
+            // Restore engine session if auth token exists
+            await restoreEngineSession();
 
             // Fetch initial stats
             fetchDashboardStats();
