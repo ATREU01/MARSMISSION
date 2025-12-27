@@ -45,7 +45,7 @@ console.log(`  - Helius RPC: ${PRODUCTION_CONFIG.HELIUS_RPC ? 'SET' : 'NOT SET'}
 console.log(`  - Fee Wallet: ${FEE_WALLET_PUBLIC_KEY ? 'SET' : 'NOT SET'}`);
 
 // ═══════════════════════════════════════════════════════════════════════════
-// VANITY KEYPAIR POOL - Pre-generated keypairs ending in "launchr"
+// VANITY KEYPAIR POOL - Pre-generated keypairs ending in "lncr" (LNCR ticker)
 // ═══════════════════════════════════════════════════════════════════════════
 
 // Use /app/data/ for Railway volume persistence, fallback to local for dev
@@ -53,7 +53,7 @@ const DATA_DIR = process.env.RAILWAY_ENVIRONMENT ? '/app/data' : __dirname;
 try { if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) {}
 
 const VANITY_POOL_FILE = path.join(DATA_DIR, '.vanity-pool.json');
-const VANITY_SUFFIX = 'lchr'; // 4 chars = findable in minutes
+const VANITY_SUFFIX = 'lncr'; // 4 chars = LNCR ticker, findable in minutes
 const VANITY_POOL_TARGET = 10; // Keep 10 keypairs ready
 const VANITY_POOL_MIN = 3; // Start generating when below this
 
@@ -1526,12 +1526,18 @@ The 4 percentages must sum to 100.`;
                     mint: t.mint,
                     name: t.name || 'Unknown Token',
                     symbol: t.symbol || 'TOKEN',
+                    image: t.image || null,
                     path: t.path || 'pump',
                     mcap: t.mcap || 0,
                     volume: t.volume || 0,
+                    price: t.price || 0,
                     change: t.change || 0,
+                    progress: t.progress || 0,
+                    graduated: t.graduated || false,
+                    graduatedAt: t.graduatedAt || null,
                     time: formatTimeAgo(t.lastSeen || t.registeredAt),
                     createdAt: t.registeredAt,
+                    lastMetricsUpdate: t.lastMetricsUpdate || null,
                 }));
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ tokens }));
@@ -1591,11 +1597,16 @@ The 4 percentages must sum to 100.`;
                     path: t.path || 'pump',
                     mcap: t.mcap || 0,
                     volume: t.volume || 0,
+                    price: t.price || 0,
                     change: t.change || 0,
                     holders: t.holders || 0,
+                    progress: t.progress || 0,
+                    graduated: t.graduated || false,
+                    graduatedAt: t.graduatedAt || null,
                     createdAt: t.registeredAt,
                     time: formatTimeAgo(t.registeredAt),
-                    stats: t.stats || { totalClaimed: 0, totalDistributed: 0 }
+                    stats: t.stats || { totalClaimed: 0, totalDistributed: 0 },
+                    lastMetricsUpdate: t.lastMetricsUpdate || null,
                 }));
 
             res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -1621,7 +1632,11 @@ The 4 percentages must sum to 100.`;
                     mint: t.mint,
                     name: t.name || 'Unknown Token',
                     symbol: t.symbol || 'TOKEN',
+                    image: t.image || null,
                     mcap: t.mcap || 0,
+                    volume: t.volume || 0,
+                    progress: t.progress || 0,
+                    graduated: t.graduated || false,
                     path: t.path === 'launchr' ? 'Launchr' : 'Pump.fun',
                     reward: index < 3 ? 'Winner' : null,
                 }));
@@ -3340,6 +3355,18 @@ server.listen(PORT, async () => {
     }, 5 * 60 * 1000);
     // Run first check after 30 seconds
     setTimeout(() => tracker.checkAllGraduations().catch(() => {}), 30000);
+
+    // Start metrics updater (update token mcap/volume/price every 10 minutes)
+    console.log('[METRICS] Starting token metrics updater...');
+    setInterval(async () => {
+        try {
+            await tracker.updateAllTokenMetrics();
+        } catch (e) {
+            console.log('[METRICS] Updater error: ' + e.message);
+        }
+    }, 10 * 60 * 1000);
+    // Run first update after 60 seconds
+    setTimeout(() => tracker.updateAllTokenMetrics().catch(() => {}), 60000);
 
     // Start Telegram bot if token is configured
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
