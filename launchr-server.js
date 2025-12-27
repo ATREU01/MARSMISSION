@@ -245,7 +245,7 @@ let landingPageCache = null;
 function getLandingHTML() {
     // Always read fresh in development, cache in production
     try {
-        const html = fs.readFileSync(path.join(__dirname, 'website', 'index.html'), 'utf8');
+        const html = fs.readFileSync(path.join(__dirname, 'frontend', 'dist', 'index.html'), 'utf8');
         return injectConfig(html);
     } catch (e) {
         // Fallback redirect to /app if landing page not found
@@ -1275,7 +1275,7 @@ const server = http.createServer(async (req, res) => {
     // Serve favicon
     if (url.pathname === '/favicon.ico' && req.method === 'GET') {
         try {
-            const favicon = fs.readFileSync(path.join(__dirname, 'website', 'logo-icon.jpg'));
+            const favicon = fs.readFileSync(path.join(__dirname, 'frontend', 'dist', 'logo-icon.jpg'));
             res.writeHead(200, {
                 'Content-Type': 'image/jpeg',
                 'Cache-Control': 'public, max-age=604800'  // Cache for 1 week
@@ -1291,7 +1291,7 @@ const server = http.createServer(async (req, res) => {
     // Serve Launchpad (with config injection)
     if (url.pathname === '/launchpad' && req.method === 'GET') {
         try {
-            const html = fs.readFileSync(path.join(__dirname, 'website', 'launchpad.html'), 'utf8');
+            const html = fs.readFileSync(path.join(__dirname, 'frontend', 'dist', 'launchpad.html'), 'utf8');
             res.writeHead(200, {
                 'Content-Type': 'text/html; charset=utf-8',
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -1309,7 +1309,7 @@ const server = http.createServer(async (req, res) => {
     // Serve Creator Dashboard (with config injection)
     if (url.pathname === '/dashboard' && req.method === 'GET') {
         try {
-            const html = fs.readFileSync(path.join(__dirname, 'website', 'dashboard.html'), 'utf8');
+            const html = fs.readFileSync(path.join(__dirname, 'frontend', 'dist', 'dashboard.html'), 'utf8');
             res.writeHead(200, {
                 'Content-Type': 'text/html; charset=utf-8',
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -1327,7 +1327,7 @@ const server = http.createServer(async (req, res) => {
     // Serve Documentation (with config injection)
     if (url.pathname === '/docs' && req.method === 'GET') {
         try {
-            const html = fs.readFileSync(path.join(__dirname, 'website', 'docs.html'), 'utf8');
+            const html = fs.readFileSync(path.join(__dirname, 'frontend', 'dist', 'docs.html'), 'utf8');
             res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
             res.end(injectConfig(html));
         } catch (e) {
@@ -1354,10 +1354,13 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    // Serve static files from website folder
-    if (url.pathname.startsWith('/website/') && req.method === 'GET') {
-        const filePath = path.join(__dirname, url.pathname);
-        const ext = path.extname(filePath).toLowerCase();
+    // Serve static files from frontend/dist folder (Vite build output)
+    if ((url.pathname.startsWith('/assets/') || url.pathname.startsWith('/website/')) && req.method === 'GET') {
+        // Map /website/ to frontend/dist for backwards compatibility
+        const basePath = url.pathname.startsWith('/website/')
+            ? path.join(__dirname, 'frontend', 'dist', url.pathname.replace('/website/', ''))
+            : path.join(__dirname, 'frontend', 'dist', url.pathname);
+        const ext = path.extname(basePath).toLowerCase();
         const mimeTypes = {
             '.jpg': 'image/jpeg',
             '.jpeg': 'image/jpeg',
@@ -1370,7 +1373,7 @@ const server = http.createServer(async (req, res) => {
         const contentType = mimeTypes[ext] || 'application/octet-stream';
 
         try {
-            const data = fs.readFileSync(filePath);
+            const data = fs.readFileSync(basePath);
             res.writeHead(200, { 'Content-Type': contentType, 'Cache-Control': 'public, max-age=86400' });
             res.end(data);
             return;
