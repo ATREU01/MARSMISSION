@@ -1048,23 +1048,23 @@
         <div class="stats-bar">
             <div class="stats-bar-inner">
                 <div class="stat-cell">
-                    <div class="stat-cell-value gold">247</div>
+                    <div class="stat-cell-value gold">0</div>
                     <div class="stat-cell-label">Total Launches</div>
                 </div>
                 <div class="stat-cell">
-                    <div class="stat-cell-value gold">247</div>
+                    <div class="stat-cell-value gold">0</div>
                     <div class="stat-cell-label">SOL Seeded</div>
                 </div>
                 <div class="stat-cell">
-                    <div class="stat-cell-value">$1.2M</div>
+                    <div class="stat-cell-value">$0</div>
                     <div class="stat-cell-label">Total Volume</div>
                 </div>
                 <div class="stat-cell">
-                    <div class="stat-cell-value teal">24.7</div>
+                    <div class="stat-cell-value teal">0</div>
                     <div class="stat-cell-label">Holder Rewards</div>
                 </div>
                 <div class="stat-cell">
-                    <div class="stat-cell-value success">12</div>
+                    <div class="stat-cell-value success">0</div>
                     <div class="stat-cell-label">Graduated</div>
                 </div>
             </div>
@@ -1150,26 +1150,8 @@
         let connectedWallet = null;
         let walletBalance = 0;
         let selectedPath = 'pump';
-
-        // Sample data
-        const tokens = [
-            { name: 'Moon Dog', symbol: 'MDOG', mcap: 125000, volume: 45000, change: 45.2, path: 'pump', time: '2m ago' },
-            { name: 'Space Cat', symbol: 'SCAT', mcap: 89000, volume: 32000, change: 23.1, path: 'raydium', time: '5m ago' },
-            { name: 'Rocket Ape', symbol: 'RAPE', mcap: 67000, volume: 18000, change: -12.4, path: 'pump', time: '8m ago' },
-            { name: 'Lunar Pepe', symbol: 'LPEPE', mcap: 54000, volume: 12000, change: 8.7, path: 'pump', time: '12m ago' },
-            { name: 'Mars Doge', symbol: 'MARS', mcap: 43000, volume: 9500, change: 67.3, path: 'raydium', time: '15m ago' },
-            { name: 'Astro Shib', symbol: 'ASHIB', mcap: 38000, volume: 7200, change: -5.2, path: 'pump', time: '22m ago' },
-            { name: 'Orbit Cat', symbol: 'OCAT', mcap: 31000, volume: 5800, change: 12.1, path: 'pump', time: '28m ago' },
-            { name: 'Galaxy Frog', symbol: 'GFROG', mcap: 27000, volume: 4200, change: -3.8, path: 'raydium', time: '35m ago' },
-        ];
-
-        const leaderboard = [
-            { rank: 1, name: 'Moon Dog', symbol: 'MDOG', mcap: 125000, path: 'Pump.fun', reward: '+1 SOL' },
-            { rank: 2, name: 'Space Cat', symbol: 'SCAT', mcap: 89000, path: 'Raydium', reward: '+1 SOL' },
-            { rank: 3, name: 'Rocket Ape', symbol: 'RAPE', mcap: 67000, path: 'Pump.fun', reward: '+1 SOL' },
-            { rank: 4, name: 'Lunar Pepe', symbol: 'LPEPE', mcap: 54000, path: 'Pump.fun', reward: null },
-            { rank: 5, name: 'Mars Doge', symbol: 'MARS', mcap: 43000, path: 'Raydium', reward: null },
-        ];
+        let tokens = [];
+        let leaderboard = [];
 
         // ═══════════════════════════════════════════════════════════════════════
         // INITIALIZATION
@@ -1179,9 +1161,13 @@
             const stored = localStorage.getItem('connectedWallet');
             if (stored) handleWalletConnected(stored);
 
-            renderTokens();
-            renderLeaderboard();
-            startTimer();
+            // Load real data from API
+            await Promise.all([
+                fetchTokens(),
+                fetchLeaderboard(),
+                fetchStats(),
+                syncTimer(),
+            ]);
 
             // Tab switching
             document.querySelectorAll('.tab').forEach(tab => {
@@ -1190,30 +1176,105 @@
                     tab.classList.add('active');
                 });
             });
+
+            // Auto-refresh data every 30 seconds
+            setInterval(() => {
+                fetchTokens();
+                fetchLeaderboard();
+                fetchStats();
+            }, 30000);
         });
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // DATA FETCHING
+        // ═══════════════════════════════════════════════════════════════════════
+        async function fetchTokens() {
+            try {
+                const res = await fetch('/api/tokens');
+                const data = await res.json();
+                tokens = data.tokens || [];
+                renderTokens();
+            } catch (e) {
+                console.error('[API] Failed to fetch tokens:', e);
+                renderTokens();
+            }
+        }
+
+        async function fetchLeaderboard() {
+            try {
+                const res = await fetch('/api/leaderboard');
+                const data = await res.json();
+                leaderboard = data.leaderboard || [];
+                renderLeaderboard();
+            } catch (e) {
+                console.error('[API] Failed to fetch leaderboard:', e);
+                renderLeaderboard();
+            }
+        }
+
+        async function fetchStats() {
+            try {
+                const res = await fetch('/api/stats');
+                const stats = await res.json();
+                document.querySelector('.stat-cell:nth-child(1) .stat-cell-value').textContent = stats.totalLaunches || 0;
+                document.querySelector('.stat-cell:nth-child(2) .stat-cell-value').textContent = stats.solSeeded || 0;
+                document.querySelector('.stat-cell:nth-child(3) .stat-cell-value').textContent = formatVolume(stats.totalVolume || 0);
+                document.querySelector('.stat-cell:nth-child(4) .stat-cell-value').textContent = (stats.holderRewards || 0).toFixed(1);
+                document.querySelector('.stat-cell:nth-child(5) .stat-cell-value').textContent = stats.graduated || 0;
+            } catch (e) {
+                console.error('[API] Failed to fetch stats:', e);
+            }
+        }
+
+        async function syncTimer() {
+            try {
+                const res = await fetch('/api/timer');
+                const data = await res.json();
+                startTimer(data.secondsRemaining || 7200);
+            } catch (e) {
+                startTimer(7200);
+            }
+        }
+
+        function formatVolume(vol) {
+            if (vol >= 1000000) return '$' + (vol / 1000000).toFixed(1) + 'M';
+            if (vol >= 1000) return '$' + (vol / 1000).toFixed(1) + 'K';
+            return '$' + vol;
+        }
 
         // ═══════════════════════════════════════════════════════════════════════
         // RENDER FUNCTIONS
         // ═══════════════════════════════════════════════════════════════════════
         function renderTokens() {
             const list = document.getElementById('tokenList');
+            if (tokens.length === 0) {
+                list.innerHTML = `
+                    <div style="padding:60px 20px;text-align:center;">
+                        <div style="font-size:40px;margin-bottom:16px;opacity:0.3;">&#x1F680;</div>
+                        <div style="color:var(--text-secondary);font-size:15px;margin-bottom:8px;">No tokens launched yet</div>
+                        <div style="color:var(--text-muted);font-size:13px;">Be the first to launch and get 1 SOL seeded</div>
+                        <button class="btn btn-primary" style="margin-top:20px;" onclick="showCreateModal()">Launch First Token</button>
+                    </div>
+                `;
+                return;
+            }
             list.innerHTML = tokens.map(t => `
-                <div class="token-item">
-                    <div class="token-avatar">${t.name.charAt(0)}</div>
+                <div class="token-item" onclick="window.open('https://solscan.io/token/${t.mint}', '_blank')">
+                    <div class="token-avatar">${(t.name || 'T').charAt(0)}</div>
                     <div class="token-details">
-                        <div class="token-name">${t.name}</div>
+                        <div class="token-name">${escapeHtml(t.name)}</div>
                         <div class="token-meta">
-                            <span class="token-ticker">$${t.symbol}</span>
-                            <span class="token-path ${t.path}">${t.path === 'pump' ? 'Pump.fun' : 'Raydium'}</span>
-                            <span class="token-time">${t.time}</span>
+                            <span class="token-ticker">$${escapeHtml(t.symbol)}</span>
+                            <span class="token-path ${t.path}">${t.path === 'raydium' ? 'Raydium' : 'Pump.fun'}</span>
+                            <span class="token-time">${t.time || 'New'}</span>
                         </div>
                     </div>
                     <div class="token-stats">
-                        <div class="token-mcap">$${formatNumber(t.mcap)}</div>
-                        <div class="token-volume">Vol: $${formatNumber(t.volume)}</div>
+                        <div class="token-mcap">${t.mcap > 0 ? '$' + formatNumber(t.mcap) : '-'}</div>
+                        <div class="token-volume">${t.volume > 0 ? 'Vol: $' + formatNumber(t.volume) : ''}</div>
                     </div>
                     <div class="token-change">
-                        <div class="token-change-value ${t.change >= 0 ? 'positive' : 'negative'}">${t.change >= 0 ? '+' : ''}${t.change.toFixed(1)}%</div>
+                        <div class="token-change-value ${t.change >= 0 ? 'positive' : 'negative'}">${t.change !== 0 ? (t.change >= 0 ? '+' : '') + t.change.toFixed(1) + '%' : '-'}</div>
                         <div class="token-change-label">24h</div>
                     </div>
                 </div>
@@ -1222,13 +1283,22 @@
 
         function renderLeaderboard() {
             const list = document.getElementById('leaderboardList');
+            if (leaderboard.length === 0) {
+                list.innerHTML = `
+                    <div style="padding:40px 20px;text-align:center;">
+                        <div style="color:var(--text-secondary);font-size:14px;margin-bottom:6px;">No competition data</div>
+                        <div style="color:var(--text-muted);font-size:12px;">Launch tokens to compete for +1 SOL rewards</div>
+                    </div>
+                `;
+                return;
+            }
             list.innerHTML = leaderboard.map(l => `
                 <div class="leader-item">
                     <div class="leader-rank rank-${l.rank}">${l.rank}</div>
                     <div class="leader-info">
-                        <div class="leader-name">${l.name}</div>
+                        <div class="leader-name">${escapeHtml(l.name)}</div>
                         <div class="leader-meta">
-                            <span class="leader-ticker">$${l.symbol}</span>
+                            <span class="leader-ticker">$${escapeHtml(l.symbol)}</span>
                             <span class="leader-path">${l.path}</span>
                         </div>
                     </div>
@@ -1238,7 +1308,13 @@
             `).join('');
         }
 
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
+        }
+
         function formatNumber(num) {
+            if (!num) return '0';
             if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
             if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
             return num.toString();
@@ -1247,8 +1323,8 @@
         // ═══════════════════════════════════════════════════════════════════════
         // TIMER
         // ═══════════════════════════════════════════════════════════════════════
-        function startTimer() {
-            let seconds = 6323;
+        function startTimer(initialSeconds) {
+            let seconds = initialSeconds || 7200;
             const tick = () => {
                 seconds = seconds > 0 ? seconds - 1 : 7200;
                 const h = Math.floor(seconds / 3600);

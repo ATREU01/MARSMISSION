@@ -984,6 +984,19 @@ function escapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
+// Format timestamp to "X ago" format
+function formatTimeAgo(timestamp) {
+    if (!timestamp) return 'Unknown';
+    const seconds = Math.floor((Date.now() - timestamp) / 1000);
+    if (seconds < 60) return `${seconds}s ago`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+}
+
 // Safe body parser with size limit
 function parseBody(req, maxSize = MAX_BODY_SIZE) {
     return new Promise((resolve, reject) => {
@@ -1687,6 +1700,92 @@ The 4 percentages must sum to 100.`;
     if (url.pathname === '/tracker' && req.method === 'GET') {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(getTrackerHTML());
+        return;
+    }
+
+    // API: Get launchpad tokens (live list)
+    if (url.pathname === '/api/tokens' && req.method === 'GET') {
+        try {
+            const data = tracker.getTokens();
+            const tokens = (data.tokens || [])
+                .sort((a, b) => b.lastSeen - a.lastSeen)
+                .slice(0, 50)
+                .map(t => ({
+                    mint: t.mint,
+                    name: t.name || 'Unknown Token',
+                    symbol: t.symbol || 'TOKEN',
+                    path: t.path || 'pump',
+                    mcap: t.mcap || 0,
+                    volume: t.volume || 0,
+                    change: t.change || 0,
+                    time: formatTimeAgo(t.lastSeen || t.registeredAt),
+                    createdAt: t.registeredAt,
+                }));
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ tokens }));
+        } catch (e) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ tokens: [] }));
+        }
+        return;
+    }
+
+    // API: Get leaderboard (top tokens by mcap)
+    if (url.pathname === '/api/leaderboard' && req.method === 'GET') {
+        try {
+            const data = tracker.getTokens();
+            const leaderboard = (data.tokens || [])
+                .filter(t => t.mcap > 0)
+                .sort((a, b) => (b.mcap || 0) - (a.mcap || 0))
+                .slice(0, 10)
+                .map((t, index) => ({
+                    rank: index + 1,
+                    mint: t.mint,
+                    name: t.name || 'Unknown Token',
+                    symbol: t.symbol || 'TOKEN',
+                    mcap: t.mcap || 0,
+                    path: t.path === 'raydium' ? 'Raydium' : 'Pump.fun',
+                    reward: index < 3 ? '+1 SOL' : null,
+                }));
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ leaderboard }));
+        } catch (e) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ leaderboard: [] }));
+        }
+        return;
+    }
+
+    // API: Get platform stats
+    if (url.pathname === '/api/stats' && req.method === 'GET') {
+        try {
+            const data = tracker.getTokens();
+            const tokens = data.tokens || [];
+            const stats = {
+                totalLaunches: tokens.length,
+                solSeeded: tokens.length, // 1 SOL per launch
+                totalVolume: tokens.reduce((sum, t) => sum + (t.volume || 0), 0),
+                holderRewards: (data.stats?.totalDistributed || 0) * 0.01, // 1% to holders
+                graduated: tokens.filter(t => t.graduated).length,
+            };
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(stats));
+        } catch (e) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ totalLaunches: 0, solSeeded: 0, totalVolume: 0, holderRewards: 0, graduated: 0 }));
+        }
+        return;
+    }
+
+    // API: Get competition timer (next reward countdown)
+    if (url.pathname === '/api/timer' && req.method === 'GET') {
+        // Competition rewards every 2 hours, calculate time until next
+        const now = Date.now();
+        const twoHours = 2 * 60 * 60 * 1000;
+        const nextReward = Math.ceil(now / twoHours) * twoHours;
+        const secondsRemaining = Math.floor((nextReward - now) / 1000);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ secondsRemaining, nextRewardTime: nextReward }));
         return;
     }
 
