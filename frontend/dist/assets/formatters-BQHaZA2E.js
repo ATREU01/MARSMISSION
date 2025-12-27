@@ -1,0 +1,1 @@
+import{d3 as e,d1 as i}from"./index-BCkNtVKb.js";function o(t){return t?`${t.slice(0,5)}…${t.slice(-4)}`:""}function a({wei:t,precision:r=3}){return parseFloat(i(t)).toFixed(r).replace(/0+$/,"").replace(/\.$/,"")}function c({amount:t,decimals:r}){return e(BigInt(t),r)}export{c as i,o as n,a as t};

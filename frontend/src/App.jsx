@@ -1,20 +1,14 @@
 import { useEffect, useMemo } from 'react'
-import { usePrivy } from '@privy-io/react-auth'
-import { useWallets } from '@privy-io/react-auth/solana'
+import { usePrivy, useWallets } from '@privy-io/react-auth'
 import './App.css'
 
 function App() {
   const { ready, authenticated, user, login, logout } = usePrivy()
-  const { wallets: solanaWallets } = useWallets()
+  const { wallets } = useWallets()
 
-  // Get Solana wallet address
+  // Get wallet address - prefer Solana, accept any
   const walletAddress = useMemo(() => {
-    // 1. Check connected Solana wallets from useSolanaWallets()
-    if (solanaWallets?.length > 0) {
-      return solanaWallets[0].address
-    }
-
-    // 2. Check linkedAccounts for Solana wallets
+    // 1. Check linkedAccounts for Solana wallets
     const linkedSolana = user?.linkedAccounts?.find(
       (acc) => acc.type === 'wallet' && acc.chainType === 'solana'
     )
@@ -22,8 +16,22 @@ function App() {
       return linkedSolana.address
     }
 
+    // 2. Check connected wallets - find non-Ethereum
+    const solanaWallet = wallets?.find(w => !w.address?.startsWith('0x'))
+    if (solanaWallet?.address) {
+      return solanaWallet.address
+    }
+
+    // 3. Any wallet from linkedAccounts
+    const anyWallet = user?.linkedAccounts?.find(
+      (acc) => acc.type === 'wallet' && acc.address && !acc.address.startsWith('0x')
+    )
+    if (anyWallet?.address) {
+      return anyWallet.address
+    }
+
     return null
-  }, [user, solanaWallets])
+  }, [user, wallets])
 
   const isPopup = !!window.opener
 

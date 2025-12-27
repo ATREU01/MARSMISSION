@@ -1,0 +1,1 @@
+import{ds as e}from"./index-BCkNtVKb.js";const r=e.span.withConfig({displayName:"ErrorMessage",componentId:"sc-fcb8cd50-0"})(["text-align:left;font-size:0.75rem;font-weight:500;line-height:1.125rem;color:var(--privy-color-error);"]);export{r as e};

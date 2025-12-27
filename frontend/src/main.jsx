@@ -1,14 +1,8 @@
 import { StrictMode, useState, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 import { PrivyProvider } from '@privy-io/react-auth'
-import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana'
 import App from './App.jsx'
 import './index.css'
-
-// Configure Solana wallet connectors
-const solanaConnectors = toSolanaWalletConnectors({
-  shouldAutoConnect: true,
-})
 
 // PrivyGate - waits for config before initializing Privy
 function PrivyGate({ children }) {
@@ -38,15 +32,9 @@ function PrivyGate({ children }) {
         appearance: {
           theme: 'dark',
           accentColor: '#FFD966',
-          walletChainType: 'solana-only',
         },
         embeddedWallets: {
           createOnLogin: 'off',
-        },
-        externalWallets: {
-          solana: {
-            connectors: solanaConnectors,
-          },
         },
         solanaClusters: [
           { name: 'mainnet-beta', rpcUrl: rpcUrl }
