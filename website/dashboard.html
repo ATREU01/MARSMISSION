@@ -2516,7 +2516,7 @@
             try {
                 const res = await fetch('/api/ai/optimize', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: authHeaders(),  // Use auth headers for authorization
                     body: JSON.stringify({
                         rsi: null,
                         balance: walletBalance || 0,
