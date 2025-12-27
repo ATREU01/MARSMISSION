@@ -23,10 +23,8 @@ const PRODUCTION_CONFIG = {
     HELIUS_RPC: process.env.HELIUS_RPC || process.env.RPC_URL || 'https://api.mainnet-beta.solana.com',
 
     // Fee Structure
-    PLATFORM_FEE_PERCENT: 1,      // 1% of all fees to LAUNCHR holders
+    PLATFORM_FEE_PERCENT: 1,      // 1% of all fees to LAUNCHR distribution pool
     CREATOR_FEE_PERCENT: 99,       // 99% to creator's allocation engine
-    // Competition rewards are handled separately
-    TOP3_REWARD_ENABLED: true,      // Top 3 win rewards every 2 hours
 };
 
 // Get fee wallet public key if private key is set
@@ -1321,15 +1319,31 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    // Serve Creator Dashboard (React SPA with config injection)
+    // Serve Creator Dashboard (full HTML with config injection)
     if (url.pathname === '/dashboard' && req.method === 'GET') {
         try {
-            const html = fs.readFileSync(path.join(__dirname, 'frontend', 'dist', 'index.html'), 'utf8');
+            const html = fs.readFileSync(path.join(__dirname, 'website', 'dashboard.html'), 'utf8');
             res.writeHead(200, {
                 'Content-Type': 'text/html; charset=utf-8',
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
                 'Pragma': 'no-cache',
                 'Expires': '0'
+            });
+            res.end(injectConfig(html));
+        } catch (e) {
+            res.writeHead(302, { 'Location': '/' });
+            res.end();
+        }
+        return;
+    }
+
+    // Serve Auth page (React Privy popup)
+    if (url.pathname === '/auth' && req.method === 'GET') {
+        try {
+            const html = fs.readFileSync(path.join(__dirname, 'frontend', 'dist', 'index.html'), 'utf8');
+            res.writeHead(200, {
+                'Content-Type': 'text/html; charset=utf-8',
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
             });
             res.end(injectConfig(html));
         } catch (e) {
@@ -2095,9 +2109,9 @@ The 4 percentages must sum to 100.`;
         return;
     }
 
-    // API: Get competition timer (next reward countdown)
+    // API: Get timer (legacy endpoint)
     if (url.pathname === '/api/timer' && req.method === 'GET') {
-        // Competition rewards every 2 hours, calculate time until next
+        // Timer endpoint - returns countdown data
         const now = Date.now();
         const twoHours = 2 * 60 * 60 * 1000;
         const nextReward = Math.ceil(now / twoHours) * twoHours;
