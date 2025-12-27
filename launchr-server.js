@@ -1436,14 +1436,8 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    // API: Smart Optimizer - Optimize allocations using AI
+    // API: Smart Optimizer - Optimize allocations using AI (no auth - just AI suggestions)
     if (url.pathname === '/api/ai/optimize' && req.method === 'POST') {
-        if (!isAuthorized(req)) {
-            res.writeHead(401, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, error: 'Unauthorized' }));
-            return;
-        }
-
         try {
             const data = await parseBody(req);
             const { rsi, balance, currentAllocations, tokenPrice, marketCap } = data;
