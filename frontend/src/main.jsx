@@ -38,6 +38,8 @@ function PrivyGate({ children }) {
         appearance: {
           theme: 'dark',
           accentColor: '#FFD966',
+          walletChainType: 'solana-only',
+          walletList: ['phantom', 'solflare', 'detected_solana_wallets'],
         },
         embeddedWallets: {
           createOnLogin: 'off',
