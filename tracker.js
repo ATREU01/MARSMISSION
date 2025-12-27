@@ -9,6 +9,20 @@ const DATA_FILE = path.join(DATA_DIR, 'tracked-tokens.json');
 // Pump.fun graduation threshold
 const GRADUATION_THRESHOLD_SOL = 85;
 
+// ALICE pattern - axios instance with proper headers for Pump.fun API
+const pumpApi = axios.create({
+    baseURL: 'https://frontend-api.pump.fun',
+    timeout: 5000,
+    headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0'
+    }
+});
+
+// Simple cache for API responses (30 second TTL)
+const apiCache = new Map();
+const CACHE_TTL = 30000;
+
 // Ensure data directory exists
 function ensureDataDir() {
     if (!fs.existsSync(DATA_DIR)) {
@@ -130,20 +144,24 @@ function getPublicStats() {
     };
 }
 
-// Check graduation status for a single token from pump.fun API
+// Check graduation status for a single token from pump.fun API (ALICE pattern)
 async function checkGraduationStatus(tokenMint) {
     try {
-        const response = await axios.get(
-            `https://frontend-api.pump.fun/coins/${tokenMint}`,
-            { timeout: 10000 }
-        );
+        // Check cache first
+        const cacheKey = `grad_${tokenMint}`;
+        const cached = apiCache.get(cacheKey);
+        if (cached && Date.now() - cached.ts < CACHE_TTL) {
+            return cached.data;
+        }
+
+        const response = await pumpApi.get(`/coins/${tokenMint}`);
 
         if (response.data) {
             const realSol = (response.data.virtual_sol_reserves || 0) / 1e9;
             const graduated = response.data.complete === true;
             const progress = Math.min((realSol / GRADUATION_THRESHOLD_SOL) * 100, 100);
 
-            return {
+            const result = {
                 graduated,
                 progress,
                 realSol,
@@ -151,11 +169,16 @@ async function checkGraduationStatus(tokenMint) {
                 bondingCurve: response.data.bonding_curve,
                 raydiumPool: response.data.raydium_pool || null,
             };
+
+            apiCache.set(cacheKey, { data: result, ts: Date.now() });
+            return result;
         }
 
         return { graduated: false, progress: 0 };
     } catch (error) {
-        return { graduated: false, error: error.message };
+        // Graceful failure - return cached if available
+        const cached = apiCache.get(`grad_${tokenMint}`);
+        return cached?.data || { graduated: false, error: error.message };
     }
 }
 
@@ -242,7 +265,7 @@ function getGraduationStats() {
     };
 }
 
-// Update token metrics from pump.fun API
+// Update token metrics from pump.fun API (ALICE pattern)
 async function updateTokenMetrics(tokenMint) {
     const data = loadTokens();
     const token = data.tokens.find(t => t.mint === tokenMint);
@@ -250,13 +273,22 @@ async function updateTokenMetrics(tokenMint) {
     if (!token) return null;
 
     try {
-        const response = await axios.get(
-            `https://frontend-api.pump.fun/coins/${tokenMint}`,
-            { timeout: 10000 }
-        );
+        // Check cache first
+        const cacheKey = `metrics_${tokenMint}`;
+        const cached = apiCache.get(cacheKey);
+        let d;
 
-        if (response.data) {
-            const d = response.data;
+        if (cached && Date.now() - cached.ts < CACHE_TTL) {
+            d = cached.data;
+        } else {
+            const response = await pumpApi.get(`/coins/${tokenMint}`);
+            d = response.data;
+            if (d) {
+                apiCache.set(cacheKey, { data: d, ts: Date.now() });
+            }
+        }
+
+        if (d) {
             token.mcap = d.usd_market_cap || 0;
             token.price = d.price || 0;
             token.volume = d.volume_24h || 0;
@@ -277,7 +309,7 @@ async function updateTokenMetrics(tokenMint) {
             return { success: true, token };
         }
     } catch (e) {
-        console.log(`[TRACKER] Failed to update metrics for ${tokenMint.slice(0, 8)}...: ${e.message}`);
+        // Silent fail - don't spam logs
     }
 
     return { success: false };
