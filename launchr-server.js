@@ -245,7 +245,7 @@ let landingPageCache = null;
 function getLandingHTML() {
     // Always read fresh in development, cache in production
     try {
-        const html = fs.readFileSync(path.join(__dirname, 'frontend', 'dist', 'index.html'), 'utf8');
+        const html = fs.readFileSync(path.join(__dirname, 'website', 'index.html'), 'utf8');
         return injectConfig(html);
     } catch (e) {
         // Fallback redirect to /app if landing page not found
@@ -1275,10 +1275,10 @@ const server = http.createServer(async (req, res) => {
     // Serve favicon
     if (url.pathname === '/favicon.ico' && req.method === 'GET') {
         try {
-            const favicon = fs.readFileSync(path.join(__dirname, 'frontend', 'dist', 'logo-icon.jpg'));
+            const favicon = fs.readFileSync(path.join(__dirname, 'website', 'logo-icon.jpg'));
             res.writeHead(200, {
                 'Content-Type': 'image/jpeg',
-                'Cache-Control': 'public, max-age=604800'  // Cache for 1 week
+                'Cache-Control': 'public, max-age=604800'
             });
             res.end(favicon);
         } catch (e) {
@@ -1288,10 +1288,25 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    // Serve logo images explicitly
+    if ((url.pathname === '/website/logo-icon.jpg' || url.pathname === '/website/logo-full.jpg' || url.pathname === '/website/phantom_icon.png') && req.method === 'GET') {
+        try {
+            const filename = url.pathname.replace('/website/', '');
+            const img = fs.readFileSync(path.join(__dirname, 'website', filename));
+            const ext = filename.endsWith('.png') ? 'image/png' : 'image/jpeg';
+            res.writeHead(200, { 'Content-Type': ext, 'Cache-Control': 'public, max-age=86400' });
+            res.end(img);
+        } catch (e) {
+            res.writeHead(404);
+            res.end('Image not found');
+        }
+        return;
+    }
+
     // Serve Launchpad (with config injection)
     if (url.pathname === '/launchpad' && req.method === 'GET') {
         try {
-            const html = fs.readFileSync(path.join(__dirname, 'frontend', 'dist', 'launchpad.html'), 'utf8');
+            const html = fs.readFileSync(path.join(__dirname, 'website', 'launchpad.html'), 'utf8');
             res.writeHead(200, {
                 'Content-Type': 'text/html; charset=utf-8',
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -1306,10 +1321,10 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    // Serve Creator Dashboard (with config injection)
+    // Serve Creator Dashboard (React SPA with config injection)
     if (url.pathname === '/dashboard' && req.method === 'GET') {
         try {
-            const html = fs.readFileSync(path.join(__dirname, 'frontend', 'dist', 'dashboard.html'), 'utf8');
+            const html = fs.readFileSync(path.join(__dirname, 'frontend', 'dist', 'index.html'), 'utf8');
             res.writeHead(200, {
                 'Content-Type': 'text/html; charset=utf-8',
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -1327,7 +1342,7 @@ const server = http.createServer(async (req, res) => {
     // Serve Documentation (with config injection)
     if (url.pathname === '/docs' && req.method === 'GET') {
         try {
-            const html = fs.readFileSync(path.join(__dirname, 'frontend', 'dist', 'docs.html'), 'utf8');
+            const html = fs.readFileSync(path.join(__dirname, 'website', 'docs.html'), 'utf8');
             res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
             res.end(injectConfig(html));
         } catch (e) {
