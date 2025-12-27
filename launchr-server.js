@@ -50,10 +50,16 @@ console.log(`  - Fee Wallet: ${FEE_WALLET_PUBLIC_KEY ? 'SET' : 'NOT SET'}`);
 // VANITY KEYPAIR POOL - Pre-generated keypairs ending in "launchr"
 // ═══════════════════════════════════════════════════════════════════════════
 
-const VANITY_POOL_FILE = path.join(__dirname, '.vanity-pool.json');
+// Use /app/data/ for Railway volume persistence, fallback to local for dev
+const DATA_DIR = process.env.RAILWAY_ENVIRONMENT ? '/app/data' : __dirname;
+try { if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) {}
+
+const VANITY_POOL_FILE = path.join(DATA_DIR, '.vanity-pool.json');
 const VANITY_SUFFIX = 'launchr';
 const VANITY_POOL_TARGET = 10; // Keep 10 keypairs ready
 const VANITY_POOL_MIN = 3; // Start generating when below this
+
+console.log(`[VANITY] Data directory: ${DATA_DIR}`);
 
 let vanityPool = [];
 let vanityGenerating = false;
