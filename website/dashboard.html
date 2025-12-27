@@ -2326,7 +2326,7 @@
                     await saveAllocations();
 
                     if (resultDiv) {
-                        resultDiv.innerHTML = '✅ ' + (data.allocations.reasoning || 'Allocations optimized!');
+                        resultDiv.innerHTML = (data.allocations.reasoning || 'Allocations optimized!');
                         resultDiv.style.display = 'block';
                         resultDiv.style.color = 'var(--success)';
                     }
@@ -2335,7 +2335,7 @@
                 }
             } catch (e) {
                 if (resultDiv) {
-                    resultDiv.innerHTML = '❌ ' + e.message;
+                    resultDiv.innerHTML = e.message;
                     resultDiv.style.display = 'block';
                     resultDiv.style.color = 'var(--error)';
                 }

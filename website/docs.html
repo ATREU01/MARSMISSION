@@ -895,22 +895,22 @@
 
                         <div class="feature-grid">
                             <div class="feature-card">
-                                <div class="feature-icon">🚀</div>
+                                <div class="feature-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
                                 <h4>Launch in Seconds</h4>
                                 <p>Create tokens with custom metadata, vanity addresses, and dev buy options instantly.</p>
                             </div>
                             <div class="feature-card">
-                                <div class="feature-icon">⚡</div>
+                                <div class="feature-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
                                 <h4>Smart Fee Routing</h4>
                                 <p>Programmable allocation engine distributes fees automatically based on your strategy.</p>
                             </div>
                             <div class="feature-card">
-                                <div class="feature-icon">🎯</div>
+                                <div class="feature-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg></div>
                                 <h4>Vanity Addresses</h4>
-                                <p>Stand out with memorable contract addresses ending in custom suffixes like "lchr".</p>
+                                <p>Stand out with memorable contract addresses ending in custom suffixes.</p>
                             </div>
                             <div class="feature-card">
-                                <div class="feature-icon">📊</div>
+                                <div class="feature-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg></div>
                                 <h4>Real-Time Analytics</h4>
                                 <p>Track fee accumulation, allocation metrics, and token performance live.</p>
                             </div>
@@ -1315,28 +1315,36 @@
 
                         <div class="flywheel-grid">
                             <div class="flywheel-card">
-                                <div class="flywheel-icon" style="background: var(--cyan-dim);">🎯</div>
+                                <div class="flywheel-icon" style="background: var(--cyan-dim);">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
+                                </div>
                                 <div class="flywheel-content">
                                     <h4>Market Making</h4>
                                     <p>Reduces price volatility by providing liquidity on both sides. Results in tighter spreads and more stable charts.</p>
                                 </div>
                             </div>
                             <div class="flywheel-card">
-                                <div class="flywheel-icon" style="background: var(--rose-dim);">🔥</div>
+                                <div class="flywheel-icon" style="background: var(--rose-dim);">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--rose)" stroke-width="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+                                </div>
                                 <div class="flywheel-content">
                                     <h4>Buyback & Burn</h4>
                                     <p>Accumulates fees for massive single-candle buybacks and permanent token burns. Creates deflationary pressure.</p>
                                 </div>
                             </div>
                             <div class="flywheel-card">
-                                <div class="flywheel-icon" style="background: var(--emerald-dim);">💧</div>
+                                <div class="flywheel-icon" style="background: var(--emerald-dim);">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--emerald)" stroke-width="2"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+                                </div>
                                 <div class="flywheel-content">
                                     <h4>Liquidity Boost</h4>
                                     <p>Deepens liquidity pools for lower slippage and better trade execution. Improves the trading experience.</p>
                                 </div>
                             </div>
                             <div class="flywheel-card">
-                                <div class="flywheel-icon" style="background: var(--gold-dim);">💰</div>
+                                <div class="flywheel-icon" style="background: var(--gold-dim);">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
+                                </div>
                                 <div class="flywheel-content">
                                     <h4>Creator Revenue</h4>
                                     <p>Direct SOL to your wallet for marketing, team compensation, or personal use. Pure extraction.</p>
@@ -1532,83 +1540,6 @@
   },
   <span class="code-property">"reasoning"</span>: <span class="code-string">"High volatility detected. Increased MM recommended."</span>,
   <span class="code-property">"confidence"</span>: <span class="code-number">0.87</span>
-}</pre>
-                            </div>
-                        </div>
-                    </section>
-
-                    <!-- API Reference -->
-                    <section id="api-reference">
-                        <h2>API Reference</h2>
-                        <p>LAUNCHR backend API endpoints for advanced integrations.</p>
-
-                        <div class="code-block">
-                            <div class="code-header">
-                                <span class="code-lang">Base URL</span>
-                            </div>
-                            <div class="code-content">
-<pre>https://launchronsol.xyz/api</pre>
-                            </div>
-                        </div>
-
-                        <h3>Endpoints</h3>
-
-                        <div class="table-wrapper">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Endpoint</th>
-                                        <th>Method</th>
-                                        <th>Description</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td><code>/api/vanity-keypair</code></td>
-                                        <td>GET</td>
-                                        <td>Get pre-generated vanity keypair</td>
-                                    </tr>
-                                    <tr>
-                                        <td><code>/api/my-tokens</code></td>
-                                        <td>GET</td>
-                                        <td>Get tokens created by wallet</td>
-                                    </tr>
-                                    <tr>
-                                        <td><code>/api/tokens</code></td>
-                                        <td>GET</td>
-                                        <td>Get all LAUNCHR tokens</td>
-                                    </tr>
-                                    <tr>
-                                        <td><code>/api/tracker/stats</code></td>
-                                        <td>GET</td>
-                                        <td>Get platform statistics</td>
-                                    </tr>
-                                    <tr>
-                                        <td><code>/api/register-token</code></td>
-                                        <td>POST</td>
-                                        <td>Register new token launch</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <div class="code-block">
-                            <div class="code-header">
-                                <span class="code-lang">Example Request</span>
-                                <button class="copy-btn" onclick="copyCode(this)">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                                    Copy
-                                </button>
-                            </div>
-                            <div class="code-content">
-<pre><span class="code-keyword">curl</span> https://launchronsol.xyz/api/vanity-keypair
-
-<span class="code-comment">// Response</span>
-{
-  <span class="code-property">"publicKey"</span>: <span class="code-string">"7xK9m...lchr"</span>,
-  <span class="code-property">"pattern"</span>: {
-    <span class="code-property">"suffix"</span>: <span class="code-string">"lchr"</span>
-  }
 }</pre>
                             </div>
                         </div>
