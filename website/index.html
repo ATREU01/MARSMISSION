@@ -1149,33 +1149,8 @@
 
         async function connectPrivy() {
             document.getElementById('walletSelectModal')?.remove();
-            try {
-                if (!privyClient && typeof window.Privy !== 'undefined') {
-                    privyClient = new window.Privy({
-                        appId: PRIVY_APP_ID,
-                        config: {
-                            loginMethods: ['wallet'],
-                            appearance: { theme: 'dark', accentColor: '#FFD966' },
-                            embeddedWallets: { createOnLogin: 'users-without-wallets' },
-                            solanaClusters: [{ name: 'mainnet-beta', rpcUrl: SOLANA_RPC }],
-                        },
-                    });
-                }
-                if (privyClient) {
-                    await privyClient.login();
-                    const user = await privyClient.getUser();
-                    if (user?.wallet?.address) {
-                        handleWalletConnected(user.wallet.address);
-                    } else {
-                        alert('No wallet found in Privy account');
-                    }
-                } else {
-                    alert('Privy not available. Please try again or use a browser wallet.');
-                }
-            } catch (e) {
-                console.error('[PRIVY]', e);
-                alert('Failed to connect with Privy: ' + e.message);
-            }
+            // Redirect to dashboard where React Privy is properly initialized
+            window.location.href = '/dashboard';
         }
 
         async function handleWalletConnected(address) {
