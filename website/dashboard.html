@@ -2452,7 +2452,7 @@
                                 <span class="wallet-detected">Email, Google, Twitter</span>
                             </button>
                             <button class="wallet-option ${hasPhantom ? '' : 'disabled'}" onclick="${hasPhantom ? 'connectPhantom()' : ''}" ${hasPhantom ? '' : 'disabled'}>
-                                <img src="https://phantom.app/img/phantom-logo.svg" alt="Phantom" style="width:28px;height:28px;">
+                                <svg width="28" height="28" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="128" height="128" rx="26" fill="url(#pg1)"/><path d="M110.5 64.9H99.1C99.1 41.8 80.2 23 56.8 23C33.7 23 14.9 41.3 14.4 64C14 87.4 34.2 108 57.8 108H64C85.9 108 110.5 89 110.5 64.9Z" fill="url(#pg2)"/><ellipse cx="77.5" cy="61" rx="5" ry="5.5" fill="#1E1E26"/><ellipse cx="50.5" cy="61" rx="5" ry="5.5" fill="#1E1E26"/><defs><linearGradient id="pg1" x1="64" y1="0" x2="64" y2="128"><stop stop-color="#534BB1"/><stop offset="1" stop-color="#551BF9"/></linearGradient><linearGradient id="pg2" x1="62" y1="23" x2="62" y2="108"><stop stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity=".82"/></linearGradient></defs></svg>
                                 <span>Phantom</span>
                                 ${hasPhantom ? '<span class="wallet-detected">Detected</span>' : '<span class="wallet-not-detected">Not installed</span>'}
                             </button>
