@@ -292,6 +292,10 @@ async function initPrivy() {
             storage: storage
         });
 
+        // IMPORTANT: Call initialize() to complete SDK setup
+        await privyClient.initialize();
+        console.log('[PRIVY] SDK initialized');
+
         // Check if embeddedWallet is available
         if (privyClient.embeddedWallet && typeof privyClient.embeddedWallet.getURL === 'function') {
             // Set up iframe for embedded wallet secure context
