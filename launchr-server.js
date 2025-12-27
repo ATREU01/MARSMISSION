@@ -1342,6 +1342,23 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    // Phantom Wallet Integration - Manifest
+    if ((url.pathname === '/phantom/manifest.json' || url.pathname === '/.well-known/phantom.json') && req.method === 'GET') {
+        try {
+            const manifest = fs.readFileSync(path.join(__dirname, 'website', 'phantom-manifest.json'), 'utf8');
+            res.writeHead(200, {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Cache-Control': 'public, max-age=3600'
+            });
+            res.end(manifest);
+        } catch (e) {
+            res.writeHead(404, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Manifest not found' }));
+        }
+        return;
+    }
+
     // Serve static files from website folder
     if (url.pathname.startsWith('/website/') && req.method === 'GET') {
         const filePath = path.join(__dirname, url.pathname);
