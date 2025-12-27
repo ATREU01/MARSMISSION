@@ -2090,11 +2090,54 @@
                 <div class="fee-card-body" style="padding:16px;">
                     <div style="display:flex;align-items:center;justify-content:space-between;">
                         <div style="display:flex;align-items:center;gap:12px;">
-                            <span style="width:12px;height:12px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px #22c55e;"></span>
+                            <span style="width:12px;height:12px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px #22c55e;animation:pulse 2s infinite;"></span>
                             <span style="font-weight:600;color:#22c55e;">Engine Connected</span>
                             <span id="engineWalletDisplay" style="font-family:'JetBrains Mono',monospace;color:var(--text-muted);font-size:13px;"></span>
                         </div>
                         <button class="btn btn-secondary" onclick="disconnectEngine()" style="padding:8px 20px;">Disconnect</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fee Distribution Breakdown -->
+            <div class="fee-card" style="margin-bottom:16px;">
+                <div class="fee-card-header">
+                    <span class="fee-card-title">Fee Distribution Breakdown</span>
+                </div>
+                <div class="fee-card-body" style="padding:20px;">
+                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;">
+                        <!-- Burn -->
+                        <div class="distribution-feature" style="background:rgba(168,90,50,0.1);border:1px solid rgba(196,122,74,0.3);border-radius:var(--radius-lg);padding:20px;text-align:center;position:relative;overflow:hidden;transition:all 0.3s;">
+                            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#a85a32,#c47a4a);"></div>
+                            <div style="font-size:32px;font-weight:900;color:#c47a4a;line-height:1;">25%</div>
+                            <div style="font-size:12px;font-weight:700;letter-spacing:2px;margin-top:10px;color:var(--text);">BURN</div>
+                            <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Tokens permanently destroyed</div>
+                            <div id="burnStat" style="font-size:13px;font-weight:600;margin-top:14px;padding-top:12px;border-top:1px solid rgba(196,122,74,0.2);color:#c47a4a;">0 SOL</div>
+                        </div>
+                        <!-- Buyback -->
+                        <div class="distribution-feature" style="background:rgba(61,139,110,0.1);border:1px solid rgba(90,168,138,0.3);border-radius:var(--radius-lg);padding:20px;text-align:center;position:relative;overflow:hidden;transition:all 0.3s;">
+                            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#3d8b6e,#5aa88a);"></div>
+                            <div style="font-size:32px;font-weight:900;color:#5aa88a;line-height:1;">25%</div>
+                            <div style="font-size:12px;font-weight:700;letter-spacing:2px;margin-top:10px;color:var(--text);">BUYBACK</div>
+                            <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">RSI-based market buys</div>
+                            <div id="buybackStat" style="font-size:13px;font-weight:600;margin-top:14px;padding-top:12px;border-top:1px solid rgba(90,168,138,0.2);color:#5aa88a;">0 SOL</div>
+                        </div>
+                        <!-- Holders -->
+                        <div class="distribution-feature" style="background:rgba(74,124,155,0.1);border:1px solid rgba(106,156,184,0.3);border-radius:var(--radius-lg);padding:20px;text-align:center;position:relative;overflow:hidden;transition:all 0.3s;">
+                            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#4a7c9b,#6a9cb8);"></div>
+                            <div style="font-size:32px;font-weight:900;color:#6a9cb8;line-height:1;">25%</div>
+                            <div style="font-size:12px;font-weight:700;letter-spacing:2px;margin-top:10px;color:var(--text);">HOLDERS</div>
+                            <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Top 100 by % holdings</div>
+                            <div id="holdersStat" style="font-size:13px;font-weight:600;margin-top:14px;padding-top:12px;border-top:1px solid rgba(106,156,184,0.2);color:#6a9cb8;">0 SOL</div>
+                        </div>
+                        <!-- Liquidity -->
+                        <div class="distribution-feature" style="background:rgba(122,90,140,0.1);border:1px solid rgba(154,122,172,0.3);border-radius:var(--radius-lg);padding:20px;text-align:center;position:relative;overflow:hidden;transition:all 0.3s;">
+                            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#7a5a8c,#9a7aac);"></div>
+                            <div style="font-size:32px;font-weight:900;color:#9a7aac;line-height:1;">25%</div>
+                            <div style="font-size:12px;font-weight:700;letter-spacing:2px;margin-top:10px;color:var(--text);">LIQUIDITY</div>
+                            <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Add LP + burn LP tokens</div>
+                            <div id="lpStat" style="font-size:13px;font-weight:600;margin-top:14px;padding-top:12px;border-top:1px solid rgba(154,122,172,0.2);color:#9a7aac;">0 SOL</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2165,20 +2208,20 @@
                 </div>
             </div>
 
-            <!-- Activity -->
+            <!-- Activity Stream -->
             <div class="activity-card" id="activity">
                 <div class="activity-header">
                     <div class="activity-title">
                         <span class="dot"></span>
-                        Recent Activity
+                        Activity Stream
                     </div>
-                    <button class="btn btn-secondary btn-sm">View All</button>
+                    <button class="btn btn-secondary btn-sm" onclick="refreshEngineLogs()">Refresh</button>
                 </div>
-                <div class="activity-table" id="activityTable">
-                    <div class="empty-state">
-                        <div class="empty-state-icon">&#x1F4CA;</div>
+                <div id="engineLogs" style="background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:var(--radius);padding:16px;max-height:300px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.8;">
+                    <div class="empty-state" id="logsEmptyState">
+                        <div class="empty-state-icon">📊</div>
                         <div class="empty-state-title">No activity yet</div>
-                        <div class="empty-state-desc">Connect your wallet to see your fee routing activity</div>
+                        <div class="empty-state-desc">Connect engine to see fee distribution activity</div>
                     </div>
                 </div>
             </div>
@@ -2582,8 +2625,9 @@
                     if (claimBtn) claimBtn.disabled = false;
                     if (distBtn) distBtn.disabled = false;
 
-                    // Refresh status
+                    // Refresh status and logs
                     fetchEngineStatus();
+                    refreshEngineLogs();
                     showNotification('Engine connected!', 'success');
                 } else {
                     throw new Error(data.error || 'Configuration failed');
@@ -2786,7 +2830,19 @@
                     if (balance) balance.textContent = (data.balance || 0).toFixed(4) + ' SOL';
                     if (claimed) claimed.textContent = ((data.stats?.totalClaimed || 0) / 1e9).toFixed(4) + ' SOL';
                     if (distributed) distributed.textContent = ((data.stats?.totalDistributed || 0) / 1e9).toFixed(4) + ' SOL';
-                    if (rsi) rsi.textContent = data.rsi?.toFixed(1) || data.analyzer?.metrics?.rsi?.toFixed(1) || '--';
+                    if (rsi) rsi.textContent = data.rsi?.current?.toFixed(1) || data.rsi?.toFixed(1) || data.analyzer?.metrics?.rsi?.toFixed(1) || '--';
+
+                    // Update feature stats (25% each)
+                    const totalDist = (data.stats?.totalDistributed || 0) / 1e9;
+                    const perFeature = (totalDist / 4).toFixed(4);
+                    const burnStat = document.getElementById('burnStat');
+                    const buybackStat = document.getElementById('buybackStat');
+                    const holdersStat = document.getElementById('holdersStat');
+                    const lpStat = document.getElementById('lpStat');
+                    if (burnStat) burnStat.textContent = perFeature + ' SOL';
+                    if (buybackStat) buybackStat.textContent = perFeature + ' SOL';
+                    if (holdersStat) holdersStat.textContent = perFeature + ' SOL';
+                    if (lpStat) lpStat.textContent = perFeature + ' SOL';
 
                     // Update automation badge
                     updateAutomationBadge(data.autoClaimActive);
@@ -2807,7 +2863,39 @@
             }
         }
 
-        // Poll engine status every 30 seconds
+        // Refresh engine logs
+        async function refreshEngineLogs() {
+            if (!engineConfigured) return;
+
+            try {
+                const res = await fetch('/api/logs');
+                const data = await res.json();
+                const logsDiv = document.getElementById('engineLogs');
+                const emptyState = document.getElementById('logsEmptyState');
+
+                if (data.logs && data.logs.length > 0) {
+                    if (emptyState) emptyState.style.display = 'none';
+                    logsDiv.innerHTML = data.logs.map(l =>
+                        `<div style="color:var(--text-muted);padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.03);">${l}</div>`
+                    ).join('');
+                    logsDiv.scrollTop = logsDiv.scrollHeight;
+                } else {
+                    if (emptyState) emptyState.style.display = 'block';
+                }
+            } catch (e) {
+                console.error('[LOGS] Error fetching logs:', e);
+            }
+        }
+
+        // Poll engine status and logs every 3 seconds when configured
+        setInterval(() => {
+            if (engineConfigured) {
+                fetchEngineStatus();
+                refreshEngineLogs();
+            }
+        }, 3000);
+
+        // Also poll status every 30 seconds regardless
         setInterval(fetchEngineStatus, 30000);
 
         // ═══════════════════════════════════════════════════════════════════════
