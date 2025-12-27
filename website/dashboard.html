@@ -2363,12 +2363,9 @@
         // INITIALIZATION
         // ═══════════════════════════════════════════════════════════════════════
         document.addEventListener('DOMContentLoaded', async () => {
-            // Check for Privy wallet first (from /auth redirect)
-            checkPrivyWallet();
-
-            // Then check localStorage for any stored wallet
+            await initPrivy();
             const stored = localStorage.getItem('connectedWallet');
-            if (stored && !connectedWallet) handleWalletConnected(stored);
+            if (stored) handleWalletConnected(stored);
 
             // Fetch initial stats
             fetchDashboardStats();
@@ -2589,18 +2586,80 @@
 
         async function connectPrivy() {
             document.getElementById('walletSelectModal')?.remove();
-            // Redirect to Privy auth page with return URL
-            const returnUrl = encodeURIComponent(window.location.href);
-            window.location.href = '/auth?returnTo=' + returnUrl;
-        }
 
-        // Check for Privy wallet on page load
-        function checkPrivyWallet() {
-            const privyWallet = localStorage.getItem('privyWallet');
-            const privyConnected = localStorage.getItem('privyConnected');
-            if (privyConnected === 'true' && privyWallet) {
-                handleWalletConnected(privyWallet);
-                showNotification('Connected with Privy wallet', 'success');
+            if (!privyClient) {
+                showNotification('Privy not initialized. Please check browser console for details.', 'error');
+                return;
+            }
+
+            try {
+                // Show loading modal
+                const loadingModal = document.createElement('div');
+                loadingModal.id = 'privyLoadingModal';
+                loadingModal.className = 'modal-overlay';
+                loadingModal.innerHTML = `
+                    <div class="modal" style="max-width:360px;text-align:center;padding:40px;">
+                        <div style="font-size:24px;margin-bottom:16px;">🔐</div>
+                        <h3 style="margin-bottom:12px;">Connecting to Privy</h3>
+                        <p style="color:var(--text-secondary);font-size:14px;">Please enter your email to login or create a wallet...</p>
+                    </div>
+                `;
+                document.body.appendChild(loadingModal);
+
+                // Prompt for email
+                const email = prompt('Enter your email address to login or create a Privy wallet:');
+                loadingModal.remove();
+
+                if (!email) {
+                    showNotification('Login cancelled', 'info');
+                    return;
+                }
+
+                // Send OTP code to email
+                showNotification('Sending verification code to ' + email + '...', 'info');
+                await privyClient.auth.email.sendCode(email);
+
+                // Prompt for OTP
+                const otp = prompt('Enter the 6-digit code sent to ' + email + ':');
+                if (!otp) {
+                    showNotification('Verification cancelled', 'info');
+                    return;
+                }
+
+                // Verify OTP and login
+                showNotification('Verifying code...', 'info');
+                const session = await privyClient.auth.email.loginWithCode(email, otp);
+
+                if (session?.user) {
+                    privyUser = session.user;
+
+                    // Check for existing Solana wallet
+                    let solanaWallet = session.user.linkedAccounts?.find(
+                        a => a.type === 'wallet' && a.chainType === 'solana'
+                    );
+
+                    // If no Solana wallet, create one
+                    if (!solanaWallet) {
+                        showNotification('Creating Solana wallet...', 'info');
+                        const { user: updatedUser } = await privyClient.embeddedWallet.createSolana();
+                        privyUser = updatedUser;
+                        solanaWallet = updatedUser.linkedAccounts?.find(
+                            a => a.type === 'wallet' && a.chainType === 'solana'
+                        );
+                    }
+
+                    if (solanaWallet?.address) {
+                        handleWalletConnected(solanaWallet.address);
+                        showNotification('Connected with Privy wallet!', 'success');
+                    } else {
+                        showNotification('Failed to get wallet address', 'error');
+                    }
+                } else {
+                    showNotification('Login failed', 'error');
+                }
+            } catch (e) {
+                console.error('[PRIVY]', e);
+                showNotification('Privy error: ' + e.message, 'error');
             }
         }
 
