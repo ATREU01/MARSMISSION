@@ -2364,8 +2364,8 @@
         // ═══════════════════════════════════════════════════════════════════════
         document.addEventListener('DOMContentLoaded', async () => {
             await initPrivy();
-            const stored = localStorage.getItem('connectedWallet');
-            if (stored) handleWalletConnected(stored);
+            // Security: Don't auto-reconnect - require fresh login each time
+            localStorage.removeItem('connectedWallet');
 
             // Fetch initial stats
             fetchDashboardStats();
@@ -2519,7 +2519,7 @@
             btn.textContent = address.slice(0, 4) + '...' + address.slice(-4);
             btn.classList.add('wallet-connected');
             await fetchBalance(address);
-            localStorage.setItem('connectedWallet', address);
+            // Security: Don't persist wallet - session only
             updateLaunchButton();
             document.getElementById('tokenSelector').style.display = 'flex';
             document.getElementById('myLaunchesCard').style.display = 'block';
