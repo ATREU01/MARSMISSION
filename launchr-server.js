@@ -16,7 +16,10 @@ const PRODUCTION_CONFIG = {
     // Main Fee Wallet - ALL REVENUE GOES HERE
     FEE_WALLET_PRIVATE_KEY: process.env.FEE_WALLET_PRIVATE_KEY || '',
 
-    // Privy Wallet Connect
+    // Magic.link API Key (replaces Privy)
+    MAGIC_API_KEY: process.env.MAGIC_API_KEY || process.env.PRIVY_APP_ID || process.env.YOUR_PRIVY_APP_ID || '',
+
+    // Legacy Privy support (fallback)
     PRIVY_APP_ID: process.env.PRIVY_APP_ID || process.env.YOUR_PRIVY_APP_ID || '',
 
     // Helius RPC (Solana)
@@ -42,7 +45,7 @@ if (PRODUCTION_CONFIG.FEE_WALLET_PRIVATE_KEY) {
 }
 
 console.log('[CONFIG] Production config loaded:');
-console.log(`  - Privy App ID: ${PRODUCTION_CONFIG.PRIVY_APP_ID ? 'SET' : 'NOT SET'}`);
+console.log(`  - Magic API Key: ${PRODUCTION_CONFIG.MAGIC_API_KEY ? 'SET' : 'NOT SET'}`);
 console.log(`  - Helius RPC: ${PRODUCTION_CONFIG.HELIUS_RPC ? 'SET' : 'NOT SET'}`);
 console.log(`  - Fee Wallet: ${FEE_WALLET_PUBLIC_KEY ? 'SET' : 'NOT SET'}`);
 
@@ -219,6 +222,7 @@ function injectConfig(html) {
     <script>
         // LAUNCHR Production Config (injected by server)
         window.LAUNCHR_CONFIG = {
+            MAGIC_API_KEY: '${PRODUCTION_CONFIG.MAGIC_API_KEY}',
             PRIVY_APP_ID: '${PRODUCTION_CONFIG.PRIVY_APP_ID}',
             SOLANA_RPC: '${PRODUCTION_CONFIG.HELIUS_RPC}',
             FEE_WALLET: '${FEE_WALLET_PUBLIC_KEY}',
@@ -230,6 +234,7 @@ function injectConfig(html) {
 
     // Replace placeholders with actual values
     let injected = html
+        .replace(/YOUR_MAGIC_API_KEY/g, PRODUCTION_CONFIG.MAGIC_API_KEY)
         .replace(/YOUR_PRIVY_APP_ID/g, PRODUCTION_CONFIG.PRIVY_APP_ID)
         .replace(/YOUR_HELIUS_API_KEY/g, PRODUCTION_CONFIG.HELIUS_RPC.split('api-key=')[1] || '')
         .replace('https://mainnet.helius-rpc.com/?api-key=YOUR_HELIUS_API_KEY', PRODUCTION_CONFIG.HELIUS_RPC);
