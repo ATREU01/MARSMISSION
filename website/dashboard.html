@@ -2363,9 +2363,12 @@
         // INITIALIZATION
         // ═══════════════════════════════════════════════════════════════════════
         document.addEventListener('DOMContentLoaded', async () => {
-            await initPrivy();
+            // Check for Privy wallet first (from /auth redirect)
+            checkPrivyWallet();
+
+            // Then check localStorage for any stored wallet
             const stored = localStorage.getItem('connectedWallet');
-            if (stored) handleWalletConnected(stored);
+            if (stored && !connectedWallet) handleWalletConnected(stored);
 
             // Fetch initial stats
             fetchDashboardStats();
@@ -2586,9 +2589,19 @@
 
         async function connectPrivy() {
             document.getElementById('walletSelectModal')?.remove();
-            // Privy embedded wallets coming soon - use Phantom or Solflare for now
-            showNotification('Privy embedded wallets coming soon! Please use Phantom or Solflare.', 'info');
-            setTimeout(() => showWalletSelectModal(), 500);
+            // Redirect to Privy auth page with return URL
+            const returnUrl = encodeURIComponent(window.location.href);
+            window.location.href = '/auth?returnTo=' + returnUrl;
+        }
+
+        // Check for Privy wallet on page load
+        function checkPrivyWallet() {
+            const privyWallet = localStorage.getItem('privyWallet');
+            const privyConnected = localStorage.getItem('privyConnected');
+            if (privyConnected === 'true' && privyWallet) {
+                handleWalletConnected(privyWallet);
+                showNotification('Connected with Privy wallet', 'success');
+            }
         }
 
         async function handleWalletConnected(address) {
