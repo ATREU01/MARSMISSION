@@ -28,6 +28,5 @@ Thumbs.db
 *.swp
 *.swo
 
-# Build
-dist/
+# Build (keep frontend/dist for pre-built assets)
 build/
