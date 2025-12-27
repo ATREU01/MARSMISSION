@@ -2073,7 +2073,10 @@
             if (mintInfo.isVanity && mintInfo.vaultId) {
                 // Use server-side vault signing (secretKey never exposed)
                 console.log('[DEPLOY] Using VAULT for mint keypair signing...');
-                const txBase64 = Buffer.from(tx.serialize()).toString('base64');
+
+                // Browser-compatible base64 encoding (no Buffer needed)
+                const txBytes = tx.serialize();
+                const txBase64 = btoa(String.fromCharCode(...txBytes));
 
                 const vaultRes = await fetch('/api/vault/sign', {
                     method: 'POST',
@@ -2094,9 +2097,10 @@
                     throw new Error('Vault signing failed: ' + vaultData.error);
                 }
 
-                // Deserialize the vault-signed transaction
-                const signedTxBuffer = Buffer.from(vaultData.signedTransaction, 'base64');
-                tx = solanaWeb3.VersionedTransaction.deserialize(signedTxBuffer);
+                // Browser-compatible base64 decoding (no Buffer needed)
+                const signedTxBase64 = vaultData.signedTransaction;
+                const signedTxBytes = Uint8Array.from(atob(signedTxBase64), c => c.charCodeAt(0));
+                tx = solanaWeb3.VersionedTransaction.deserialize(signedTxBytes);
                 console.log('[DEPLOY] Transaction signed by vault');
             } else if (mintInfo.keypair) {
                 // Local signing for random keypairs
@@ -2293,7 +2297,27 @@
 
             } catch (error) {
                 console.error('[DEPLOY] Error:', error);
-                showNotification(error.message || 'Token launch failed', 'error');
+
+                // Better error messages
+                let errorMsg = error.message || 'Token launch failed';
+
+                // Handle specific errors with better UX
+                if (errorMsg.includes('insufficient') || errorMsg.includes('SOL')) {
+                    errorMsg = '⚠️ Insufficient SOL. Add more SOL to your wallet and try again.';
+                } else if (errorMsg.includes('Buffer') || errorMsg.includes('serialize')) {
+                    errorMsg = '🔄 Network issue. Refreshing... Please try again in 15 seconds.';
+                    // Auto-retry after 15 seconds
+                    setTimeout(() => {
+                        btn.textContent = '✨ Ready to retry';
+                        btn.disabled = false;
+                    }, 15000);
+                } else if (errorMsg.includes('User rejected')) {
+                    errorMsg = '❌ Transaction cancelled by user';
+                } else {
+                    errorMsg = '💡 ' + errorMsg + ' - Please try again';
+                }
+
+                showNotification(errorMsg, 'error');
             } finally {
                 btn.disabled = false;
                 btn.textContent = originalText;
