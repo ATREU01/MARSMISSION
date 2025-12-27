@@ -47,6 +47,129 @@ console.log(`  - Helius RPC: ${PRODUCTION_CONFIG.HELIUS_RPC ? 'SET' : 'NOT SET'}
 console.log(`  - Fee Wallet: ${FEE_WALLET_PUBLIC_KEY ? 'SET' : 'NOT SET'}`);
 
 // ═══════════════════════════════════════════════════════════════════════════
+// VANITY KEYPAIR POOL - Pre-generated keypairs ending in "launchr"
+// ═══════════════════════════════════════════════════════════════════════════
+
+const VANITY_POOL_FILE = path.join(__dirname, '.vanity-pool.json');
+const VANITY_SUFFIX = 'launchr';
+const VANITY_POOL_TARGET = 10; // Keep 10 keypairs ready
+const VANITY_POOL_MIN = 3; // Start generating when below this
+
+let vanityPool = [];
+let vanityGenerating = false;
+let vanityGeneratorStats = { attempts: 0, found: 0, lastFoundAt: null };
+
+// Load existing pool from disk
+function loadVanityPool() {
+    try {
+        if (fs.existsSync(VANITY_POOL_FILE)) {
+            const data = JSON.parse(fs.readFileSync(VANITY_POOL_FILE, 'utf8'));
+            vanityPool = data.pool || [];
+            vanityGeneratorStats = data.stats || vanityGeneratorStats;
+            console.log(`[VANITY] Loaded ${vanityPool.length} pre-generated keypairs from disk`);
+        }
+    } catch (e) {
+        console.error('[VANITY] Failed to load pool:', e.message);
+        vanityPool = [];
+    }
+}
+
+// Save pool to disk
+function saveVanityPool() {
+    try {
+        fs.writeFileSync(VANITY_POOL_FILE, JSON.stringify({
+            pool: vanityPool,
+            stats: vanityGeneratorStats,
+            updatedAt: Date.now()
+        }, null, 2));
+    } catch (e) {
+        console.error('[VANITY] Failed to save pool:', e.message);
+    }
+}
+
+// Generate a single vanity keypair (blocking - use in worker)
+function tryGenerateVanityKeypair() {
+    const keypair = Keypair.generate();
+    const address = keypair.publicKey.toBase58();
+    vanityGeneratorStats.attempts++;
+
+    if (address.toLowerCase().endsWith(VANITY_SUFFIX.toLowerCase())) {
+        return {
+            publicKey: address,
+            secretKey: bs58.encode(keypair.secretKey),
+            generatedAt: Date.now()
+        };
+    }
+    return null;
+}
+
+// Background generator - runs continuously when pool is low
+async function runVanityGenerator() {
+    if (vanityGenerating) return;
+    vanityGenerating = true;
+
+    console.log(`[VANITY] Starting background generator (pool: ${vanityPool.length}/${VANITY_POOL_TARGET})`);
+
+    let batchAttempts = 0;
+    const batchSize = 10000; // Check pool status every 10k attempts
+
+    while (vanityPool.length < VANITY_POOL_TARGET) {
+        // Generate in small batches to not block event loop
+        for (let i = 0; i < 100; i++) {
+            const result = tryGenerateVanityKeypair();
+            if (result) {
+                vanityPool.push(result);
+                vanityGeneratorStats.found++;
+                vanityGeneratorStats.lastFoundAt = Date.now();
+                console.log(`[VANITY] Found keypair #${vanityGeneratorStats.found}: ${result.publicKey} (${vanityGeneratorStats.attempts.toLocaleString()} attempts)`);
+                saveVanityPool();
+
+                if (vanityPool.length >= VANITY_POOL_TARGET) break;
+            }
+            batchAttempts++;
+        }
+
+        // Log progress every batch
+        if (batchAttempts >= batchSize) {
+            console.log(`[VANITY] Progress: ${vanityGeneratorStats.attempts.toLocaleString()} attempts, pool: ${vanityPool.length}/${VANITY_POOL_TARGET}`);
+            batchAttempts = 0;
+        }
+
+        // Yield to event loop
+        await new Promise(r => setImmediate(r));
+    }
+
+    vanityGenerating = false;
+    console.log(`[VANITY] Generator paused - pool full (${vanityPool.length}/${VANITY_POOL_TARGET})`);
+}
+
+// Get a vanity keypair from the pool
+function getVanityKeypair() {
+    if (vanityPool.length === 0) {
+        return null;
+    }
+
+    const keypair = vanityPool.shift(); // Remove from pool
+    saveVanityPool();
+
+    // Start generator if pool is low
+    if (vanityPool.length < VANITY_POOL_MIN) {
+        setImmediate(() => runVanityGenerator());
+    }
+
+    return keypair;
+}
+
+// Initialize vanity pool on startup
+loadVanityPool();
+if (vanityPool.length < VANITY_POOL_TARGET) {
+    // Start generating in background after a short delay
+    setTimeout(() => runVanityGenerator(), 5000);
+}
+
+console.log(`[VANITY] Pool status: ${vanityPool.length}/${VANITY_POOL_TARGET} keypairs ready`);
+
+// ═══════════════════════════════════════════════════════════════════════════
 // CONFIG INJECTION - Inject env vars into client-side HTML
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -1796,6 +1919,59 @@ The 4 percentages must sum to 100.`;
         const secondsRemaining = Math.floor((nextReward - now) / 1000);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ secondsRemaining, nextRewardTime: nextReward }));
+        return;
+    }
+
+    // API: Get vanity keypair (mint address ending in "launchr")
+    if (url.pathname === '/api/vanity-keypair' && req.method === 'GET') {
+        const keypair = getVanityKeypair();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+
+        if (keypair) {
+            console.log(`[VANITY] Dispensed keypair: ${keypair.publicKey} (${vanityPool.length} remaining)`);
+            res.end(JSON.stringify({
+                success: true,
+                publicKey: keypair.publicKey,
+                secretKey: keypair.secretKey,
+                poolRemaining: vanityPool.length,
+                generatorStats: {
+                    totalAttempts: vanityGeneratorStats.attempts,
+                    totalFound: vanityGeneratorStats.found
+                }
+            }));
+        } else {
+            // Pool empty - tell client to generate locally or wait
+            console.log('[VANITY] Pool empty - client should generate locally');
+            res.end(JSON.stringify({
+                success: false,
+                error: 'No vanity keypairs available',
+                poolRemaining: 0,
+                generating: vanityGenerating,
+                generatorStats: {
+                    totalAttempts: vanityGeneratorStats.attempts,
+                    totalFound: vanityGeneratorStats.found
+                }
+            }));
+
+            // Trigger generator if not running
+            if (!vanityGenerating) {
+                setImmediate(() => runVanityGenerator());
+            }
+        }
+        return;
+    }
+
+    // API: Vanity pool status (for monitoring)
+    if (url.pathname === '/api/vanity-status' && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+            poolSize: vanityPool.length,
+            targetSize: VANITY_POOL_TARGET,
+            minSize: VANITY_POOL_MIN,
+            isGenerating: vanityGenerating,
+            stats: vanityGeneratorStats,
+            suffix: VANITY_SUFFIX
+        }));
         return;
     }
 

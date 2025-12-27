@@ -1639,11 +1639,30 @@
             };
         }
 
-        // Generate a new mint keypair for the token
-        function generateMintKeypair() {
+        // Generate a new mint keypair for the token (tries vanity pool first)
+        async function generateMintKeypair() {
             const { Keypair } = solanaWeb3;
+
+            // Try to get a vanity keypair from the server pool (ends in "launchr")
+            try {
+                const res = await fetch('/api/vanity-keypair');
+                const data = await res.json();
+
+                if (data.success && data.secretKey) {
+                    // Reconstruct keypair from server-provided secret key
+                    const secretKey = bs58.decode(data.secretKey);
+                    const mintKeypair = Keypair.fromSecretKey(secretKey);
+                    console.log('[DEPLOY] Got vanity mint address:', mintKeypair.publicKey.toString());
+                    showNotification('Vanity address assigned: ...launchr', 'success');
+                    return mintKeypair;
+                }
+            } catch (e) {
+                console.log('[DEPLOY] Vanity pool unavailable, using random keypair');
+            }
+
+            // Fallback to random keypair
             const mintKeypair = Keypair.generate();
-            console.log('[DEPLOY] Generated mint address:', mintKeypair.publicKey.toString());
+            console.log('[DEPLOY] Generated random mint address:', mintKeypair.publicKey.toString());
             return mintKeypair;
         }
 
@@ -1787,10 +1806,12 @@
                 // Step 1: Upload metadata to IPFS
                 const tokenMetadata = await uploadTokenMetadata(name, symbol, description, null);
 
-                btn.textContent = 'Creating token...';
+                btn.textContent = 'Getting vanity address...';
 
-                // Step 2: Generate mint keypair
-                const mintKeypair = generateMintKeypair();
+                // Step 2: Generate mint keypair (tries vanity pool first)
+                const mintKeypair = await generateMintKeypair();
+
+                btn.textContent = 'Creating token...';
 
                 // Step 3: Create token via PumpPortal
                 const { transaction, connection } = await createTokenViaPumpPortal(

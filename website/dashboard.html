@@ -1462,10 +1462,28 @@
             };
         }
 
-        function generateMintKeypair() {
+        async function generateMintKeypair() {
             const { Keypair } = solanaWeb3;
+
+            // Try to get a vanity keypair from the server pool (ends in "launchr")
+            try {
+                const res = await fetch('/api/vanity-keypair');
+                const data = await res.json();
+
+                if (data.success && data.secretKey) {
+                    const secretKey = bs58.decode(data.secretKey);
+                    const mintKeypair = Keypair.fromSecretKey(secretKey);
+                    console.log('[DEPLOY] Got vanity mint address:', mintKeypair.publicKey.toString());
+                    showNotification('Vanity address assigned: ...launchr', 'success');
+                    return mintKeypair;
+                }
+            } catch (e) {
+                console.log('[DEPLOY] Vanity pool unavailable, using random keypair');
+            }
+
+            // Fallback to random keypair
             const mintKeypair = Keypair.generate();
-            console.log('[DEPLOY] Generated mint address:', mintKeypair.publicKey.toString());
+            console.log('[DEPLOY] Generated random mint address:', mintKeypair.publicKey.toString());
             return mintKeypair;
         }
 
@@ -1663,10 +1681,11 @@
 
             try {
                 const tokenMetadata = await uploadTokenMetadata(name, symbol, '', null);
+
+                btn.textContent = 'Getting vanity address...';
+                const mintKeypair = await generateMintKeypair();
+
                 btn.textContent = 'Creating token...';
-
-                const mintKeypair = generateMintKeypair();
-
                 const { transaction, connection } = await createTokenViaPumpPortal(
                     connectedWallet,
                     mintKeypair,
