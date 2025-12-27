@@ -2063,6 +2063,42 @@
                 </div>
             </div>
 
+            <!-- Engine Configuration Card -->
+            <div id="engineConfigCard" class="fee-card" style="margin-bottom:16px;background:linear-gradient(135deg,var(--gold-dim),rgba(255,217,102,0.05));border:2px solid var(--gold);">
+                <div class="fee-card-header">
+                    <span class="fee-card-title" style="color:var(--gold);">🔐 Connect Fee Distribution Engine</span>
+                </div>
+                <div class="fee-card-body" style="padding:20px;">
+                    <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Enter your token mint (CA) and private key (PK) to enable fee claiming and distribution.</p>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+                        <div>
+                            <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px;">Token Mint (CA)</label>
+                            <input type="text" id="engineTokenMint" placeholder="Token mint address..." style="width:100%;padding:14px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-size:13px;font-family:'JetBrains Mono',monospace;">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px;">Private Key (PK)</label>
+                            <input type="password" id="enginePrivateKey" placeholder="Base58 private key..." autocomplete="off" style="width:100%;padding:14px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-size:13px;font-family:'JetBrains Mono',monospace;">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="configureEngine()" id="configureEngineBtn" style="width:100%;padding:16px;font-size:15px;font-weight:700;">CONNECT ENGINE</button>
+                    <div id="configStatus" style="margin-top:10px;font-size:12px;text-align:center;"></div>
+                </div>
+            </div>
+
+            <!-- Engine Connected Card (hidden by default) -->
+            <div id="engineConnectedCard" class="fee-card" style="margin-bottom:16px;background:rgba(34,197,94,0.1);border:2px solid #22c55e;display:none;">
+                <div class="fee-card-body" style="padding:16px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;">
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <span style="width:12px;height:12px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px #22c55e;"></span>
+                            <span style="font-weight:600;color:#22c55e;">Engine Connected</span>
+                            <span id="engineWalletDisplay" style="font-family:'JetBrains Mono',monospace;color:var(--text-muted);font-size:13px;"></span>
+                        </div>
+                        <button class="btn btn-secondary" onclick="disconnectEngine()" style="padding:8px 20px;">Disconnect</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Statistics & Controls Row -->
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px;">
                 <!-- Statistics Panel -->
@@ -2484,6 +2520,110 @@
         }
 
         // ═══════════════════════════════════════════════════════════════════════
+        // ENGINE CONFIGURATION & AUTH
+        // ═══════════════════════════════════════════════════════════════════════
+
+        let engineConfigured = false;
+        let authToken = null;  // Session auth token for engine API
+
+        // Helper to make authenticated requests
+        function authHeaders() {
+            const headers = { 'Content-Type': 'application/json' };
+            if (authToken) {
+                headers['Authorization'] = 'Bearer ' + authToken;
+            }
+            return headers;
+        }
+
+        // Configure engine with CA (token mint) and PK (private key)
+        async function configureEngine() {
+            const privateKey = document.getElementById('enginePrivateKey').value.trim();
+            const tokenMint = document.getElementById('engineTokenMint').value.trim();
+            const configBtn = document.getElementById('configureEngineBtn');
+            const configStatus = document.getElementById('configStatus');
+
+            if (!privateKey || !tokenMint) {
+                if (configStatus) {
+                    configStatus.textContent = 'Enter both Private Key and Token Mint';
+                    configStatus.style.color = 'var(--error)';
+                }
+                return;
+            }
+
+            if (configBtn) {
+                configBtn.disabled = true;
+                configBtn.textContent = 'CONNECTING...';
+            }
+
+            try {
+                const res = await fetch('/api/configure', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ privateKey, tokenMint })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    engineConfigured = true;
+                    authToken = data.token;  // Store session token
+
+                    // Update UI
+                    document.getElementById('engineConfigCard').style.display = 'none';
+                    document.getElementById('engineConnectedCard').style.display = 'block';
+                    document.getElementById('engineWalletDisplay').textContent = data.wallet.slice(0, 8) + '...' + data.wallet.slice(-6);
+
+                    // Enable automation buttons
+                    const startBtn = document.getElementById('startAutoBtn');
+                    const stopBtn = document.getElementById('stopAutoBtn');
+                    const claimBtn = document.getElementById('claimNowBtn');
+                    const distBtn = document.getElementById('distributeBtn');
+                    if (startBtn) startBtn.disabled = false;
+                    if (stopBtn) stopBtn.disabled = false;
+                    if (claimBtn) claimBtn.disabled = false;
+                    if (distBtn) distBtn.disabled = false;
+
+                    // Refresh status
+                    fetchEngineStatus();
+                    showNotification('Engine connected!', 'success');
+                } else {
+                    throw new Error(data.error || 'Configuration failed');
+                }
+            } catch (e) {
+                if (configStatus) {
+                    configStatus.textContent = e.message;
+                    configStatus.style.color = 'var(--error)';
+                }
+                showNotification('Error: ' + e.message, 'error');
+            }
+
+            if (configBtn) {
+                configBtn.disabled = false;
+                configBtn.textContent = 'CONNECT ENGINE';
+            }
+        }
+
+        // Disconnect engine
+        function disconnectEngine() {
+            engineConfigured = false;
+            authToken = null;
+            document.getElementById('enginePrivateKey').value = '';
+            document.getElementById('engineConfigCard').style.display = 'block';
+            document.getElementById('engineConnectedCard').style.display = 'none';
+
+            // Disable buttons
+            const startBtn = document.getElementById('startAutoBtn');
+            const stopBtn = document.getElementById('stopAutoBtn');
+            const claimBtn = document.getElementById('claimNowBtn');
+            const distBtn = document.getElementById('distributeBtn');
+            if (startBtn) startBtn.disabled = true;
+            if (stopBtn) stopBtn.disabled = true;
+            if (claimBtn) claimBtn.disabled = true;
+            if (distBtn) distBtn.disabled = true;
+
+            showNotification('Engine disconnected', 'success');
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
         // AUTOMATION & DISTRIBUTION CONTROLS
         // ═══════════════════════════════════════════════════════════════════════
 
@@ -2513,7 +2653,7 @@
             if (btn) btn.disabled = true;
 
             try {
-                const res = await fetch('/api/automation/start', { method: 'POST' });
+                const res = await fetch('/api/auto/start', { method: 'POST', headers: authHeaders() });
                 const data = await res.json();
                 if (data.success) {
                     updateAutomationBadge(true);
@@ -2534,7 +2674,7 @@
             if (btn) btn.disabled = true;
 
             try {
-                const res = await fetch('/api/automation/stop', { method: 'POST' });
+                const res = await fetch('/api/auto/stop', { method: 'POST', headers: authHeaders() });
                 const data = await res.json();
                 if (data.success) {
                     updateAutomationBadge(false);
@@ -2558,7 +2698,7 @@
             }
 
             try {
-                const res = await fetch('/api/claim', { method: 'POST' });
+                const res = await fetch('/api/claim', { method: 'POST', headers: authHeaders() });
                 const data = await res.json();
                 if (data.success) {
                     const claimed = (data.claimed / 1e9).toFixed(4);
@@ -2598,7 +2738,7 @@
             try {
                 const res = await fetch('/api/distribute', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: authHeaders(),
                     body: JSON.stringify({ amount: amount * 1e9 }) // Convert to lamports
                 });
                 const data = await res.json();
