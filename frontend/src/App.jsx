@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { usePrivy, useWallets } from '@privy-io/react-auth'
 import './App.css'
 
@@ -6,20 +6,41 @@ function App() {
   const { ready, authenticated, user, login, logout } = usePrivy()
   const { wallets } = useWallets()
 
-  // Find Solana wallet
-  const solanaWallet = wallets?.find(w => w.walletClientType === 'solana') || wallets?.[0]
+  // Get wallet address from multiple sources:
+  // 1. Privy embedded wallet (user.wallet) - created for email/social login
+  // 2. Linked Solana wallets in user.linkedAccounts
+  // 3. External wallets from useWallets() hook
+  const walletAddress = useMemo(() => {
+    // Check embedded wallet first
+    if (user?.wallet?.address) {
+      return user.wallet.address
+    }
+
+    // Check linkedAccounts for Solana wallets
+    const linkedSolana = user?.linkedAccounts?.find(
+      (acc) => acc.type === 'wallet' && acc.chainType === 'solana'
+    )
+    if (linkedSolana?.address) {
+      return linkedSolana.address
+    }
+
+    // Fall back to external wallets
+    const externalWallet = wallets?.find(w => w.walletClientType === 'solana') || wallets?.[0]
+    return externalWallet?.address
+  }, [user, wallets])
+
   const isPopup = !!window.opener
 
   // When authenticated in popup mode, send wallet back to parent
   useEffect(() => {
-    if (isPopup && authenticated && solanaWallet?.address) {
+    if (isPopup && authenticated && walletAddress) {
       window.opener.postMessage({
         type: 'privy-auth-success',
-        address: solanaWallet.address
+        address: walletAddress
       }, '*')
       setTimeout(() => window.close(), 500)
     }
-  }, [isPopup, authenticated, solanaWallet?.address])
+  }, [isPopup, authenticated, walletAddress])
 
   // Auto-open login in popup mode
   useEffect(() => {
@@ -42,8 +63,8 @@ function App() {
           {authenticated ? (
             <div className="auth-success">
               <p>Connected!</p>
-              <p className="address">{solanaWallet?.address?.slice(0,8)}...</p>
-              <p className="closing">Closing...</p>
+              <p className="address">{walletAddress?.slice(0,8) || 'Loading...'}...</p>
+              <p className="closing">{walletAddress ? 'Closing...' : 'Getting wallet...'}</p>
             </div>
           ) : (
             <div className="auth-prompt">
@@ -72,7 +93,7 @@ function App() {
         {authenticated ? (
           <div className="wallet-info">
             <span className="address">
-              {solanaWallet?.address?.slice(0, 4)}...{solanaWallet?.address?.slice(-4)}
+              {walletAddress?.slice(0, 4)}...{walletAddress?.slice(-4)}
             </span>
             <button onClick={logout} className="btn-disconnect">Disconnect</button>
           </div>
@@ -87,7 +108,7 @@ function App() {
           <div className="connected-content">
             <div className="wallet-card">
               <h2>Wallet Connected</h2>
-              <p><strong>Address:</strong> {solanaWallet?.address || 'No Solana wallet'}</p>
+              <p><strong>Address:</strong> {walletAddress || 'No wallet'}</p>
               <p><strong>Email:</strong> {user?.email?.address || 'N/A'}</p>
             </div>
           </div>
