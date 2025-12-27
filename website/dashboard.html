@@ -2442,11 +2442,11 @@
                     </div>
                     <div class="modal-body" style="padding:20px;">
                         <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px;text-align:center;">
-                            Connect with Phantom or Solflare<br>
-                            <span style="font-size:11px;opacity:0.7;">Get Phantom at phantom.app</span>
+                            Choose your wallet to connect
                         </p>
                         <div style="display:flex;flex-direction:column;gap:10px;">
-                            <button class="wallet-option ${hasPhantom ? 'recommended' : 'disabled'}" onclick="${hasPhantom ? 'connectPhantom()' : ''}" ${hasPhantom ? '' : 'disabled'}>
+                            ${hasPrivy ? '<button class="wallet-option recommended" onclick="connectPrivy()"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="24" height="24" rx="6" fill="#8B5CF6"/><path d="M12 6L18 10V14L12 18L6 14V10L12 6Z" fill="white"/></svg><span>Privy</span><span class="wallet-detected">Email / Social Login</span></button>' : ''}
+                            <button class="wallet-option ${hasPhantom ? '' : 'disabled'}" onclick="${hasPhantom ? 'connectPhantom()' : ''}" ${hasPhantom ? '' : 'disabled'}>
                                 <img src="/website/phantom_icon.png" alt="Phantom" style="width:28px;height:28px;border-radius:6px;">
                                 <span>Phantom</span>
                                 ${hasPhantom ? '<span class="wallet-detected">Detected</span>' : '<span class="wallet-not-detected">Not installed</span>'}
@@ -2457,7 +2457,7 @@
                                 ${hasSolflare ? '<span class="wallet-detected">Detected</span>' : '<span class="wallet-not-detected">Not installed</span>'}
                             </button>
                         </div>
-                        ${!hasPhantom && !hasSolflare ? '<p style="margin-top:16px;color:var(--text-muted);font-size:12px;text-align:center;">No wallet detected. Install <a href="https://phantom.app" target="_blank" style="color:var(--gold);">Phantom</a> to connect.</p>' : ''}
+                        ${!hasPhantom && !hasSolflare && !hasPrivy ? '<p style="margin-top:16px;color:var(--text-muted);font-size:12px;text-align:center;">No wallet detected. Install <a href="https://phantom.app" target="_blank" style="color:var(--gold);">Phantom</a> to connect.</p>' : ''}
                     </div>
                 </div>
             `;
