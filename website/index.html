@@ -1020,6 +1020,15 @@
         });
 
         async function initPrivy() {
+            // Listen for wallet connection from Privy auth popup
+            window.addEventListener('message', (e) => {
+                if (e.data?.type === 'privy-auth-success' && e.data?.address) {
+                    console.log('[PRIVY] Received wallet from popup:', e.data.address);
+                    handleWalletConnected(e.data.address);
+                    showNotification('Wallet connected!', 'success');
+                }
+            });
+
             try {
                 if (typeof window.Privy !== 'undefined') {
                     privyClient = new window.Privy({
@@ -1130,8 +1139,8 @@
 
         async function connectPrivy() {
             document.getElementById('walletSelectModal')?.remove();
-            // Redirect to dashboard where React Privy is properly initialized
-            window.location.href = '/dashboard';
+            // Open auth page where React Privy handles the connection
+            window.open('/auth', '_blank');
         }
 
         async function handleWalletConnected(address) {

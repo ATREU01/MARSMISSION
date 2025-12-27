@@ -1565,73 +1565,112 @@ The 4 percentages must sum to 100.`;
         return;
     }
 
-    // API: Proxy for Pump.fun individual token (avoids CORS issues)
+    // API: Proxy for Pump.fun individual token with caching (ALICE pattern)
     if (url.pathname.startsWith('/api/pump/coin/') && req.method === 'GET') {
+        const mint = url.pathname.replace('/api/pump/coin/', '');
+        if (!mint || mint.length < 30) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Invalid mint address' }));
+            return;
+        }
+
+        const CACHE_TTL = 30000;
+        const cacheKey = `pump_token_${mint}`;
+
+        if (!global.pumpCache) global.pumpCache = new Map();
+
+        // Check cache
+        const cached = global.pumpCache.get(cacheKey);
+        if (cached && Date.now() - cached.ts < CACHE_TTL) {
+            res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'HIT' });
+            res.end(JSON.stringify(cached.data));
+            return;
+        }
+
         try {
-            const mint = url.pathname.replace('/api/pump/coin/', '');
-            if (!mint || mint.length < 30) {
-                res.writeHead(400, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Invalid mint address' }));
-                return;
-            }
-
             const pumpUrl = `https://frontend-api.pump.fun/coins/${mint}`;
-            const pumpRes = await fetch(pumpUrl, {
-                headers: {
-                    'Accept': 'application/json',
-                    'User-Agent': 'Mozilla/5.0 (compatible; LAUNCHR/1.0)'
-                }
-            });
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 5000);
 
-            if (!pumpRes.ok) {
-                throw new Error(`Pump.fun API returned ${pumpRes.status}`);
+            const pumpRes = await fetch(pumpUrl, {
+                headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' },
+                signal: controller.signal
+            });
+            clearTimeout(timeout);
+
+            const data = pumpRes.ok ? await pumpRes.json() : null;
+
+            if (data) {
+                global.pumpCache.set(cacheKey, { data, ts: Date.now() });
             }
 
-            const data = await pumpRes.json();
-            res.writeHead(200, {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            });
+            res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'MISS' });
             res.end(JSON.stringify(data));
         } catch (e) {
-            console.error('[API] Pump.fun token proxy error:', e.message);
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Failed to fetch token from Pump.fun', details: e.message }));
+            console.error('[PUMP] Token proxy error:', e.message);
+            res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'ERROR' });
+            res.end(JSON.stringify(cached?.data || null));
         }
         return;
     }
 
-    // API: Proxy for Pump.fun API (avoids CORS issues)
+    // API: Proxy for Pump.fun API with caching + rate limiting (ALICE pattern)
     if (url.pathname === '/api/pump/coins' && req.method === 'GET') {
-        try {
-            const sort = url.searchParams.get('sort') || 'created_timestamp';
-            const order = url.searchParams.get('order') || 'DESC';
-            const limit = url.searchParams.get('limit') || '20';
-            const offset = url.searchParams.get('offset') || '0';
+        const CACHE_TTL = 30000; // 30 seconds cache
+        const MIN_INTERVAL = 500; // 500ms between requests (2 RPS max)
 
+        const sort = url.searchParams.get('sort') || 'created_timestamp';
+        const order = url.searchParams.get('order') || 'DESC';
+        const limit = url.searchParams.get('limit') || '20';
+        const offset = url.searchParams.get('offset') || '0';
+        const cacheKey = `pump_${sort}_${order}_${limit}_${offset}`;
+
+        // Initialize cache
+        if (!global.pumpCache) global.pumpCache = new Map();
+        if (!global.lastPumpReq) global.lastPumpReq = 0;
+
+        // Check cache first
+        const cached = global.pumpCache.get(cacheKey);
+        if (cached && Date.now() - cached.ts < CACHE_TTL) {
+            res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'HIT' });
+            res.end(JSON.stringify(cached.data));
+            return;
+        }
+
+        // Rate limit - return stale cache or empty if too fast
+        const now = Date.now();
+        if (now - global.lastPumpReq < MIN_INTERVAL) {
+            res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'RATE' });
+            res.end(JSON.stringify(cached?.data || []));
+            return;
+        }
+        global.lastPumpReq = now;
+
+        // Fetch with timeout + graceful failure (ALICE pattern)
+        try {
             const pumpUrl = `https://frontend-api.pump.fun/coins?offset=${offset}&limit=${limit}&sort=${sort}&order=${order}&includeNsfw=false`;
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 5000);
 
             const pumpRes = await fetch(pumpUrl, {
-                headers: {
-                    'Accept': 'application/json',
-                    'User-Agent': 'Mozilla/5.0 (compatible; LAUNCHR/1.0)'
-                }
+                headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' },
+                signal: controller.signal
             });
+            clearTimeout(timeout);
 
-            if (!pumpRes.ok) {
-                throw new Error(`Pump.fun API returned ${pumpRes.status}`);
-            }
+            // Graceful: return empty array on bad response, don't throw
+            const data = pumpRes.ok ? await pumpRes.json() : [];
 
-            const data = await pumpRes.json();
-            res.writeHead(200, {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            });
+            // Cache result
+            global.pumpCache.set(cacheKey, { data, ts: Date.now() });
+
+            res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'MISS' });
             res.end(JSON.stringify(data));
         } catch (e) {
-            console.error('[API] Pump.fun proxy error:', e.message);
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Failed to fetch from Pump.fun', details: e.message }));
+            // Graceful failure - return cached or empty, never error
+            console.error('[PUMP] Proxy error:', e.message);
+            res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'ERROR' });
+            res.end(JSON.stringify(cached?.data || []));
         }
         return;
     }
@@ -2198,10 +2237,29 @@ The 4 percentages must sum to 100.`;
                 });
 
                 const data = await response.json();
-                console.log('[IPFS PROXY] Upload successful:', data.metadataUri || 'no uri');
+                console.log('[IPFS PROXY] Upload successful:', JSON.stringify(data, null, 2));
+
+                // Extract image URL from metadata if available
+                let imageUrl = null;
+                if (data.metadata?.image) {
+                    imageUrl = data.metadata.image;
+                } else if (data.metadataUri) {
+                    // Construct image URL from metadata URI (pump.fun pattern)
+                    // Metadata: https://cf-ipfs.com/ipfs/XXX -> Image is usually in the metadata
+                    try {
+                        const metaRes = await fetch(data.metadataUri);
+                        if (metaRes.ok) {
+                            const metadata = await metaRes.json();
+                            imageUrl = metadata.image || null;
+                            console.log('[IPFS PROXY] Fetched image URL:', imageUrl);
+                        }
+                    } catch (e) {
+                        console.log('[IPFS PROXY] Could not fetch metadata for image:', e.message);
+                    }
+                }
 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify(data));
+                res.end(JSON.stringify({ ...data, imageUrl }));
             } catch (e) {
                 console.error('[IPFS PROXY] Error:', e.message);
                 res.writeHead(500, { 'Content-Type': 'application/json' });
