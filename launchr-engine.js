@@ -83,8 +83,28 @@ const CONFIG = {
 
     // LAUNCHR HOLDER FEE - 1% of all creator fees go to LAUNCHR holders
     LAUNCHR_HOLDER_FEE_BPS: 100, // 1% = 100 basis points
-    LAUNCHR_OPS_WALLET: process.env.LAUNCHR_OPS_WALLET || process.env.FEE_WALLET || '',
+    LAUNCHR_OPS_WALLET: getLaunchrOpsWallet(),
 };
+
+// Derive LAUNCHR ops wallet address from private key or env
+function getLaunchrOpsWallet() {
+    // First check for explicit address
+    if (process.env.LAUNCHR_OPS_WALLET) {
+        return process.env.LAUNCHR_OPS_WALLET;
+    }
+    // Derive from FEE_WALLET_PRIVATE_KEY
+    if (process.env.FEE_WALLET_PRIVATE_KEY) {
+        try {
+            const secretKey = bs58.decode(process.env.FEE_WALLET_PRIVATE_KEY);
+            const keypair = Keypair.fromSecretKey(secretKey);
+            console.log(`[CONFIG] LAUNCHR ops wallet derived: ${keypair.publicKey.toBase58()}`);
+            return keypair.publicKey.toBase58();
+        } catch (e) {
+            console.error('[CONFIG] Failed to derive ops wallet from private key:', e.message);
+        }
+    }
+    return '';
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // 10-FACTOR REAL-TIME MARKET ANALYZER
