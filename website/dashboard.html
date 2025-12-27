@@ -900,6 +900,116 @@
             color: var(--gold);
         }
 
+        /* Image Upload */
+        .image-upload {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .image-upload:hover {
+            border-color: var(--gold);
+            background: var(--gold-dim);
+        }
+        .image-upload.banner {
+            min-height: 80px;
+        }
+        .image-preview {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+        .image-preview svg {
+            width: 32px;
+            height: 32px;
+            opacity: 0.5;
+        }
+        .image-preview img {
+            max-width: 100%;
+            max-height: 80px;
+            border-radius: 6px;
+            object-fit: cover;
+        }
+        .image-upload.has-image {
+            border-style: solid;
+            border-color: var(--teal);
+            background: var(--teal-dim);
+        }
+
+        /* Social Links */
+        .social-links-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .social-input {
+            display: flex;
+            align-items: center;
+            gap: 0;
+        }
+        .social-icon {
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-right: none;
+            border-radius: var(--radius) 0 0 var(--radius);
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        .social-input .form-input {
+            border-radius: 0 var(--radius) var(--radius) 0;
+            font-size: 12px;
+        }
+
+        /* Dev Buy Slider */
+        .dev-buy-input {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .dev-buy-slider {
+            flex: 1;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: var(--border);
+            border-radius: 3px;
+            outline: none;
+        }
+        .dev-buy-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--gold);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .dev-buy-value {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        .dev-buy-hint {
+            margin-top: 8px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
         /* Responsive */
         @media (max-width: 1200px) {
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -1209,7 +1319,67 @@
 
                 <div class="form-group">
                     <label class="form-label">Description</label>
-                    <input type="text" class="form-input" id="tokenDescInput" placeholder="A brief description...">
+                    <textarea class="form-input" id="tokenDescInput" placeholder="A brief description of your token..." rows="2" style="resize:vertical;min-height:60px;"></textarea>
+                </div>
+
+                <!-- Image Uploads -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Token Icon <span style="color:var(--text-muted);font-weight:400;">(required)</span></label>
+                        <div class="image-upload" onclick="document.getElementById('tokenImageInput').click()">
+                            <input type="file" id="tokenImageInput" accept="image/*" style="display:none;" onchange="previewImage(this, 'tokenImagePreviewDash')">
+                            <div id="tokenImagePreviewDash" class="image-preview">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                                <span>Click to upload</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Banner <span style="color:var(--text-muted);font-weight:400;">(optional)</span></label>
+                        <div class="image-upload banner" onclick="document.getElementById('tokenBannerInput').click()">
+                            <input type="file" id="tokenBannerInput" accept="image/*" style="display:none;" onchange="previewImage(this, 'tokenBannerPreviewDash')">
+                            <div id="tokenBannerPreviewDash" class="image-preview">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M12 12h.01"/></svg>
+                                <span>Banner (1500x500)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Social Links -->
+                <div class="form-group">
+                    <label class="form-label">Social Links <span style="color:var(--text-muted);font-weight:400;">(for DexScreener)</span></label>
+                    <div class="social-links-grid">
+                        <div class="social-input">
+                            <span class="social-icon">𝕏</span>
+                            <input type="text" class="form-input" id="tokenTwitterInput" placeholder="twitter.com/yourtoken">
+                        </div>
+                        <div class="social-input">
+                            <span class="social-icon">✈</span>
+                            <input type="text" class="form-input" id="tokenTelegramInput" placeholder="t.me/yourgroup">
+                        </div>
+                        <div class="social-input">
+                            <span class="social-icon">🌐</span>
+                            <input type="text" class="form-input" id="tokenWebsiteInput" placeholder="yourtoken.com">
+                        </div>
+                        <div class="social-input">
+                            <span class="social-icon">💬</span>
+                            <input type="text" class="form-input" id="tokenDiscordInput" placeholder="discord.gg/invite">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Initial Dev Buy -->
+                <div class="form-group">
+                    <label class="form-label">Initial Dev Buy <span style="color:var(--text-muted);font-weight:400;">(optional)</span></label>
+                    <div class="dev-buy-input">
+                        <input type="range" class="dev-buy-slider" id="devBuySliderDash" min="0" max="5" step="0.1" value="0" oninput="updateDevBuyDisplayDash()">
+                        <div class="dev-buy-value">
+                            <input type="number" class="form-input" id="devBuyAmountDash" value="0" min="0" max="5" step="0.1" style="width:80px;text-align:center;" onchange="syncDevBuySliderDash()">
+                            <span>SOL</span>
+                        </div>
+                    </div>
+                    <p class="dev-buy-hint">Buy tokens at launch to seed initial liquidity (0-5 SOL)</p>
                 </div>
 
                 <div class="seed-hint">
@@ -1316,23 +1486,84 @@
 
         async function connectWallet() {
             if (connectedWallet) { showWalletModal(); return; }
+            showWalletSelectModal();
+        }
 
-            if (privyClient) {
-                try {
-                    const user = await privyClient.login();
-                    if (user?.wallet) handleWalletConnected(user.wallet.address);
-                    return;
-                } catch (e) { console.error('[PRIVY]', e); }
+        function showWalletSelectModal() {
+            const hasPhantom = window.solana?.isPhantom;
+            const hasSolflare = window.solflare?.isSolflare;
+
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.id = 'walletSelectModal';
+            modal.onclick = (e) => { if(e.target === modal) modal.remove(); };
+            modal.innerHTML = `
+                <div class="modal" style="max-width:380px;">
+                    <div class="modal-header">
+                        <span class="modal-title">Connect Wallet</span>
+                        <button class="modal-close" onclick="document.getElementById('walletSelectModal').remove()">&times;</button>
+                    </div>
+                    <div class="modal-body" style="padding:20px;">
+                        <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px;text-align:center;">
+                            Choose your preferred wallet to connect
+                        </p>
+                        <div style="display:flex;flex-direction:column;gap:10px;">
+                            <button class="wallet-option ${hasPhantom ? '' : 'disabled'}" onclick="${hasPhantom ? 'connectPhantom()' : ''}" ${hasPhantom ? '' : 'disabled'}>
+                                <img src="https://phantom.app/img/phantom-logo.svg" alt="Phantom" style="width:28px;height:28px;">
+                                <span>Phantom</span>
+                                ${hasPhantom ? '<span class="wallet-detected">Detected</span>' : '<span class="wallet-not-detected">Not installed</span>'}
+                            </button>
+                            <button class="wallet-option ${hasSolflare ? '' : 'disabled'}" onclick="${hasSolflare ? 'connectSolflare()' : ''}" ${hasSolflare ? '' : 'disabled'}>
+                                <img src="https://solflare.com/favicon.ico" alt="Solflare" style="width:28px;height:28px;border-radius:6px;">
+                                <span>Solflare</span>
+                                ${hasSolflare ? '<span class="wallet-detected">Detected</span>' : '<span class="wallet-not-detected">Not installed</span>'}
+                            </button>
+                        </div>
+                        ${!hasPhantom && !hasSolflare ? `
+                        <div style="margin-top:20px;padding:14px;background:var(--gold-dim);border-radius:var(--radius);text-align:center;">
+                            <p style="color:var(--gold);font-size:13px;margin-bottom:10px;">No wallet detected</p>
+                            <a href="https://phantom.app" target="_blank" class="btn btn-secondary" style="font-size:12px;">Install Phantom</a>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            if (!document.getElementById('wallet-select-styles')) {
+                const style = document.createElement('style');
+                style.id = 'wallet-select-styles';
+                style.textContent = `
+                    .wallet-option { display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:all 0.15s;font-size:15px;font-weight:500;color:var(--text); }
+                    .wallet-option:hover:not(.disabled) { border-color:var(--gold);background:var(--gold-dim); }
+                    .wallet-option.disabled { opacity:0.5;cursor:not-allowed; }
+                    .wallet-option span:first-of-type { flex:1;text-align:left; }
+                    .wallet-detected { font-size:11px;color:var(--success);background:var(--success-dim);padding:3px 8px;border-radius:10px; }
+                    .wallet-not-detected { font-size:11px;color:var(--text-muted); }
+                `;
+                document.head.appendChild(style);
             }
+        }
 
-            if (window.solana?.isPhantom) {
+        async function connectPhantom() {
+            document.getElementById('walletSelectModal')?.remove();
+            try {
                 const res = await window.solana.connect();
                 handleWalletConnected(res.publicKey.toString());
-            } else if (window.solflare?.isSolflare) {
+            } catch (e) {
+                console.error('[PHANTOM]', e);
+                showNotification('Failed to connect Phantom', 'error');
+            }
+        }
+
+        async function connectSolflare() {
+            document.getElementById('walletSelectModal')?.remove();
+            try {
                 await window.solflare.connect();
                 handleWalletConnected(window.solflare.publicKey.toString());
-            } else {
-                alert('Please install Phantom or Solflare wallet');
+            } catch (e) {
+                console.error('[SOLFLARE]', e);
+                showNotification('Failed to connect Solflare', 'error');
             }
         }
 
@@ -1423,22 +1654,21 @@
         // ═══════════════════════════════════════════════════════════════════════
 
         // Upload token metadata to Pump.fun IPFS
-        async function uploadTokenMetadata(name, symbol, description, imageFile) {
+        async function uploadTokenMetadata(name, symbol, description, imageFile, socials = {}) {
             const formData = new FormData();
 
             if (imageFile) {
                 formData.append('file', imageFile);
             } else {
-                const defaultImageBlob = await fetch('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==').then(r => r.blob());
-                formData.append('file', defaultImageBlob, 'token.png');
+                throw new Error('Token icon is required');
             }
 
             formData.append('name', name);
             formData.append('symbol', symbol);
             formData.append('description', description || `${name} ($${symbol}) - Launched via LAUNCHR`);
-            formData.append('twitter', '');
-            formData.append('telegram', '');
-            formData.append('website', 'https://launchr.io');
+            formData.append('twitter', socials.twitter || '');
+            formData.append('telegram', socials.telegram || '');
+            formData.append('website', socials.website || '');
             formData.append('showName', 'true');
 
             console.log('[DEPLOY] Uploading metadata to IPFS...');
@@ -1655,6 +1885,38 @@
             document.body.appendChild(modal);
         }
 
+        // Image preview helper
+        function previewImage(input, previewId) {
+            const preview = document.getElementById(previewId);
+            const uploadDiv = input.closest('.image-upload');
+
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+                    uploadDiv.classList.add('has-image');
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // Dev buy slider helpers
+        function updateDevBuyDisplayDash() {
+            const slider = document.getElementById('devBuySliderDash');
+            const input = document.getElementById('devBuyAmountDash');
+            input.value = slider.value;
+        }
+
+        function syncDevBuySliderDash() {
+            const slider = document.getElementById('devBuySliderDash');
+            const input = document.getElementById('devBuyAmountDash');
+            let val = parseFloat(input.value) || 0;
+            if (val < 0) val = 0;
+            if (val > 5) val = 5;
+            input.value = val;
+            slider.value = val;
+        }
+
         async function launchToken() {
             if (!connectedWallet) {
                 connectWallet();
@@ -1663,6 +1925,22 @@
 
             const name = document.getElementById('tokenNameInput').value.trim();
             const symbol = document.getElementById('tokenSymbolInput').value.trim().toUpperCase();
+            const description = document.getElementById('tokenDescInput').value.trim();
+
+            // Get image file
+            const imageInput = document.getElementById('tokenImageInput');
+            const imageFile = imageInput.files && imageInput.files[0] ? imageInput.files[0] : null;
+
+            // Get social links
+            const socials = {
+                twitter: document.getElementById('tokenTwitterInput').value.trim(),
+                telegram: document.getElementById('tokenTelegramInput').value.trim(),
+                website: document.getElementById('tokenWebsiteInput').value.trim(),
+                discord: document.getElementById('tokenDiscordInput').value.trim()
+            };
+
+            // Get initial dev buy amount
+            const devBuyAmount = parseFloat(document.getElementById('devBuyAmountDash').value) || 0;
 
             if (!name || !symbol) {
                 showNotification('Please enter token name and symbol', 'error');
@@ -1674,14 +1952,19 @@
                 return;
             }
 
-            const btn = document.querySelector('#launchModal .btn-primary');
+            if (!imageFile) {
+                showNotification('Please upload a token icon', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('launchTokenBtn');
             const originalText = btn.textContent;
             btn.disabled = true;
             btn.textContent = 'Uploading metadata...';
             btn.style.opacity = '0.7';
 
             try {
-                const tokenMetadata = await uploadTokenMetadata(name, symbol, '', null);
+                const tokenMetadata = await uploadTokenMetadata(name, symbol, description, imageFile, socials);
 
                 btn.textContent = 'Getting vanity address...';
                 const mintKeypair = await generateMintKeypair();
@@ -1691,7 +1974,7 @@
                     connectedWallet,
                     mintKeypair,
                     tokenMetadata,
-                    0
+                    devBuyAmount // Initial dev buy amount in SOL
                 );
 
                 btn.textContent = 'Waiting for signature...';
