@@ -900,10 +900,317 @@
             color: var(--gold);
         }
 
+        /* Image Upload */
+        .image-upload {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .image-upload:hover {
+            border-color: var(--gold);
+            background: var(--gold-dim);
+        }
+        .image-upload.banner {
+            min-height: 80px;
+        }
+        .image-preview {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+        .image-preview svg {
+            width: 32px;
+            height: 32px;
+            opacity: 0.5;
+        }
+        .image-preview img {
+            max-width: 100%;
+            max-height: 80px;
+            border-radius: 6px;
+            object-fit: cover;
+        }
+        .image-upload.has-image {
+            border-style: solid;
+            border-color: var(--teal);
+            background: var(--teal-dim);
+        }
+
+        /* Social Links */
+        .social-links-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .social-input {
+            display: flex;
+            align-items: center;
+            gap: 0;
+        }
+        .social-icon {
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-right: none;
+            border-radius: var(--radius) 0 0 var(--radius);
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        .social-input .form-input {
+            border-radius: 0 var(--radius) var(--radius) 0;
+            font-size: 12px;
+        }
+
+        /* Dev Buy Slider */
+        .dev-buy-input {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .dev-buy-slider {
+            flex: 1;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: var(--border);
+            border-radius: 3px;
+            outline: none;
+        }
+        .dev-buy-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--gold);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .dev-buy-value {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        .dev-buy-hint {
+            margin-top: 8px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* Token Analytics Panel */
+        .analytics-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+        .analytics-header {
+            padding: 16px 20px;
+            background: var(--bg-elevated);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .analytics-title {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-secondary);
+        }
+        .analytics-body {
+            padding: 20px;
+        }
+
+        /* Token Stats Row */
+        .token-stats-row {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .token-stat {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius);
+            padding: 14px;
+            text-align: center;
+        }
+        .token-stat-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 6px;
+        }
+        .token-stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
+        }
+        .token-stat-value.positive { color: var(--success); }
+        .token-stat-value.negative { color: var(--error); }
+        .token-stat-value.gold { color: var(--gold); }
+        .token-stat-value.teal { color: var(--teal); }
+        .token-stat-value.purple { color: var(--purple); }
+
+        /* Price Change Strip */
+        .price-change-strip {
+            display: flex;
+            gap: 8px;
+            padding: 12px 16px;
+            background: var(--bg);
+            border-radius: var(--radius);
+            margin-bottom: 16px;
+        }
+        .price-change-item {
+            flex: 1;
+            text-align: center;
+            padding: 8px 12px;
+            border-radius: var(--radius-sm);
+            background: var(--surface-2);
+        }
+        .price-change-period {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        .price-change-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .price-change-value.positive { color: var(--success); }
+        .price-change-value.negative { color: var(--error); }
+
+        /* Trade Metrics Grid */
+        .trade-metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .trade-metric {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius);
+            padding: 14px;
+        }
+        .trade-metric-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .trade-metric-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .trade-metric-badge {
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+        .trade-metric-badge.good { background: var(--success-dim); color: var(--success); }
+        .trade-metric-badge.warn { background: var(--warning-dim); color: var(--warning); }
+        .trade-metric-badge.bad { background: var(--error-dim); color: var(--error); }
+        .trade-metric-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        /* Rug Safety Panel */
+        .safety-panel {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+        }
+        .safety-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+        .safety-title {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .safety-score {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .safety-score-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .safety-score-value.safe { color: var(--success); }
+        .safety-score-value.warn { color: var(--warning); }
+        .safety-score-value.danger { color: var(--error); }
+        .safety-indicators {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        .safety-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            background: var(--surface-2);
+            border-radius: var(--radius-sm);
+            font-size: 11px;
+        }
+        .safety-indicator-icon {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+        }
+        .safety-indicator-icon.pass { background: var(--success-dim); color: var(--success); }
+        .safety-indicator-icon.fail { background: var(--error-dim); color: var(--error); }
+        .safety-indicator-icon.warn { background: var(--warning-dim); color: var(--warning); }
+        .safety-indicator-name { color: var(--text-secondary); }
+        .safety-indicator-value {
+            margin-left: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+        }
+
         /* Responsive */
         @media (max-width: 1200px) {
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
             .allocation-grid { grid-template-columns: repeat(2, 1fr); }
+            .token-stats-row { grid-template-columns: repeat(3, 1fr); }
+            .trade-metrics-grid { grid-template-columns: repeat(2, 1fr); }
+            .safety-indicators { grid-template-columns: repeat(2, 1fr); }
         }
         @media (max-width: 1024px) {
             .layout { grid-template-columns: 1fr; }
@@ -1058,6 +1365,165 @@
                 </div>
             </div>
 
+            <!-- Token Analytics Panel -->
+            <div class="analytics-panel" id="tokenAnalytics">
+                <div class="analytics-header">
+                    <span class="analytics-title">Token Analytics</span>
+                    <span style="font-size:11px;color:var(--text-muted)">Live metrics for your selected token</span>
+                </div>
+                <div class="analytics-body">
+                    <!-- Token Stats Row -->
+                    <div class="token-stats-row">
+                        <div class="token-stat">
+                            <div class="token-stat-label">Market Cap</div>
+                            <div class="token-stat-value gold" id="analyticsMcap">$0</div>
+                        </div>
+                        <div class="token-stat">
+                            <div class="token-stat-label">Liquidity</div>
+                            <div class="token-stat-value teal" id="analyticsLiq">$0</div>
+                        </div>
+                        <div class="token-stat">
+                            <div class="token-stat-label">24h Volume</div>
+                            <div class="token-stat-value" id="analyticsVol">$0</div>
+                        </div>
+                        <div class="token-stat">
+                            <div class="token-stat-label">Holders</div>
+                            <div class="token-stat-value" id="analyticsHolders">0</div>
+                        </div>
+                        <div class="token-stat">
+                            <div class="token-stat-label">Transactions</div>
+                            <div class="token-stat-value" id="analyticsTxns">0</div>
+                        </div>
+                        <div class="token-stat">
+                            <div class="token-stat-label">Score</div>
+                            <div class="token-stat-value purple" id="analyticsScore">--</div>
+                        </div>
+                    </div>
+
+                    <!-- Price Change Strip -->
+                    <div class="price-change-strip">
+                        <div class="price-change-item">
+                            <div class="price-change-period">1M</div>
+                            <div class="price-change-value positive" id="priceChange1m">+0%</div>
+                        </div>
+                        <div class="price-change-item">
+                            <div class="price-change-period">5M</div>
+                            <div class="price-change-value positive" id="priceChange5m">+0%</div>
+                        </div>
+                        <div class="price-change-item">
+                            <div class="price-change-period">1H</div>
+                            <div class="price-change-value positive" id="priceChange1h">+0%</div>
+                        </div>
+                        <div class="price-change-item">
+                            <div class="price-change-period">24H</div>
+                            <div class="price-change-value positive" id="priceChange24h">+0%</div>
+                        </div>
+                    </div>
+
+                    <!-- Trade Metrics Grid -->
+                    <div class="trade-metrics-grid">
+                        <div class="trade-metric">
+                            <div class="trade-metric-header">
+                                <span class="trade-metric-label">Liq Depth</span>
+                                <span class="trade-metric-badge good" id="liqDepthBadge">Good</span>
+                            </div>
+                            <div class="trade-metric-value" id="liqDepth">--</div>
+                        </div>
+                        <div class="trade-metric">
+                            <div class="trade-metric-header">
+                                <span class="trade-metric-label">Vol/MCap</span>
+                                <span class="trade-metric-badge good" id="volMcapBadge">Healthy</span>
+                            </div>
+                            <div class="trade-metric-value" id="volMcap">--</div>
+                        </div>
+                        <div class="trade-metric">
+                            <div class="trade-metric-header">
+                                <span class="trade-metric-label">24H Buys</span>
+                            </div>
+                            <div class="trade-metric-value" style="color:var(--success)" id="buys24h">0</div>
+                        </div>
+                        <div class="trade-metric">
+                            <div class="trade-metric-header">
+                                <span class="trade-metric-label">24H Sells</span>
+                            </div>
+                            <div class="trade-metric-value" style="color:var(--error)" id="sells24h">0</div>
+                        </div>
+                        <div class="trade-metric">
+                            <div class="trade-metric-header">
+                                <span class="trade-metric-label">5M Flow</span>
+                                <span class="trade-metric-badge good" id="flowBadge">Bullish</span>
+                            </div>
+                            <div class="trade-metric-value" id="flow5m">--</div>
+                        </div>
+                        <div class="trade-metric">
+                            <div class="trade-metric-header">
+                                <span class="trade-metric-label">Momentum</span>
+                                <span class="trade-metric-badge good" id="momentumBadge">Strong</span>
+                            </div>
+                            <div class="trade-metric-value" id="momentum">--</div>
+                        </div>
+                    </div>
+
+                    <!-- Rug Safety Panel -->
+                    <div class="safety-panel">
+                        <div class="safety-header">
+                            <span class="safety-title">Rug Safety Check</span>
+                            <div class="safety-score">
+                                <span class="safety-score-value safe" id="safetyScore">--</span>
+                                <span style="font-size:11px;color:var(--text-muted)">/100</span>
+                            </div>
+                        </div>
+                        <div class="safety-indicators">
+                            <div class="safety-indicator">
+                                <span class="safety-indicator-icon pass" id="top10Icon">&#x2713;</span>
+                                <span class="safety-indicator-name">Top 10%</span>
+                                <span class="safety-indicator-value" id="top10Value">--</span>
+                            </div>
+                            <div class="safety-indicator">
+                                <span class="safety-indicator-icon pass" id="holdersIcon">&#x2713;</span>
+                                <span class="safety-indicator-name">Holders</span>
+                                <span class="safety-indicator-value" id="holdersValue">--</span>
+                            </div>
+                            <div class="safety-indicator">
+                                <span class="safety-indicator-icon pass" id="noMintIcon">&#x2713;</span>
+                                <span class="safety-indicator-name">No Mint</span>
+                                <span class="safety-indicator-value" id="noMintValue">Yes</span>
+                            </div>
+                            <div class="safety-indicator">
+                                <span class="safety-indicator-icon pass" id="noFreezeIcon">&#x2713;</span>
+                                <span class="safety-indicator-name">No Freeze</span>
+                                <span class="safety-indicator-value" id="noFreezeValue">Yes</span>
+                            </div>
+                            <div class="safety-indicator">
+                                <span class="safety-indicator-icon pass" id="organicIcon">&#x2713;</span>
+                                <span class="safety-indicator-name">Organic</span>
+                                <span class="safety-indicator-value" id="organicValue">--</span>
+                            </div>
+                            <div class="safety-indicator">
+                                <span class="safety-indicator-icon pass" id="bundlerIcon">&#x2713;</span>
+                                <span class="safety-indicator-name">Bundler%</span>
+                                <span class="safety-indicator-value" id="bundlerValue">0%</span>
+                            </div>
+                            <div class="safety-indicator">
+                                <span class="safety-indicator-icon pass" id="insiderIcon">&#x2713;</span>
+                                <span class="safety-indicator-name">Insider%</span>
+                                <span class="safety-indicator-value" id="insiderValue">0%</span>
+                            </div>
+                            <div class="safety-indicator">
+                                <span class="safety-indicator-icon pass" id="devHoldIcon">&#x2713;</span>
+                                <span class="safety-indicator-name">Dev Hold</span>
+                                <span class="safety-indicator-value" id="devHoldValue">0%</span>
+                            </div>
+                            <div class="safety-indicator">
+                                <span class="safety-indicator-icon pass" id="verifiedIcon">&#x2713;</span>
+                                <span class="safety-indicator-name">Verified</span>
+                                <span class="safety-indicator-value" id="verifiedValue">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Fee Routing Card -->
             <div class="fee-card" id="fee-routing">
                 <div class="fee-card-header">
@@ -1209,7 +1675,67 @@
 
                 <div class="form-group">
                     <label class="form-label">Description</label>
-                    <input type="text" class="form-input" id="tokenDescInput" placeholder="A brief description...">
+                    <textarea class="form-input" id="tokenDescInput" placeholder="A brief description of your token..." rows="2" style="resize:vertical;min-height:60px;"></textarea>
+                </div>
+
+                <!-- Image Uploads -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Token Icon <span style="color:var(--text-muted);font-weight:400;">(required)</span></label>
+                        <div class="image-upload" onclick="document.getElementById('tokenImageInput').click()">
+                            <input type="file" id="tokenImageInput" accept="image/*" style="display:none;" onchange="previewImage(this, 'tokenImagePreviewDash')">
+                            <div id="tokenImagePreviewDash" class="image-preview">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                                <span>Click to upload</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Banner <span style="color:var(--text-muted);font-weight:400;">(optional)</span></label>
+                        <div class="image-upload banner" onclick="document.getElementById('tokenBannerInput').click()">
+                            <input type="file" id="tokenBannerInput" accept="image/*" style="display:none;" onchange="previewImage(this, 'tokenBannerPreviewDash')">
+                            <div id="tokenBannerPreviewDash" class="image-preview">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M12 12h.01"/></svg>
+                                <span>Banner (1500x500)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Social Links -->
+                <div class="form-group">
+                    <label class="form-label">Social Links <span style="color:var(--text-muted);font-weight:400;">(for DexScreener)</span></label>
+                    <div class="social-links-grid">
+                        <div class="social-input">
+                            <span class="social-icon">𝕏</span>
+                            <input type="text" class="form-input" id="tokenTwitterInput" placeholder="twitter.com/yourtoken">
+                        </div>
+                        <div class="social-input">
+                            <span class="social-icon">✈</span>
+                            <input type="text" class="form-input" id="tokenTelegramInput" placeholder="t.me/yourgroup">
+                        </div>
+                        <div class="social-input">
+                            <span class="social-icon">🌐</span>
+                            <input type="text" class="form-input" id="tokenWebsiteInput" placeholder="yourtoken.com">
+                        </div>
+                        <div class="social-input">
+                            <span class="social-icon">💬</span>
+                            <input type="text" class="form-input" id="tokenDiscordInput" placeholder="discord.gg/invite">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Initial Dev Buy -->
+                <div class="form-group">
+                    <label class="form-label">Initial Dev Buy <span style="color:var(--text-muted);font-weight:400;">(optional)</span></label>
+                    <div class="dev-buy-input">
+                        <input type="range" class="dev-buy-slider" id="devBuySliderDash" min="0" max="5" step="0.1" value="0" oninput="updateDevBuyDisplayDash()">
+                        <div class="dev-buy-value">
+                            <input type="number" class="form-input" id="devBuyAmountDash" value="0" min="0" max="5" step="0.1" style="width:80px;text-align:center;" onchange="syncDevBuySliderDash()">
+                            <span>SOL</span>
+                        </div>
+                    </div>
+                    <p class="dev-buy-hint">Buy tokens at launch to seed initial liquidity (0-5 SOL)</p>
                 </div>
 
                 <div class="seed-hint">
@@ -1225,6 +1751,60 @@
     </div>
 
     <script>
+        // ═══════════════════════════════════════════════════════════════════════
+        // FORMATTING HELPER FUNCTIONS (ALICE-style)
+        // ═══════════════════════════════════════════════════════════════════════
+
+        // Format numbers as $XXK, $XXM, $XXB
+        function formatNum(n) {
+            if (!n || isNaN(n)) return '$0';
+            n = parseFloat(n);
+            if (n >= 1e9) return `$${(n/1e9).toFixed(2)}B`;
+            if (n >= 1e6) return `$${(n/1e6).toFixed(2)}M`;
+            if (n >= 1e3) return `$${(n/1e3).toFixed(2)}K`;
+            return `$${n.toFixed(2)}`;
+        }
+
+        // Format prices with appropriate decimals for micro prices
+        function formatPrice(p) {
+            if (!p || isNaN(p)) return '$0.00';
+            p = parseFloat(p);
+            if (p === 0) return '$0.00';
+            if (p >= 1) return `$${p.toFixed(2)}`;
+            if (p >= 0.01) return `$${p.toFixed(4)}`;
+            if (p >= 0.0001) return `$${p.toFixed(6)}`;
+            // Very small prices - use exponential notation
+            const exp = Math.floor(Math.log10(p));
+            const mantissa = p / Math.pow(10, exp);
+            return `$${mantissa.toFixed(2)}e${exp}`;
+        }
+
+        // Format percentages with +/- signs
+        function formatPct(n, decimals = 2) {
+            if (n === null || n === undefined || isNaN(n)) return '0%';
+            n = parseFloat(n);
+            const sign = n >= 0 ? '+' : '';
+            return `${sign}${n.toFixed(decimals)}%`;
+        }
+
+        // Get CSS class based on value sign
+        function getPctClass(n) {
+            if (!n || isNaN(n)) return '';
+            return parseFloat(n) >= 0 ? 'positive' : 'negative';
+        }
+
+        // Get badge class based on threshold
+        function getBadgeClass(value, goodThreshold, warnThreshold) {
+            if (value >= goodThreshold) return 'good';
+            if (value >= warnThreshold) return 'warn';
+            return 'bad';
+        }
+
+        // Get safety icon class
+        function getSafetyClass(isPassing) {
+            return isPassing ? 'pass' : 'fail';
+        }
+
         // ═══════════════════════════════════════════════════════════════════════
         // CONFIGURATION
         // ═══════════════════════════════════════════════════════════════════════
@@ -1316,23 +1896,84 @@
 
         async function connectWallet() {
             if (connectedWallet) { showWalletModal(); return; }
+            showWalletSelectModal();
+        }
 
-            if (privyClient) {
-                try {
-                    const user = await privyClient.login();
-                    if (user?.wallet) handleWalletConnected(user.wallet.address);
-                    return;
-                } catch (e) { console.error('[PRIVY]', e); }
+        function showWalletSelectModal() {
+            const hasPhantom = window.solana?.isPhantom;
+            const hasSolflare = window.solflare?.isSolflare;
+
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.id = 'walletSelectModal';
+            modal.onclick = (e) => { if(e.target === modal) modal.remove(); };
+            modal.innerHTML = `
+                <div class="modal" style="max-width:380px;">
+                    <div class="modal-header">
+                        <span class="modal-title">Connect Wallet</span>
+                        <button class="modal-close" onclick="document.getElementById('walletSelectModal').remove()">&times;</button>
+                    </div>
+                    <div class="modal-body" style="padding:20px;">
+                        <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px;text-align:center;">
+                            Choose your preferred wallet to connect
+                        </p>
+                        <div style="display:flex;flex-direction:column;gap:10px;">
+                            <button class="wallet-option ${hasPhantom ? '' : 'disabled'}" onclick="${hasPhantom ? 'connectPhantom()' : ''}" ${hasPhantom ? '' : 'disabled'}>
+                                <img src="https://phantom.app/img/phantom-logo.svg" alt="Phantom" style="width:28px;height:28px;">
+                                <span>Phantom</span>
+                                ${hasPhantom ? '<span class="wallet-detected">Detected</span>' : '<span class="wallet-not-detected">Not installed</span>'}
+                            </button>
+                            <button class="wallet-option ${hasSolflare ? '' : 'disabled'}" onclick="${hasSolflare ? 'connectSolflare()' : ''}" ${hasSolflare ? '' : 'disabled'}>
+                                <img src="https://solflare.com/favicon.ico" alt="Solflare" style="width:28px;height:28px;border-radius:6px;">
+                                <span>Solflare</span>
+                                ${hasSolflare ? '<span class="wallet-detected">Detected</span>' : '<span class="wallet-not-detected">Not installed</span>'}
+                            </button>
+                        </div>
+                        ${!hasPhantom && !hasSolflare ? `
+                        <div style="margin-top:20px;padding:14px;background:var(--gold-dim);border-radius:var(--radius);text-align:center;">
+                            <p style="color:var(--gold);font-size:13px;margin-bottom:10px;">No wallet detected</p>
+                            <a href="https://phantom.app" target="_blank" class="btn btn-secondary" style="font-size:12px;">Install Phantom</a>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            if (!document.getElementById('wallet-select-styles')) {
+                const style = document.createElement('style');
+                style.id = 'wallet-select-styles';
+                style.textContent = `
+                    .wallet-option { display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:all 0.15s;font-size:15px;font-weight:500;color:var(--text); }
+                    .wallet-option:hover:not(.disabled) { border-color:var(--gold);background:var(--gold-dim); }
+                    .wallet-option.disabled { opacity:0.5;cursor:not-allowed; }
+                    .wallet-option span:first-of-type { flex:1;text-align:left; }
+                    .wallet-detected { font-size:11px;color:var(--success);background:var(--success-dim);padding:3px 8px;border-radius:10px; }
+                    .wallet-not-detected { font-size:11px;color:var(--text-muted); }
+                `;
+                document.head.appendChild(style);
             }
+        }
 
-            if (window.solana?.isPhantom) {
+        async function connectPhantom() {
+            document.getElementById('walletSelectModal')?.remove();
+            try {
                 const res = await window.solana.connect();
                 handleWalletConnected(res.publicKey.toString());
-            } else if (window.solflare?.isSolflare) {
+            } catch (e) {
+                console.error('[PHANTOM]', e);
+                showNotification('Failed to connect Phantom', 'error');
+            }
+        }
+
+        async function connectSolflare() {
+            document.getElementById('walletSelectModal')?.remove();
+            try {
                 await window.solflare.connect();
                 handleWalletConnected(window.solflare.publicKey.toString());
-            } else {
-                alert('Please install Phantom or Solflare wallet');
+            } catch (e) {
+                console.error('[SOLFLARE]', e);
+                showNotification('Failed to connect Solflare', 'error');
             }
         }
 
@@ -1423,22 +2064,21 @@
         // ═══════════════════════════════════════════════════════════════════════
 
         // Upload token metadata to Pump.fun IPFS
-        async function uploadTokenMetadata(name, symbol, description, imageFile) {
+        async function uploadTokenMetadata(name, symbol, description, imageFile, socials = {}) {
             const formData = new FormData();
 
             if (imageFile) {
                 formData.append('file', imageFile);
             } else {
-                const defaultImageBlob = await fetch('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==').then(r => r.blob());
-                formData.append('file', defaultImageBlob, 'token.png');
+                throw new Error('Token icon is required');
             }
 
             formData.append('name', name);
             formData.append('symbol', symbol);
             formData.append('description', description || `${name} ($${symbol}) - Launched via LAUNCHR`);
-            formData.append('twitter', '');
-            formData.append('telegram', '');
-            formData.append('website', 'https://launchr.io');
+            formData.append('twitter', socials.twitter || '');
+            formData.append('telegram', socials.telegram || '');
+            formData.append('website', socials.website || '');
             formData.append('showName', 'true');
 
             console.log('[DEPLOY] Uploading metadata to IPFS...');
@@ -1655,6 +2295,38 @@
             document.body.appendChild(modal);
         }
 
+        // Image preview helper
+        function previewImage(input, previewId) {
+            const preview = document.getElementById(previewId);
+            const uploadDiv = input.closest('.image-upload');
+
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+                    uploadDiv.classList.add('has-image');
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // Dev buy slider helpers
+        function updateDevBuyDisplayDash() {
+            const slider = document.getElementById('devBuySliderDash');
+            const input = document.getElementById('devBuyAmountDash');
+            input.value = slider.value;
+        }
+
+        function syncDevBuySliderDash() {
+            const slider = document.getElementById('devBuySliderDash');
+            const input = document.getElementById('devBuyAmountDash');
+            let val = parseFloat(input.value) || 0;
+            if (val < 0) val = 0;
+            if (val > 5) val = 5;
+            input.value = val;
+            slider.value = val;
+        }
+
         async function launchToken() {
             if (!connectedWallet) {
                 connectWallet();
@@ -1663,6 +2335,22 @@
 
             const name = document.getElementById('tokenNameInput').value.trim();
             const symbol = document.getElementById('tokenSymbolInput').value.trim().toUpperCase();
+            const description = document.getElementById('tokenDescInput').value.trim();
+
+            // Get image file
+            const imageInput = document.getElementById('tokenImageInput');
+            const imageFile = imageInput.files && imageInput.files[0] ? imageInput.files[0] : null;
+
+            // Get social links
+            const socials = {
+                twitter: document.getElementById('tokenTwitterInput').value.trim(),
+                telegram: document.getElementById('tokenTelegramInput').value.trim(),
+                website: document.getElementById('tokenWebsiteInput').value.trim(),
+                discord: document.getElementById('tokenDiscordInput').value.trim()
+            };
+
+            // Get initial dev buy amount
+            const devBuyAmount = parseFloat(document.getElementById('devBuyAmountDash').value) || 0;
 
             if (!name || !symbol) {
                 showNotification('Please enter token name and symbol', 'error');
@@ -1674,14 +2362,19 @@
                 return;
             }
 
-            const btn = document.querySelector('#launchModal .btn-primary');
+            if (!imageFile) {
+                showNotification('Please upload a token icon', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('launchTokenBtn');
             const originalText = btn.textContent;
             btn.disabled = true;
             btn.textContent = 'Uploading metadata...';
             btn.style.opacity = '0.7';
 
             try {
-                const tokenMetadata = await uploadTokenMetadata(name, symbol, '', null);
+                const tokenMetadata = await uploadTokenMetadata(name, symbol, description, imageFile, socials);
 
                 btn.textContent = 'Getting vanity address...';
                 const mintKeypair = await generateMintKeypair();
@@ -1691,7 +2384,7 @@
                     connectedWallet,
                     mintKeypair,
                     tokenMetadata,
-                    0
+                    devBuyAmount // Initial dev buy amount in SOL
                 );
 
                 btn.textContent = 'Waiting for signature...';
@@ -1739,6 +2432,149 @@
                 slider.closest('.allocation-item').querySelector('.allocation-item-value').textContent = values[i] + '%';
             });
         }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // TOKEN ANALYTICS UPDATE FUNCTION
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function updateTokenAnalytics(tokenData) {
+            // Default/demo data if no real data provided
+            const data = tokenData || {
+                marketCap: 125000,
+                liquidity: 45000,
+                volume24h: 89000,
+                holders: 342,
+                transactions: 1247,
+                score: 78,
+                priceChange1m: 2.5,
+                priceChange5m: 8.3,
+                priceChange1h: -3.2,
+                priceChange24h: 45.7,
+                buys24h: 856,
+                sells24h: 391,
+                liqDepth: 12.5,
+                volMcapRatio: 0.71,
+                flow5m: 2340,
+                momentum: 82,
+                top10Pct: 28.5,
+                noMint: true,
+                noFreeze: true,
+                organic: 85,
+                bundlerPct: 2.3,
+                insiderPct: 5.1,
+                devHoldPct: 3.2,
+                verified: true
+            };
+
+            // Update main stats
+            const mcapEl = document.getElementById('analyticsMcap');
+            const liqEl = document.getElementById('analyticsLiq');
+            const volEl = document.getElementById('analyticsVol');
+            const holdersEl = document.getElementById('analyticsHolders');
+            const txnsEl = document.getElementById('analyticsTxns');
+            const scoreEl = document.getElementById('analyticsScore');
+
+            if (mcapEl) mcapEl.textContent = formatNum(data.marketCap);
+            if (liqEl) liqEl.textContent = formatNum(data.liquidity);
+            if (volEl) volEl.textContent = formatNum(data.volume24h);
+            if (holdersEl) holdersEl.textContent = data.holders?.toLocaleString() || '0';
+            if (txnsEl) txnsEl.textContent = data.transactions?.toLocaleString() || '0';
+            if (scoreEl) scoreEl.textContent = data.score || '--';
+
+            // Update price changes
+            const priceChanges = [
+                { id: 'priceChange1m', value: data.priceChange1m },
+                { id: 'priceChange5m', value: data.priceChange5m },
+                { id: 'priceChange1h', value: data.priceChange1h },
+                { id: 'priceChange24h', value: data.priceChange24h }
+            ];
+
+            priceChanges.forEach(({ id, value }) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.textContent = formatPct(value);
+                    el.className = `price-change-value ${getPctClass(value)}`;
+                }
+            });
+
+            // Update trade metrics
+            const buys24hEl = document.getElementById('buys24h');
+            const sells24hEl = document.getElementById('sells24h');
+            const liqDepthEl = document.getElementById('liqDepth');
+            const volMcapEl = document.getElementById('volMcap');
+            const flow5mEl = document.getElementById('flow5m');
+            const momentumEl = document.getElementById('momentum');
+
+            if (buys24hEl) buys24hEl.textContent = data.buys24h?.toLocaleString() || '0';
+            if (sells24hEl) sells24hEl.textContent = data.sells24h?.toLocaleString() || '0';
+            if (liqDepthEl) liqDepthEl.textContent = `${data.liqDepth?.toFixed(1) || '0'}%`;
+            if (volMcapEl) volMcapEl.textContent = `${((data.volMcapRatio || 0) * 100).toFixed(0)}%`;
+            if (flow5mEl) flow5mEl.textContent = data.flow5m > 0 ? `+${formatNum(data.flow5m)}` : formatNum(data.flow5m);
+            if (momentumEl) momentumEl.textContent = `${data.momentum || 0}/100`;
+
+            // Update metric badges
+            const liqDepthBadge = document.getElementById('liqDepthBadge');
+            const volMcapBadge = document.getElementById('volMcapBadge');
+            const flowBadge = document.getElementById('flowBadge');
+            const momentumBadge = document.getElementById('momentumBadge');
+
+            if (liqDepthBadge) {
+                liqDepthBadge.className = `trade-metric-badge ${getBadgeClass(data.liqDepth || 0, 10, 5)}`;
+                liqDepthBadge.textContent = data.liqDepth >= 10 ? 'Good' : data.liqDepth >= 5 ? 'Fair' : 'Low';
+            }
+            if (volMcapBadge) {
+                const ratio = (data.volMcapRatio || 0) * 100;
+                volMcapBadge.className = `trade-metric-badge ${getBadgeClass(ratio, 50, 20)}`;
+                volMcapBadge.textContent = ratio >= 50 ? 'Active' : ratio >= 20 ? 'Normal' : 'Low';
+            }
+            if (flowBadge) {
+                flowBadge.className = `trade-metric-badge ${data.flow5m > 0 ? 'good' : data.flow5m < 0 ? 'bad' : 'warn'}`;
+                flowBadge.textContent = data.flow5m > 0 ? 'Bullish' : data.flow5m < 0 ? 'Bearish' : 'Neutral';
+            }
+            if (momentumBadge) {
+                momentumBadge.className = `trade-metric-badge ${getBadgeClass(data.momentum || 0, 70, 40)}`;
+                momentumBadge.textContent = data.momentum >= 70 ? 'Strong' : data.momentum >= 40 ? 'Normal' : 'Weak';
+            }
+
+            // Update safety panel
+            const safetyScore = document.getElementById('safetyScore');
+            if (safetyScore) {
+                const score = data.score || 0;
+                safetyScore.textContent = score;
+                safetyScore.className = `safety-score-value ${score >= 70 ? 'safe' : score >= 40 ? 'warn' : 'danger'}`;
+            }
+
+            // Update safety indicators
+            const safetyIndicators = [
+                { iconId: 'top10Icon', valueId: 'top10Value', pass: (data.top10Pct || 0) < 50, value: `${data.top10Pct?.toFixed(1) || 0}%` },
+                { iconId: 'holdersIcon', valueId: 'holdersValue', pass: (data.holders || 0) >= 100, value: data.holders?.toLocaleString() || '0' },
+                { iconId: 'noMintIcon', valueId: 'noMintValue', pass: data.noMint !== false, value: data.noMint ? 'Yes' : 'No' },
+                { iconId: 'noFreezeIcon', valueId: 'noFreezeValue', pass: data.noFreeze !== false, value: data.noFreeze ? 'Yes' : 'No' },
+                { iconId: 'organicIcon', valueId: 'organicValue', pass: (data.organic || 0) >= 60, value: `${data.organic || 0}%` },
+                { iconId: 'bundlerIcon', valueId: 'bundlerValue', pass: (data.bundlerPct || 0) < 10, value: `${data.bundlerPct?.toFixed(1) || 0}%` },
+                { iconId: 'insiderIcon', valueId: 'insiderValue', pass: (data.insiderPct || 0) < 15, value: `${data.insiderPct?.toFixed(1) || 0}%` },
+                { iconId: 'devHoldIcon', valueId: 'devHoldValue', pass: (data.devHoldPct || 0) < 10, value: `${data.devHoldPct?.toFixed(1) || 0}%` },
+                { iconId: 'verifiedIcon', valueId: 'verifiedValue', pass: data.verified, value: data.verified ? 'Yes' : 'No' }
+            ];
+
+            safetyIndicators.forEach(({ iconId, valueId, pass, value }) => {
+                const iconEl = document.getElementById(iconId);
+                const valueEl = document.getElementById(valueId);
+                if (iconEl) {
+                    iconEl.className = `safety-indicator-icon ${getSafetyClass(pass)}`;
+                    iconEl.innerHTML = pass ? '&#x2713;' : '&#x2717;';
+                }
+                if (valueEl) valueEl.textContent = value;
+            });
+        }
+
+        // Initialize analytics with demo data on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Delay a bit to ensure DOM is ready
+            setTimeout(() => {
+                updateTokenAnalytics();
+            }, 500);
+        });
     </script>
 </body>
 </html>

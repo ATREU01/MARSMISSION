@@ -1053,25 +1053,80 @@
 
         async function connectWallet() {
             if (connectedWallet) { showWalletModal(); return; }
+            showWalletSelectModal();
+        }
 
-            if (privyClient) {
-                try {
-                    const user = await privyClient.login();
-                    if (user?.wallet) handleWalletConnected(user.wallet.address);
-                    return;
-                } catch (e) { console.error('[PRIVY]', e); }
+        function showWalletSelectModal() {
+            const hasPhantom = window.solana?.isPhantom;
+            const hasSolflare = window.solflare?.isSolflare;
+
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.id = 'walletSelectModal';
+            modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:2000;';
+            modal.onclick = (e) => { if(e.target === modal) modal.remove(); };
+            modal.innerHTML = `
+                <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;max-width:380px;width:90%;overflow:hidden;">
+                    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+                        <span style="font-weight:600;">Connect Wallet</span>
+                        <button onclick="document.getElementById('walletSelectModal').remove()" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;">&times;</button>
+                    </div>
+                    <div style="padding:20px;">
+                        <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px;text-align:center;">
+                            Choose your preferred wallet
+                        </p>
+                        <div style="display:flex;flex-direction:column;gap:10px;">
+                            <button class="wallet-opt ${hasPhantom ? '' : 'disabled'}" onclick="${hasPhantom ? 'connectPhantom()' : ''}" ${hasPhantom ? '' : 'disabled'}>
+                                <img src="https://phantom.app/img/phantom-logo.svg" alt="Phantom" style="width:28px;height:28px;">
+                                <span>Phantom</span>
+                                ${hasPhantom ? '<span class="detected">Detected</span>' : '<span class="not-detected">Not installed</span>'}
+                            </button>
+                            <button class="wallet-opt ${hasSolflare ? '' : 'disabled'}" onclick="${hasSolflare ? 'connectSolflare()' : ''}" ${hasSolflare ? '' : 'disabled'}>
+                                <img src="https://solflare.com/favicon.ico" alt="Solflare" style="width:28px;height:28px;border-radius:6px;">
+                                <span>Solflare</span>
+                                ${hasSolflare ? '<span class="detected">Detected</span>' : '<span class="not-detected">Not installed</span>'}
+                            </button>
+                        </div>
+                        ${!hasPhantom && !hasSolflare ? `
+                        <div style="margin-top:20px;padding:14px;background:rgba(196,165,116,0.1);border-radius:8px;text-align:center;">
+                            <p style="color:var(--gold);font-size:13px;margin-bottom:10px;">No wallet detected</p>
+                            <a href="https://phantom.app" target="_blank" style="color:var(--gold);text-decoration:underline;font-size:12px;">Install Phantom</a>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            if (!document.getElementById('wallet-opt-styles')) {
+                const style = document.createElement('style');
+                style.id = 'wallet-opt-styles';
+                style.textContent = `
+                    .wallet-opt { display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:all 0.15s;font-size:15px;font-weight:500;color:var(--text);width:100%; }
+                    .wallet-opt:hover:not(.disabled) { border-color:var(--gold);background:rgba(196,165,116,0.1); }
+                    .wallet-opt.disabled { opacity:0.5;cursor:not-allowed; }
+                    .wallet-opt span:first-of-type { flex:1;text-align:left; }
+                    .wallet-opt .detected { font-size:11px;color:var(--success);background:rgba(74,222,128,0.15);padding:3px 8px;border-radius:10px; }
+                    .wallet-opt .not-detected { font-size:11px;color:var(--text-muted); }
+                `;
+                document.head.appendChild(style);
             }
+        }
 
-            // Fallback
-            if (window.solana?.isPhantom) {
+        async function connectPhantom() {
+            document.getElementById('walletSelectModal')?.remove();
+            try {
                 const res = await window.solana.connect();
                 handleWalletConnected(res.publicKey.toString());
-            } else if (window.solflare?.isSolflare) {
+            } catch (e) { console.error('[PHANTOM]', e); }
+        }
+
+        async function connectSolflare() {
+            document.getElementById('walletSelectModal')?.remove();
+            try {
                 await window.solflare.connect();
                 handleWalletConnected(window.solflare.publicKey.toString());
-            } else {
-                alert('Install Phantom or Solflare wallet');
-            }
+            } catch (e) { console.error('[SOLFLARE]', e); }
         }
 
         async function handleWalletConnected(address) {
