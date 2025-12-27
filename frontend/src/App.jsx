@@ -42,7 +42,7 @@ function App() {
       <div className="loading-screen">
         <div className="loading-content">
           <img src="/website/logo-icon.jpg" alt="LAUNCHR" className="loading-logo" />
-          <div className="loading-text">Loading Privy...</div>
+          <div className="loading-text">Initializing Privy...</div>
         </div>
       </div>
     )
@@ -56,12 +56,12 @@ function App() {
   }, [ready, authenticated, returnTo, login])
 
   return (
-    <div className="dashboard">
+    <div className="auth-page">
       <header className="header">
-        <div className="logo">
+        <a href="/" className="logo">
           <img src="/website/logo-icon.jpg" alt="LAUNCHR" />
           <span>LAUNCHR</span>
-        </div>
+        </a>
         <nav>
           <a href="/">Home</a>
           <a href="/launchpad">Launchpad</a>
@@ -75,28 +75,39 @@ function App() {
             <button onClick={handleLogout} className="btn-disconnect">Disconnect</button>
           </div>
         ) : (
-          <button onClick={login} className="btn-connect">Connect Wallet</button>
+          <button onClick={login} className="btn-connect">Connect</button>
         )}
       </header>
 
       <main className="main">
-        <h1>Privy Authentication</h1>
+        <h1>Wallet Authentication</h1>
+        <p className="subtitle">Secure wallet connection powered by Privy</p>
 
         {authenticated ? (
           <div className="connected-content">
             <div className="wallet-card">
-              <h2>✅ Wallet Connected</h2>
-              <p><strong>Address:</strong> {walletAddress || 'Loading...'}</p>
-              <p><strong>Email:</strong> {user?.email?.address || 'N/A'}</p>
+              <div className="success-icon">&#10003;</div>
+              <h2>Wallet Connected</h2>
+              <div className="info-row">
+                <span className="info-label">Address</span>
+                <span className="info-value">{walletAddress || 'Loading...'}</span>
+              </div>
+              {user?.email?.address && (
+                <div className="info-row">
+                  <span className="info-label">Email</span>
+                  <span className="info-value">{user.email.address}</span>
+                </div>
+              )}
             </div>
 
             {returnTo ? (
               <div className="redirect-notice">
-                <p>Redirecting back...</p>
+                <div className="spinner"></div>
+                <p>Redirecting you back...</p>
               </div>
             ) : (
               <div className="actions">
-                <h2>Quick Actions</h2>
+                <h2>Continue to</h2>
                 <div className="action-buttons">
                   <a href="/launchpad" className="action-btn">Launch Token</a>
                   <a href="/dashboard" className="action-btn">Dashboard</a>
@@ -107,13 +118,14 @@ function App() {
           </div>
         ) : (
           <div className="connect-prompt">
-            <h2>Connect with Privy</h2>
-            <p>Sign in with email or connect your existing wallet.</p>
+            <div className="connect-icon">&#128274;</div>
+            <h2>Connect Your Wallet</h2>
+            <p>Sign in with email or connect your existing Solana wallet to continue.</p>
             <button onClick={login} className="btn-connect-large">
               Connect with Privy
             </button>
             <div className="alt-options">
-              <p>Or use <a href="/launchpad">Phantom/Solflare</a> on the launchpad</p>
+              <p>Prefer Phantom or Solflare? <a href="/launchpad">Use the Launchpad</a></p>
             </div>
           </div>
         )}
