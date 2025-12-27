@@ -1253,7 +1253,12 @@ const server = http.createServer(async (req, res) => {
 
     // Serve Landing Page
     if (url.pathname === '/' && req.method === 'GET') {
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.writeHead(200, {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        });
         res.end(getLandingHTML());
         return;
     }
@@ -1292,7 +1297,12 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/launchpad' && req.method === 'GET') {
         try {
             const html = fs.readFileSync(path.join(__dirname, 'website', 'launchpad.html'), 'utf8');
-            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.writeHead(200, {
+                'Content-Type': 'text/html; charset=utf-8',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            });
             res.end(injectConfig(html));
         } catch (e) {
             res.writeHead(302, { 'Location': '/' });
@@ -1305,7 +1315,12 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/dashboard' && req.method === 'GET') {
         try {
             const html = fs.readFileSync(path.join(__dirname, 'website', 'dashboard.html'), 'utf8');
-            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.writeHead(200, {
+                'Content-Type': 'text/html; charset=utf-8',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            });
             res.end(injectConfig(html));
         } catch (e) {
             res.writeHead(302, { 'Location': '/' });
