@@ -26,7 +26,9 @@
     <link rel="shortcut icon" href="/favicon.ico" type="image/jpeg">
     <link rel="apple-touch-icon" href="/website/logo-icon.jpg">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <script src="https://cdn.privy.io/privy-browser.min.js"></script>
+    <!-- MAGIC DISABLED TEMPORARILY - CAUSING ERRORS -->
+    <!-- <script src="https://auth.magic.link/sdk"></script> -->
+    <!-- <script src="https://auth.magic.link/sdk/extension/solana"></script> -->
 
     <style>
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1020,22 +1022,22 @@
 
     <script>
         // Config from server or fallback
-        const PRIVY_APP_ID = window.LAUNCHR_CONFIG?.PRIVY_APP_ID || 'YOUR_PRIVY_APP_ID';
+        const MAGIC_API_KEY = window.LAUNCHR_CONFIG?.MAGIC_API_KEY || window.LAUNCHR_CONFIG?.PRIVY_APP_ID || 'YOUR_MAGIC_API_KEY';
         const SOLANA_RPC = window.LAUNCHR_CONFIG?.SOLANA_RPC || 'https://api.mainnet-beta.solana.com';
         const CONTRACT_ADDRESS = '86ZnAujEVLmtnNazeCeT1zYR7hn2PeF5ZPEwUkTdpump';
 
-        let privyClient = null;
+        let magicClient = null;
         let connectedWallet = null;
         let walletBalance = 0;
 
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
-            await initPrivy();
+            await initMagic();
             const stored = localStorage.getItem('connectedWallet');
             if (stored) handleWalletConnected(stored);
         });
 
-        async function initPrivy() {
+        async function initMagic() {
             try {
                 if (typeof window.Privy !== 'undefined') {
                     privyClient = new window.Privy({
@@ -1047,10 +1049,16 @@
                             solanaClusters: [{ name: 'mainnet-beta', rpcUrl: SOLANA_RPC }],
                         },
                     });
-                    const user = await privyClient.getUser();
-                    if (user?.wallet) handleWalletConnected(user.wallet.address);
+                    // Check if user is already logged in
+                    const isLoggedIn = await magicClient.user.isLoggedIn();
+                    if (isLoggedIn) {
+                        const metadata = await magicClient.user.getMetadata();
+                        if (metadata?.publicAddress) {
+                            handleWalletConnected(metadata.publicAddress);
+                        }
+                    }
                 }
-            } catch (e) { console.error('[PRIVY]', e); }
+            } catch (e) { console.error('[MAGIC]', e); }
         }
 
         async function connectWallet() {
@@ -1078,10 +1086,17 @@
                             Choose your preferred wallet
                         </p>
                         <div style="display:flex;flex-direction:column;gap:10px;">
-                            <button class="wallet-opt privy-opt" onclick="connectPrivy()">
+                            <button class="wallet-opt magic-opt" onclick="connectMagic()">
                                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <rect width="24" height="24" rx="6" fill="#8B5CF6"/>
-                                    <path d="M12 6L18 10V14L12 18L6 14V10L12 6Z" fill="white"/>
+                                    <defs>
+                                        <linearGradient id="magicGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                            <stop offset="0%" style="stop-color:#6851FF;stop-opacity:1" />
+                                            <stop offset="100%" style="stop-color:#B794F6;stop-opacity:1" />
+                                        </linearGradient>
+                                    </defs>
+                                    <rect width="24" height="24" rx="6" fill="url(#magicGrad)"/>
+                                    <path d="M12 4L6 8L12 12L18 8L12 4Z" fill="white" opacity="0.9"/>
+                                    <path d="M12 12L6 16L12 20L18 16L12 12Z" fill="white" opacity="0.7"/>
                                 </svg>
                                 <span>Privy</span>
                                 <span class="detected">Embedded Wallet</span>
@@ -1118,8 +1133,8 @@
                     .wallet-opt span:first-of-type { flex:1;text-align:left; }
                     .wallet-opt .detected { font-size:11px;color:var(--success);background:rgba(74,222,128,0.15);padding:3px 8px;border-radius:10px; }
                     .wallet-opt .not-detected { font-size:11px;color:var(--text-muted); }
-                    .wallet-opt.privy-opt { border-color:rgba(139,92,246,0.3);background:rgba(139,92,246,0.1); }
-                    .wallet-opt.privy-opt:hover { border-color:#8B5CF6;background:rgba(139,92,246,0.2); }
+                    .wallet-opt.magic-opt { border-color:rgba(104,81,255,0.3);background:rgba(104,81,255,0.1); }
+                    .wallet-opt.magic-opt:hover { border-color:#6851FF;background:rgba(104,81,255,0.2); }
                 `;
                 document.head.appendChild(style);
             }
@@ -1141,7 +1156,7 @@
             } catch (e) { console.error('[SOLFLARE]', e); }
         }
 
-        async function connectPrivy() {
+        async function connectMagic() {
             document.getElementById('walletSelectModal')?.remove();
             try {
                 if (!privyClient && typeof window.Privy !== 'undefined') {
@@ -1155,20 +1170,27 @@
                         },
                     });
                 }
-                if (privyClient) {
-                    await privyClient.login();
-                    const user = await privyClient.getUser();
-                    if (user?.wallet?.address) {
-                        handleWalletConnected(user.wallet.address);
+                if (magicClient) {
+                    // Prompt user for email
+                    const email = prompt('Enter your email address:');
+                    if (!email) return;
+
+                    // Magic.link will handle the email OTP flow via their built-in UI
+                    await magicClient.auth.loginWithEmailOTP({ email });
+
+                    // Get user metadata
+                    const metadata = await magicClient.user.getMetadata();
+                    if (metadata?.publicAddress) {
+                        handleWalletConnected(metadata.publicAddress);
                     } else {
-                        alert('Please connect a wallet in Privy');
+                        alert('Failed to get wallet address from Magic');
                     }
                 } else {
-                    alert('Privy not available. Please install a browser wallet.');
+                    alert('Magic not available. Please try again or use a browser wallet.');
                 }
             } catch (e) {
-                console.error('[PRIVY]', e);
-                alert('Failed to connect with Privy');
+                console.error('[MAGIC]', e);
+                alert('Failed to connect with Magic: ' + e.message);
             }
         }
 
@@ -1197,8 +1219,9 @@
         }
 
         async function disconnectWallet() {
-            if (privyClient) try { await privyClient.logout(); } catch (e) {}
+            if (magicClient) try { await magicClient.user.logout(); } catch (e) {}
             if (window.solana?.isPhantom) try { await window.solana.disconnect(); } catch (e) {}
+            if (window.solflare?.isSolflare) try { await window.solflare.disconnect(); } catch (e) {}
             connectedWallet = null;
             walletBalance = 0;
             localStorage.removeItem('connectedWallet');

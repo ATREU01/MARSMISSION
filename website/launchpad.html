@@ -12,8 +12,11 @@
     <link rel="icon" href="/favicon.ico" type="image/jpeg">
     <link rel="shortcut icon" href="/favicon.ico" type="image/jpeg">
     <link rel="apple-touch-icon" href="/website/logo-icon.jpg">
+    <link rel="manifest" href="/phantom/manifest.json">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <script src="https://cdn.privy.io/privy-browser.min.js"></script>
+    <!-- MAGIC DISABLED TEMPORARILY - CAUSING ERRORS -->
+    <!-- <script src="https://auth.magic.link/sdk"></script> -->
+    <!-- <script src="https://auth.magic.link/sdk/extension/solana"></script> -->
     <!-- Solana Web3.js for transaction handling -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     <!-- bs58 for Base58 encoding -->
@@ -1510,10 +1513,10 @@
         // ═══════════════════════════════════════════════════════════════════════
         // CONFIGURATION
         // ═══════════════════════════════════════════════════════════════════════
-        const PRIVY_APP_ID = window.LAUNCHR_CONFIG?.PRIVY_APP_ID || 'YOUR_PRIVY_APP_ID';
+        const MAGIC_API_KEY = window.LAUNCHR_CONFIG?.MAGIC_API_KEY || window.LAUNCHR_CONFIG?.PRIVY_APP_ID || 'YOUR_MAGIC_API_KEY';
         const SOLANA_RPC = window.LAUNCHR_CONFIG?.SOLANA_RPC || 'https://api.mainnet-beta.solana.com';
 
-        let privyClient = null;
+        let magicClient = null;
         let connectedWallet = null;
         let walletBalance = 0;
         let selectedPath = 'pump';
@@ -2071,7 +2074,10 @@
             if (mintInfo.isVanity && mintInfo.vaultId) {
                 // Use server-side vault signing (secretKey never exposed)
                 console.log('[DEPLOY] Using VAULT for mint keypair signing...');
-                const txBase64 = Buffer.from(tx.serialize()).toString('base64');
+
+                // Browser-compatible base64 encoding (no Buffer needed)
+                const txBytes = tx.serialize();
+                const txBase64 = btoa(String.fromCharCode(...txBytes));
 
                 const vaultRes = await fetch('/api/vault/sign', {
                     method: 'POST',
@@ -2092,9 +2098,10 @@
                     throw new Error('Vault signing failed: ' + vaultData.error);
                 }
 
-                // Deserialize the vault-signed transaction
-                const signedTxBuffer = Buffer.from(vaultData.signedTransaction, 'base64');
-                tx = solanaWeb3.VersionedTransaction.deserialize(signedTxBuffer);
+                // Browser-compatible base64 decoding (no Buffer needed)
+                const signedTxBase64 = vaultData.signedTransaction;
+                const signedTxBytes = Uint8Array.from(atob(signedTxBase64), c => c.charCodeAt(0));
+                tx = solanaWeb3.VersionedTransaction.deserialize(signedTxBytes);
                 console.log('[DEPLOY] Transaction signed by vault');
             } else if (mintInfo.keypair) {
                 // Local signing for random keypairs
@@ -2126,19 +2133,23 @@
                     maxRetries: 3
                 });
             }
-            // Try Privy embedded wallet
-            else if (privyClient) {
-                console.log('[DEPLOY] Using Privy wallet for signing...');
-                const user = await privyClient.getUser();
-                if (user?.wallet) {
-                    const signedTx = await privyClient.signTransaction(tx);
-                    signature = await connection.sendRawTransaction(signedTx.serialize(), {
+            // Try Magic embedded wallet
+            else if (magicClient) {
+                console.log('[DEPLOY] Using Magic wallet for signing...');
+                const metadata = await magicClient.user.getMetadata();
+                if (metadata?.publicAddress) {
+                    const signedTx = await magicClient.solana.signTransaction(tx, {
+                        requireAllSignatures: false,
+                        verifySignatures: true,
+                    });
+                    const rawTx = Buffer.from(signedTx.rawTransaction, 'base64');
+                    signature = await connection.sendRawTransaction(rawTx, {
                         skipPreflight: false,
                         preflightCommitment: 'confirmed',
                         maxRetries: 3
                     });
                 } else {
-                    throw new Error('No Privy wallet connected');
+                    throw new Error('No Magic wallet connected');
                 }
             }
             else {
@@ -2276,6 +2287,9 @@
                 // Show success modal with token details
                 showLaunchSuccess(name, symbol, mintAddress, signature);
 
+                // Register token in tracker so it shows on dashboard
+                await registerTokenAfterLaunch(mintAddress, name, symbol, tokenMetadata.metadataUri);
+
                 // Close create modal
                 closeCreateModal();
 
@@ -2284,11 +2298,57 @@
 
             } catch (error) {
                 console.error('[DEPLOY] Error:', error);
-                showNotification(error.message || 'Token launch failed', 'error');
+
+                // Better error messages
+                let errorMsg = error.message || 'Token launch failed';
+
+                // Handle specific errors with better UX
+                if (errorMsg.includes('insufficient') || errorMsg.includes('SOL')) {
+                    errorMsg = '⚠️ Insufficient SOL. Add more SOL to your wallet and try again.';
+                } else if (errorMsg.includes('Buffer') || errorMsg.includes('serialize')) {
+                    errorMsg = '🔄 Network issue. Refreshing... Please try again in 15 seconds.';
+                    // Auto-retry after 15 seconds
+                    setTimeout(() => {
+                        btn.textContent = '✨ Ready to retry';
+                        btn.disabled = false;
+                    }, 15000);
+                } else if (errorMsg.includes('User rejected')) {
+                    errorMsg = '❌ Transaction cancelled by user';
+                } else {
+                    errorMsg = '💡 ' + errorMsg + ' - Please try again';
+                }
+
+                showNotification(errorMsg, 'error');
             } finally {
                 btn.disabled = false;
                 btn.textContent = originalText;
                 btn.style.opacity = '1';
+            }
+        }
+
+        // Register token after successful launch
+        async function registerTokenAfterLaunch(mint, name, symbol, imageUri) {
+            if (!connectedWallet) return;
+
+            try {
+                const res = await fetch('/api/register-token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        mint,
+                        creator: connectedWallet,
+                        name,
+                        symbol,
+                        image: imageUri,
+                        path: selectedPath
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    console.log('[REGISTER] Token registered:', mint);
+                }
+            } catch (e) {
+                console.error('[REGISTER] Failed to register token:', e);
             }
         }
 

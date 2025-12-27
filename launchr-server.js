@@ -16,7 +16,10 @@ const PRODUCTION_CONFIG = {
     // Main Fee Wallet - ALL REVENUE GOES HERE
     FEE_WALLET_PRIVATE_KEY: process.env.FEE_WALLET_PRIVATE_KEY || '',
 
-    // Privy Wallet Connect
+    // Magic.link API Key (replaces Privy)
+    MAGIC_API_KEY: process.env.MAGIC_API_KEY || process.env.PRIVY_APP_ID || process.env.YOUR_PRIVY_APP_ID || '',
+
+    // Legacy Privy support (fallback)
     PRIVY_APP_ID: process.env.PRIVY_APP_ID || process.env.YOUR_PRIVY_APP_ID || '',
 
     // Helius RPC (Solana)
@@ -42,7 +45,7 @@ if (PRODUCTION_CONFIG.FEE_WALLET_PRIVATE_KEY) {
 }
 
 console.log('[CONFIG] Production config loaded:');
-console.log(`  - Privy App ID: ${PRODUCTION_CONFIG.PRIVY_APP_ID ? 'SET' : 'NOT SET'}`);
+console.log(`  - Magic API Key: ${PRODUCTION_CONFIG.MAGIC_API_KEY ? 'SET' : 'NOT SET'}`);
 console.log(`  - Helius RPC: ${PRODUCTION_CONFIG.HELIUS_RPC ? 'SET' : 'NOT SET'}`);
 console.log(`  - Fee Wallet: ${FEE_WALLET_PUBLIC_KEY ? 'SET' : 'NOT SET'}`);
 
@@ -219,6 +222,7 @@ function injectConfig(html) {
     <script>
         // LAUNCHR Production Config (injected by server)
         window.LAUNCHR_CONFIG = {
+            MAGIC_API_KEY: '${PRODUCTION_CONFIG.MAGIC_API_KEY}',
             PRIVY_APP_ID: '${PRODUCTION_CONFIG.PRIVY_APP_ID}',
             SOLANA_RPC: '${PRODUCTION_CONFIG.HELIUS_RPC}',
             FEE_WALLET: '${FEE_WALLET_PUBLIC_KEY}',
@@ -230,6 +234,7 @@ function injectConfig(html) {
 
     // Replace placeholders with actual values
     let injected = html
+        .replace(/YOUR_MAGIC_API_KEY/g, PRODUCTION_CONFIG.MAGIC_API_KEY)
         .replace(/YOUR_PRIVY_APP_ID/g, PRODUCTION_CONFIG.PRIVY_APP_ID)
         .replace(/YOUR_HELIUS_API_KEY/g, PRODUCTION_CONFIG.HELIUS_RPC.split('api-key=')[1] || '')
         .replace('https://mainnet.helius-rpc.com/?api-key=YOUR_HELIUS_API_KEY', PRODUCTION_CONFIG.HELIUS_RPC);
@@ -1248,7 +1253,12 @@ const server = http.createServer(async (req, res) => {
 
     // Serve Landing Page
     if (url.pathname === '/' && req.method === 'GET') {
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.writeHead(200, {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        });
         res.end(getLandingHTML());
         return;
     }
@@ -1287,7 +1297,12 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/launchpad' && req.method === 'GET') {
         try {
             const html = fs.readFileSync(path.join(__dirname, 'website', 'launchpad.html'), 'utf8');
-            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.writeHead(200, {
+                'Content-Type': 'text/html; charset=utf-8',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            });
             res.end(injectConfig(html));
         } catch (e) {
             res.writeHead(302, { 'Location': '/' });
@@ -1300,7 +1315,12 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/dashboard' && req.method === 'GET') {
         try {
             const html = fs.readFileSync(path.join(__dirname, 'website', 'dashboard.html'), 'utf8');
-            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.writeHead(200, {
+                'Content-Type': 'text/html; charset=utf-8',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            });
             res.end(injectConfig(html));
         } catch (e) {
             res.writeHead(302, { 'Location': '/' });
@@ -1318,6 +1338,23 @@ const server = http.createServer(async (req, res) => {
         } catch (e) {
             res.writeHead(302, { 'Location': '/' });
             res.end();
+        }
+        return;
+    }
+
+    // Phantom Wallet Integration - Manifest
+    if ((url.pathname === '/phantom/manifest.json' || url.pathname === '/.well-known/phantom.json') && req.method === 'GET') {
+        try {
+            const manifest = fs.readFileSync(path.join(__dirname, 'website', 'phantom-manifest.json'), 'utf8');
+            res.writeHead(200, {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Cache-Control': 'public, max-age=3600'
+            });
+            res.end(manifest);
+        } catch (e) {
+            res.writeHead(404, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Manifest not found' }));
         }
         return;
     }
