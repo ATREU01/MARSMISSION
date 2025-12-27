@@ -1278,12 +1278,27 @@ const server = http.createServer(async (req, res) => {
             const favicon = fs.readFileSync(path.join(__dirname, 'frontend', 'dist', 'logo-icon.jpg'));
             res.writeHead(200, {
                 'Content-Type': 'image/jpeg',
-                'Cache-Control': 'public, max-age=604800'  // Cache for 1 week
+                'Cache-Control': 'public, max-age=604800'
             });
             res.end(favicon);
         } catch (e) {
             res.writeHead(404);
             res.end();
+        }
+        return;
+    }
+
+    // Serve logo images explicitly
+    if ((url.pathname === '/website/logo-icon.jpg' || url.pathname === '/website/logo-full.jpg' || url.pathname === '/website/phantom_icon.png') && req.method === 'GET') {
+        try {
+            const filename = url.pathname.replace('/website/', '');
+            const img = fs.readFileSync(path.join(__dirname, 'frontend', 'dist', filename));
+            const ext = filename.endsWith('.png') ? 'image/png' : 'image/jpeg';
+            res.writeHead(200, { 'Content-Type': ext, 'Cache-Control': 'public, max-age=86400' });
+            res.end(img);
+        } catch (e) {
+            res.writeHead(404);
+            res.end('Image not found');
         }
         return;
     }
