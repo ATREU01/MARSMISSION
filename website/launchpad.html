@@ -2281,6 +2281,9 @@
                 // Show success modal with token details
                 showLaunchSuccess(name, symbol, mintAddress, signature);
 
+                // Register token in tracker so it shows on dashboard
+                await registerTokenAfterLaunch(mintAddress, name, symbol, tokenMetadata.metadataUri);
+
                 // Close create modal
                 closeCreateModal();
 
@@ -2294,6 +2297,32 @@
                 btn.disabled = false;
                 btn.textContent = originalText;
                 btn.style.opacity = '1';
+            }
+        }
+
+        // Register token after successful launch
+        async function registerTokenAfterLaunch(mint, name, symbol, imageUri) {
+            if (!connectedWallet) return;
+
+            try {
+                const res = await fetch('/api/register-token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        mint,
+                        creator: connectedWallet,
+                        name,
+                        symbol,
+                        image: imageUri,
+                        path: selectedPath
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    console.log('[REGISTER] Token registered:', mint);
+                }
+            } catch (e) {
+                console.error('[REGISTER] Failed to register token:', e);
             }
         }
 
