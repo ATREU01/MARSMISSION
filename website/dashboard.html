@@ -2411,10 +2411,31 @@
             }
 
             try {
-                // Dynamic import of Privy SDK from esm.sh
-                console.log('[PRIVY] Loading SDK from esm.sh...');
-                const privyModule = await import('https://esm.sh/@privy-io/js-sdk-core@0.58.5');
-                console.log('[PRIVY] Module loaded, exports:', Object.keys(privyModule));
+                // Try multiple CDNs for Privy SDK
+                const cdnUrls = [
+                    'https://cdn.jsdelivr.net/npm/@privy-io/js-sdk-core@0.58.5/+esm',
+                    'https://cdn.skypack.dev/@privy-io/js-sdk-core@0.58.5',
+                    'https://esm.sh/@privy-io/js-sdk-core@0.58.5'
+                ];
+
+                let privyModule = null;
+                for (const url of cdnUrls) {
+                    try {
+                        console.log('[PRIVY] Trying to load SDK from:', url);
+                        privyModule = await import(url);
+                        console.log('[PRIVY] Successfully loaded from:', url);
+                        break;
+                    } catch (cdnError) {
+                        console.warn('[PRIVY] Failed to load from', url, ':', cdnError.message);
+                    }
+                }
+
+                if (!privyModule) {
+                    console.error('[PRIVY] Failed to load SDK from all CDNs');
+                    return;
+                }
+
+                console.log('[PRIVY] Module exports:', Object.keys(privyModule));
 
                 // Get the Privy constructor - try named export first, then default
                 const PrivyClass = privyModule.Privy || privyModule.PrivyClient || privyModule.default;
