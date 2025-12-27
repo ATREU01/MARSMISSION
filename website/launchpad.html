@@ -1290,12 +1290,12 @@
                             </div>
                             <div class="path-option-desc">One-click launch, auto bonding curve</div>
                         </div>
-                        <div class="path-option disabled" data-path="launchr" style="opacity:0.5;cursor:not-allowed;">
+                        <div class="path-option" data-path="launchr" onclick="selectPath('launchr')">
                             <div class="path-option-header">
-                                <span class="path-option-name">Launchr</span>
-                                <span class="path-option-badge advanced">Coming Soon</span>
+                                <span class="path-option-name">LAUNCHR</span>
+                                <span class="path-option-badge advanced">Native</span>
                             </div>
-                            <div class="path-option-desc">Custom curves, full control</div>
+                            <div class="path-option-desc">LAUNCHR native token, custom CA</div>
                         </div>
                     </div>
 
@@ -1528,9 +1528,12 @@
         // INITIALIZATION
         // ═══════════════════════════════════════════════════════════════════════
         document.addEventListener('DOMContentLoaded', async () => {
-            await initPrivy();
+            // Check for Privy wallet first (from /auth redirect)
+            checkPrivyWallet();
+
+            // Then check localStorage for any stored wallet
             const stored = localStorage.getItem('connectedWallet');
-            if (stored) handleWalletConnected(stored);
+            if (stored && !connectedWallet) handleWalletConnected(stored);
 
             // Load real data from API
             await Promise.all([
@@ -2017,6 +2020,64 @@
             };
         }
 
+        // ═══════════════════════════════════════════════════════════════════════
+        // LAUNCHR TOKEN CREATION - Native SPL token via LAUNCHR platform
+        // Creates token on Solana mainnet with Raydium liquidity
+        // ═══════════════════════════════════════════════════════════════════════
+        async function createLaunchrToken(walletAddress, tokenMetadata, initialLiquiditySOL = 0) {
+            console.log('[LAUNCHR] Creating native LAUNCHR token...');
+            console.log('[LAUNCHR] Creator wallet:', walletAddress);
+            console.log('[LAUNCHR] Token name:', tokenMetadata.metadata.name);
+            console.log('[LAUNCHR] Initial liquidity:', initialLiquiditySOL, 'SOL');
+
+            try {
+                // Call backend API to create LAUNCHR token
+                const response = await fetch('/api/launchr/create-token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        creator: walletAddress,
+                        name: tokenMetadata.metadata.name,
+                        symbol: tokenMetadata.metadata.symbol,
+                        description: tokenMetadata.metadata.description || '',
+                        image: tokenMetadata.metadata.image || '',
+                        metadataUri: tokenMetadata.metadataUri,
+                        initialLiquidity: initialLiquiditySOL,
+                        socials: {
+                            twitter: tokenMetadata.metadata.twitter || '',
+                            telegram: tokenMetadata.metadata.telegram || '',
+                            website: tokenMetadata.metadata.website || ''
+                        }
+                    })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(result.error || 'Failed to create LAUNCHR token');
+                }
+
+                console.log('[LAUNCHR] Token created successfully!');
+                console.log('[LAUNCHR] Mint:', result.mint);
+                console.log('[LAUNCHR] Signature:', result.signature);
+
+                return {
+                    success: true,
+                    mint: result.mint,
+                    signature: result.signature,
+                    raydiumPool: result.raydiumPool || null,
+                    path: 'launchr'
+                };
+
+            } catch (error) {
+                console.error('[LAUNCHR] Token creation error:', error);
+                return {
+                    success: false,
+                    error: error.message
+                };
+            }
+        }
+
         // Create token via PumpPortal API
         // mintInfo: { publicKey, vaultId?, keypair?, isVanity }
         async function createTokenViaPumpPortal(walletAddress, mintInfo, tokenMetadata, initialBuySOL = 0) {
@@ -2249,31 +2310,62 @@
                 // Step 1: Upload metadata to IPFS
                 const tokenMetadata = await uploadTokenMetadata(name, symbol, description, imageFile, socials);
 
-                btn.textContent = 'Getting vanity address...';
+                let mintAddress, signature;
 
-                // Step 2: Generate mint info (tries vanity vault first)
-                const mintInfo = await generateMintKeypair();
+                // Route based on selected path
+                if (selectedPath === 'launchr') {
+                    // ═══════════════════════════════════════════════════════════════
+                    // LAUNCHR PATH - Native SPL token via LAUNCHR platform
+                    // ═══════════════════════════════════════════════════════════════
+                    btn.textContent = 'Creating LAUNCHR token...';
 
-                btn.textContent = 'Creating token...';
+                    const launchrResult = await createLaunchrToken(
+                        connectedWallet,
+                        tokenMetadata,
+                        devBuyAmount
+                    );
 
-                // Step 3: Create token via PumpPortal
-                const { transaction, connection } = await createTokenViaPumpPortal(
-                    connectedWallet,
-                    mintInfo,
-                    tokenMetadata,
-                    devBuyAmount // Initial dev buy amount in SOL
-                );
+                    if (!launchrResult.success) {
+                        throw new Error(launchrResult.error || 'LAUNCHR token creation failed');
+                    }
 
-                btn.textContent = mintInfo.isVanity ? 'Signing via vault...' : 'Waiting for signature...';
+                    mintAddress = launchrResult.mint;
+                    signature = launchrResult.signature;
 
-                // Step 4: Sign and send transaction (vault for vanity, local for random)
-                const signature = await signAndSendTransaction(transaction, connection, mintInfo);
+                    btn.textContent = 'LAUNCHR token created!';
+                    console.log('[DEPLOY] LAUNCHR token created:', mintAddress);
 
-                btn.textContent = 'Token launched!';
+                } else {
+                    // ═══════════════════════════════════════════════════════════════
+                    // PUMP.FUN PATH - Token via PumpPortal API
+                    // ═══════════════════════════════════════════════════════════════
+                    btn.textContent = 'Getting vanity address...';
+
+                    // Step 2: Generate mint info (tries vanity vault first)
+                    const mintInfo = await generateMintKeypair();
+
+                    btn.textContent = 'Creating token...';
+
+                    // Step 3: Create token via PumpPortal
+                    const { transaction, connection } = await createTokenViaPumpPortal(
+                        connectedWallet,
+                        mintInfo,
+                        tokenMetadata,
+                        devBuyAmount // Initial dev buy amount in SOL
+                    );
+
+                    btn.textContent = mintInfo.isVanity ? 'Signing via vault...' : 'Waiting for signature...';
+
+                    // Step 4: Sign and send transaction (vault for vanity, local for random)
+                    signature = await signAndSendTransaction(transaction, connection, mintInfo);
+
+                    mintAddress = mintInfo.publicKey.toString();
+                    btn.textContent = 'Token launched!';
+                }
 
                 // Success! Show result
-                const mintAddress = mintInfo.publicKey.toString();
                 console.log('[DEPLOY] Token created successfully!');
+                console.log('[DEPLOY] Path:', selectedPath);
                 console.log('[DEPLOY] Mint address:', mintAddress);
                 console.log('[DEPLOY] Transaction:', signature);
 
@@ -2562,32 +2654,18 @@
 
         async function connectPrivy() {
             document.getElementById('walletSelectModal')?.remove();
-            try {
-                if (!privyClient && typeof window.Privy !== 'undefined') {
-                    privyClient = new window.Privy({
-                        appId: PRIVY_APP_ID,
-                        config: {
-                            loginMethods: ['wallet'],  // Simplified: wallet-only (no Magic Link required)
-                            appearance: { theme: 'dark', accentColor: '#FFD966' },
-                            embeddedWallets: { createOnLogin: 'users-without-wallets' },
-                            solanaClusters: [{ name: 'mainnet-beta', rpcUrl: SOLANA_RPC }],
-                        },
-                    });
-                }
-                if (privyClient) {
-                    await privyClient.login();
-                    const user = await privyClient.getUser();
-                    if (user?.wallet?.address) {
-                        handleWalletConnected(user.wallet.address);
-                    } else {
-                        showNotification('Please connect a wallet in Privy', 'error');
-                    }
-                } else {
-                    showNotification('Privy not available', 'error');
-                }
-            } catch (e) {
-                console.error('[PRIVY]', e);
-                showNotification('Failed to connect with Privy', 'error');
+            // Redirect to Privy auth page with return URL
+            const returnUrl = encodeURIComponent(window.location.href);
+            window.location.href = '/auth?returnTo=' + returnUrl;
+        }
+
+        // Check for Privy wallet on page load
+        function checkPrivyWallet() {
+            const privyWallet = localStorage.getItem('privyWallet');
+            const privyConnected = localStorage.getItem('privyConnected');
+            if (privyConnected === 'true' && privyWallet) {
+                handleWalletConnected(privyWallet);
+                showNotification('Connected with Privy wallet', 'success');
             }
         }
 

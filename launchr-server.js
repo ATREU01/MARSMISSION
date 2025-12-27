@@ -1321,10 +1321,28 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    // Serve Creator Dashboard (React SPA with config injection)
-    if (url.pathname === '/dashboard' && req.method === 'GET') {
+    // Serve Privy Auth (React SPA for wallet authentication)
+    if (url.pathname === '/auth' && req.method === 'GET') {
         try {
             const html = fs.readFileSync(path.join(__dirname, 'frontend', 'dist', 'index.html'), 'utf8');
+            res.writeHead(200, {
+                'Content-Type': 'text/html; charset=utf-8',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            });
+            res.end(injectConfig(html));
+        } catch (e) {
+            res.writeHead(302, { 'Location': '/' });
+            res.end();
+        }
+        return;
+    }
+
+    // Serve Creator Dashboard (full featured)
+    if (url.pathname === '/dashboard' && req.method === 'GET') {
+        try {
+            const html = fs.readFileSync(path.join(__dirname, 'website', 'dashboard.html'), 'utf8');
             res.writeHead(200, {
                 'Content-Type': 'text/html; charset=utf-8',
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -2007,6 +2025,268 @@ The 4 percentages must sum to 100.`;
             console.error('[API] register-token error:', e);
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Create LAUNCHR native token with bonding curve
+    // Token starts on bonding curve, graduates to Raydium at 85 SOL
+    if (url.pathname === '/api/launchr/create-token' && req.method === 'POST') {
+        try {
+            const data = await parseBody(req);
+
+            if (!data.creator || !data.name || !data.symbol) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'creator, name, and symbol required' }));
+                return;
+            }
+
+            console.log('[LAUNCHR] Creating native token with bonding curve');
+            console.log('[LAUNCHR] Name:', data.name, '(' + data.symbol + ')');
+            console.log('[LAUNCHR] Creator:', data.creator);
+
+            const { Keypair } = require('@solana/web3.js');
+            const { LaunchrCurveManager } = require('./launchr-curve');
+
+            // Generate mint address for the token
+            const mintKeypair = Keypair.generate();
+            const mint = mintKeypair.publicKey.toBase58();
+
+            console.log('[LAUNCHR] Generated mint:', mint);
+
+            // Initialize curve manager and create bonding curve
+            const curveManager = new LaunchrCurveManager(null, null);
+            const curve = curveManager.createCurve(
+                mint,
+                data.creator,
+                data.name,
+                data.symbol
+            );
+
+            // Register the token in tracker
+            tracker.registerToken(mint, data.creator, {
+                name: data.name,
+                symbol: data.symbol,
+                image: data.metadataUri || null,
+                path: 'launchr',
+                description: data.description || '',
+                socials: data.socials || {},
+                bondingCurve: true,
+                graduated: false
+            });
+
+            // Get initial curve status
+            const curveStatus = curve.getStatus();
+
+            console.log('[LAUNCHR] Token created with bonding curve');
+            console.log('[LAUNCHR] Initial price:', curveStatus.price.toFixed(10), 'SOL');
+            console.log('[LAUNCHR] Graduation at: 85 SOL (~$69K mcap)');
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                mint,
+                signature: 'curve_created',
+                path: 'launchr',
+                bondingCurve: {
+                    active: true,
+                    price: curveStatus.price,
+                    progress: 0,
+                    graduationThreshold: 85,
+                    tokensAvailable: curveStatus.tokensRemaining,
+                },
+                message: 'Token launched on LAUNCHR bonding curve. Trade to progress toward graduation!'
+            }));
+
+        } catch (e) {
+            console.error('[LAUNCHR] Token creation error:', e);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // LAUNCHR BONDING CURVE APIs
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // API: Get curve status
+    if (url.pathname === '/api/curve/status' && req.method === 'GET') {
+        try {
+            const { LaunchrCurveManager } = require('./launchr-curve');
+            const curveManager = new LaunchrCurveManager(null, null);
+
+            const mint = url.searchParams.get('mint');
+            if (mint) {
+                const curve = curveManager.getCurve(mint);
+                if (!curve) {
+                    res.writeHead(404, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Curve not found' }));
+                    return;
+                }
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(curve.getStatus()));
+            } else {
+                // Return all active curves
+                const curves = curveManager.getActiveCurves().map(c => c.getStatus());
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ curves, count: curves.length }));
+            }
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: e.message }));
+        }
+        return;
+    }
+
+    // API: Get buy quote
+    if (url.pathname === '/api/curve/quote/buy' && req.method === 'GET') {
+        try {
+            const { LaunchrCurveManager } = require('./launchr-curve');
+            const curveManager = new LaunchrCurveManager(null, null);
+
+            const mint = url.searchParams.get('mint');
+            const amount = parseFloat(url.searchParams.get('amount') || '0');
+
+            if (!mint || !amount) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'mint and amount required' }));
+                return;
+            }
+
+            const curve = curveManager.getCurve(mint);
+            if (!curve) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Curve not found' }));
+                return;
+            }
+
+            const quote = curve.quoteBuy(amount);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(quote));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: e.message }));
+        }
+        return;
+    }
+
+    // API: Get sell quote
+    if (url.pathname === '/api/curve/quote/sell' && req.method === 'GET') {
+        try {
+            const { LaunchrCurveManager } = require('./launchr-curve');
+            const curveManager = new LaunchrCurveManager(null, null);
+
+            const mint = url.searchParams.get('mint');
+            const amount = parseFloat(url.searchParams.get('amount') || '0');
+
+            if (!mint || !amount) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'mint and amount required' }));
+                return;
+            }
+
+            const curve = curveManager.getCurve(mint);
+            if (!curve) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Curve not found' }));
+                return;
+            }
+
+            const quote = curve.quoteSell(amount);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(quote));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: e.message }));
+        }
+        return;
+    }
+
+    // API: Execute buy on curve
+    if (url.pathname === '/api/curve/buy' && req.method === 'POST') {
+        try {
+            const data = await parseBody(req);
+            const { mint, amount, buyer } = data;
+
+            if (!mint || !amount || !buyer) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'mint, amount, and buyer required' }));
+                return;
+            }
+
+            const { LaunchrCurveManager } = require('./launchr-curve');
+            const curveManager = new LaunchrCurveManager(null, null);
+
+            const result = await curveManager.buy(mint, amount, buyer);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(result));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Execute sell on curve
+    if (url.pathname === '/api/curve/sell' && req.method === 'POST') {
+        try {
+            const data = await parseBody(req);
+            const { mint, amount, seller } = data;
+
+            if (!mint || !amount || !seller) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'mint, amount, and seller required' }));
+                return;
+            }
+
+            const { LaunchrCurveManager } = require('./launchr-curve');
+            const curveManager = new LaunchrCurveManager(null, null);
+
+            const result = await curveManager.sell(mint, amount, seller);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(result));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Get curve leaderboard
+    if (url.pathname === '/api/curve/leaderboard' && req.method === 'GET') {
+        try {
+            const { LaunchrCurveManager } = require('./launchr-curve');
+            const curveManager = new LaunchrCurveManager(null, null);
+
+            const limit = parseInt(url.searchParams.get('limit') || '10');
+            const leaderboard = curveManager.getLeaderboard(limit);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ tokens: leaderboard }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: e.message }));
+        }
+        return;
+    }
+
+    // API: Get trending curves
+    if (url.pathname === '/api/curve/trending' && req.method === 'GET') {
+        try {
+            const { LaunchrCurveManager } = require('./launchr-curve');
+            const curveManager = new LaunchrCurveManager(null, null);
+
+            const limit = parseInt(url.searchParams.get('limit') || '10');
+            const trending = curveManager.getTrending(limit);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ tokens: trending }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: e.message }));
         }
         return;
     }
