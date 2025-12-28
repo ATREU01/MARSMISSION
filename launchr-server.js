@@ -1615,6 +1615,8 @@ The 4 percentages MUST sum to exactly 100.`;
                     txns: t.txns || 0,
                     buys: t.buys || 0,
                     sells: t.sells || 0,
+                    aiScore: t.aiScore || 0,
+                    aiSource: t.aiSource || null,
                 }));
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ tokens }));

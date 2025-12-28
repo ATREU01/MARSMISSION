@@ -2541,7 +2541,7 @@
                 // Try to get data from engine status first (this has the token mint!)
                 if (authToken) {
                     try {
-                        const statusRes = await fetch('/api/engine/status', { headers: authHeaders() });
+                        const statusRes = await fetch('/api/status', { headers: authHeaders() });
                         if (statusRes.ok) {
                             const status = await statusRes.json();
                             if (status.rsi?.current) marketData.rsi = status.rsi.current;

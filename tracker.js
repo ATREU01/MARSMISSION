@@ -33,6 +33,137 @@ const pumpApi = axios.create({
 const apiCache = new Map();
 const CACHE_TTL = 30000;
 
+// ═══════════════════════════════════════════════════════════════════
+// AI SENTIMENT ANALYSIS
+// ═══════════════════════════════════════════════════════════════════
+
+const sentimentCache = new Map();
+const SENTIMENT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Keyword fallback (no API needed)
+const BULLISH_WORDS = ['moon', 'pump', 'gem', 'alpha', 'degen', 'ape', 'rocket', 'lambo', '100x', 'buy', 'bull', 'send', 'fire'];
+const BEARISH_WORDS = ['scam', 'rug', 'dump', 'dead', 'fake', 'honeypot', 'drain', 'sell', 'bear', 'rekt'];
+
+function analyzeKeywords(text) {
+    const lower = text.toLowerCase();
+    let bullish = 0, bearish = 0;
+
+    for (const word of BULLISH_WORDS) {
+        if (lower.includes(word)) bullish++;
+    }
+    for (const word of BEARISH_WORDS) {
+        if (lower.includes(word)) bearish++;
+    }
+
+    const total = bullish + bearish;
+    if (total === 0) return 50; // neutral
+
+    const ratio = (bullish - bearish) / total;
+    return Math.round(50 + (ratio * 40)); // Range: 10-90
+}
+
+// Claude API sentiment analysis with price context
+async function analyzeWithClaude(tokenName, tokenSymbol, priceData = null) {
+    const apiKey = process.env.CLAUDE_API_KEY;
+    if (!apiKey) return null;
+
+    try {
+        // Build price context if available
+        let priceContext = '';
+        if (priceData) {
+            const { change5m, change1h, change24h } = priceData;
+            priceContext = `
+PRICE ACTION:
+- 5min change: ${change5m > 0 ? '+' : ''}${change5m?.toFixed(1) || 0}%
+- 1hr change: ${change1h > 0 ? '+' : ''}${change1h?.toFixed(1) || 0}%
+- 24hr change: ${change24h > 0 ? '+' : ''}${change24h?.toFixed(1) || 0}%
+
+TIMING:
+- If already pumped 100%+ in 1h: Max score 40 (late entry)
+- If 5m negative while 1h positive: Max score 50 (distribution)`;
+        }
+
+        const response = await axios.post('https://api.anthropic.com/v1/messages', {
+            model: 'claude-3-haiku-20240307',
+            max_tokens: 100,
+            messages: [{
+                role: 'user',
+                content: `Rate crypto meme token "${tokenName}" ($${tokenSymbol}) from 0-100 for trading potential.
+${priceContext}
+SCORING:
+- 80-100: Viral meme potential + good entry timing
+- 60-79: Good concept + reasonable entry
+- 40-59: Average OR already pumped significantly
+- 20-39: Weak concept OR chasing pump
+- 0-19: Red flags or scam indicators
+
+Reply with ONLY a number 0-100.`
+            }]
+        }, {
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01'
+            },
+            timeout: 10000
+        });
+
+        const text = response.data?.content?.[0]?.text || '';
+        const score = parseInt(text.match(/\d+/)?.[0]);
+
+        if (score >= 0 && score <= 100) {
+            console.log(`[AI] Claude sentiment for ${tokenSymbol}: ${score}`);
+            return score;
+        }
+        return null;
+    } catch (e) {
+        console.log(`[AI] Claude error: ${e.message}`);
+        return null;
+    }
+}
+
+// Master sentiment function
+async function getTokenSentiment(token) {
+    const name = token.name || '';
+    const symbol = token.symbol || '';
+    const cacheKey = `${symbol}-${name}`.toLowerCase();
+
+    // Check cache
+    const cached = sentimentCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < SENTIMENT_CACHE_TTL) {
+        return cached.result;
+    }
+
+    // Get price data
+    const priceData = {
+        change5m: token.priceChange5m || 0,
+        change1h: token.priceChange1h || 0,
+        change24h: token.priceChange24h || 0
+    };
+
+    // Keyword fallback
+    const keywordScore = analyzeKeywords(`${name} ${symbol}`);
+
+    // Try Claude
+    const claudeScore = await analyzeWithClaude(name, symbol, priceData);
+
+    let finalScore, source;
+    if (claudeScore !== null) {
+        finalScore = claudeScore;
+        source = 'claude';
+    } else {
+        finalScore = keywordScore;
+        source = 'keywords';
+    }
+
+    const result = { score: finalScore, source, claudeScore, keywordScore };
+
+    // Cache it
+    sentimentCache.set(cacheKey, { result, timestamp: Date.now() });
+
+    return result;
+}
+
 // Ensure data directory exists
 function ensureDataDir() {
     if (!fs.existsSync(DATA_DIR)) {
@@ -397,69 +528,60 @@ async function updateTokenMetrics(tokenMint) {
     }
 
     // TRY 4: Multi-source HOLDER data (fallback chain)
-    if (!token.holders || token.holders === 0) {
-        let holderSource = '';
+    // Reset holders to re-fetch fresh data each time
+    let holderSource = '';
+    let freshHolders = 0;
 
-        // 4a. Jupiter holderCount (most reliable)
+    // 4a. Pump.fun holder_count (best for pump tokens)
+    try {
+        const pumpHolderRes = await pumpApi.get(`/coins/${tokenMint}`);
+        const d = pumpHolderRes.data;
+        freshHolders = d?.holder_count || d?.unique_holders || d?.holders || 0;
+        if (freshHolders > 0) {
+            holderSource = 'Pump.fun';
+        }
+    } catch (e) {}
+
+    // 4b. GMGN (reliable for all tokens)
+    if (freshHolders === 0) {
         try {
-            const jupHolderRes = await axios.get(`https://lite-api.jup.ag/tokens/v2/search?query=${tokenMint}`, {
+            const gmgnRes = await axios.get(`https://gmgn.ai/defi/quotation/v1/tokens/sol/${tokenMint}`, {
                 timeout: 5000,
-                headers: { 'Accept': 'application/json' }
+                headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
             });
-            const jupToken = Array.isArray(jupHolderRes.data)
-                ? jupHolderRes.data.find(t => t.address === tokenMint || t.id === tokenMint)
-                : null;
-            if (jupToken?.holderCount) {
-                token.holders = jupToken.holderCount;
-                holderSource = 'Jupiter';
-            }
+            freshHolders = gmgnRes.data?.data?.token?.holder_count || gmgnRes.data?.data?.token?.holders || 0;
+            if (freshHolders > 0) holderSource = 'GMGN';
         } catch (e) {}
+    }
 
-        // 4b. Pump.fun holder_count
-        if (!token.holders || token.holders === 0) {
-            try {
-                const pumpHolderRes = await pumpApi.get(`/coins/${tokenMint}`);
-                const holders = pumpHolderRes.data?.holder_count || pumpHolderRes.data?.unique_holders || pumpHolderRes.data?.holders;
-                if (holders > 0) {
-                    token.holders = holders;
-                    holderSource = 'Pump.fun';
-                }
-            } catch (e) {}
-        }
+    // 4c. Birdeye API
+    if (freshHolders === 0) {
+        try {
+            const birdRes = await axios.get(`https://public-api.birdeye.so/public/token_overview?address=${tokenMint}`, {
+                timeout: 5000,
+                headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' }
+            });
+            freshHolders = birdRes.data?.data?.holder || 0;
+            if (freshHolders > 0) holderSource = 'Birdeye';
+        } catch (e) {}
+    }
 
-        // 4c. GMGN
-        if (!token.holders || token.holders === 0) {
-            try {
-                const gmgnRes = await axios.get(`https://gmgn.ai/defi/quotation/v1/tokens/sol/${tokenMint}`, {
-                    timeout: 5000,
-                    headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' }
-                });
-                const holders = gmgnRes.data?.data?.token?.holder_count || gmgnRes.data?.data?.token?.holders;
-                if (holders > 0) {
-                    token.holders = holders;
-                    holderSource = 'GMGN';
-                }
-            } catch (e) {}
-        }
+    // 4d. Solscan
+    if (freshHolders === 0) {
+        try {
+            const solscanRes = await axios.get(`https://public-api.solscan.io/token/holders?tokenAddress=${tokenMint}&limit=1`, {
+                timeout: 5000,
+                headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' }
+            });
+            freshHolders = solscanRes.data?.total || 0;
+            if (freshHolders > 0) holderSource = 'Solscan';
+        } catch (e) {}
+    }
 
-        // 4d. Solscan
-        if (!token.holders || token.holders === 0) {
-            try {
-                const solscanRes = await axios.get(`https://public-api.solscan.io/token/meta?tokenAddress=${tokenMint}`, {
-                    timeout: 5000,
-                    headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' }
-                });
-                const holders = solscanRes.data?.holder || solscanRes.data?.data?.holder;
-                if (holders > 0) {
-                    token.holders = holders;
-                    holderSource = 'Solscan';
-                }
-            } catch (e) {}
-        }
-
-        if (token.holders > 0) {
-            console.log(`[TRACKER] ${holderSource}: ${token.symbol} has ${token.holders} holders`);
-        }
+    // Update holder count if we got fresh data
+    if (freshHolders > 0) {
+        token.holders = freshHolders;
+        console.log(`[TRACKER] ${holderSource}: ${token.symbol} has ${token.holders} holders`);
     }
 
     // TRY 5: Helius for transaction count
@@ -496,6 +618,20 @@ async function updateTokenMetrics(tokenMint) {
     // Fallback image
     if (!token.image) {
         token.image = `https://dd.dexscreener.com/ds-data/tokens/solana/${tokenMint}.png`;
+    }
+
+    // TRY 6: AI Sentiment Analysis (Claude)
+    if (token.name && token.symbol && !token.aiScore) {
+        try {
+            const sentiment = await getTokenSentiment(token);
+            if (sentiment?.score) {
+                token.aiScore = sentiment.score;
+                token.aiSource = sentiment.source;
+                console.log(`[AI] ${token.symbol}: Score ${token.aiScore} (${token.aiSource})`);
+            }
+        } catch (e) {
+            // AI failed silently
+        }
     }
 
     // Mark update time
@@ -542,6 +678,7 @@ module.exports = {
     updateTokenStats,
     getTokens,
     getTokensByCreator,
+    getTokenSentiment,
     getPublicStats,
     checkGraduationStatus,
     updateGraduationStatus,
