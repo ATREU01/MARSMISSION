@@ -28,6 +28,13 @@ const PRODUCTION_CONFIG = {
     CREATOR_FEE_PERCENT: 99,       // 99% to creator's allocation engine
 };
 
+// ═══════════════════════════════════════════════════════════════════════════
+// TOKEN BLOCKLIST - Block competitor/spam tokens
+// ═══════════════════════════════════════════════════════════════════════════
+const BLOCKED_MINTS = [
+    'Apfi3UpBUbunhfSBhgvE7gQzRo8eg5YfWECwcqFJpimp', // Pimpball - competitor
+];
+
 // Get fee wallet public key if private key is set
 let FEE_WALLET_PUBLIC_KEY = '';
 if (PRODUCTION_CONFIG.FEE_WALLET_PRIVATE_KEY) {
@@ -1555,6 +1562,7 @@ The 4 percentages must sum to 100.`;
         try {
             const data = tracker.getTokens();
             const tokens = (data.tokens || [])
+                .filter(t => !BLOCKED_MINTS.includes(t.mint)) // Block competitor tokens
                 .sort((a, b) => b.lastSeen - a.lastSeen)
                 .slice(0, 50)
                 .map(t => ({
@@ -1779,6 +1787,7 @@ The 4 percentages must sum to 100.`;
         try {
             const data = tracker.getTokens();
             const leaderboard = (data.tokens || [])
+                .filter(t => !BLOCKED_MINTS.includes(t.mint)) // Block competitor tokens
                 .sort((a, b) => (b.mcap || 0) - (a.mcap || 0))
                 .slice(0, 10)
                 .map((t, index) => ({
