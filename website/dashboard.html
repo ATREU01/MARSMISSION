@@ -3877,12 +3877,25 @@
             });
         }
 
-        // Initialize analytics with demo data on page load
+        // Initialize analytics and auto-refresh on page load
         document.addEventListener('DOMContentLoaded', () => {
             // Delay a bit to ensure DOM is ready
-            setTimeout(() => {
-                updateTokenAnalytics();
+            setTimeout(async () => {
+                // Check if there's a saved token to restore
+                const savedToken = localStorage.getItem('connectedTokenMint');
+                if (savedToken && myTokens.length > 0) {
+                    await selectTokenLocal(savedToken);
+                } else {
+                    updateTokenAnalytics();  // Show zeros if no token
+                }
             }, 500);
+
+            // Auto-refresh token analytics every 30 seconds
+            setInterval(async () => {
+                if (selectedToken) {
+                    await selectTokenLocal(selectedToken);  // Refresh data
+                }
+            }, 30000);
         });
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -3900,6 +3913,14 @@
                 const data = await res.json();
                 myTokens = data.tokens || [];
                 renderMyTokens();
+
+                // Auto-select saved token or first token
+                const savedToken = localStorage.getItem('connectedTokenMint');
+                if (savedToken && myTokens.find(t => t.mint === savedToken)) {
+                    await selectTokenLocal(savedToken);
+                } else if (myTokens.length > 0) {
+                    await selectTokenLocal(myTokens[0].mint);  // Select first token
+                }
             } catch (e) {
                 console.error('[MY-TOKENS] Failed to fetch:', e);
                 myTokens = [];
@@ -3966,8 +3987,9 @@
             `;
         }
 
-        function selectTokenLocal(mint) {
+        async function selectTokenLocal(mint) {
             selectedToken = mint;
+            localStorage.setItem('connectedTokenMint', mint);  // Store for AI optimizer
             const token = myTokens.find(t => t.mint === mint);
 
             if (token) {
@@ -3980,23 +4002,33 @@
                 document.getElementById('tokenPath').textContent = token.path === 'launchr' ? 'LAUNCHR' : 'PUMP';
                 document.getElementById('tokenPath').className = `path-badge ${token.path === 'launchr' ? 'launchr' : 'pumpfun'}`;
 
-                // Update analytics with real token data only (no placeholders)
-                updateTokenAnalytics({
-                    marketCap: token.mcap || 0,
-                    liquidity: 0,  // Would need to fetch from Pump.fun
-                    volume24h: token.volume || 0,
+                // Fetch REAL data from DexScreener
+                let dexData = null;
+                try {
+                    const dexRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`);
+                    if (dexRes.ok) {
+                        const dexJson = await dexRes.json();
+                        dexData = dexJson.pairs?.[0];
+                    }
+                } catch (e) { console.log('DexScreener fetch failed:', e); }
+
+                // Build complete analytics data
+                const analyticsData = {
+                    marketCap: dexData?.marketCap || dexData?.fdv || token.mcap || 0,
+                    liquidity: dexData?.liquidity?.usd || token.liquidity || 0,
+                    volume24h: dexData?.volume?.h24 || token.volume || 0,
                     holders: token.holders || 0,
-                    transactions: 0,
-                    score: 0,
-                    priceChange1m: 0,
-                    priceChange5m: 0,
-                    priceChange1h: 0,
-                    priceChange24h: token.change || 0,
-                    buys24h: 0,
-                    sells24h: 0,
-                    liqDepth: 0,
-                    volMcapRatio: token.mcap > 0 ? (token.volume || 0) / token.mcap : 0,
-                    flow5m: 0,
+                    transactions: token.txns || 0,
+                    score: token.aiScore || 0,
+                    priceChange1m: dexData?.priceChange?.m5 || 0,  // 5min as closest to 1m
+                    priceChange5m: dexData?.priceChange?.m5 || 0,
+                    priceChange1h: dexData?.priceChange?.h1 || 0,
+                    priceChange24h: dexData?.priceChange?.h24 || token.priceChange24h || 0,
+                    buys24h: dexData?.txns?.h24?.buys || 0,
+                    sells24h: dexData?.txns?.h24?.sells || 0,
+                    liqDepth: dexData?.liquidity?.usd && dexData?.marketCap ? (dexData.liquidity.usd / dexData.marketCap) * 100 : 0,
+                    volMcapRatio: dexData?.marketCap > 0 ? (dexData?.volume?.h24 || 0) / dexData.marketCap : 0,
+                    flow5m: 0,  // Would need websocket for real-time
                     momentum: 0,
                     top10Pct: 0,
                     noMint: true,
@@ -4006,7 +4038,9 @@
                     insiderPct: 0,
                     devHoldPct: 0,
                     verified: false
-                });
+                };
+
+                updateTokenAnalytics(analyticsData);
             }
 
             // Re-render to show selection
