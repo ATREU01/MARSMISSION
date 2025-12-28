@@ -1573,6 +1573,16 @@ The 4 percentages must sum to 100.`;
                     time: formatTimeAgo(t.lastSeen || t.registeredAt),
                     createdAt: t.registeredAt,
                     lastMetricsUpdate: t.lastMetricsUpdate || null,
+                    // Socials (from tracker.updateTokenMetrics)
+                    twitter: t.twitter || null,
+                    telegram: t.telegram || null,
+                    website: t.website || null,
+                    // Additional market data
+                    liquidity: t.liquidity || 0,
+                    priceChange24h: t.priceChange24h || 0,
+                    holders: t.holders || 0,
+                    buys: t.buys || 0,
+                    sells: t.sells || 0,
                 }));
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ tokens }));
