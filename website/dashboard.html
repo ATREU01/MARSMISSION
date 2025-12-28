@@ -2908,15 +2908,34 @@
             try {
                 const res = await fetch('/api/claim', { method: 'POST', headers: authHeaders() });
                 const data = await res.json();
+
                 if (data.success) {
-                    const claimed = (data.claimed / 1e9).toFixed(4);
-                    showNotification(`Claimed ${claimed} SOL!`, 'success');
+                    const claimed = (data.claimed || 0) / 1e9;
+
+                    if (claimed > 0) {
+                        showNotification(`Claimed ${claimed.toFixed(4)} SOL!`, 'success');
+                    } else {
+                        // No fees to claim - show friendly message
+                        showNotification('No fees available to claim right now', 'info');
+                    }
                     await fetchEngineStatus(); // Refresh stats
                 } else {
-                    throw new Error(data.error || 'Claim failed');
+                    // Check for common "no fees" scenarios
+                    const errorMsg = (data.error || '').toLowerCase();
+                    if (errorMsg.includes('no fees') || errorMsg.includes('nothing to claim') || data.reason === 'no_fees_to_claim') {
+                        showNotification('No fees available to claim right now', 'info');
+                    } else {
+                        showNotification(data.error || 'Claim failed', 'error');
+                    }
                 }
             } catch (e) {
-                showNotification('Error: ' + e.message, 'error');
+                // Network or parsing error
+                const errorMsg = (e.message || '').toLowerCase();
+                if (errorMsg.includes('no fees') || errorMsg.includes('nothing')) {
+                    showNotification('No fees available to claim right now', 'info');
+                } else {
+                    showNotification('Claim failed: ' + e.message, 'error');
+                }
             }
 
             if (btn) {
