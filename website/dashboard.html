@@ -214,6 +214,101 @@
         }
         .sidebar-link.active svg { opacity: 1; }
 
+        /* Theme Toggle */
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: all 0.15s;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .theme-toggle:hover {
+            background: var(--gold-dim);
+            color: var(--text);
+        }
+        .theme-icon {
+            width: 18px;
+            height: 18px;
+            opacity: 0.7;
+        }
+        .theme-label {
+            flex: 1;
+        }
+        .theme-switch {
+            width: 36px;
+            height: 20px;
+            background: var(--border);
+            border-radius: 10px;
+            position: relative;
+            transition: all 0.2s;
+        }
+        .theme-switch-handle {
+            width: 16px;
+            height: 16px;
+            background: var(--text-muted);
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: all 0.2s;
+        }
+        body.light-mode .theme-switch {
+            background: var(--gold);
+        }
+        body.light-mode .theme-switch-handle {
+            left: 18px;
+            background: #fff;
+        }
+        body.light-mode .theme-icon-dark { display: none !important; }
+        body.light-mode .theme-icon-light { display: block !important; }
+
+        /* Light Mode Styles */
+        body.light-mode {
+            --bg: #f8f9fa;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #e9ecef;
+            --text: #1a1a2e;
+            --text-secondary: #495057;
+            --text-muted: #6c757d;
+            --border: #dee2e6;
+            --gold-dim: rgba(255, 193, 7, 0.15);
+        }
+        body.light-mode .sidebar {
+            background: #ffffff;
+            border-right-color: #dee2e6;
+        }
+        body.light-mode .card {
+            background: #ffffff;
+            border-color: #dee2e6;
+        }
+        body.light-mode .stat-card {
+            background: #ffffff;
+        }
+        body.light-mode .btn-secondary {
+            background: #e9ecef;
+            color: #1a1a2e;
+        }
+        body.light-mode .btn-secondary:hover {
+            background: #dee2e6;
+        }
+        body.light-mode input,
+        body.light-mode select {
+            background: #ffffff;
+            border-color: #dee2e6;
+            color: #1a1a2e;
+        }
+        body.light-mode .allocation-item {
+            background: #ffffff;
+        }
+        body.light-mode .notification {
+            background: #ffffff;
+            border-color: #dee2e6;
+        }
+
         /* Main content */
         .main {
             padding: 24px 32px;
@@ -1643,10 +1738,6 @@
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
                     Analytics
                 </a>
-                <a href="/tracker" class="sidebar-link">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
-                    Token Tracker
-                </a>
             </div>
 
             <div class="sidebar-section">
@@ -1654,10 +1745,6 @@
                 <a href="/launchpad" class="sidebar-link">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
                     All Tokens
-                </a>
-                <a href="/launchpad" class="sidebar-link">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
-                    My Launches
                 </a>
             </div>
 
@@ -1675,6 +1762,18 @@
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
                     Telegram
                 </a>
+            </div>
+
+            <!-- Theme Toggle -->
+            <div class="sidebar-section" style="margin-top:auto;padding-top:16px;border-top:1px solid var(--border);">
+                <div class="theme-toggle" onclick="toggleTheme()">
+                    <svg class="theme-icon theme-icon-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                    <svg class="theme-icon theme-icon-light" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:none;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    <span class="theme-label">Dark Mode</span>
+                    <div class="theme-switch">
+                        <div class="theme-switch-handle"></div>
+                    </div>
+                </div>
             </div>
         </aside>
 
@@ -3149,9 +3248,33 @@
         let selectedLaunchPath = 'pumpfun';
 
         // ═══════════════════════════════════════════════════════════════════════
+        // THEME TOGGLE
+        // ═══════════════════════════════════════════════════════════════════════
+        function toggleTheme() {
+            const isLight = document.body.classList.toggle('light-mode');
+            localStorage.setItem('launchr-theme', isLight ? 'light' : 'dark');
+            updateThemeLabel();
+        }
+
+        function updateThemeLabel() {
+            const isLight = document.body.classList.contains('light-mode');
+            const label = document.querySelector('.theme-label');
+            if (label) label.textContent = isLight ? 'Light Mode' : 'Dark Mode';
+        }
+
+        function initTheme() {
+            const saved = localStorage.getItem('launchr-theme');
+            if (saved === 'light') {
+                document.body.classList.add('light-mode');
+            }
+            updateThemeLabel();
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
         // INITIALIZATION
         // ═══════════════════════════════════════════════════════════════════════
         document.addEventListener('DOMContentLoaded', async () => {
+            initTheme();
             await initPrivy();
             // Security: Don't auto-reconnect wallet - require fresh login each time
             localStorage.removeItem('connectedWallet');
@@ -3213,15 +3336,27 @@
                 console.log('[PRIVY] App ID not configured - Privy disabled');
                 return;
             }
-            // Listen for messages from Privy auth popup
+
+            // Listen for messages from Privy auth popup via BroadcastChannel (more reliable across tabs)
+            const channel = new BroadcastChannel('launchr-auth');
+            channel.onmessage = (e) => {
+                if (e.data?.type === 'privy-auth-success' && e.data?.address) {
+                    console.log('[PRIVY] Received wallet from BroadcastChannel:', e.data.address);
+                    handleWalletConnected(e.data.address);
+                    showNotification('Connected with Privy wallet!', 'success');
+                }
+            };
+
+            // Also listen via window.opener.postMessage (fallback for popups)
             window.addEventListener('message', (e) => {
                 if (e.data?.type === 'privy-auth-success' && e.data?.address) {
-                    console.log('[PRIVY] Received wallet from popup:', e.data.address);
+                    console.log('[PRIVY] Received wallet from postMessage:', e.data.address);
                     handleWalletConnected(e.data.address);
                     showNotification('Connected with Privy wallet!', 'success');
                 }
             });
-            console.log('[PRIVY] Ready - will use popup auth');
+
+            console.log('[PRIVY] Ready - listening via BroadcastChannel + postMessage');
         }
 
         async function connectWallet() {

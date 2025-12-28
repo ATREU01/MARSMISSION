@@ -62,16 +62,40 @@ function App() {
   const isPopup = !!window.opener
   const isAuthPage = window.location.pathname === '/auth'
 
-  // When authenticated in popup mode, notify parent (no localStorage - fresh login each time for security)
+  // When authenticated, notify parent window (via BroadcastChannel + postMessage for cross-tab reliability)
   useEffect(() => {
-    if (authenticated && walletAddress && isPopup && window.opener) {
-      window.opener.postMessage({
+    if (authenticated && walletAddress && (isPopup || isAuthPage)) {
+      const message = {
         type: 'privy-auth-success',
         address: walletAddress
-      }, '*')
-      setTimeout(() => window.close(), 500)
+      }
+
+      // Use BroadcastChannel for reliable cross-tab communication
+      try {
+        const channel = new BroadcastChannel('launchr-auth')
+        channel.postMessage(message)
+        log('Sent auth via BroadcastChannel:', walletAddress)
+        channel.close()
+      } catch (e) {
+        log('BroadcastChannel failed:', e)
+      }
+
+      // Also try window.opener.postMessage as fallback
+      if (window.opener) {
+        try {
+          window.opener.postMessage(message, '*')
+          log('Sent auth via postMessage:', walletAddress)
+        } catch (e) {
+          log('postMessage failed:', e)
+        }
+      }
+
+      // Close tab after a short delay if we're in popup mode
+      if (isPopup) {
+        setTimeout(() => window.close(), 500)
+      }
     }
-  }, [authenticated, walletAddress, isPopup])
+  }, [authenticated, walletAddress, isPopup, isAuthPage])
 
   // Auto-open login on auth page
   useEffect(() => {
