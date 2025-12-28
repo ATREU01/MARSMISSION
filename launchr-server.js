@@ -3232,12 +3232,12 @@ function getHTML() {
             }
         }
 
-        async function saveAllocations() {
+        async function saveAllocations(silent = false) {
             const allocations = getAllocations();
             const total = allocations.marketMaking + allocations.buybackBurn + allocations.liquidity + allocations.creatorRevenue;
             if (total !== 100) {
-                alert('Allocations must sum to 100%');
-                return;
+                if (!silent) alert('Allocations must sum to 100%');
+                return false;
             }
 
             try {
@@ -3248,12 +3248,16 @@ function getHTML() {
                 });
                 const data = await res.json();
                 if (data.success) {
-                    alert('Allocations saved!');
+                    if (!silent) alert('Allocations saved!');
+                    console.log('[ENGINE] Allocations auto-saved:', allocations);
+                    return true;
                 } else {
-                    alert('Error: ' + data.error);
+                    if (!silent) alert('Error: ' + data.error);
+                    return false;
                 }
             } catch (e) {
-                alert('Error: ' + e.message);
+                if (!silent) alert('Error: ' + e.message);
+                return false;
             }
         }
 
@@ -3452,11 +3456,17 @@ function getHTML() {
                     document.getElementById('input-liquidity').value = data.allocations.liquidity || 0;
                     document.getElementById('input-creatorRevenue').value = data.allocations.creatorRevenue || 0;
                     updateTotal();
-                    saveAllocations();
 
-                    resultDiv.innerHTML = '✅ ' + (data.allocations.reasoning || 'Allocations optimized!');
+                    // AUTO-SAVE silently to engine
+                    const saved = await saveAllocations(true);
+
+                    if (saved) {
+                        resultDiv.innerHTML = '✅ APPLIED: ' + (data.allocations.reasoning || 'Allocations optimized and saved to engine!');
+                    } else {
+                        resultDiv.innerHTML = '⚠️ ' + (data.allocations.reasoning || 'Optimized but failed to save - click Save manually');
+                    }
                     resultDiv.style.display = 'block';
-                    resultDiv.style.color = '#22c55e';
+                    resultDiv.style.color = saved ? '#22c55e' : '#f59e0b';
                 } else {
                     throw new Error(data.error);
                 }
