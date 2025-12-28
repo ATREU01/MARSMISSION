@@ -2491,7 +2491,7 @@
             try {
                 const res = await fetch('/api/allocations', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: authHeaders(),
                     body: JSON.stringify(allocations)
                 });
                 const data = await res.json();
