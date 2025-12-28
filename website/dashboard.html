@@ -4230,7 +4230,7 @@
                 document.getElementById('tokenAvatar').innerHTML = pumpData.image
                     ? `<img src="${escapeHtml(pumpData.image)}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">`
                     : (pumpData.symbol?.slice(0, 2) || '??');
-                document.getElementById('tokenPath').textContent = pumpData.complete ? 'GRADUATED' : 'PUMP';
+                document.getElementById('tokenPath').textContent = pumpData.complete === true ? 'GRADUATED' : 'PUMP';
 
                 // Update trading panel
                 document.getElementById('tradingTokenLabel').textContent = `${pumpData.symbol} / SOL`;
@@ -4255,7 +4255,7 @@
                     volume24h: pumpData.volume24h || 0,
                     holders: pumpData.holders || 0,
                     transactions: 0,  // Not available from API
-                    score: pumpData.complete ? 100 : Math.floor(progress),
+                    score: pumpData.complete === true ? 100 : Math.floor(progress),
                     priceChange1m: 0,  // Would need historical data
                     priceChange5m: 0,
                     priceChange1h: 0,
@@ -4273,7 +4273,7 @@
                     bundlerPct: 0,
                     insiderPct: 0,
                     devHoldPct: 0,
-                    verified: pumpData.complete,
+                    verified: pumpData.complete === true,
                     // Extra data for display
                     bondingProgress: progress,
                     solInCurve: realSolInCurve,

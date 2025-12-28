@@ -1881,7 +1881,8 @@
                 const solInCurve = (t.realSolReserves || 0) / 1e9;
                 const progress = Math.min((solInCurve / BONDING_CURVE_TARGET) * 100, 100);
                 const timeAgo = t.created ? getTimeAgo(t.created) : '';
-                const graduated = t.complete ? '<span style="color:var(--success);font-size:10px;margin-left:6px;">GRADUATED</span>' : '';
+                // Strict check - only show GRADUATED if complete is exactly true
+                const graduated = t.complete === true ? '<span style="color:var(--success);font-size:10px;margin-left:6px;">GRADUATED</span>' : '';
 
                 // Build socials HTML
                 const socialsHtml = [
@@ -1953,8 +1954,8 @@
                 if (!t.mint) return ''; // Skip invalid tokens
                 const changeClass = t.change >= 0 ? 'positive' : 'negative';
                 const changeText = t.change !== 0 ? (t.change >= 0 ? '+' : '') + t.change.toFixed(1) + '%' : '-';
-                const graduatedBadge = t.graduated ? '<span style="color:var(--success);font-size:10px;margin-left:6px;">GRADUATED</span>' : '';
-                const progressBar = !t.graduated && t.progress > 0 ? `<div style="margin-top:6px;"><div style="background:var(--surface-3);height:4px;border-radius:2px;overflow:hidden;"><div style="background:linear-gradient(90deg, var(--gold), var(--success));height:100%;width:${Math.min(t.progress, 100).toFixed(1)}%;"></div></div><div style="font-size:9px;color:var(--text-muted);margin-top:2px;">${t.progress.toFixed(1)}% to graduation</div></div>` : '';
+                const graduatedBadge = t.graduated === true ? '<span style="color:var(--success);font-size:10px;margin-left:6px;">GRADUATED</span>' : '';
+                const progressBar = t.graduated !== true && t.progress > 0 ? `<div style="margin-top:6px;"><div style="background:var(--surface-3);height:4px;border-radius:2px;overflow:hidden;"><div style="background:linear-gradient(90deg, var(--gold), var(--success));height:100%;width:${Math.min(t.progress, 100).toFixed(1)}%;"></div></div><div style="font-size:9px;color:var(--text-muted);margin-top:2px;">${t.progress.toFixed(1)}% to graduation</div></div>` : '';
                 return `
                 <div class="token-item" onclick="openTokenLink('${t.mint}')" role="button" tabindex="0">
                     <div class="token-avatar" style="background-size:cover;background-position:center;${t.image ? `background-image:url('${escapeHtml(t.image)}')` : ''}">
@@ -1996,7 +1997,7 @@
             list.innerHTML = leaderboard.map(rawEntry => {
                 const l = sanitizeLeaderEntry(rawEntry);
                 const rankClass = l.rank <= 3 ? `rank-${l.rank}` : '';
-                const graduatedBadge = l.graduated ? '<span style="color:var(--success);font-size:9px;margin-left:4px;">&#x2713;</span>' : '';
+                const graduatedBadge = l.graduated === true ? '<span style="color:var(--success);font-size:9px;margin-left:4px;">&#x2713;</span>' : '';
                 return `
                 <div class="leader-item">
                     <div class="leader-rank ${rankClass}">${l.rank}</div>
