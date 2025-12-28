@@ -527,10 +527,13 @@
         }
         .content-single {
             grid-template-columns: 1fr;
-            max-width: 900px;
+            max-width: 1400px;
         }
         .content-single .card {
             width: 100%;
+        }
+        .token-list {
+            overflow-x: auto;
         }
 
         /* Cards */
@@ -582,11 +585,15 @@
             100% { transform: translateX(-50%); }
         }
         .trending-bar {
-            background: var(--surface-1);
+            background: var(--bg-elevated);
             border-bottom: 1px solid var(--border);
-            padding: 12px 0;
+            padding: 10px 0;
             overflow: hidden;
-            position: relative;
+            position: fixed;
+            top: 64px;
+            left: 0;
+            right: 0;
+            z-index: 999;
         }
         .trending-bar::before,
         .trending-bar::after {
@@ -594,17 +601,20 @@
             position: absolute;
             top: 0;
             bottom: 0;
-            width: 60px;
+            width: 40px;
             z-index: 2;
             pointer-events: none;
         }
         .trending-bar::before {
             left: 0;
-            background: linear-gradient(to right, var(--surface-1), transparent);
+            background: linear-gradient(to right, var(--bg-elevated), transparent);
         }
         .trending-bar::after {
             right: 0;
-            background: linear-gradient(to left, var(--surface-1), transparent);
+            background: linear-gradient(to left, var(--bg-elevated), transparent);
+        }
+        .main {
+            padding-top: 44px;
         }
         .trending-scroll-wrapper {
             display: flex;
@@ -1436,6 +1446,19 @@
         </div>
     </nav>
 
+    <!-- Scrolling Leaderboard Bar (below nav) -->
+    <div class="trending-bar" id="trendingBar">
+        <div class="trending-scroll-wrapper" id="trendingScrollWrapper">
+            <div id="trendingTokens" style="display:flex;gap:20px;align-items:center;">
+                <!-- Rendered by JS -->
+            </div>
+            <!-- Duplicate for seamless loop -->
+            <div id="trendingTokensDupe" style="display:flex;gap:20px;align-items:center;">
+                <!-- Duplicate rendered by JS -->
+            </div>
+        </div>
+    </div>
+
     <!-- Wallet Modal -->
     <div id="walletModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeWalletModal()">
         <div class="modal">
@@ -1579,8 +1602,8 @@
             <div class="page-header-inner">
                 <div class="page-header-left">
                     <div class="page-title-group">
-                        <h1 class="page-title">Launchpad</h1>
-                        <p class="page-subtitle">Launch tokens on Pump.fun. 1% of creator fees go to the distribution pool.</p>
+                        <h1 class="page-title">Leaderboard</h1>
+                        <p class="page-subtitle">Top performing tokens. 1% of creator fees go to the distribution pool.</p>
                     </div>
                 </div>
                 <div class="page-header-right">
@@ -1623,45 +1646,26 @@
             </div>
         </div>
 
-        <!-- Trending Bar (Horizontal Leaderboard) -->
-        <div class="trending-bar" id="trendingBar">
-            <div class="trending-scroll-wrapper" id="trendingScrollWrapper">
-                <div class="trending-label">
-                    <span>Trending</span>
-                    <span class="trending-badge">LIVE</span>
-                </div>
-                <div id="trendingTokens" style="display:flex;gap:16px;align-items:center;">
-                    <!-- Rendered by JS -->
-                </div>
-                <!-- Duplicate for seamless loop -->
-                <div class="trending-label">
-                    <span>Trending</span>
-                    <span class="trending-badge">LIVE</span>
-                </div>
-                <div id="trendingTokensDupe" style="display:flex;gap:16px;align-items:center;">
-                    <!-- Duplicate rendered by JS -->
-                </div>
-            </div>
-        </div>
-
         <!-- Content -->
         <div class="content content-single">
-            <!-- Leaderboard - Single Main View -->
-            <div class="card" id="leaderboard">
+            <!-- Token Table - Full Data View -->
+            <div class="card">
                 <div class="card-header">
-                    <span class="card-title">Leaderboard</span>
+                    <span class="card-title">Discover Tokens</span>
                     <span class="card-badge live">Live</span>
                     <button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="showCreateModal()">
                         Launch Token
                     </button>
                 </div>
-                <div class="leaderboard" id="leaderboardList">
-                    <!-- Rendered by JS -->
+                <div class="token-list" id="tokenList">
+                    <!-- Rendered by JS - Full token table -->
                 </div>
             </div>
 
-            <!-- Hidden elements for compatibility -->
-            <div id="tokenList" style="display:none;"></div>
+            <!-- Hidden leaderboard for scrolling bar data -->
+            <div id="leaderboard" style="display:none;">
+                <div id="leaderboardList"></div>
+            </div>
         </div>
     </main>
 
