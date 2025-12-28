@@ -4,10 +4,10 @@
  * Handles fee routing for all launches on LAUNCHR:
  *
  * When creator fees are claimed:
- *   1% → LAUNCHR Distribution Pool (automatic)
+ *   1% → LAUNCHR_OPS_WALLET (DIRECT transfer to your wallet!)
  *   99% → Creator's allocation engine (buyback, burn, LP, revenue)
  *
- * The distribution pool distributes to LAUNCHR token holders proportionally.
+ * The 1% goes DIRECTLY to env.LAUNCHR_OPS_WALLET - your operations wallet!
  */
 
 const { Connection, PublicKey, Keypair, Transaction, SystemProgram, LAMPORTS_PER_SOL } = require('@solana/web3.js');
@@ -22,15 +22,14 @@ const path = require('path');
 
 const FEE_CONFIG = {
     // Fee split
-    LAUNCHR_HOLDER_FEE_BPS: 100, // 1% to LAUNCHR holders
+    LAUNCHR_HOLDER_FEE_BPS: 100, // 1% to LAUNCHR ops wallet
     CREATOR_FEE_BPS: 9900, // 99% to creator's allocation
 
     // LAUNCHR token
     LAUNCHR_TOKEN_MINT: process.env.LAUNCHR_TOKEN_MINT || '',
 
-    // Pool addresses (set these to your actual pool addresses)
-    HOLDER_POOL_ADDRESS: process.env.HOLDER_POOL_ADDRESS || '',
-    TREASURY_ADDRESS: process.env.TREASURY_ADDRESS || '',
+    // LAUNCHR Operations Wallet - 1% of all fees go here directly!
+    LAUNCHR_OPS_WALLET: process.env.LAUNCHR_OPS_WALLET || '',
 
     // Minimum thresholds
     MIN_CLAIM_THRESHOLD: 0.001 * LAMPORTS_PER_SOL, // 0.001 SOL
@@ -111,12 +110,12 @@ class FeeRouter {
 
         console.log('\n' + '─'.repeat(40));
         console.log(`[FEE-ROUTER] Processing ${claimedAmount / LAMPORTS_PER_SOL} SOL`);
-        console.log(`  → Holder pool (1%): ${holderAmount / LAMPORTS_PER_SOL} SOL`);
-        console.log(`  → Creator (99%): ${creatorAmount / LAMPORTS_PER_SOL} SOL`);
+        console.log(`  → LAUNCHR_OPS_WALLET (1%): ${holderAmount / LAMPORTS_PER_SOL} SOL`);
+        console.log(`  → Creator allocation (99%): ${creatorAmount / LAMPORTS_PER_SOL} SOL`);
         console.log('─'.repeat(40));
 
-        // Route to holder pool
-        const holderResult = await this.routeToHolderPool(holderAmount, mint);
+        // Route 1% directly to LAUNCHR_OPS_WALLET
+        const holderResult = await this.routeToOpsWallet(holderAmount, mint);
 
         // Route to creator's allocation engine
         const creatorResult = await this.routeToCreator(engine, creatorAmount);
@@ -151,41 +150,41 @@ class FeeRouter {
     }
 
     /**
-     * Route fees to LAUNCHR holder pool
+     * Route 1% fees DIRECTLY to LAUNCHR ops wallet
      */
-    async routeToHolderPool(amount, sourceMint) {
+    async routeToOpsWallet(amount, sourceMint) {
         if (amount <= 0) return { success: true, amount: 0 };
 
-        // Add to pending pool balance
+        // Track for stats
         this.holderPool.balance += amount;
-        this.holderPool.pendingDistribution += amount;
         this.holderPool.totalCollected += amount;
 
-        console.log(`[HOLDER-POOL] +${amount / LAMPORTS_PER_SOL} SOL | Total: ${this.holderPool.balance / LAMPORTS_PER_SOL} SOL`);
+        console.log(`[OPS-WALLET] Sending ${amount / LAMPORTS_PER_SOL} SOL to LAUNCHR_OPS_WALLET`);
 
-        // If we have a treasury address, transfer there
-        if (FEE_CONFIG.HOLDER_POOL_ADDRESS) {
+        // Send directly to LAUNCHR_OPS_WALLET
+        if (FEE_CONFIG.LAUNCHR_OPS_WALLET) {
             try {
                 const tx = new Transaction().add(
                     SystemProgram.transfer({
                         fromPubkey: this.wallet.publicKey,
-                        toPubkey: new PublicKey(FEE_CONFIG.HOLDER_POOL_ADDRESS),
+                        toPubkey: new PublicKey(FEE_CONFIG.LAUNCHR_OPS_WALLET),
                         lamports: amount,
                     })
                 );
 
                 const sig = await this.connection.sendTransaction(tx, [this.wallet]);
-                console.log(`[HOLDER-POOL] Transfer TX: ${sig}`);
+                console.log(`[OPS-WALLET] ✓ Sent 1% fee to ${FEE_CONFIG.LAUNCHR_OPS_WALLET.slice(0, 8)}... | TX: ${sig}`);
 
                 return { success: true, amount, signature: sig };
 
             } catch (e) {
-                console.log(`[HOLDER-POOL] Transfer failed: ${e.message}`);
-                // Keep in local tracking even if transfer fails
+                console.log(`[OPS-WALLET] Transfer failed: ${e.message}`);
+                return { success: false, amount, error: e.message };
             }
+        } else {
+            console.log(`[OPS-WALLET] ERROR: LAUNCHR_OPS_WALLET not set!`);
+            return { success: false, amount: 0, error: 'LAUNCHR_OPS_WALLET not configured' };
         }
-
-        return { success: true, amount, pending: true };
     }
 
     /**
