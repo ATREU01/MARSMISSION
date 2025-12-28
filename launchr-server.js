@@ -3460,6 +3460,9 @@ function getHTML() {
                     // AUTO-SAVE silently to engine
                     const saved = await saveAllocations(true);
 
+                    // REFRESH UI to show new allocations!
+                    await refreshStatus();
+
                     if (saved) {
                         resultDiv.innerHTML = '✅ APPLIED: ' + (data.allocations.reasoning || 'Allocations optimized and saved to engine!');
                     } else {

@@ -2109,34 +2109,34 @@
                         <!-- Burn -->
                         <div class="distribution-feature" style="background:rgba(168,90,50,0.1);border:1px solid rgba(196,122,74,0.3);border-radius:var(--radius-lg);padding:20px;text-align:center;position:relative;overflow:hidden;transition:all 0.3s;">
                             <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#a85a32,#c47a4a);"></div>
-                            <div style="font-size:32px;font-weight:900;color:#c47a4a;line-height:1;">25%</div>
+                            <div id="allocBurn" style="font-size:32px;font-weight:900;color:#c47a4a;line-height:1;">25%</div>
                             <div style="font-size:12px;font-weight:700;letter-spacing:2px;margin-top:10px;color:var(--text);">BURN</div>
                             <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Tokens permanently destroyed</div>
-                            <div id="burnStat" style="font-size:13px;font-weight:600;margin-top:14px;padding-top:12px;border-top:1px solid rgba(196,122,74,0.2);color:#c47a4a;">0 SOL</div>
+                            <div id="burnStat" style="font-size:13px;font-weight:600;margin-top:14px;padding-top:12px;border-top:1px solid rgba(196,122,74,0.2);color:#c47a4a;">0.0000 SOL</div>
                         </div>
                         <!-- Buyback -->
                         <div class="distribution-feature" style="background:rgba(61,139,110,0.1);border:1px solid rgba(90,168,138,0.3);border-radius:var(--radius-lg);padding:20px;text-align:center;position:relative;overflow:hidden;transition:all 0.3s;">
                             <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#3d8b6e,#5aa88a);"></div>
-                            <div style="font-size:32px;font-weight:900;color:#5aa88a;line-height:1;">25%</div>
+                            <div id="allocBuyback" style="font-size:32px;font-weight:900;color:#5aa88a;line-height:1;">25%</div>
                             <div style="font-size:12px;font-weight:700;letter-spacing:2px;margin-top:10px;color:var(--text);">BUYBACK</div>
                             <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">RSI-based market buys</div>
-                            <div id="buybackStat" style="font-size:13px;font-weight:600;margin-top:14px;padding-top:12px;border-top:1px solid rgba(90,168,138,0.2);color:#5aa88a;">0 SOL</div>
+                            <div id="buybackStat" style="font-size:13px;font-weight:600;margin-top:14px;padding-top:12px;border-top:1px solid rgba(90,168,138,0.2);color:#5aa88a;">0.0000 SOL</div>
                         </div>
                         <!-- Holders -->
                         <div class="distribution-feature" style="background:rgba(74,124,155,0.1);border:1px solid rgba(106,156,184,0.3);border-radius:var(--radius-lg);padding:20px;text-align:center;position:relative;overflow:hidden;transition:all 0.3s;">
                             <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#4a7c9b,#6a9cb8);"></div>
-                            <div style="font-size:32px;font-weight:900;color:#6a9cb8;line-height:1;">25%</div>
+                            <div id="allocHolders" style="font-size:32px;font-weight:900;color:#6a9cb8;line-height:1;">25%</div>
                             <div style="font-size:12px;font-weight:700;letter-spacing:2px;margin-top:10px;color:var(--text);">HOLDERS</div>
                             <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Top 100 by % holdings</div>
-                            <div id="holdersStat" style="font-size:13px;font-weight:600;margin-top:14px;padding-top:12px;border-top:1px solid rgba(106,156,184,0.2);color:#6a9cb8;">0 SOL</div>
+                            <div id="holdersStat" style="font-size:13px;font-weight:600;margin-top:14px;padding-top:12px;border-top:1px solid rgba(106,156,184,0.2);color:#6a9cb8;">0.0000 SOL</div>
                         </div>
                         <!-- Liquidity -->
                         <div class="distribution-feature" style="background:rgba(122,90,140,0.1);border:1px solid rgba(154,122,172,0.3);border-radius:var(--radius-lg);padding:20px;text-align:center;position:relative;overflow:hidden;transition:all 0.3s;">
                             <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#7a5a8c,#9a7aac);"></div>
-                            <div style="font-size:32px;font-weight:900;color:#9a7aac;line-height:1;">25%</div>
+                            <div id="allocLiquidity" style="font-size:32px;font-weight:900;color:#9a7aac;line-height:1;">25%</div>
                             <div style="font-size:12px;font-weight:700;letter-spacing:2px;margin-top:10px;color:var(--text);">LIQUIDITY</div>
                             <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Add LP + burn LP tokens</div>
-                            <div id="lpStat" style="font-size:13px;font-weight:600;margin-top:14px;padding-top:12px;border-top:1px solid rgba(154,122,172,0.2);color:#9a7aac;">0 SOL</div>
+                            <div id="lpStat" style="font-size:13px;font-weight:600;margin-top:14px;padding-top:12px;border-top:1px solid rgba(154,122,172,0.2);color:#9a7aac;">0.0000 SOL</div>
                         </div>
                     </div>
                 </div>
@@ -2873,17 +2873,36 @@
                     if (distributed) distributed.textContent = ((data.stats?.totalDistributed || 0) / 1e9).toFixed(4) + ' SOL';
                     if (rsi) rsi.textContent = data.rsi?.current?.toFixed(1) || data.rsi?.toFixed(1) || data.analyzer?.metrics?.rsi?.toFixed(1) || '--';
 
-                    // Update feature stats (25% each)
+                    // Update allocation percentages from engine
+                    if (data.allocations) {
+                        const allocBurn = document.getElementById('allocBurn');
+                        const allocBuyback = document.getElementById('allocBuyback');
+                        const allocHolders = document.getElementById('allocHolders');
+                        const allocLiquidity = document.getElementById('allocLiquidity');
+
+                        // Map engine allocations to display boxes
+                        // buybackBurn -> BURN, marketMaking -> BUYBACK, creatorRevenue -> HOLDERS, liquidity -> LIQUIDITY
+                        if (allocBurn) allocBurn.textContent = (data.allocations.buybackBurn || 25) + '%';
+                        if (allocBuyback) allocBuyback.textContent = (data.allocations.marketMaking || 25) + '%';
+                        if (allocHolders) allocHolders.textContent = (data.allocations.creatorRevenue || 25) + '%';
+                        if (allocLiquidity) allocLiquidity.textContent = (data.allocations.liquidity || 25) + '%';
+                    }
+
+                    // Update feature SOL stats based on actual allocations
                     const totalDist = (data.stats?.totalDistributed || 0) / 1e9;
-                    const perFeature = (totalDist / 4).toFixed(4);
+                    const burnPct = (data.allocations?.buybackBurn || 25) / 100;
+                    const buybackPct = (data.allocations?.marketMaking || 25) / 100;
+                    const holdersPct = (data.allocations?.creatorRevenue || 25) / 100;
+                    const liqPct = (data.allocations?.liquidity || 25) / 100;
+
                     const burnStat = document.getElementById('burnStat');
                     const buybackStat = document.getElementById('buybackStat');
                     const holdersStat = document.getElementById('holdersStat');
                     const lpStat = document.getElementById('lpStat');
-                    if (burnStat) burnStat.textContent = perFeature + ' SOL';
-                    if (buybackStat) buybackStat.textContent = perFeature + ' SOL';
-                    if (holdersStat) holdersStat.textContent = perFeature + ' SOL';
-                    if (lpStat) lpStat.textContent = perFeature + ' SOL';
+                    if (burnStat) burnStat.textContent = (totalDist * burnPct).toFixed(4) + ' SOL';
+                    if (buybackStat) buybackStat.textContent = (totalDist * buybackPct).toFixed(4) + ' SOL';
+                    if (holdersStat) holdersStat.textContent = (totalDist * holdersPct).toFixed(4) + ' SOL';
+                    if (lpStat) lpStat.textContent = (totalDist * liqPct).toFixed(4) + ' SOL';
 
                     // Update automation badge
                     updateAutomationBadge(data.autoClaimActive);

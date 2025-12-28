@@ -265,51 +265,123 @@ function getGraduationStats() {
     };
 }
 
-// Update token metrics from pump.fun API (ALICE pattern)
+// Update token metrics with MULTIPLE API FALLBACKS
 async function updateTokenMetrics(tokenMint) {
     const data = loadTokens();
     const token = data.tokens.find(t => t.mint === tokenMint);
 
     if (!token) return null;
 
+    const cacheKey = `metrics_${tokenMint}`;
+    const cached = apiCache.get(cacheKey);
+
+    if (cached && Date.now() - cached.ts < CACHE_TTL) {
+        return { success: true, token, cached: true };
+    }
+
+    let updated = false;
+
+    // TRY 1: Pump.fun API
     try {
-        // Check cache first
-        const cacheKey = `metrics_${tokenMint}`;
-        const cached = apiCache.get(cacheKey);
-        let d;
+        const response = await pumpApi.get(`/coins/${tokenMint}`);
+        const d = response.data;
 
-        if (cached && Date.now() - cached.ts < CACHE_TTL) {
-            d = cached.data;
-        } else {
-            const response = await pumpApi.get(`/coins/${tokenMint}`);
-            d = response.data;
-            if (d) {
-                apiCache.set(cacheKey, { data: d, ts: Date.now() });
-            }
-        }
-
-        if (d) {
-            token.mcap = d.usd_market_cap || 0;
-            token.price = d.price || 0;
-            token.volume = d.volume_24h || 0;
-            token.realSolReserves = (d.real_sol_reserves || 0) / 1e9;
-            token.virtualSolReserves = (d.virtual_sol_reserves || 0) / 1e9;
-            token.progress = Math.min((token.realSolReserves / GRADUATION_THRESHOLD_SOL) * 100, 100);
-            token.graduated = d.complete === true;
-            token.image = d.image_uri || token.image;
+        if (d && d.name) {
             token.name = d.name || token.name;
             token.symbol = d.symbol || token.symbol;
-            token.lastMetricsUpdate = Date.now();
-
-            if (token.graduated && !token.graduatedAt) {
-                token.graduatedAt = Date.now();
-            }
-
-            saveTokens(data);
-            return { success: true, token };
+            token.image = d.image_uri || token.image;
+            token.mcap = d.usd_market_cap || token.mcap || 0;
+            token.price = d.price || token.price || 0;
+            token.volume = d.volume_24h || d.volume || token.volume || 0;
+            token.realSolReserves = (d.real_sol_reserves || 0) / 1e9;
+            token.virtualSolReserves = (d.virtual_sol_reserves || 0) / 1e9;
+            token.virtualTokenReserves = d.virtual_token_reserves || 0;
+            token.progress = Math.min((token.realSolReserves / GRADUATION_THRESHOLD_SOL) * 100, 100);
+            token.graduated = d.complete === true;
+            token.twitter = d.twitter || token.twitter;
+            token.telegram = d.telegram || token.telegram;
+            token.website = d.website || token.website;
+            updated = true;
+            console.log(`[TRACKER] Pump.fun: ${token.name} ($${token.symbol})`);
         }
     } catch (e) {
-        // Silent fail - don't spam logs
+        // Pump.fun failed, try fallbacks
+    }
+
+    // TRY 2: DexScreener API (especially for graduated tokens)
+    if (!updated || token.name === 'Unknown Token' || !token.mcap) {
+        try {
+            const dexRes = await axios.get(`https://api.dexscreener.com/latest/dex/tokens/${tokenMint}`, {
+                timeout: 5000,
+                headers: { 'Accept': 'application/json' }
+            });
+
+            const pair = dexRes.data?.pairs?.[0];
+            if (pair && pair.baseToken) {
+                token.name = pair.baseToken.name || token.name;
+                token.symbol = pair.baseToken.symbol || token.symbol;
+                token.image = pair.info?.imageUrl || token.image || `https://dd.dexscreener.com/ds-data/tokens/solana/${tokenMint}.png`;
+                token.mcap = pair.fdv || pair.marketCap || token.mcap || 0;
+                token.price = parseFloat(pair.priceUsd) || token.price || 0;
+                token.volume = pair.volume?.h24 || token.volume || 0;
+                token.liquidity = pair.liquidity?.usd || 0;
+                token.priceChange24h = pair.priceChange?.h24 || 0;
+                token.graduated = true; // On DEX = graduated
+                updated = true;
+                console.log(`[TRACKER] DexScreener: ${token.name} ($${token.symbol})`);
+            }
+        } catch (e) {
+            // DexScreener failed
+        }
+    }
+
+    // TRY 3: Jupiter API
+    if (!updated || token.name === 'Unknown Token') {
+        try {
+            const jupRes = await axios.get(`https://lite-api.jup.ag/tokens/v2/search?query=${tokenMint}`, {
+                timeout: 5000,
+                headers: { 'Accept': 'application/json' }
+            });
+
+            const jupToken = Array.isArray(jupRes.data)
+                ? jupRes.data.find(t => t.address === tokenMint || t.id === tokenMint)
+                : null;
+
+            if (jupToken) {
+                token.name = jupToken.name || token.name;
+                token.symbol = jupToken.symbol || token.symbol;
+                token.image = jupToken.logoURI || token.image;
+                updated = true;
+                console.log(`[TRACKER] Jupiter: ${token.name} ($${token.symbol})`);
+            }
+        } catch (e) {
+            // Jupiter failed
+        }
+    }
+
+    // Calculate price from reserves if still missing
+    if (!token.price && token.virtualSolReserves && token.virtualTokenReserves) {
+        const SOL_PRICE_USD = 190; // TODO: fetch real price
+        const priceInSol = token.virtualSolReserves / token.virtualTokenReserves;
+        token.price = priceInSol * SOL_PRICE_USD;
+    }
+
+    // Fallback image
+    if (!token.image) {
+        token.image = `https://dd.dexscreener.com/ds-data/tokens/solana/${tokenMint}.png`;
+    }
+
+    // Mark update time
+    token.lastMetricsUpdate = Date.now();
+
+    if (token.graduated && !token.graduatedAt) {
+        token.graduatedAt = Date.now();
+    }
+
+    if (updated) {
+        apiCache.set(cacheKey, { data: token, ts: Date.now() });
+        saveTokens(data);
+        return { success: true, token };
     }
 
     return { success: false };
