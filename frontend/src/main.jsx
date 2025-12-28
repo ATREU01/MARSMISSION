@@ -15,10 +15,9 @@ log('window.solana:', window.solana)
 log('window.phantom:', window.phantom)
 
 // Create Solana wallet connectors for Phantom, Solflare, etc.
-// shouldAutoConnect: false - require fresh login each time for security
 log('Creating Solana connectors...')
 const solanaConnectors = toSolanaWalletConnectors({
-  shouldAutoConnect: false,
+  shouldAutoConnect: true,
 })
 log('Solana connectors created:', solanaConnectors)
 
