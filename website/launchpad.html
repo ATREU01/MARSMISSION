@@ -525,6 +525,13 @@
             grid-template-columns: 1fr 380px;
             gap: 24px;
         }
+        .content-single {
+            grid-template-columns: 1fr;
+            max-width: 900px;
+        }
+        .content-single .card {
+            width: 100%;
+        }
 
         /* Cards */
         .card {
@@ -569,6 +576,102 @@
         @keyframes livePulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.4; }
+        }
+        @keyframes scrollTrending {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+        .trending-bar {
+            background: var(--surface-1);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 0;
+            overflow: hidden;
+            position: relative;
+        }
+        .trending-bar::before,
+        .trending-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 60px;
+            z-index: 2;
+            pointer-events: none;
+        }
+        .trending-bar::before {
+            left: 0;
+            background: linear-gradient(to right, var(--surface-1), transparent);
+        }
+        .trending-bar::after {
+            right: 0;
+            background: linear-gradient(to left, var(--surface-1), transparent);
+        }
+        .trending-scroll-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            animation: scrollTrending 30s linear infinite;
+            width: max-content;
+        }
+        .trending-scroll-wrapper:hover {
+            animation-play-state: paused;
+        }
+        .trending-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+            padding-left: 24px;
+        }
+        .trending-label span:first-child {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+        .trending-badge {
+            background: var(--gold);
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+        .trending-token {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--surface-2);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        .trending-token:hover {
+            border-color: var(--gold);
+            transform: translateY(-2px);
+        }
+        .trending-token img {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+        }
+        .trending-token-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .trending-token-change {
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .trending-token-change.positive {
+            color: var(--success);
+        }
+        .trending-token-change.negative {
+            color: var(--danger);
         }
         .card-body {
             padding: 16px 20px;
@@ -1213,18 +1316,70 @@
         }
         @media (max-width: 1024px) {
             .content { grid-template-columns: 1fr; }
+            .content-single { max-width: 100%; }
             .nav-links { display: none; }
             .stats-bar-inner { grid-template-columns: repeat(3, 1fr); }
         }
         @media (max-width: 768px) {
             .page-header-inner { flex-direction: column; align-items: flex-start; }
             .stats-bar-inner { grid-template-columns: repeat(2, 1fr); }
+            /* Modal mobile improvements */
+            .modal-content {
+                width: 95%;
+                max-width: 100%;
+                margin: 10px;
+                max-height: 90vh;
+            }
+            .modal-body {
+                padding: 16px;
+            }
+            .path-selector {
+                flex-direction: column;
+            }
+            .path-option {
+                width: 100%;
+            }
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            .trending-bar {
+                padding: 8px 0;
+            }
+            .trending-scroll-wrapper {
+                animation-duration: 20s;
+            }
         }
         @media (max-width: 640px) {
-            .nav-inner, .page-header, .stats-bar, .content, .footer { padding-left: 16px; padding-right: 16px; }
+            .nav-inner, .page-header, .stats-bar, .content, .footer { padding-left: 12px; padding-right: 12px; }
             .form-row { grid-template-columns: 1fr; }
             .footer-inner { flex-direction: column; gap: 16px; }
-            .stats-bar-inner { grid-template-columns: 1fr 1fr; }
+            .stats-bar-inner { grid-template-columns: 1fr 1fr; gap: 8px; }
+            .stat-cell { padding: 12px 8px; }
+            .stat-cell-value { font-size: 18px; }
+            .stat-cell-label { font-size: 10px; }
+            /* Modal tight mobile */
+            .modal-content {
+                width: 100%;
+                margin: 0;
+                border-radius: 0;
+                max-height: 100vh;
+                min-height: 100vh;
+            }
+            .modal-header {
+                position: sticky;
+                top: 0;
+                z-index: 10;
+                background: var(--surface);
+            }
+            .page-title { font-size: 22px; }
+            .page-subtitle { font-size: 12px; }
+            .card-header { padding: 12px 16px; }
+            .btn-sm { padding: 8px 12px; font-size: 11px; }
+        }
+        @media (max-width: 480px) {
+            .stats-bar-inner { grid-template-columns: 1fr; }
+            .hero-actions { flex-direction: column; width: 100%; }
+            .hero-actions .btn { width: 100%; }
         }
 
         /* Ensure Privy modal appears on top of everything */
@@ -1468,53 +1623,45 @@
             </div>
         </div>
 
+        <!-- Trending Bar (Horizontal Leaderboard) -->
+        <div class="trending-bar" id="trendingBar">
+            <div class="trending-scroll-wrapper" id="trendingScrollWrapper">
+                <div class="trending-label">
+                    <span>Trending</span>
+                    <span class="trending-badge">LIVE</span>
+                </div>
+                <div id="trendingTokens" style="display:flex;gap:16px;align-items:center;">
+                    <!-- Rendered by JS -->
+                </div>
+                <!-- Duplicate for seamless loop -->
+                <div class="trending-label">
+                    <span>Trending</span>
+                    <span class="trending-badge">LIVE</span>
+                </div>
+                <div id="trendingTokensDupe" style="display:flex;gap:16px;align-items:center;">
+                    <!-- Duplicate rendered by JS -->
+                </div>
+            </div>
+        </div>
+
         <!-- Content -->
-        <div class="content">
-            <!-- Token List -->
-            <div>
-                <div class="card">
-                    <div class="card-header">
-                        <span class="card-title">Live Tokens</span>
-                        <div class="tabs">
-                            <button class="tab active" data-tab="trending">Trending</button>
-                            <button class="tab" data-tab="new">New</button>
-                            <button class="tab" data-tab="graduating">Graduating</button>
-                        </div>
-                    </div>
-                    <div class="token-list" id="tokenList">
-                        <!-- Rendered by JS -->
-                    </div>
+        <div class="content content-single">
+            <!-- Leaderboard - Single Main View -->
+            <div class="card" id="leaderboard">
+                <div class="card-header">
+                    <span class="card-title">Leaderboard</span>
+                    <span class="card-badge live">Live</span>
+                    <button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="showCreateModal()">
+                        Launch Token
+                    </button>
+                </div>
+                <div class="leaderboard" id="leaderboardList">
+                    <!-- Rendered by JS -->
                 </div>
             </div>
 
-            <!-- Sidebar -->
-            <div>
-                <!-- Leaderboard -->
-                <div class="card" id="leaderboard">
-                    <div class="card-header">
-                        <span class="card-title">Leaderboard</span>
-                        <span class="card-badge live">Live</span>
-                    </div>
-                    <div class="leaderboard" id="leaderboardList">
-                        <!-- Rendered by JS -->
-                    </div>
-                </div>
-
-                <!-- Quick Launch Card -->
-                <div class="card create-section">
-                    <div class="card-header">
-                        <span class="card-title">Quick Launch</span>
-                    </div>
-                    <div class="card-body">
-                        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.6;">
-                            Create a meme token in seconds on Pump.fun.
-                        </p>
-                        <button class="btn btn-primary" style="width:100%;" onclick="showCreateModal()">
-                            Launch Token
-                        </button>
-                    </div>
-                </div>
-            </div>
+            <!-- Hidden elements for compatibility -->
+            <div id="tokenList" style="display:none;"></div>
         </div>
     </main>
 
@@ -1610,6 +1757,14 @@
                 fetchLeaderboard();
                 fetchStats();
             }, 30000);
+
+            // Auto-open create modal if coming from launch button
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('launch') === 'true') {
+                showCreateModal();
+                // Clean URL without reload
+                window.history.replaceState({}, '', '/launchpad');
+            }
         });
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -2085,6 +2240,9 @@
 
         function renderLeaderboard() {
             const list = document.getElementById('leaderboardList');
+            const trendingBar = document.getElementById('trendingTokens');
+            const trendingBarDupe = document.getElementById('trendingTokensDupe');
+
             if (leaderboard.length === 0) {
                 list.innerHTML = `
                     <div style="padding:40px 20px;text-align:center;">
@@ -2092,9 +2250,39 @@
                         <div style="color:var(--text-muted);font-size:12px;">Launch tokens to compete for rewards</div>
                     </div>
                 `;
+                if (trendingBar) trendingBar.innerHTML = '<span style="color:var(--text-muted);font-size:12px;">No trending tokens</span>';
+                if (trendingBarDupe) trendingBarDupe.innerHTML = '';
                 return;
             }
-            // Sanitize ALL leaderboard data before rendering
+
+            // HORIZONTAL TRENDING BAR (top of page) - Scrolling marquee
+            if (trendingBar) {
+                const trendingHtml = leaderboard.slice(0, 10).map(rawEntry => {
+                    const l = sanitizeLeaderEntry(rawEntry);
+                    const change = l.change || 0;
+                    const changeClass = change >= 0 ? 'positive' : 'negative';
+                    const changeText = change !== 0 ? `${change >= 0 ? '+' : ''}${change.toFixed(1)}%` : '';
+
+                    return `
+                    <div class="trending-token" onclick="window.open('https://pump.fun/coin/${escapeHtml(l.mint)}','_blank')">
+                        <span style="color:var(--gold);font-weight:700;font-size:11px;">#${l.rank}</span>
+                        <div style="width:24px;height:24px;border-radius:50%;background:var(--surface-3);background-size:cover;background-position:center;flex-shrink:0;${l.image ? `background-image:url('${escapeHtml(l.image)}')` : 'display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:var(--gold);'}">
+                            ${!l.image ? escapeHtml(l.symbol?.charAt(0) || '?') : ''}
+                        </div>
+                        <div>
+                            <div class="trending-token-name">$${escapeHtml(l.symbol)}</div>
+                            <div style="font-size:10px;color:var(--text-muted);">$${formatNumber(l.mcap)}</div>
+                        </div>
+                        ${changeText ? `<span class="trending-token-change ${changeClass}">${changeText}</span>` : ''}
+                    </div>`;
+                }).join('');
+
+                trendingBar.innerHTML = trendingHtml;
+                // Duplicate for seamless infinite scroll
+                if (trendingBarDupe) trendingBarDupe.innerHTML = trendingHtml;
+            }
+
+            // VERTICAL SIDEBAR LEADERBOARD (keep for reference)
             list.innerHTML = leaderboard.map(rawEntry => {
                 const l = sanitizeLeaderEntry(rawEntry);
                 const rankClass = l.rank <= 3 ? `rank-${l.rank}` : '';
