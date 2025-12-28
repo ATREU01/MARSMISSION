@@ -1555,6 +1555,31 @@
         let tokensLoaded = false; // Track if we've completed initial load
 
         // ═══════════════════════════════════════════════════════════════════════
+        // TOKEN FILTER - Only allow pump.fun and LAUNCHR tokens
+        // ═══════════════════════════════════════════════════════════════════════
+        const BLOCKED_MINTS = [
+            // Block competitor/spam tokens by mint address
+            // Add mint addresses here to block them from showing
+        ];
+
+        function isAllowedToken(token) {
+            // Block specific mints
+            if (BLOCKED_MINTS.includes(token.mint)) return false;
+
+            // Only allow tokens from pump.fun or LAUNCHR
+            const path = (token.path || '').toLowerCase();
+            if (path === 'pump' || path === 'launchr' || path === 'lchr' || path === 'pumpfun') {
+                return true;
+            }
+
+            // For tokens without path, check if from our registered list or pump API
+            if (token.isLaunchrToken) return true;
+
+            // Default: allow (pump.fun tokens from API don't have path set)
+            return true;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
         // INITIALIZATION
         // ═══════════════════════════════════════════════════════════════════════
         document.addEventListener('DOMContentLoaded', async () => {
@@ -1705,15 +1730,15 @@
                     }
                 }
 
-                // Then add pump.fun tokens
+                // Then add pump.fun tokens (with blocklist filter)
                 for (const t of pumpNewTokens) {
-                    if (!seenMints.has(t.mint)) {
+                    if (!seenMints.has(t.mint) && isAllowedToken(t)) {
                         seenMints.add(t.mint);
                         liveTokens.new.push(t);
                     }
                 }
                 for (const t of pumpTrendingTokens) {
-                    if (!seenMints.has(t.mint)) {
+                    if (!seenMints.has(t.mint) && isAllowedToken(t)) {
                         seenMints.add(t.mint);
                         liveTokens.trending.push(t);
                     }
