@@ -1828,6 +1828,9 @@ The 4 percentages MUST sum to exactly 100.`;
                     graduated: t.graduated || false,
                     path: t.path === 'launchr' ? 'Launchr' : 'Pump.fun',
                     reward: index < 3 ? 'Winner' : null,
+                    holders: t.holders || 0,
+                    txns: t.txns || 0,
+                    aiScore: t.aiScore || 0,
                 }));
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ leaderboard }));
