@@ -2573,6 +2573,24 @@
                 throw new Error('No signing method available for mint keypair');
             }
 
+            // PRE-SIMULATE: Simulate transaction before showing to wallet
+            // This helps Phantom understand the transaction and reduces warnings
+            console.log('[DEPLOY] Pre-simulating transaction...');
+            try {
+                const simulation = await connection.simulateTransaction(tx, {
+                    sigVerify: false, // Skip signature verification for simulation
+                    replaceRecentBlockhash: true
+                });
+                if (simulation.value.err) {
+                    console.warn('[DEPLOY] Simulation warning:', simulation.value.err);
+                    // Don't throw - let the user try anyway, just log it
+                } else {
+                    console.log('[DEPLOY] Pre-simulation successful, units consumed:', simulation.value.unitsConsumed);
+                }
+            } catch (simErr) {
+                console.warn('[DEPLOY] Pre-simulation failed (continuing anyway):', simErr.message);
+            }
+
             let signature;
 
             // Try Phantom wallet first
