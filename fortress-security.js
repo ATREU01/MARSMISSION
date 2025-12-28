@@ -17,6 +17,46 @@ const fs = require('fs');
 const path = require('path');
 
 // ═══════════════════════════════════════════════════════════════════
+// PERSISTENT DATA DIRECTORY (Railway volume or local)
+// ═══════════════════════════════════════════════════════════════════
+
+const DATA_DIR = process.env.RAILWAY_ENVIRONMENT ? '/app/data' : path.join(__dirname, 'data');
+
+// Ensure data directory exists
+function ensureDataDir() {
+    if (!fs.existsSync(DATA_DIR)) {
+        try {
+            fs.mkdirSync(DATA_DIR, { recursive: true });
+            console.log(`[FORTRESS] Created data directory: ${DATA_DIR}`);
+        } catch (e) {
+            console.error(`[FORTRESS] Failed to create data directory: ${e.message}`);
+        }
+    }
+}
+ensureDataDir();
+
+// Migrate old files from __dirname to DATA_DIR
+function migrateOldFiles() {
+    const migrations = [
+        { old: '.mission-ledger.json', new: '.mission-ledger.json' },
+        { old: '.mission-merkle.json', new: '.mission-merkle.json' },
+    ];
+    for (const m of migrations) {
+        const oldPath = path.join(__dirname, m.old);
+        const newPath = path.join(DATA_DIR, m.new);
+        if (fs.existsSync(oldPath) && !fs.existsSync(newPath)) {
+            try {
+                fs.copyFileSync(oldPath, newPath);
+                console.log(`[FORTRESS] Migrated ${m.old} to ${DATA_DIR}`);
+            } catch (e) { /* ignore */ }
+        }
+    }
+}
+migrateOldFiles();
+
+console.log(`[FORTRESS] Data directory: ${DATA_DIR}`);
+
+// ═══════════════════════════════════════════════════════════════════
 // CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════
 
@@ -39,9 +79,9 @@ const MISSION_CONFIG = {
     // Merkle Tree
     MERKLE_BATCH_SIZE: 100,
 
-    // Persistence
-    LEDGER_FILE: path.join(__dirname, '.mission-ledger.json'),
-    MERKLE_FILE: path.join(__dirname, '.mission-merkle.json'),
+    // Persistence (now in DATA_DIR for Railway persistence!)
+    LEDGER_FILE: path.join(DATA_DIR, '.mission-ledger.json'),
+    MERKLE_FILE: path.join(DATA_DIR, '.mission-merkle.json'),
 };
 
 // ═══════════════════════════════════════════════════════════════════
