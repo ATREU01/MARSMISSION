@@ -1484,7 +1484,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/ai/optimize' && req.method === 'POST') {
         try {
             const data = await parseBody(req);
-            const { rsi, balance, currentAllocations, tokenPrice, marketCap } = data;
+            const { rsi, balance, currentAllocations, tokenPrice, marketCap, liquidity, volume24h, priceChange24h } = data;
 
             // Use server-side API key from environment
             const apiKey = process.env.CLAUDE_API_KEY;
@@ -1492,26 +1492,36 @@ const server = http.createServer(async (req, res) => {
                 throw new Error('AI service not configured');
             }
 
+            // Format numbers for display
+            const formatUsd = (n) => n ? (n >= 1000000 ? `$${(n/1000000).toFixed(2)}M` : n >= 1000 ? `$${(n/1000).toFixed(1)}K` : `$${n.toFixed(2)}`) : 'unknown';
+            const formatPct = (n) => n !== null && n !== undefined ? `${n > 0 ? '+' : ''}${n.toFixed(1)}%` : 'unknown';
+
             // Call Claude API for optimization
-            const prompt = `You are the LAUNCHR Smart Optimizer, an AI that optimizes token fee allocations.
+            const prompt = `You are the LAUNCHR Smart Optimizer. Analyze real market data and provide SPECIFIC allocation recommendations.
 
-Current market data:
-- RSI: ${rsi || 'unknown'}
-- Token Price: ${tokenPrice || 'unknown'}
-- Market Cap: ${marketCap || 'unknown'}
+LIVE MARKET DATA:
+- RSI Indicator: ${rsi !== null ? rsi.toFixed(1) : 'not available'}
+- Token Price: ${tokenPrice ? tokenPrice.toFixed(8) + ' SOL' : 'unknown'}
+- Market Cap: ${formatUsd(marketCap)}
+- Liquidity: ${formatUsd(liquidity)}
+- 24h Volume: ${formatUsd(volume24h)}
+- 24h Price Change: ${formatPct(priceChange24h)}
 - Available Balance: ${balance || 0} SOL
-- Current Allocations: Market Making ${currentAllocations?.marketMaking || 25}%, Buyback & Burn ${currentAllocations?.buybackBurn || 25}%, Liquidity ${currentAllocations?.liquidity || 25}%, Creator Revenue ${currentAllocations?.creatorRevenue || 25}%
+- Current Allocations: Market Making ${currentAllocations?.marketMaking || 25}%, Burn ${currentAllocations?.buybackBurn || 25}%, Liquidity ${currentAllocations?.liquidity || 25}%, Creator Fees ${currentAllocations?.creatorRevenue || 25}%
 
-Based on this data, provide optimal allocation percentages for the 4 channels. Consider:
-- Low RSI (<30) = oversold, good for buybacks
-- High RSI (>70) = overbought, reduce buying
-- Low liquidity = prioritize LP additions
-- Sustainable revenue for long-term development
+OPTIMIZATION RULES:
+1. RSI < 30 (oversold): Increase Market Making to buy the dip
+2. RSI > 70 (overbought): Reduce Market Making, increase Burn
+3. Low liquidity (<$10K): Prioritize Liquidity allocation
+4. High volume + positive price: Market is active, balance allocations
+5. Negative price trend: Increase Burn to reduce supply
 
-Respond ONLY with valid JSON in this exact format:
-{"marketMaking": XX, "buybackBurn": XX, "liquidity": XX, "creatorRevenue": XX, "reasoning": "brief explanation"}
+Provide SPECIFIC percentages based on the data above. Be decisive.
 
-The 4 percentages must sum to 100.`;
+Respond ONLY with valid JSON:
+{"marketMaking": XX, "buybackBurn": XX, "liquidity": XX, "creatorRevenue": XX, "reasoning": "2-3 sentence analysis citing specific data points"}
+
+The 4 percentages MUST sum to exactly 100.`;
 
             const response = await fetch('https://api.anthropic.com/v1/messages', {
                 method: 'POST',

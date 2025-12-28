@@ -2522,7 +2522,7 @@
             if (allocLiquidity) allocLiquidity.textContent = (allocations.liquidity || 25) + '%';
         }
 
-        // Smart Optimizer - AI analysis
+        // Smart Optimizer - AI analysis with REAL market data
         async function runMaximus() {
             const btn = document.getElementById('maximusBtn');
             const resultDiv = document.getElementById('maximusResult');
@@ -2530,15 +2530,71 @@
             if (!btn) return;
 
             btn.disabled = true;
-            btn.textContent = 'ANALYZING...';
+            btn.textContent = 'FETCHING DATA...';
             if (resultDiv) resultDiv.style.display = 'none';
 
             try {
+                // First fetch real market data for the connected token
+                let marketData = { rsi: null, tokenPrice: null, marketCap: null, liquidity: null, volume24h: null, priceChange24h: null };
+
+                // Try to get data from engine status first
+                if (authToken) {
+                    try {
+                        const statusRes = await fetch('/api/engine/status', { headers: authHeaders() });
+                        if (statusRes.ok) {
+                            const status = await statusRes.json();
+                            if (status.rsi?.current) marketData.rsi = status.rsi.current;
+                            if (status.tokenPrice) marketData.tokenPrice = status.tokenPrice;
+                            if (status.marketCap) marketData.marketCap = status.marketCap;
+                        }
+                    } catch (e) { console.log('Engine status fetch failed:', e); }
+                }
+
+                // If we have a connected token, fetch from DexScreener for latest data
+                const connectedToken = localStorage.getItem('connectedTokenMint');
+                if (connectedToken) {
+                    try {
+                        btn.textContent = 'ANALYZING MARKET...';
+                        const dexRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${connectedToken}`);
+                        if (dexRes.ok) {
+                            const dexData = await dexRes.json();
+                            const pair = dexData.pairs?.[0];
+                            if (pair) {
+                                marketData.tokenPrice = parseFloat(pair.priceNative) || marketData.tokenPrice;
+                                marketData.marketCap = pair.marketCap || pair.fdv || marketData.marketCap;
+                                marketData.liquidity = pair.liquidity?.usd || null;
+                                marketData.volume24h = pair.volume?.h24 || null;
+                                marketData.priceChange24h = pair.priceChange?.h24 || null;
+
+                                // Calculate RSI-like indicator from price changes if we don't have RSI
+                                if (!marketData.rsi && pair.priceChange) {
+                                    const changes = [
+                                        pair.priceChange.m5 || 0,
+                                        pair.priceChange.h1 || 0,
+                                        pair.priceChange.h6 || 0,
+                                        pair.priceChange.h24 || 0
+                                    ];
+                                    const avgChange = changes.reduce((a,b) => a + b, 0) / changes.length;
+                                    // Map: -20% = RSI 20, 0% = RSI 50, +20% = RSI 80
+                                    marketData.rsi = Math.max(0, Math.min(100, 50 + (avgChange * 1.5)));
+                                }
+                            }
+                        }
+                    } catch (e) { console.log('DexScreener fetch failed:', e); }
+                }
+
+                btn.textContent = 'OPTIMIZING...';
+
                 const res = await fetch('/api/ai/optimize', {
                     method: 'POST',
-                    headers: authHeaders(),  // Use auth headers for authorization
+                    headers: authHeaders(),
                     body: JSON.stringify({
-                        rsi: null,
+                        rsi: marketData.rsi,
+                        tokenPrice: marketData.tokenPrice,
+                        marketCap: marketData.marketCap,
+                        liquidity: marketData.liquidity,
+                        volume24h: marketData.volume24h,
+                        priceChange24h: marketData.priceChange24h,
                         balance: walletBalance || 0,
                         currentAllocations: getAllocations()
                     })
