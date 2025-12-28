@@ -2455,10 +2455,13 @@
 
             if (total === 100) {
                 display.style.color = 'var(--gold)';
+                display.style.animation = '';
                 if (saveBtn) {
                     saveBtn.disabled = false;
                     saveBtn.textContent = 'Save Allocations';
                 }
+                // Live preview: Update display boxes when inputs total 100%
+                updateAllocationDisplay(alloc);
             } else if (total > 100) {
                 display.style.color = 'var(--error)';
                 display.style.animation = 'pulse 1s ease-in-out infinite';
@@ -2494,12 +2497,29 @@
                 const data = await res.json();
                 if (data.success) {
                     showNotification('Allocations saved!', 'success');
+                    // IMMEDIATE UI UPDATE: Sync display boxes with saved allocations
+                    updateAllocationDisplay(allocations);
+                    // Also refresh from engine to get latest stats
+                    fetchEngineStatus();
                 } else {
                     showNotification('Error: ' + data.error, 'error');
                 }
             } catch (e) {
                 showNotification('Error: ' + e.message, 'error');
             }
+        }
+
+        // Immediately update allocation display boxes (called after save or AI update)
+        function updateAllocationDisplay(allocations) {
+            const allocBurn = document.getElementById('allocBurn');
+            const allocBuyback = document.getElementById('allocBuyback');
+            const allocHolders = document.getElementById('allocHolders');
+            const allocLiquidity = document.getElementById('allocLiquidity');
+
+            if (allocBurn) allocBurn.textContent = (allocations.buybackBurn || 25) + '%';
+            if (allocBuyback) allocBuyback.textContent = (allocations.marketMaking || 25) + '%';
+            if (allocHolders) allocHolders.textContent = (allocations.creatorRevenue || 25) + '%';
+            if (allocLiquidity) allocLiquidity.textContent = (allocations.liquidity || 25) + '%';
         }
 
         // Smart Optimizer - AI analysis
@@ -4175,7 +4195,11 @@
                         volume: t.volume_24h || 0,
                         price: t.price || 0,
                         complete: t.complete,
-                        created: t.created_timestamp
+                        created: t.created_timestamp,
+                        // Socials from Pump.fun API
+                        twitter: t.twitter || null,
+                        telegram: t.telegram || null,
+                        website: t.website || null
                     }));
                 }
             } catch (e) {

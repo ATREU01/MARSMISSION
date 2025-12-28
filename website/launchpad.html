@@ -1624,7 +1624,15 @@
                             complete: t.graduated,
                             created: t.createdAt,
                             realSolReserves: (t.progress || 0) * 85 / 100 * 1e9,
-                            isLaunchrToken: true
+                            isLaunchrToken: true,
+                            // Socials from /api/tokens
+                            twitter: t.twitter || null,
+                            telegram: t.telegram || null,
+                            website: t.website || null,
+                            // Additional market data
+                            liquidity: t.liquidity || 0,
+                            priceChange24h: t.priceChange24h || 0,
+                            holders: t.holders || 0
                         }));
                         console.log(`[TOKENS] Loaded ${registeredTokens.length} registered tokens`);
                     }
@@ -1650,7 +1658,11 @@
                             price: t.price || 0,
                             complete: t.complete,
                             created: t.created_timestamp,
-                            realSolReserves: t.real_sol_reserves
+                            realSolReserves: t.real_sol_reserves,
+                            // Socials from Pump.fun API
+                            twitter: t.twitter || null,
+                            telegram: t.telegram || null,
+                            website: t.website || null
                         }));
                     }
                 } catch (e) {}
@@ -1669,7 +1681,11 @@
                             price: t.price || 0,
                             complete: t.complete,
                             created: t.created_timestamp,
-                            realSolReserves: t.real_sol_reserves
+                            realSolReserves: t.real_sol_reserves,
+                            // Socials from Pump.fun API
+                            twitter: t.twitter || null,
+                            telegram: t.telegram || null,
+                            website: t.website || null
                         }));
                     }
                 } catch (e) {}
@@ -1867,13 +1883,20 @@
                 const timeAgo = t.created ? getTimeAgo(t.created) : '';
                 const graduated = t.complete ? '<span style="color:var(--success);font-size:10px;margin-left:6px;">GRADUATED</span>' : '';
 
+                // Build socials HTML
+                const socialsHtml = [
+                    t.twitter ? `<a href="${escapeHtml(t.twitter)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--text-muted);font-size:11px;text-decoration:none;padding:2px 4px;background:rgba(255,255,255,0.05);border-radius:3px;" title="Twitter">𝕏</a>` : '',
+                    t.telegram ? `<a href="${escapeHtml(t.telegram)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--text-muted);font-size:11px;text-decoration:none;padding:2px 4px;background:rgba(255,255,255,0.05);border-radius:3px;" title="Telegram">TG</a>` : '',
+                    t.website ? `<a href="${escapeHtml(t.website)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--text-muted);font-size:11px;text-decoration:none;padding:2px 4px;background:rgba(255,255,255,0.05);border-radius:3px;" title="Website">WEB</a>` : ''
+                ].filter(Boolean).join(' ');
+
                 return `
                 <div class="token-item" onclick="openPumpToken('${escapeHtml(t.mint)}')" role="button" tabindex="0" style="cursor:pointer;">
                     <div class="token-avatar" style="background-size:cover;background-position:center;${t.image ? `background-image:url('${escapeHtml(t.image)}')` : ''}">
                         ${!t.image ? escapeHtml(t.name.charAt(0)) : ''}
                     </div>
                     <div class="token-details">
-                        <div class="token-name">${escapeHtml(t.name)}${graduated}</div>
+                        <div class="token-name">${escapeHtml(t.name)}${graduated}${socialsHtml ? `<span style="margin-left:8px;">${socialsHtml}</span>` : ''}</div>
                         <div class="token-meta">
                             <span class="token-ticker">$${escapeHtml(t.symbol)}</span>
                             <span class="token-path pump">Pump.fun</span>
