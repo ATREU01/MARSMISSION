@@ -1783,6 +1783,90 @@
                 </div>
             </div>
 
+            <!-- Statistics & Controls Row (TOP OF TEK) -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px;">
+                <!-- Statistics Panel -->
+                <div class="fee-card" style="margin-bottom:0;background:linear-gradient(135deg,rgba(255,217,102,0.05),rgba(255,217,102,0.02));border:1px solid rgba(255,217,102,0.2);">
+                    <div class="fee-card-header">
+                        <span class="fee-card-title" style="color:var(--gold);">Statistics</span>
+                    </div>
+                    <div class="fee-card-body" style="padding:16px;">
+                        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,217,102,0.1);">
+                            <span style="color:var(--text-muted);font-size:13px;">Balance</span>
+                            <span style="color:var(--gold);font-weight:600;" id="statBalance">-- SOL</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,217,102,0.1);">
+                            <span style="color:var(--text-muted);font-size:13px;">Total Claimed</span>
+                            <span style="color:var(--cyan);font-weight:600;" id="statTotalClaimed">-- SOL</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,217,102,0.1);">
+                            <span style="color:var(--text-muted);font-size:13px;">Total Distributed</span>
+                            <span style="color:var(--success);font-weight:600;" id="statTotalDistributed">-- SOL</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:8px 0;">
+                            <span style="color:var(--text-muted);font-size:13px;">RSI</span>
+                            <span style="color:var(--purple);font-weight:600;" id="statRSI">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Automation Panel -->
+                <div class="fee-card" style="margin-bottom:0;background:linear-gradient(135deg,rgba(0,229,255,0.05),rgba(0,229,255,0.02));border:1px solid rgba(0,229,255,0.2);">
+                    <div class="fee-card-header">
+                        <span class="fee-card-title" style="color:var(--cyan);">Automation</span>
+                    </div>
+                    <div class="fee-card-body" style="padding:16px;">
+                        <div style="margin-bottom:16px;">
+                            <span class="status-badge" id="autoBadge" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(255,217,102,0.1);color:var(--gold);">
+                                <span style="width:8px;height:8px;border-radius:50%;background:currentColor;"></span>
+                                <span id="autoStatusText">Inactive</span>
+                            </span>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+                            <button class="btn" onclick="startAutomation()" id="startAutoBtn" disabled style="background:linear-gradient(135deg,#4ade80,#22c55e);color:#0a0a0f;padding:12px;font-weight:700;">START</button>
+                            <button class="btn" onclick="stopAutomation()" id="stopAutoBtn" disabled style="background:linear-gradient(135deg,#f87171,#ef4444);color:white;padding:12px;font-weight:600;">STOP</button>
+                        </div>
+                        <button class="btn" onclick="claimNow()" id="claimNowBtn" disabled style="background:linear-gradient(135deg,var(--gold-light),var(--gold));width:100%;padding:12px;color:#0a0a0f;font-weight:700;">CLAIM NOW</button>
+                    </div>
+                </div>
+
+                <!-- Distribute From Wallet -->
+                <div class="fee-card" style="margin-bottom:0;background:linear-gradient(135deg,rgba(168,85,247,0.08),rgba(168,85,247,0.03));border:1px solid rgba(168,85,247,0.3);">
+                    <div class="fee-card-header">
+                        <span class="fee-card-title" style="color:var(--purple);">Distribute From Wallet</span>
+                    </div>
+                    <div class="fee-card-body" style="padding:16px;">
+                        <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Use your wallet SOL directly - runs all mechanisms instantly!</p>
+                        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+                            <input type="number" id="distributeAmount" value="0.5" step="0.1" min="0.01" style="flex:1;font-size:18px;padding:12px;border-radius:var(--radius);border:1px solid rgba(168,85,247,0.3);background:var(--surface-2);color:var(--text);font-weight:bold;text-align:center;">
+                            <span style="color:var(--purple);font-size:14px;font-weight:bold;">SOL</span>
+                        </div>
+                        <button class="btn" onclick="distributeFromWallet()" id="distributeBtn" disabled style="background:linear-gradient(135deg,#a855f7,#9333ea);width:100%;padding:16px;font-size:16px;font-weight:bold;color:white;">
+                            DISTRIBUTE NOW
+                        </button>
+                        <div id="distributeResult" style="margin-top:8px;font-size:12px;display:none;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity Stream (TEK) -->
+            <div class="activity-card" id="activity" style="margin-bottom:24px;">
+                <div class="activity-header">
+                    <div class="activity-title">
+                        <span class="dot" style="background:var(--gold);"></span>
+                        Activity Stream
+                    </div>
+                    <button class="btn btn-secondary btn-sm" onclick="refreshEngineLogs()">Refresh</button>
+                </div>
+                <div id="engineLogs" style="background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:var(--radius);padding:16px;max-height:200px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.8;">
+                    <div class="empty-state" id="logsEmptyState">
+                        <svg width="32" height="32" fill="none" stroke="var(--gold)" viewBox="0 0 24 24" style="opacity:0.5;margin-bottom:8px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                        <div class="empty-state-title">No activity yet</div>
+                        <div class="empty-state-desc">Connect engine to see fee distribution activity</div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Fee Distribution Breakdown -->
             <div class="fee-card" style="margin-bottom:16px;">
                 <div class="fee-card-header">
@@ -1822,72 +1906,6 @@
                             <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Add LP take out + LP tokens</div>
                             <div id="lpStat" style="font-size:13px;font-weight:600;margin-top:14px;padding-top:12px;border-top:1px solid rgba(154,122,172,0.2);color:#9a7aac;">0.0000 SOL</div>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Statistics & Controls Row -->
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px;">
-                <!-- Statistics Panel -->
-                <div class="fee-card" style="margin-bottom:0;">
-                    <div class="fee-card-header">
-                        <span class="fee-card-title">Statistics</span>
-                    </div>
-                    <div class="fee-card-body" style="padding:16px;">
-                        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
-                            <span style="color:var(--text-muted);font-size:13px;">Balance</span>
-                            <span style="color:var(--text);font-weight:600;" id="statBalance">-- SOL</span>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
-                            <span style="color:var(--text-muted);font-size:13px;">Total Claimed</span>
-                            <span style="color:var(--text);font-weight:600;" id="statTotalClaimed">-- SOL</span>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
-                            <span style="color:var(--text-muted);font-size:13px;">Total Distributed</span>
-                            <span style="color:var(--text);font-weight:600;" id="statTotalDistributed">-- SOL</span>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;padding:8px 0;">
-                            <span style="color:var(--text-muted);font-size:13px;">RSI</span>
-                            <span style="color:var(--gold);font-weight:600;" id="statRSI">--</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Automation Panel -->
-                <div class="fee-card" style="margin-bottom:0;">
-                    <div class="fee-card-header">
-                        <span class="fee-card-title">Automation</span>
-                    </div>
-                    <div class="fee-card-body" style="padding:16px;">
-                        <div style="margin-bottom:16px;">
-                            <span class="status-badge" id="autoBadge" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(239,68,68,0.1);color:#ef4444;">
-                                <span style="width:8px;height:8px;border-radius:50%;background:currentColor;"></span>
-                                <span id="autoStatusText">Inactive</span>
-                            </span>
-                        </div>
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
-                            <button class="btn" onclick="startAutomation()" id="startAutoBtn" disabled style="background:#22c55e;color:white;padding:12px;font-weight:600;">START</button>
-                            <button class="btn" onclick="stopAutomation()" id="stopAutoBtn" disabled style="background:#ef4444;color:white;padding:12px;font-weight:600;">STOP</button>
-                        </div>
-                        <button class="btn btn-primary" onclick="claimNow()" id="claimNowBtn" disabled style="width:100%;padding:12px;">CLAIM NOW</button>
-                    </div>
-                </div>
-
-                <!-- Distribute From Wallet -->
-                <div class="fee-card" style="margin-bottom:0;background:linear-gradient(135deg,rgba(249,115,22,0.1),rgba(234,88,12,0.1));border:2px solid #f97316;">
-                    <div class="fee-card-header">
-                        <span class="fee-card-title" style="color:#f97316;">Distribute From Wallet</span>
-                    </div>
-                    <div class="fee-card-body" style="padding:16px;">
-                        <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Use your wallet SOL directly - runs all mechanisms instantly!</p>
-                        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
-                            <input type="number" id="distributeAmount" value="0.5" step="0.1" min="0.01" style="flex:1;font-size:18px;padding:12px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-weight:bold;text-align:center;">
-                            <span style="color:var(--text);font-size:14px;font-weight:bold;">SOL</span>
-                        </div>
-                        <button class="btn" onclick="distributeFromWallet()" id="distributeBtn" disabled style="background:linear-gradient(135deg,#f97316,#ea580c);width:100%;padding:16px;font-size:16px;font-weight:bold;color:white;">
-                            DISTRIBUTE NOW
-                        </button>
-                        <div id="distributeResult" style="margin-top:8px;font-size:12px;display:none;"></div>
                     </div>
                 </div>
             </div>
@@ -2192,24 +2210,6 @@
                             </button>
                             <div id="maximusResult" style="margin-top:12px;font-size:11px;color:var(--text-muted);display:none;"></div>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Activity Stream -->
-            <div class="activity-card" id="activity">
-                <div class="activity-header">
-                    <div class="activity-title">
-                        <span class="dot"></span>
-                        Activity Stream
-                    </div>
-                    <button class="btn btn-secondary btn-sm" onclick="refreshEngineLogs()">Refresh</button>
-                </div>
-                <div id="engineLogs" style="background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:var(--radius);padding:16px;max-height:300px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.8;">
-                    <div class="empty-state" id="logsEmptyState">
-                        <div class="empty-state-icon">📊</div>
-                        <div class="empty-state-title">No activity yet</div>
-                        <div class="empty-state-desc">Connect engine to see fee distribution activity</div>
                     </div>
                 </div>
             </div>
