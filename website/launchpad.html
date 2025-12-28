@@ -2338,6 +2338,7 @@
         // Validate leaderboard entry
         function sanitizeLeaderEntry(l) {
             return {
+                mint: isValidSolanaAddress(l.mint) ? l.mint : '', // CRITICAL: needed for pump.fun link
                 rank: Math.min(Math.max(1, parseInt(l.rank) || 99), 99),
                 name: escapeHtml(String(l.name || 'Unknown').slice(0, 50)),
                 symbol: escapeHtml(String(l.symbol || 'TOKEN').slice(0, 10)),
@@ -2348,6 +2349,7 @@
                 graduated: Boolean(l.graduated),
                 path: escapeHtml(String(l.path || 'Pump.fun').slice(0, 20)),
                 reward: l.reward ? escapeHtml(String(l.reward).slice(0, 20)) : null,
+                change: parseFloat(l.change) || 0,
             };
         }
 
@@ -2571,6 +2573,24 @@
                 tx.sign([mintInfo.keypair]);
             } else {
                 throw new Error('No signing method available for mint keypair');
+            }
+
+            // PRE-SIMULATE: Simulate transaction before showing to wallet
+            // This helps Phantom understand the transaction and reduces warnings
+            console.log('[DEPLOY] Pre-simulating transaction...');
+            try {
+                const simulation = await connection.simulateTransaction(tx, {
+                    sigVerify: false, // Skip signature verification for simulation
+                    replaceRecentBlockhash: true
+                });
+                if (simulation.value.err) {
+                    console.warn('[DEPLOY] Simulation warning:', simulation.value.err);
+                    // Don't throw - let the user try anyway, just log it
+                } else {
+                    console.log('[DEPLOY] Pre-simulation successful, units consumed:', simulation.value.unitsConsumed);
+                }
+            } catch (simErr) {
+                console.warn('[DEPLOY] Pre-simulation failed (continuing anyway):', simErr.message);
             }
 
             let signature;
