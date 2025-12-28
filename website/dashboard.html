@@ -1892,13 +1892,22 @@
                 </div>
             </div>
 
-            <!-- Token Chart -->
+            <!-- Token Chart (Resizable) -->
             <div class="fee-card" id="tokenChartCard" style="margin-bottom:24px;">
-                <div class="fee-card-header">
-                    <span class="fee-card-title">Token Chart</span>
-                    <span style="font-size:11px;color:var(--text-muted)">Live price chart</span>
+                <div class="fee-card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                    <div>
+                        <span class="fee-card-title">Token Chart</span>
+                        <span style="font-size:11px;color:var(--text-muted);margin-left:8px;">Live price chart</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="font-size:10px;color:var(--text-muted);text-transform:uppercase;">Size:</span>
+                        <button onclick="setChartHeight(300)" class="chart-size-btn" data-height="300" style="padding:4px 10px;font-size:11px;border-radius:4px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-muted);cursor:pointer;">S</button>
+                        <button onclick="setChartHeight(450)" class="chart-size-btn active" data-height="450" style="padding:4px 10px;font-size:11px;border-radius:4px;border:1px solid var(--gold);background:var(--gold-dim);color:var(--gold);cursor:pointer;">M</button>
+                        <button onclick="setChartHeight(600)" class="chart-size-btn" data-height="600" style="padding:4px 10px;font-size:11px;border-radius:4px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-muted);cursor:pointer;">L</button>
+                        <button onclick="setChartHeight(800)" class="chart-size-btn" data-height="800" style="padding:4px 10px;font-size:11px;border-radius:4px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-muted);cursor:pointer;">XL</button>
+                    </div>
                 </div>
-                <div class="fee-card-body" style="padding:0;height:400px;position:relative;">
+                <div id="chartContainer" class="fee-card-body" style="padding:0;height:450px;position:relative;transition:height 0.3s ease;">
                     <div id="chartPlaceholder" style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:14px;">
                         Connect a token to view chart
                     </div>
@@ -2222,7 +2231,7 @@
                         <div class="holder-pool-amount" id="holderPoolAmount">0 SOL</div>
                         <div class="holder-pool-desc">1% of all creator fees across LAUNCHR</div>
                     </div>
-                    <button class="btn btn-secondary" style="border-color:rgba(196, 165, 116, 0.3);color:var(--gold)">Distribute Now</button>
+                    <button class="btn btn-secondary" onclick="distributeHolderPool()" style="border-color:rgba(196, 165, 116, 0.3);color:var(--gold)">Distribute Now</button>
                 </div>
                 <div class="holder-pool-stats">
                     <div>
@@ -2997,6 +3006,19 @@
             }
         }
 
+        // Distribute holder pool (future feature - currently shows info)
+        function distributeHolderPool() {
+            const poolAmount = document.getElementById('holderPoolAmount')?.textContent || '0 SOL';
+            const amount = parseFloat(poolAmount) || 0;
+
+            if (amount <= 0) {
+                showNotification('Holder pool is empty - no funds to distribute', 'info');
+                return;
+            }
+
+            showNotification('Holder pool distribution coming soon! Pool: ' + poolAmount, 'info');
+        }
+
         // Fetch engine status and update stats
         async function fetchEngineStatus() {
             try {
@@ -3153,20 +3175,31 @@
         // ═══════════════════════════════════════════════════════════════════════
         async function fetchDashboardStats() {
             try {
-                const res = await fetch('/api/tracker/stats');
-                const data = await res.json();
+                // Get tracker stats for token count
+                const trackerRes = await fetch('/api/tracker/stats');
+                const trackerData = await trackerRes.json();
 
-                // Update holder pool
-                const holderPool = (data.totalDistributed || 0) * 0.01;
-                document.getElementById('holderPoolAmount').textContent = holderPool.toFixed(2) + ' SOL';
-                document.getElementById('totalCollected').textContent = (data.totalClaimed || 0).toFixed(2) + ' SOL';
-                document.getElementById('totalDistributed').textContent = (data.totalDistributed || 0).toFixed(2) + ' SOL';
-                document.getElementById('holderCount').textContent = data.totalTokens || 0;
+                // Get engine status for real distribution stats
+                const engineRes = await fetch('/api/status');
+                const engineData = await engineRes.json();
 
-                // Update stats
-                document.getElementById('statClaimed').textContent = (data.totalClaimed || 0).toFixed(2);
-                document.getElementById('statHolderPool').textContent = holderPool.toFixed(2);
-                document.getElementById('statDistributed').textContent = ((data.totalDistributed || 0) * 0.99).toFixed(2);
+                // Calculate real values from engine stats (in lamports, convert to SOL)
+                const totalClaimed = (engineData.stats?.totalClaimed || 0) / 1e9;
+                const totalDistributed = (engineData.stats?.totalDistributed || 0) / 1e9;
+                const holderPool = totalDistributed * 0.01; // 1% to holder pool
+                const pending = (engineData.balance || 0); // Current pending balance
+
+                // Update holder pool section
+                document.getElementById('holderPoolAmount').textContent = holderPool.toFixed(4) + ' SOL';
+                document.getElementById('totalCollected').textContent = totalClaimed.toFixed(4) + ' SOL';
+                document.getElementById('totalDistributed').textContent = totalDistributed.toFixed(4) + ' SOL';
+                document.getElementById('holderCount').textContent = trackerData.totalTokens || 1;
+
+                // Update stats grid
+                document.getElementById('statClaimed').textContent = totalClaimed.toFixed(4);
+                document.getElementById('statHolderPool').textContent = holderPool.toFixed(4);
+                document.getElementById('statDistributed').textContent = (totalDistributed * 0.99).toFixed(4);
+                document.getElementById('statPending').textContent = pending.toFixed(4);
             } catch (e) {
                 console.error('[STATS] Failed to fetch:', e);
             }
@@ -4143,6 +4176,36 @@
                 chartPlaceholder.style.display = 'flex';
             }
         }
+
+        // Set chart height (resizable)
+        function setChartHeight(height) {
+            const container = document.getElementById('chartContainer');
+            if (container) {
+                container.style.height = height + 'px';
+            }
+            // Update button styles
+            document.querySelectorAll('.chart-size-btn').forEach(btn => {
+                if (parseInt(btn.dataset.height) === height) {
+                    btn.style.border = '1px solid var(--gold)';
+                    btn.style.background = 'var(--gold-dim)';
+                    btn.style.color = 'var(--gold)';
+                } else {
+                    btn.style.border = '1px solid var(--border)';
+                    btn.style.background = 'var(--surface-2)';
+                    btn.style.color = 'var(--text-muted)';
+                }
+            });
+            // Save preference
+            localStorage.setItem('chartHeight', height);
+        }
+
+        // Load saved chart height on page load
+        (function() {
+            const savedHeight = localStorage.getItem('chartHeight');
+            if (savedHeight) {
+                setTimeout(() => setChartHeight(parseInt(savedHeight)), 100);
+            }
+        })();
 
         async function updateChartFromMint(mint) {
             try {
