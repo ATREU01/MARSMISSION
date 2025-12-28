@@ -570,6 +570,102 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.4; }
         }
+        @keyframes scrollTrending {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+        .trending-bar {
+            background: var(--surface-1);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 0;
+            overflow: hidden;
+            position: relative;
+        }
+        .trending-bar::before,
+        .trending-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 60px;
+            z-index: 2;
+            pointer-events: none;
+        }
+        .trending-bar::before {
+            left: 0;
+            background: linear-gradient(to right, var(--surface-1), transparent);
+        }
+        .trending-bar::after {
+            right: 0;
+            background: linear-gradient(to left, var(--surface-1), transparent);
+        }
+        .trending-scroll-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            animation: scrollTrending 30s linear infinite;
+            width: max-content;
+        }
+        .trending-scroll-wrapper:hover {
+            animation-play-state: paused;
+        }
+        .trending-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+            padding-left: 24px;
+        }
+        .trending-label span:first-child {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+        .trending-badge {
+            background: var(--gold);
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+        .trending-token {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--surface-2);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        .trending-token:hover {
+            border-color: var(--gold);
+            transform: translateY(-2px);
+        }
+        .trending-token img {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+        }
+        .trending-token-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .trending-token-change {
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .trending-token-change.positive {
+            color: var(--success);
+        }
+        .trending-token-change.negative {
+            color: var(--danger);
+        }
         .card-body {
             padding: 16px 20px;
         }
@@ -1469,14 +1565,22 @@
         </div>
 
         <!-- Trending Bar (Horizontal Leaderboard) -->
-        <div class="trending-bar" id="trendingBar" style="background:var(--surface-1);border-bottom:1px solid var(--border);padding:12px 24px;overflow-x:auto;">
-            <div style="display:flex;align-items:center;gap:16px;min-width:max-content;">
-                <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-                    <span style="font-size:13px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Trending</span>
-                    <span style="background:var(--gold);color:#000;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;">FEATURED</span>
+        <div class="trending-bar" id="trendingBar">
+            <div class="trending-scroll-wrapper" id="trendingScrollWrapper">
+                <div class="trending-label">
+                    <span>Trending</span>
+                    <span class="trending-badge">LIVE</span>
                 </div>
-                <div id="trendingTokens" style="display:flex;gap:12px;align-items:center;">
+                <div id="trendingTokens" style="display:flex;gap:16px;align-items:center;">
                     <!-- Rendered by JS -->
+                </div>
+                <!-- Duplicate for seamless loop -->
+                <div class="trending-label">
+                    <span>Trending</span>
+                    <span class="trending-badge">LIVE</span>
+                </div>
+                <div id="trendingTokensDupe" style="display:flex;gap:16px;align-items:center;">
+                    <!-- Duplicate rendered by JS -->
                 </div>
             </div>
         </div>
@@ -2099,6 +2203,7 @@
         function renderLeaderboard() {
             const list = document.getElementById('leaderboardList');
             const trendingBar = document.getElementById('trendingTokens');
+            const trendingBarDupe = document.getElementById('trendingTokensDupe');
 
             if (leaderboard.length === 0) {
                 list.innerHTML = `
@@ -2108,30 +2213,35 @@
                     </div>
                 `;
                 if (trendingBar) trendingBar.innerHTML = '<span style="color:var(--text-muted);font-size:12px;">No trending tokens</span>';
+                if (trendingBarDupe) trendingBarDupe.innerHTML = '';
                 return;
             }
 
-            // HORIZONTAL TRENDING BAR (top of page)
+            // HORIZONTAL TRENDING BAR (top of page) - Scrolling marquee
             if (trendingBar) {
-                trendingBar.innerHTML = leaderboard.slice(0, 10).map(rawEntry => {
+                const trendingHtml = leaderboard.slice(0, 10).map(rawEntry => {
                     const l = sanitizeLeaderEntry(rawEntry);
                     const change = l.change || 0;
-                    const changeColor = change >= 0 ? '#00ff88' : '#ff4757';
+                    const changeClass = change >= 0 ? 'positive' : 'negative';
                     const changeText = change !== 0 ? `${change >= 0 ? '+' : ''}${change.toFixed(1)}%` : '';
 
                     return `
-                    <div onclick="window.open('https://pump.fun/coin/${escapeHtml(l.mint)}','_blank')" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface-2);border-radius:8px;cursor:pointer;flex-shrink:0;transition:background 0.15s;" onmouseover="this.style.background='var(--surface-3)'" onmouseout="this.style.background='var(--surface-2)'">
+                    <div class="trending-token" onclick="window.open('https://pump.fun/coin/${escapeHtml(l.mint)}','_blank')">
                         <span style="color:var(--gold);font-weight:700;font-size:11px;">#${l.rank}</span>
                         <div style="width:24px;height:24px;border-radius:50%;background:var(--surface-3);background-size:cover;background-position:center;flex-shrink:0;${l.image ? `background-image:url('${escapeHtml(l.image)}')` : 'display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:var(--gold);'}">
                             ${!l.image ? escapeHtml(l.symbol?.charAt(0) || '?') : ''}
                         </div>
                         <div>
-                            <div style="font-weight:600;font-size:12px;color:#fff;">$${escapeHtml(l.symbol)}</div>
+                            <div class="trending-token-name">$${escapeHtml(l.symbol)}</div>
                             <div style="font-size:10px;color:var(--text-muted);">$${formatNumber(l.mcap)}</div>
                         </div>
-                        ${changeText ? `<span style="color:${changeColor};font-size:11px;font-weight:600;">${changeText}</span>` : ''}
+                        ${changeText ? `<span class="trending-token-change ${changeClass}">${changeText}</span>` : ''}
                     </div>`;
                 }).join('');
+
+                trendingBar.innerHTML = trendingHtml;
+                // Duplicate for seamless infinite scroll
+                if (trendingBarDupe) trendingBarDupe.innerHTML = trendingHtml;
             }
 
             // VERTICAL SIDEBAR LEADERBOARD (keep for reference)
