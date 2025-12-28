@@ -1734,6 +1734,169 @@
                 </div>
             </div>
 
+            <!-- ========== TEK ENGINE SECTION (TOP) ========== -->
+
+            <!-- Engine Configuration Card -->
+            <div id="engineConfigCard" class="fee-card" style="margin-bottom:16px;background:linear-gradient(135deg,var(--gold-dim),rgba(255,217,102,0.05));border:2px solid var(--gold);">
+                <div class="fee-card-header">
+                    <span class="fee-card-title" style="color:var(--gold);">Connect Fee Distribution Engine</span>
+                </div>
+                <div class="fee-card-body" style="padding:20px;">
+                    <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Enter your token mint (CA) and private key (PK) to enable fee claiming and distribution.</p>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+                        <div>
+                            <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px;">Token Mint (CA)</label>
+                            <input type="text" id="engineTokenMint" placeholder="Token mint address..." style="width:100%;padding:14px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-size:13px;font-family:'JetBrains Mono',monospace;">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px;">Private Key (Base58)</label>
+                            <input type="password" id="enginePrivateKey" placeholder="Base58 private key..." autocomplete="off" style="width:100%;padding:14px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-size:13px;font-family:'JetBrains Mono',monospace;">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="configureEngine()" id="configureEngineBtn" style="width:100%;padding:16px;font-size:15px;font-weight:700;">CONNECT ENGINE</button>
+                    <div id="configStatus" style="margin-top:10px;font-size:12px;text-align:center;"></div>
+                </div>
+            </div>
+
+            <!-- Engine Connected Card (hidden by default) -->
+            <div id="engineConnectedCard" class="fee-card" style="margin-bottom:16px;background:rgba(34,197,94,0.1);border:2px solid #22c55e;display:none;">
+                <div class="fee-card-body" style="padding:16px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;">
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <span style="width:12px;height:12px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px #22c55e;animation:pulse 2s infinite;"></span>
+                            <span style="font-weight:600;color:#22c55e;">Engine Connected</span>
+                            <span id="engineWalletDisplay" style="font-family:'JetBrains Mono',monospace;color:var(--text-muted);font-size:13px;"></span>
+                        </div>
+                        <button class="btn btn-secondary" onclick="disconnectEngine()" style="padding:8px 20px;">Disconnect</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fee Distribution Breakdown -->
+            <div class="fee-card" style="margin-bottom:16px;">
+                <div class="fee-card-header">
+                    <span class="fee-card-title">Fee Distribution Breakdown</span>
+                </div>
+                <div class="fee-card-body" style="padding:20px;">
+                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;">
+                        <!-- Burn -->
+                        <div class="distribution-feature" style="background:rgba(168,90,50,0.1);border:1px solid rgba(196,122,74,0.3);border-radius:var(--radius-lg);padding:20px;text-align:center;position:relative;overflow:hidden;transition:all 0.3s;">
+                            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#a85a32,#c47a4a);"></div>
+                            <div id="allocBurn" style="font-size:32px;font-weight:900;color:#c47a4a;line-height:1;">25%</div>
+                            <div style="font-size:12px;font-weight:700;letter-spacing:2px;margin-top:10px;color:var(--text);">BURN</div>
+                            <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Tokens permanently destroyed</div>
+                            <div id="burnStat" style="font-size:13px;font-weight:600;margin-top:14px;padding-top:12px;border-top:1px solid rgba(196,122,74,0.2);color:#c47a4a;">0.0000 SOL</div>
+                        </div>
+                        <!-- AI-Driven AMM -->
+                        <div class="distribution-feature" style="background:rgba(61,139,110,0.1);border:1px solid rgba(90,168,138,0.3);border-radius:var(--radius-lg);padding:20px;text-align:center;position:relative;overflow:hidden;transition:all 0.3s;">
+                            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#3d8b6e,#5aa88a);"></div>
+                            <div id="allocBuyback" style="font-size:32px;font-weight:900;color:#5aa88a;line-height:1;">25%</div>
+                            <div style="font-size:12px;font-weight:700;letter-spacing:2px;margin-top:10px;color:var(--text);">AI-DRIVEN AMM</div>
+                            <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Smart market making</div>
+                            <div id="buybackStat" style="font-size:13px;font-weight:600;margin-top:14px;padding-top:12px;border-top:1px solid rgba(90,168,138,0.2);color:#5aa88a;">0.0000 SOL</div>
+                        </div>
+                        <!-- Creator Fees -->
+                        <div class="distribution-feature" style="background:rgba(74,124,155,0.1);border:1px solid rgba(106,156,184,0.3);border-radius:var(--radius-lg);padding:20px;text-align:center;position:relative;overflow:hidden;transition:all 0.3s;">
+                            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#4a7c9b,#6a9cb8);"></div>
+                            <div id="allocHolders" style="font-size:32px;font-weight:900;color:#6a9cb8;line-height:1;">25%</div>
+                            <div style="font-size:12px;font-weight:700;letter-spacing:2px;margin-top:10px;color:var(--text);">CREATOR FEES</div>
+                            <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Revenue to token creator</div>
+                            <div id="holdersStat" style="font-size:13px;font-weight:600;margin-top:14px;padding-top:12px;border-top:1px solid rgba(106,156,184,0.2);color:#6a9cb8;">0.0000 SOL</div>
+                        </div>
+                        <!-- Liquidity -->
+                        <div class="distribution-feature" style="background:rgba(122,90,140,0.1);border:1px solid rgba(154,122,172,0.3);border-radius:var(--radius-lg);padding:20px;text-align:center;position:relative;overflow:hidden;transition:all 0.3s;">
+                            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#7a5a8c,#9a7aac);"></div>
+                            <div id="allocLiquidity" style="font-size:32px;font-weight:900;color:#9a7aac;line-height:1;">25%</div>
+                            <div style="font-size:12px;font-weight:700;letter-spacing:2px;margin-top:10px;color:var(--text);">LIQUIDITY</div>
+                            <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Add LP take out + LP tokens</div>
+                            <div id="lpStat" style="font-size:13px;font-weight:600;margin-top:14px;padding-top:12px;border-top:1px solid rgba(154,122,172,0.2);color:#9a7aac;">0.0000 SOL</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistics & Controls Row -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px;">
+                <!-- Statistics Panel -->
+                <div class="fee-card" style="margin-bottom:0;">
+                    <div class="fee-card-header">
+                        <span class="fee-card-title">Statistics</span>
+                    </div>
+                    <div class="fee-card-body" style="padding:16px;">
+                        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+                            <span style="color:var(--text-muted);font-size:13px;">Balance</span>
+                            <span style="color:var(--text);font-weight:600;" id="statBalance">-- SOL</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+                            <span style="color:var(--text-muted);font-size:13px;">Total Claimed</span>
+                            <span style="color:var(--text);font-weight:600;" id="statTotalClaimed">-- SOL</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+                            <span style="color:var(--text-muted);font-size:13px;">Total Distributed</span>
+                            <span style="color:var(--text);font-weight:600;" id="statTotalDistributed">-- SOL</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:8px 0;">
+                            <span style="color:var(--text-muted);font-size:13px;">RSI</span>
+                            <span style="color:var(--gold);font-weight:600;" id="statRSI">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Automation Panel -->
+                <div class="fee-card" style="margin-bottom:0;">
+                    <div class="fee-card-header">
+                        <span class="fee-card-title">Automation</span>
+                    </div>
+                    <div class="fee-card-body" style="padding:16px;">
+                        <div style="margin-bottom:16px;">
+                            <span class="status-badge" id="autoBadge" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(239,68,68,0.1);color:#ef4444;">
+                                <span style="width:8px;height:8px;border-radius:50%;background:currentColor;"></span>
+                                <span id="autoStatusText">Inactive</span>
+                            </span>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+                            <button class="btn" onclick="startAutomation()" id="startAutoBtn" disabled style="background:#22c55e;color:white;padding:12px;font-weight:600;">START</button>
+                            <button class="btn" onclick="stopAutomation()" id="stopAutoBtn" disabled style="background:#ef4444;color:white;padding:12px;font-weight:600;">STOP</button>
+                        </div>
+                        <button class="btn btn-primary" onclick="claimNow()" id="claimNowBtn" disabled style="width:100%;padding:12px;">CLAIM NOW</button>
+                    </div>
+                </div>
+
+                <!-- Distribute From Wallet -->
+                <div class="fee-card" style="margin-bottom:0;background:linear-gradient(135deg,rgba(249,115,22,0.1),rgba(234,88,12,0.1));border:2px solid #f97316;">
+                    <div class="fee-card-header">
+                        <span class="fee-card-title" style="color:#f97316;">Distribute From Wallet</span>
+                    </div>
+                    <div class="fee-card-body" style="padding:16px;">
+                        <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Use your wallet SOL directly - runs all mechanisms instantly!</p>
+                        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+                            <input type="number" id="distributeAmount" value="0.5" step="0.1" min="0.01" style="flex:1;font-size:18px;padding:12px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-weight:bold;text-align:center;">
+                            <span style="color:var(--text);font-size:14px;font-weight:bold;">SOL</span>
+                        </div>
+                        <button class="btn" onclick="distributeFromWallet()" id="distributeBtn" disabled style="background:linear-gradient(135deg,#f97316,#ea580c);width:100%;padding:16px;font-size:16px;font-weight:bold;color:white;">
+                            DISTRIBUTE NOW
+                        </button>
+                        <div id="distributeResult" style="margin-top:8px;font-size:12px;display:none;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Token Chart -->
+            <div class="fee-card" id="tokenChartCard" style="margin-bottom:24px;">
+                <div class="fee-card-header">
+                    <span class="fee-card-title">Token Chart</span>
+                    <span style="font-size:11px;color:var(--text-muted)">Live price chart</span>
+                </div>
+                <div class="fee-card-body" style="padding:0;height:400px;position:relative;">
+                    <div id="chartPlaceholder" style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:14px;">
+                        Connect a token to view chart
+                    </div>
+                    <iframe id="dexscreenerChart" style="display:none;width:100%;height:100%;border:none;border-radius:0 0 var(--radius-lg) var(--radius-lg);" src=""></iframe>
+                </div>
+            </div>
+
+            <!-- ========== END TEK ENGINE SECTION ========== -->
+
             <!-- Trading Panel -->
             <div class="trading-panel" id="tradingPanel" style="display:none;">
                 <div class="trading-header">
@@ -2059,151 +2222,6 @@
                             </button>
                             <div id="maximusResult" style="margin-top:12px;font-size:11px;color:var(--text-muted);display:none;"></div>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Engine Configuration Card -->
-            <div id="engineConfigCard" class="fee-card" style="margin-bottom:16px;background:linear-gradient(135deg,var(--gold-dim),rgba(255,217,102,0.05));border:2px solid var(--gold);">
-                <div class="fee-card-header">
-                    <span class="fee-card-title" style="color:var(--gold);">🔐 Connect Fee Distribution Engine</span>
-                </div>
-                <div class="fee-card-body" style="padding:20px;">
-                    <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Enter your token mint (CA) and private key (PK) to enable fee claiming and distribution.</p>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
-                        <div>
-                            <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px;">Token Mint (CA)</label>
-                            <input type="text" id="engineTokenMint" placeholder="Token mint address..." style="width:100%;padding:14px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-size:13px;font-family:'JetBrains Mono',monospace;">
-                        </div>
-                        <div>
-                            <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px;">Private Key (PK)</label>
-                            <input type="password" id="enginePrivateKey" placeholder="Base58 private key..." autocomplete="off" style="width:100%;padding:14px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-size:13px;font-family:'JetBrains Mono',monospace;">
-                        </div>
-                    </div>
-                    <button class="btn btn-primary" onclick="configureEngine()" id="configureEngineBtn" style="width:100%;padding:16px;font-size:15px;font-weight:700;">CONNECT ENGINE</button>
-                    <div id="configStatus" style="margin-top:10px;font-size:12px;text-align:center;"></div>
-                </div>
-            </div>
-
-            <!-- Engine Connected Card (hidden by default) -->
-            <div id="engineConnectedCard" class="fee-card" style="margin-bottom:16px;background:rgba(34,197,94,0.1);border:2px solid #22c55e;display:none;">
-                <div class="fee-card-body" style="padding:16px;">
-                    <div style="display:flex;align-items:center;justify-content:space-between;">
-                        <div style="display:flex;align-items:center;gap:12px;">
-                            <span style="width:12px;height:12px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px #22c55e;animation:pulse 2s infinite;"></span>
-                            <span style="font-weight:600;color:#22c55e;">Engine Connected</span>
-                            <span id="engineWalletDisplay" style="font-family:'JetBrains Mono',monospace;color:var(--text-muted);font-size:13px;"></span>
-                        </div>
-                        <button class="btn btn-secondary" onclick="disconnectEngine()" style="padding:8px 20px;">Disconnect</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Fee Distribution Breakdown -->
-            <div class="fee-card" style="margin-bottom:16px;">
-                <div class="fee-card-header">
-                    <span class="fee-card-title">Fee Distribution Breakdown</span>
-                </div>
-                <div class="fee-card-body" style="padding:20px;">
-                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;">
-                        <!-- Burn -->
-                        <div class="distribution-feature" style="background:rgba(168,90,50,0.1);border:1px solid rgba(196,122,74,0.3);border-radius:var(--radius-lg);padding:20px;text-align:center;position:relative;overflow:hidden;transition:all 0.3s;">
-                            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#a85a32,#c47a4a);"></div>
-                            <div id="allocBurn" style="font-size:32px;font-weight:900;color:#c47a4a;line-height:1;">25%</div>
-                            <div style="font-size:12px;font-weight:700;letter-spacing:2px;margin-top:10px;color:var(--text);">BURN</div>
-                            <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Tokens permanently destroyed</div>
-                            <div id="burnStat" style="font-size:13px;font-weight:600;margin-top:14px;padding-top:12px;border-top:1px solid rgba(196,122,74,0.2);color:#c47a4a;">0.0000 SOL</div>
-                        </div>
-                        <!-- AI-Driven AMM -->
-                        <div class="distribution-feature" style="background:rgba(61,139,110,0.1);border:1px solid rgba(90,168,138,0.3);border-radius:var(--radius-lg);padding:20px;text-align:center;position:relative;overflow:hidden;transition:all 0.3s;">
-                            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#3d8b6e,#5aa88a);"></div>
-                            <div id="allocBuyback" style="font-size:32px;font-weight:900;color:#5aa88a;line-height:1;">25%</div>
-                            <div style="font-size:12px;font-weight:700;letter-spacing:2px;margin-top:10px;color:var(--text);">AI-DRIVEN AMM</div>
-                            <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Smart market making</div>
-                            <div id="buybackStat" style="font-size:13px;font-weight:600;margin-top:14px;padding-top:12px;border-top:1px solid rgba(90,168,138,0.2);color:#5aa88a;">0.0000 SOL</div>
-                        </div>
-                        <!-- Creator Fees -->
-                        <div class="distribution-feature" style="background:rgba(74,124,155,0.1);border:1px solid rgba(106,156,184,0.3);border-radius:var(--radius-lg);padding:20px;text-align:center;position:relative;overflow:hidden;transition:all 0.3s;">
-                            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#4a7c9b,#6a9cb8);"></div>
-                            <div id="allocHolders" style="font-size:32px;font-weight:900;color:#6a9cb8;line-height:1;">25%</div>
-                            <div style="font-size:12px;font-weight:700;letter-spacing:2px;margin-top:10px;color:var(--text);">CREATOR FEES</div>
-                            <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Revenue to token creator</div>
-                            <div id="holdersStat" style="font-size:13px;font-weight:600;margin-top:14px;padding-top:12px;border-top:1px solid rgba(106,156,184,0.2);color:#6a9cb8;">0.0000 SOL</div>
-                        </div>
-                        <!-- Liquidity -->
-                        <div class="distribution-feature" style="background:rgba(122,90,140,0.1);border:1px solid rgba(154,122,172,0.3);border-radius:var(--radius-lg);padding:20px;text-align:center;position:relative;overflow:hidden;transition:all 0.3s;">
-                            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#7a5a8c,#9a7aac);"></div>
-                            <div id="allocLiquidity" style="font-size:32px;font-weight:900;color:#9a7aac;line-height:1;">25%</div>
-                            <div style="font-size:12px;font-weight:700;letter-spacing:2px;margin-top:10px;color:var(--text);">LIQUIDITY</div>
-                            <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Add LP take out + LP tokens</div>
-                            <div id="lpStat" style="font-size:13px;font-weight:600;margin-top:14px;padding-top:12px;border-top:1px solid rgba(154,122,172,0.2);color:#9a7aac;">0.0000 SOL</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Statistics & Controls Row -->
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px;">
-                <!-- Statistics Panel -->
-                <div class="fee-card" style="margin-bottom:0;">
-                    <div class="fee-card-header">
-                        <span class="fee-card-title">Statistics</span>
-                    </div>
-                    <div class="fee-card-body" style="padding:16px;">
-                        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
-                            <span style="color:var(--text-muted);font-size:13px;">Balance</span>
-                            <span style="color:var(--text);font-weight:600;" id="statBalance">-- SOL</span>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
-                            <span style="color:var(--text-muted);font-size:13px;">Total Claimed</span>
-                            <span style="color:var(--text);font-weight:600;" id="statTotalClaimed">-- SOL</span>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
-                            <span style="color:var(--text-muted);font-size:13px;">Total Distributed</span>
-                            <span style="color:var(--text);font-weight:600;" id="statTotalDistributed">-- SOL</span>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;padding:8px 0;">
-                            <span style="color:var(--text-muted);font-size:13px;">RSI</span>
-                            <span style="color:var(--gold);font-weight:600;" id="statRSI">--</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Automation Panel -->
-                <div class="fee-card" style="margin-bottom:0;">
-                    <div class="fee-card-header">
-                        <span class="fee-card-title">Automation</span>
-                    </div>
-                    <div class="fee-card-body" style="padding:16px;">
-                        <div style="margin-bottom:16px;">
-                            <span class="status-badge" id="autoBadge" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(239,68,68,0.1);color:#ef4444;">
-                                <span style="width:8px;height:8px;border-radius:50%;background:currentColor;"></span>
-                                <span id="autoStatusText">Inactive</span>
-                            </span>
-                        </div>
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
-                            <button class="btn" onclick="startAutomation()" id="startAutoBtn" disabled style="background:#22c55e;color:white;padding:12px;font-weight:600;">START</button>
-                            <button class="btn" onclick="stopAutomation()" id="stopAutoBtn" disabled style="background:#ef4444;color:white;padding:12px;font-weight:600;">STOP</button>
-                        </div>
-                        <button class="btn btn-primary" onclick="claimNow()" id="claimNowBtn" disabled style="width:100%;padding:12px;">CLAIM NOW</button>
-                    </div>
-                </div>
-
-                <!-- Distribute From Wallet -->
-                <div class="fee-card" style="margin-bottom:0;background:linear-gradient(135deg,rgba(249,115,22,0.1),rgba(234,88,12,0.1));border:2px solid #f97316;">
-                    <div class="fee-card-header">
-                        <span class="fee-card-title" style="color:#f97316;">🔥 Distribute From Wallet</span>
-                    </div>
-                    <div class="fee-card-body" style="padding:16px;">
-                        <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Use your wallet SOL directly - runs all mechanisms instantly!</p>
-                        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
-                            <input type="number" id="distributeAmount" value="0.5" step="0.1" min="0.01" style="flex:1;font-size:18px;padding:12px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-weight:bold;text-align:center;">
-                            <span style="color:var(--text);font-size:14px;font-weight:bold;">SOL</span>
-                        </div>
-                        <button class="btn" onclick="distributeFromWallet()" id="distributeBtn" disabled style="background:linear-gradient(135deg,#f97316,#ea580c);width:100%;padding:16px;font-size:16px;font-weight:bold;color:white;">
-                            🚀 DISTRIBUTE NOW
-                        </button>
-                        <div id="distributeResult" style="margin-top:8px;font-size:12px;display:none;"></div>
                     </div>
                 </div>
             </div>
@@ -2749,6 +2767,10 @@
                     // Refresh status and logs
                     fetchEngineStatus();
                     refreshEngineLogs();
+
+                    // Load chart for the connected token
+                    updateChartFromMint(tokenMint);
+
                     showNotification('Engine connected!', 'success');
                 } else {
                     throw new Error(data.error || 'Configuration failed');
@@ -4041,10 +4063,51 @@
                 };
 
                 updateTokenAnalytics(analyticsData);
+
+                // Update chart - find the pair address for DexScreener embed
+                if (dexData?.pairAddress) {
+                    updateChart(dexData.pairAddress);
+                } else {
+                    // Try to find pair address from token mint
+                    updateChartFromMint(mint);
+                }
             }
 
             // Re-render to show selection
             renderMyTokens();
+        }
+
+        // Update the DexScreener chart
+        function updateChart(pairAddress) {
+            const chartPlaceholder = document.getElementById('chartPlaceholder');
+            const chartIframe = document.getElementById('dexscreenerChart');
+
+            if (pairAddress) {
+                // DexScreener embed URL with dark theme
+                chartIframe.src = `https://dexscreener.com/solana/${pairAddress}?embed=1&theme=dark&trades=0&info=0`;
+                chartIframe.style.display = 'block';
+                chartPlaceholder.style.display = 'none';
+            } else {
+                chartIframe.style.display = 'none';
+                chartPlaceholder.style.display = 'flex';
+            }
+        }
+
+        async function updateChartFromMint(mint) {
+            try {
+                const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    const pair = data.pairs?.[0];
+                    if (pair?.pairAddress) {
+                        updateChart(pair.pairAddress);
+                        return;
+                    }
+                }
+            } catch (e) { console.log('Failed to get pair for chart:', e); }
+
+            // Fallback: show placeholder
+            document.getElementById('chartPlaceholder').textContent = 'Chart not available for this token';
         }
 
         // Register token after successful launch
