@@ -1586,8 +1586,8 @@
                             <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                         </div>
                         <div class="timer-content">
-                            <div class="timer-label">Next Reward In</div>
-                            <div class="timer-value" id="timer">01:45:23</div>
+                            <div class="timer-label">Holder Rewards</div>
+                            <div class="timer-value" id="timer" style="font-size:18px;">Coming Soon</div>
                         </div>
                     </div>
                 </div>
@@ -2352,20 +2352,11 @@
         }
 
         // ═══════════════════════════════════════════════════════════════════════
-        // TIMER
+        // TIMER (disabled - showing "Coming Soon" instead)
         // ═══════════════════════════════════════════════════════════════════════
         function startTimer(initialSeconds) {
-            let seconds = initialSeconds || 21600; // 6 hours default
-            const tick = () => {
-                seconds = seconds > 0 ? seconds - 1 : 21600; // Reset to 6 hours
-                const h = Math.floor(seconds / 3600);
-                const m = Math.floor((seconds % 3600) / 60);
-                const s = seconds % 60;
-                document.getElementById('timer').textContent =
-                    `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
-            };
-            tick();
-            setInterval(tick, 1000);
+            // Timer disabled - holder rewards coming soon
+            return;
         }
 
         // ═══════════════════════════════════════════════════════════════════════
