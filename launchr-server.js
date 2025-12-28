@@ -1573,6 +1573,20 @@ The 4 percentages MUST sum to exactly 100.`;
         return;
     }
 
+    // API: Force refresh all token metrics (holders, txns, etc.)
+    if (url.pathname === '/api/tracker/refresh' && req.method === 'POST') {
+        try {
+            console.log('[API] Force refreshing all token metrics...');
+            const result = await tracker.updateAllTokenMetrics();
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, ...result }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
     // Tracker page
     if (url.pathname === '/tracker' && req.method === 'GET') {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
