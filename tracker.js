@@ -579,9 +579,13 @@ async function updateTokenMetrics(tokenMint) {
     }
 
     // Update holder count if we got fresh data
-    if (freshHolders > 0) {
+    // Also validate it's a reasonable number (not an HTTP status code)
+    if (freshHolders > 0 && freshHolders < 10000000) {
         token.holders = freshHolders;
         console.log(`[TRACKER] ${holderSource}: ${token.symbol} has ${token.holders} holders`);
+    } else if (freshHolders === 0 && token.holders > 0) {
+        // If all APIs failed but we have old data, log it
+        console.log(`[TRACKER] No fresh holder data for ${token.symbol}, keeping ${token.holders}`);
     }
 
     // TRY 5: Helius for transaction count
