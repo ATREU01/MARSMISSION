@@ -396,9 +396,74 @@ async function updateTokenMetrics(tokenMint) {
         }
     }
 
-    // TRY 4: Helius API for holders count and transactions
-    if (HELIUS_RPC_URL) {
-        // Get transaction signatures to estimate activity and holders
+    // TRY 4: Multi-source HOLDER data (fallback chain)
+    if (!token.holders || token.holders === 0) {
+        let holderSource = '';
+
+        // 4a. Jupiter holderCount (most reliable)
+        try {
+            const jupHolderRes = await axios.get(`https://lite-api.jup.ag/tokens/v2/search?query=${tokenMint}`, {
+                timeout: 5000,
+                headers: { 'Accept': 'application/json' }
+            });
+            const jupToken = Array.isArray(jupHolderRes.data)
+                ? jupHolderRes.data.find(t => t.address === tokenMint || t.id === tokenMint)
+                : null;
+            if (jupToken?.holderCount) {
+                token.holders = jupToken.holderCount;
+                holderSource = 'Jupiter';
+            }
+        } catch (e) {}
+
+        // 4b. Pump.fun holder_count
+        if (!token.holders || token.holders === 0) {
+            try {
+                const pumpHolderRes = await pumpApi.get(`/coins/${tokenMint}`);
+                const holders = pumpHolderRes.data?.holder_count || pumpHolderRes.data?.unique_holders || pumpHolderRes.data?.holders;
+                if (holders > 0) {
+                    token.holders = holders;
+                    holderSource = 'Pump.fun';
+                }
+            } catch (e) {}
+        }
+
+        // 4c. GMGN
+        if (!token.holders || token.holders === 0) {
+            try {
+                const gmgnRes = await axios.get(`https://gmgn.ai/defi/quotation/v1/tokens/sol/${tokenMint}`, {
+                    timeout: 5000,
+                    headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' }
+                });
+                const holders = gmgnRes.data?.data?.token?.holder_count || gmgnRes.data?.data?.token?.holders;
+                if (holders > 0) {
+                    token.holders = holders;
+                    holderSource = 'GMGN';
+                }
+            } catch (e) {}
+        }
+
+        // 4d. Solscan
+        if (!token.holders || token.holders === 0) {
+            try {
+                const solscanRes = await axios.get(`https://public-api.solscan.io/token/meta?tokenAddress=${tokenMint}`, {
+                    timeout: 5000,
+                    headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' }
+                });
+                const holders = solscanRes.data?.holder || solscanRes.data?.data?.holder;
+                if (holders > 0) {
+                    token.holders = holders;
+                    holderSource = 'Solscan';
+                }
+            } catch (e) {}
+        }
+
+        if (token.holders > 0) {
+            console.log(`[TRACKER] ${holderSource}: ${token.symbol} has ${token.holders} holders`);
+        }
+    }
+
+    // TRY 5: Helius for transaction count
+    if (HELIUS_RPC_URL && (!token.txns || token.txns === 0)) {
         try {
             const sigsRes = await axios.post(
                 HELIUS_RPC_URL,
@@ -414,25 +479,11 @@ async function updateTokenMetrics(tokenMint) {
             if (sigsRes.data?.result) {
                 const signatures = sigsRes.data.result;
                 token.txns = signatures.length >= 1000 ? '1000+' : signatures.length;
-
-                // Estimate holders from unique signers (rough approximation)
-                const uniqueSigners = new Set();
-                for (const sig of signatures.slice(0, 200)) {
-                    // Each signature has a unique signer
-                    if (sig.signature) uniqueSigners.add(sig.signature.slice(0, 20));
-                }
-                // Very rough holder estimate based on activity
-                if (!token.holders || token.holders === 0) {
-                    token.holders = Math.max(uniqueSigners.size, Math.floor(signatures.length / 5));
-                }
-
-                console.log(`[TRACKER] Helius: ${token.symbol} - ${token.txns} txns, ~${token.holders} holders (est)`);
+                console.log(`[TRACKER] Helius: ${token.symbol} - ${token.txns} txns`);
             }
         } catch (e) {
-            console.log(`[TRACKER] Helius sigs failed: ${e.message}`);
+            console.log(`[TRACKER] Helius txns failed: ${e.message}`);
         }
-    } else {
-        console.log(`[TRACKER] Helius not configured - skipping holder/txn data`);
     }
 
     // Calculate price from reserves if still missing
