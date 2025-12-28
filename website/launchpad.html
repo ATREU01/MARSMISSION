@@ -1468,6 +1468,19 @@
             </div>
         </div>
 
+        <!-- Trending Bar (Horizontal Leaderboard) -->
+        <div class="trending-bar" id="trendingBar" style="background:var(--surface-1);border-bottom:1px solid var(--border);padding:12px 24px;overflow-x:auto;">
+            <div style="display:flex;align-items:center;gap:16px;min-width:max-content;">
+                <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+                    <span style="font-size:13px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Trending</span>
+                    <span style="background:var(--gold);color:#000;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;">FEATURED</span>
+                </div>
+                <div id="trendingTokens" style="display:flex;gap:12px;align-items:center;">
+                    <!-- Rendered by JS -->
+                </div>
+            </div>
+        </div>
+
         <!-- Content -->
         <div class="content">
             <!-- Token List -->
@@ -2085,6 +2098,8 @@
 
         function renderLeaderboard() {
             const list = document.getElementById('leaderboardList');
+            const trendingBar = document.getElementById('trendingTokens');
+
             if (leaderboard.length === 0) {
                 list.innerHTML = `
                     <div style="padding:40px 20px;text-align:center;">
@@ -2092,9 +2107,34 @@
                         <div style="color:var(--text-muted);font-size:12px;">Launch tokens to compete for rewards</div>
                     </div>
                 `;
+                if (trendingBar) trendingBar.innerHTML = '<span style="color:var(--text-muted);font-size:12px;">No trending tokens</span>';
                 return;
             }
-            // Sanitize ALL leaderboard data before rendering
+
+            // HORIZONTAL TRENDING BAR (top of page)
+            if (trendingBar) {
+                trendingBar.innerHTML = leaderboard.slice(0, 10).map(rawEntry => {
+                    const l = sanitizeLeaderEntry(rawEntry);
+                    const change = l.change || 0;
+                    const changeColor = change >= 0 ? '#00ff88' : '#ff4757';
+                    const changeText = change !== 0 ? `${change >= 0 ? '+' : ''}${change.toFixed(1)}%` : '';
+
+                    return `
+                    <div onclick="window.open('https://pump.fun/coin/${escapeHtml(l.mint)}','_blank')" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface-2);border-radius:8px;cursor:pointer;flex-shrink:0;transition:background 0.15s;" onmouseover="this.style.background='var(--surface-3)'" onmouseout="this.style.background='var(--surface-2)'">
+                        <span style="color:var(--gold);font-weight:700;font-size:11px;">#${l.rank}</span>
+                        <div style="width:24px;height:24px;border-radius:50%;background:var(--surface-3);background-size:cover;background-position:center;flex-shrink:0;${l.image ? `background-image:url('${escapeHtml(l.image)}')` : 'display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:var(--gold);'}">
+                            ${!l.image ? escapeHtml(l.symbol?.charAt(0) || '?') : ''}
+                        </div>
+                        <div>
+                            <div style="font-weight:600;font-size:12px;color:#fff;">$${escapeHtml(l.symbol)}</div>
+                            <div style="font-size:10px;color:var(--text-muted);">$${formatNumber(l.mcap)}</div>
+                        </div>
+                        ${changeText ? `<span style="color:${changeColor};font-size:11px;font-weight:600;">${changeText}</span>` : ''}
+                    </div>`;
+                }).join('');
+            }
+
+            // VERTICAL SIDEBAR LEADERBOARD (keep for reference)
             list.innerHTML = leaderboard.map(rawEntry => {
                 const l = sanitizeLeaderEntry(rawEntry);
                 const rankClass = l.rank <= 3 ? `rank-${l.rank}` : '';
