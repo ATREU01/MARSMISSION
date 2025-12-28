@@ -3,12 +3,14 @@ const path = require('path');
 const axios = require('axios');
 
 // Helius API for holders and transactions
-const HELIUS_API_KEY = process.env.HELIUS_API_KEY;
-const heliusApi = axios.create({
-    baseURL: `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY || ''}`,
-    timeout: 10000,
-    headers: { 'Content-Type': 'application/json' }
-});
+// Extract API key from HELIUS_RPC URL (format: https://mainnet.helius-rpc.com/?api-key=XXXX)
+const HELIUS_RPC = process.env.HELIUS_RPC || process.env.RPC_URL || '';
+const HELIUS_API_KEY = HELIUS_RPC.includes('api-key=')
+    ? HELIUS_RPC.split('api-key=')[1]?.split('&')[0]
+    : process.env.HELIUS_API_KEY;
+const HELIUS_RPC_URL = HELIUS_API_KEY
+    ? `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`
+    : null;
 
 // Use /app/data/ for Railway volume persistence, fallback to local data/ for dev
 const DATA_DIR = process.env.RAILWAY_ENVIRONMENT ? '/app/data' : path.join(__dirname, 'data');
@@ -44,6 +46,7 @@ function ensureDataDir() {
 }
 
 console.log(`[TRACKER] Data file: ${DATA_FILE}`);
+console.log(`[TRACKER] Helius RPC: ${HELIUS_RPC_URL ? 'CONFIGURED' : 'NOT SET'}`);
 
 // Load tracked tokens
 function loadTokens() {
@@ -394,27 +397,11 @@ async function updateTokenMetrics(tokenMint) {
     }
 
     // TRY 4: Helius API for holders count and transactions
-    if (HELIUS_API_KEY) {
-        // Use Helius DAS API for token accounts
-        try {
-            const holdersRes = await axios.post(
-                `https://api.helius.xyz/v0/token-metadata?api-key=${HELIUS_API_KEY}`,
-                { mintAccounts: [tokenMint] },
-                { timeout: 8000, headers: { 'Content-Type': 'application/json' } }
-            );
-
-            // Try to get holder count from metadata or use alternate endpoint
-            if (holdersRes.data?.[0]) {
-                console.log(`[TRACKER] Helius metadata for ${token.symbol}`);
-            }
-        } catch (e) {
-            console.log(`[TRACKER] Helius metadata failed: ${e.message}`);
-        }
-
-        // Get holders using Helius getAssetsByOwner alternative - use signatures to estimate activity
+    if (HELIUS_RPC_URL) {
+        // Get transaction signatures to estimate activity and holders
         try {
             const sigsRes = await axios.post(
-                `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`,
+                HELIUS_RPC_URL,
                 {
                     jsonrpc: '2.0',
                     id: 'sigs',
@@ -445,7 +432,7 @@ async function updateTokenMetrics(tokenMint) {
             console.log(`[TRACKER] Helius sigs failed: ${e.message}`);
         }
     } else {
-        console.log(`[TRACKER] HELIUS_API_KEY not set - skipping holder/txn data`);
+        console.log(`[TRACKER] Helius not configured - skipping holder/txn data`);
     }
 
     // Calculate price from reserves if still missing
