@@ -2082,14 +2082,8 @@
                 // Socials
                 const hasSocials = t.twitter || t.telegram || t.website;
 
-                // Bonding curve progress (85 SOL = 100%)
-                const progress = Math.min(100, (solInCurve / BONDING_CURVE_TARGET) * 100);
-                const isGraduated = t.complete || t.graduated || progress >= 100;
-                const progressColor = isGraduated ? '#22c55e' : progress >= 70 ? 'var(--gold)' : progress >= 40 ? '#3b82f6' : '#6b7280';
-
                 return `
-                <div style="position:relative;border-bottom:1px solid var(--border);">
-                    <div onclick="openPumpToken('${escapeHtml(t.mint)}')" style="display:grid;grid-template-columns:50px 180px 70px 95px 80px 65px 75px 85px 70px 70px 90px;gap:8px;padding:14px 16px 18px 16px;cursor:pointer;align-items:center;font-size:13px;" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
+                <div onclick="openPumpToken('${escapeHtml(t.mint)}')" style="display:grid;grid-template-columns:50px 180px 70px 95px 80px 65px 75px 85px 70px 70px 90px;gap:8px;padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer;align-items:center;font-size:13px;" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
                     <!-- AGE -->
                     <div style="color:var(--text-muted);font-size:12px;">${timeAgo}</div>
 
@@ -2151,12 +2145,6 @@
                     <div onclick="event.stopPropagation()" style="text-align:center;">
                         <button onclick="window.open('https://pump.fun/coin/${escapeHtml(t.mint)}','_blank')" style="padding:6px 12px;background:var(--gold);color:#000;border:none;border-radius:5px;font-size:10px;font-weight:700;cursor:pointer;">VIEW</button>
                     </div>
-                    </div>
-                    <!-- BONDING CURVE PROGRESS BAR -->
-                    <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--surface-3);">
-                        <div style="height:100%;width:${progress.toFixed(1)}%;background:linear-gradient(90deg, ${progressColor}, ${isGraduated ? '#4ade80' : progressColor});transition:width 0.3s;"></div>
-                    </div>
-                    ${isGraduated ? '<div style="position:absolute;bottom:5px;right:16px;font-size:9px;color:#22c55e;font-weight:600;">GRADUATED</div>' : progress >= 1 ? `<div style="position:absolute;bottom:5px;right:16px;font-size:9px;color:var(--text-muted);">${progress.toFixed(1)}%</div>` : ''}
                 </div>
                 `;
             }).join('');
