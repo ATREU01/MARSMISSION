@@ -1881,8 +1881,13 @@
                 const solInCurve = (t.realSolReserves || 0) / 1e9;
                 const progress = Math.min((solInCurve / BONDING_CURVE_TARGET) * 100, 100);
                 const timeAgo = t.created ? getTimeAgo(t.created) : '';
-                // Strict check - only show GRADUATED if complete is exactly true
-                const graduated = t.complete === true ? '<span style="color:var(--success);font-size:10px;margin-left:6px;">GRADUATED</span>' : '';
+                // STRICT graduation check:
+                // complete must be EXACTLY boolean true (not truthy string/object)
+                // Also sanity check: if still has significant SOL in curve AND low mcap, not graduated
+                const mcapUsd = t.mcap || 0;
+                const minGraduationMcap = 15000; // ~85 SOL * $180 = $15K minimum at graduation
+                const isActuallyGraduated = t.complete === true && (mcapUsd >= minGraduationMcap || solInCurve < 1);
+                const graduated = isActuallyGraduated ? '<span style="color:var(--success);font-size:10px;margin-left:6px;">GRADUATED</span>' : '';
 
                 // Build socials HTML
                 const socialsHtml = [
