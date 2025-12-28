@@ -525,6 +525,13 @@
             grid-template-columns: 1fr 380px;
             gap: 24px;
         }
+        .content-single {
+            grid-template-columns: 1fr;
+            max-width: 900px;
+        }
+        .content-single .card {
+            width: 100%;
+        }
 
         /* Cards */
         .card {
@@ -1309,18 +1316,70 @@
         }
         @media (max-width: 1024px) {
             .content { grid-template-columns: 1fr; }
+            .content-single { max-width: 100%; }
             .nav-links { display: none; }
             .stats-bar-inner { grid-template-columns: repeat(3, 1fr); }
         }
         @media (max-width: 768px) {
             .page-header-inner { flex-direction: column; align-items: flex-start; }
             .stats-bar-inner { grid-template-columns: repeat(2, 1fr); }
+            /* Modal mobile improvements */
+            .modal-content {
+                width: 95%;
+                max-width: 100%;
+                margin: 10px;
+                max-height: 90vh;
+            }
+            .modal-body {
+                padding: 16px;
+            }
+            .path-selector {
+                flex-direction: column;
+            }
+            .path-option {
+                width: 100%;
+            }
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            .trending-bar {
+                padding: 8px 0;
+            }
+            .trending-scroll-wrapper {
+                animation-duration: 20s;
+            }
         }
         @media (max-width: 640px) {
-            .nav-inner, .page-header, .stats-bar, .content, .footer { padding-left: 16px; padding-right: 16px; }
+            .nav-inner, .page-header, .stats-bar, .content, .footer { padding-left: 12px; padding-right: 12px; }
             .form-row { grid-template-columns: 1fr; }
             .footer-inner { flex-direction: column; gap: 16px; }
-            .stats-bar-inner { grid-template-columns: 1fr 1fr; }
+            .stats-bar-inner { grid-template-columns: 1fr 1fr; gap: 8px; }
+            .stat-cell { padding: 12px 8px; }
+            .stat-cell-value { font-size: 18px; }
+            .stat-cell-label { font-size: 10px; }
+            /* Modal tight mobile */
+            .modal-content {
+                width: 100%;
+                margin: 0;
+                border-radius: 0;
+                max-height: 100vh;
+                min-height: 100vh;
+            }
+            .modal-header {
+                position: sticky;
+                top: 0;
+                z-index: 10;
+                background: var(--surface);
+            }
+            .page-title { font-size: 22px; }
+            .page-subtitle { font-size: 12px; }
+            .card-header { padding: 12px 16px; }
+            .btn-sm { padding: 8px 12px; font-size: 11px; }
+        }
+        @media (max-width: 480px) {
+            .stats-bar-inner { grid-template-columns: 1fr; }
+            .hero-actions { flex-direction: column; width: 100%; }
+            .hero-actions .btn { width: 100%; }
         }
 
         /* Ensure Privy modal appears on top of everything */
@@ -1586,52 +1645,23 @@
         </div>
 
         <!-- Content -->
-        <div class="content">
-            <!-- Token List -->
-            <div>
-                <div class="card">
-                    <div class="card-header">
-                        <span class="card-title">Live Tokens</span>
-                        <div class="tabs">
-                            <button class="tab active" data-tab="trending">Trending</button>
-                            <button class="tab" data-tab="new">New</button>
-                            <button class="tab" data-tab="graduating">Graduating</button>
-                        </div>
-                    </div>
-                    <div class="token-list" id="tokenList">
-                        <!-- Rendered by JS -->
-                    </div>
+        <div class="content content-single">
+            <!-- Leaderboard - Single Main View -->
+            <div class="card" id="leaderboard">
+                <div class="card-header">
+                    <span class="card-title">Leaderboard</span>
+                    <span class="card-badge live">Live</span>
+                    <button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="showCreateModal()">
+                        Launch Token
+                    </button>
+                </div>
+                <div class="leaderboard" id="leaderboardList">
+                    <!-- Rendered by JS -->
                 </div>
             </div>
 
-            <!-- Sidebar -->
-            <div>
-                <!-- Leaderboard -->
-                <div class="card" id="leaderboard">
-                    <div class="card-header">
-                        <span class="card-title">Leaderboard</span>
-                        <span class="card-badge live">Live</span>
-                    </div>
-                    <div class="leaderboard" id="leaderboardList">
-                        <!-- Rendered by JS -->
-                    </div>
-                </div>
-
-                <!-- Quick Launch Card -->
-                <div class="card create-section">
-                    <div class="card-header">
-                        <span class="card-title">Quick Launch</span>
-                    </div>
-                    <div class="card-body">
-                        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.6;">
-                            Create a meme token in seconds on Pump.fun.
-                        </p>
-                        <button class="btn btn-primary" style="width:100%;" onclick="showCreateModal()">
-                            Launch Token
-                        </button>
-                    </div>
-                </div>
-            </div>
+            <!-- Hidden elements for compatibility -->
+            <div id="tokenList" style="display:none;"></div>
         </div>
     </main>
 
@@ -1727,6 +1757,14 @@
                 fetchLeaderboard();
                 fetchStats();
             }, 30000);
+
+            // Auto-open create modal if coming from launch button
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('launch') === 'true') {
+                showCreateModal();
+                // Clean URL without reload
+                window.history.replaceState({}, '', '/launchpad');
+            }
         });
 
         // ═══════════════════════════════════════════════════════════════════════
