@@ -1740,12 +1740,11 @@ The 4 percentages must sum to 100.`;
         return;
     }
 
-    // API: Get leaderboard (top tokens by mcap)
+    // API: Get leaderboard (top tokens by mcap - show ALL registered tokens)
     if (url.pathname === '/api/leaderboard' && req.method === 'GET') {
         try {
             const data = tracker.getTokens();
             const leaderboard = (data.tokens || [])
-                .filter(t => t.mcap > 0)
                 .sort((a, b) => (b.mcap || 0) - (a.mcap || 0))
                 .slice(0, 10)
                 .map((t, index) => ({

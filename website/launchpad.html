@@ -1600,50 +1600,114 @@
         async function fetchLiveTokens(isRetry = false) {
             if (!isRetry) {
                 fetchAttempts = 0;
-                tokensLoaded = false; // Reset loading state for fresh fetch
+                tokensLoaded = false;
             }
 
             try {
-                console.log(`[PUMP] Fetching live tokens... (attempt ${fetchAttempts + 1})`);
+                console.log(`[TOKENS] Fetching all tokens...`);
                 updateLoadingState('loading');
 
-                // Fetch new tokens (sorted by creation time) via proxy
-                const newRes = await fetch('/api/pump/coins?offset=0&limit=20&sort=created_timestamp&order=DESC');
-                if (newRes.ok) {
-                    const data = await newRes.json();
-                    liveTokens.new = (data || []).map(t => ({
-                        mint: t.mint,
-                        name: t.name || 'Unknown',
-                        symbol: t.symbol || '???',
-                        image: t.image_uri,
-                        mcap: t.usd_market_cap || 0,
-                        volume: t.volume_24h || 0,
-                        price: t.price || 0,
-                        complete: t.complete,
-                        created: t.created_timestamp,
-                        realSolReserves: t.real_sol_reserves
-                    }));
+                // FIRST: Get YOUR registered tokens from the platform
+                let registeredTokens = [];
+                try {
+                    const regRes = await fetch('/api/tokens');
+                    if (regRes.ok) {
+                        const regData = await regRes.json();
+                        registeredTokens = (regData.tokens || []).map(t => ({
+                            mint: t.mint,
+                            name: t.name || 'Unknown',
+                            symbol: t.symbol || '???',
+                            image: t.image,
+                            mcap: t.mcap || 0,
+                            volume: t.volume || 0,
+                            price: t.price || 0,
+                            complete: t.graduated,
+                            created: t.createdAt,
+                            realSolReserves: (t.progress || 0) * 85 / 100 * 1e9,
+                            isLaunchrToken: true
+                        }));
+                        console.log(`[TOKENS] Loaded ${registeredTokens.length} registered tokens`);
+                    }
+                } catch (e) {
+                    console.log('[TOKENS] No registered tokens');
                 }
 
-                // Fetch trending (sorted by market cap) via proxy
-                const trendingRes = await fetch('/api/pump/coins?offset=0&limit=20&sort=usd_market_cap&order=DESC');
-                if (trendingRes.ok) {
-                    const data = await trendingRes.json();
-                    liveTokens.trending = (data || []).map(t => ({
-                        mint: t.mint,
-                        name: t.name || 'Unknown',
-                        symbol: t.symbol || '???',
-                        image: t.image_uri,
-                        mcap: t.usd_market_cap || 0,
-                        volume: t.volume_24h || 0,
-                        price: t.price || 0,
-                        complete: t.complete,
-                        created: t.created_timestamp,
-                        realSolReserves: t.real_sol_reserves
-                    }));
+                // SECOND: Get pump.fun tokens
+                let pumpNewTokens = [];
+                let pumpTrendingTokens = [];
+
+                try {
+                    const newRes = await fetch('/api/pump/coins?offset=0&limit=20&sort=created_timestamp&order=DESC');
+                    if (newRes.ok) {
+                        const data = await newRes.json();
+                        pumpNewTokens = (data || []).map(t => ({
+                            mint: t.mint,
+                            name: t.name || 'Unknown',
+                            symbol: t.symbol || '???',
+                            image: t.image_uri,
+                            mcap: t.usd_market_cap || 0,
+                            volume: t.volume_24h || 0,
+                            price: t.price || 0,
+                            complete: t.complete,
+                            created: t.created_timestamp,
+                            realSolReserves: t.real_sol_reserves
+                        }));
+                    }
+                } catch (e) {}
+
+                try {
+                    const trendingRes = await fetch('/api/pump/coins?offset=0&limit=20&sort=usd_market_cap&order=DESC');
+                    if (trendingRes.ok) {
+                        const data = await trendingRes.json();
+                        pumpTrendingTokens = (data || []).map(t => ({
+                            mint: t.mint,
+                            name: t.name || 'Unknown',
+                            symbol: t.symbol || '???',
+                            image: t.image_uri,
+                            mcap: t.usd_market_cap || 0,
+                            volume: t.volume_24h || 0,
+                            price: t.price || 0,
+                            complete: t.complete,
+                            created: t.created_timestamp,
+                            realSolReserves: t.real_sol_reserves
+                        }));
+                    }
+                } catch (e) {}
+
+                // MERGE: Registered tokens FIRST, then pump.fun tokens
+                const seenMints = new Set();
+
+                // Add registered tokens first (prioritize YOUR tokens)
+                liveTokens.new = [];
+                liveTokens.trending = [];
+
+                for (const t of registeredTokens) {
+                    if (!seenMints.has(t.mint)) {
+                        seenMints.add(t.mint);
+                        liveTokens.new.push(t);
+                        liveTokens.trending.push(t);
+                    }
                 }
 
-                // Find graduating tokens (near 85 SOL bonding curve completion)
+                // Then add pump.fun tokens
+                for (const t of pumpNewTokens) {
+                    if (!seenMints.has(t.mint)) {
+                        seenMints.add(t.mint);
+                        liveTokens.new.push(t);
+                    }
+                }
+                for (const t of pumpTrendingTokens) {
+                    if (!seenMints.has(t.mint)) {
+                        seenMints.add(t.mint);
+                        liveTokens.trending.push(t);
+                    }
+                }
+
+                // Sort: new by creation time, trending by mcap
+                liveTokens.new.sort((a, b) => (b.created || 0) - (a.created || 0));
+                liveTokens.trending.sort((a, b) => (b.mcap || 0) - (a.mcap || 0));
+
+                // Find graduating tokens
                 const BONDING_CURVE_TARGET = 85;
                 const allTokens = [...liveTokens.new, ...liveTokens.trending];
                 liveTokens.graduating = allTokens
@@ -1655,23 +1719,20 @@
                     .sort((a, b) => (b.realSolReserves || 0) - (a.realSolReserves || 0))
                     .slice(0, 20);
 
-                console.log(`[PUMP] Loaded: ${liveTokens.new.length} new, ${liveTokens.trending.length} trending, ${liveTokens.graduating.length} graduating`);
-                fetchAttempts = 0; // Reset on success
-                tokensLoaded = true; // Mark as loaded (even if empty)
+                console.log(`[TOKENS] Total: ${liveTokens.new.length} new, ${liveTokens.trending.length} trending`);
+                fetchAttempts = 0;
+                tokensLoaded = true;
                 renderLiveTokens();
             } catch (e) {
-                console.error('[PUMP] Failed to fetch live tokens:', e);
+                console.error('[TOKENS] Failed:', e);
                 fetchAttempts++;
-
-                // Auto-retry with backoff
                 if (fetchAttempts < MAX_RETRIES) {
                     const delay = RETRY_DELAYS[fetchAttempts - 1] || 5000;
-                    console.log(`[PUMP] Retrying in ${delay}ms... (${fetchAttempts}/${MAX_RETRIES})`);
                     updateLoadingState('retrying', fetchAttempts, MAX_RETRIES);
                     setTimeout(() => fetchLiveTokens(true), delay);
                 } else {
-                    console.error('[PUMP] Max retries reached');
                     updateLoadingState('error');
+                    tokensLoaded = true;
                     renderLiveTokens();
                 }
             }
