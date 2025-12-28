@@ -2059,6 +2059,7 @@
                 const buys = t.buys || 0;
                 const sells = t.sells || 0;
                 const holders = t.holders || 0;
+                const txns = t.txns || (buys + sells) || 0;
                 const liquidity = t.liquidity || solInCurve * 200;
                 const volume = t.volume || 0;
 
@@ -2121,7 +2122,7 @@
                     <div style="color:var(--text-secondary);">${volume > 0 ? '$' + formatNumber(volume) : '-'}</div>
 
                     <!-- TXNS -->
-                    <div style="color:var(--text-secondary);">${buys + sells > 0 ? (buys + sells).toLocaleString() : '-'}</div>
+                    <div style="color:var(--text-secondary);">${txns > 0 ? (typeof txns === 'string' ? txns : txns.toLocaleString()) : '-'}</div>
 
                     <!-- SCORE -->
                     <div>

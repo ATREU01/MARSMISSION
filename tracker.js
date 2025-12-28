@@ -2,6 +2,14 @@ const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 
+// Helius API for holders and transactions
+const HELIUS_API_KEY = process.env.HELIUS_API_KEY;
+const heliusApi = axios.create({
+    baseURL: `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY || ''}`,
+    timeout: 10000,
+    headers: { 'Content-Type': 'application/json' }
+});
+
 // Use /app/data/ for Railway volume persistence, fallback to local data/ for dev
 const DATA_DIR = process.env.RAILWAY_ENVIRONMENT ? '/app/data' : path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'tracked-tokens.json');
@@ -382,6 +390,76 @@ async function updateTokenMetrics(tokenMint) {
             }
         } catch (e) {
             // Jupiter failed
+        }
+    }
+
+    // TRY 4: Helius API for holders count and transactions
+    if (HELIUS_API_KEY) {
+        try {
+            // Get token accounts (holders) using Helius DAS API
+            const holdersRes = await axios.post(
+                `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`,
+                {
+                    jsonrpc: '2.0',
+                    id: 'holders',
+                    method: 'getTokenAccounts',
+                    params: { mint: tokenMint, limit: 1000 }
+                },
+                { timeout: 8000, headers: { 'Content-Type': 'application/json' } }
+            );
+
+            if (holdersRes.data?.result?.token_accounts) {
+                // Count unique owners with balance > 0
+                const accounts = holdersRes.data.result.token_accounts;
+                const uniqueHolders = new Set(accounts.filter(a => a.amount > 0).map(a => a.owner));
+                token.holders = uniqueHolders.size;
+                console.log(`[TRACKER] Helius: ${token.symbol} has ${token.holders} holders`);
+            }
+        } catch (e) {
+            // Helius holders failed - try alternate method
+            try {
+                // Fallback: use getSignaturesForAddress to estimate activity
+                const sigsRes = await axios.post(
+                    `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`,
+                    {
+                        jsonrpc: '2.0',
+                        id: 'sigs',
+                        method: 'getSignaturesForAddress',
+                        params: [tokenMint, { limit: 100 }]
+                    },
+                    { timeout: 8000, headers: { 'Content-Type': 'application/json' } }
+                );
+
+                if (sigsRes.data?.result) {
+                    token.txns = sigsRes.data.result.length;
+                    console.log(`[TRACKER] Helius: ${token.symbol} has ${token.txns} recent txns`);
+                }
+            } catch (e2) {
+                // Both failed
+            }
+        }
+
+        // Get transaction signatures count
+        if (!token.txns) {
+            try {
+                const sigsRes = await axios.post(
+                    `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`,
+                    {
+                        jsonrpc: '2.0',
+                        id: 'sigs',
+                        method: 'getSignaturesForAddress',
+                        params: [tokenMint, { limit: 100 }]
+                    },
+                    { timeout: 8000, headers: { 'Content-Type': 'application/json' } }
+                );
+
+                if (sigsRes.data?.result) {
+                    token.txns = sigsRes.data.result.length;
+                    if (token.txns === 100) token.txns = '100+';  // Indicates more than 100
+                }
+            } catch (e) {
+                // Txns failed
+            }
         }
     }
 
