@@ -528,69 +528,60 @@ async function updateTokenMetrics(tokenMint) {
     }
 
     // TRY 4: Multi-source HOLDER data (fallback chain)
-    if (!token.holders || token.holders === 0) {
-        let holderSource = '';
+    // Reset holders to re-fetch fresh data each time
+    let holderSource = '';
+    let freshHolders = 0;
 
-        // 4a. Jupiter holderCount (most reliable)
+    // 4a. Pump.fun holder_count (best for pump tokens)
+    try {
+        const pumpHolderRes = await pumpApi.get(`/coins/${tokenMint}`);
+        const d = pumpHolderRes.data;
+        freshHolders = d?.holder_count || d?.unique_holders || d?.holders || 0;
+        if (freshHolders > 0) {
+            holderSource = 'Pump.fun';
+        }
+    } catch (e) {}
+
+    // 4b. GMGN (reliable for all tokens)
+    if (freshHolders === 0) {
         try {
-            const jupHolderRes = await axios.get(`https://lite-api.jup.ag/tokens/v2/search?query=${tokenMint}`, {
+            const gmgnRes = await axios.get(`https://gmgn.ai/defi/quotation/v1/tokens/sol/${tokenMint}`, {
                 timeout: 5000,
-                headers: { 'Accept': 'application/json' }
+                headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
             });
-            const jupToken = Array.isArray(jupHolderRes.data)
-                ? jupHolderRes.data.find(t => t.address === tokenMint || t.id === tokenMint)
-                : null;
-            if (jupToken?.holderCount) {
-                token.holders = jupToken.holderCount;
-                holderSource = 'Jupiter';
-            }
+            freshHolders = gmgnRes.data?.data?.token?.holder_count || gmgnRes.data?.data?.token?.holders || 0;
+            if (freshHolders > 0) holderSource = 'GMGN';
         } catch (e) {}
+    }
 
-        // 4b. Pump.fun holder_count
-        if (!token.holders || token.holders === 0) {
-            try {
-                const pumpHolderRes = await pumpApi.get(`/coins/${tokenMint}`);
-                const holders = pumpHolderRes.data?.holder_count || pumpHolderRes.data?.unique_holders || pumpHolderRes.data?.holders;
-                if (holders > 0) {
-                    token.holders = holders;
-                    holderSource = 'Pump.fun';
-                }
-            } catch (e) {}
-        }
+    // 4c. Birdeye API
+    if (freshHolders === 0) {
+        try {
+            const birdRes = await axios.get(`https://public-api.birdeye.so/public/token_overview?address=${tokenMint}`, {
+                timeout: 5000,
+                headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' }
+            });
+            freshHolders = birdRes.data?.data?.holder || 0;
+            if (freshHolders > 0) holderSource = 'Birdeye';
+        } catch (e) {}
+    }
 
-        // 4c. GMGN
-        if (!token.holders || token.holders === 0) {
-            try {
-                const gmgnRes = await axios.get(`https://gmgn.ai/defi/quotation/v1/tokens/sol/${tokenMint}`, {
-                    timeout: 5000,
-                    headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' }
-                });
-                const holders = gmgnRes.data?.data?.token?.holder_count || gmgnRes.data?.data?.token?.holders;
-                if (holders > 0) {
-                    token.holders = holders;
-                    holderSource = 'GMGN';
-                }
-            } catch (e) {}
-        }
+    // 4d. Solscan
+    if (freshHolders === 0) {
+        try {
+            const solscanRes = await axios.get(`https://public-api.solscan.io/token/holders?tokenAddress=${tokenMint}&limit=1`, {
+                timeout: 5000,
+                headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' }
+            });
+            freshHolders = solscanRes.data?.total || 0;
+            if (freshHolders > 0) holderSource = 'Solscan';
+        } catch (e) {}
+    }
 
-        // 4d. Solscan
-        if (!token.holders || token.holders === 0) {
-            try {
-                const solscanRes = await axios.get(`https://public-api.solscan.io/token/meta?tokenAddress=${tokenMint}`, {
-                    timeout: 5000,
-                    headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' }
-                });
-                const holders = solscanRes.data?.holder || solscanRes.data?.data?.holder;
-                if (holders > 0) {
-                    token.holders = holders;
-                    holderSource = 'Solscan';
-                }
-            } catch (e) {}
-        }
-
-        if (token.holders > 0) {
-            console.log(`[TRACKER] ${holderSource}: ${token.symbol} has ${token.holders} holders`);
-        }
+    // Update holder count if we got fresh data
+    if (freshHolders > 0) {
+        token.holders = freshHolders;
+        console.log(`[TRACKER] ${holderSource}: ${token.symbol} has ${token.holders} holders`);
     }
 
     // TRY 5: Helius for transaction count
