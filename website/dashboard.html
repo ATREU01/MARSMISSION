@@ -2114,20 +2114,20 @@
                             <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Tokens permanently destroyed</div>
                             <div id="burnStat" style="font-size:13px;font-weight:600;margin-top:14px;padding-top:12px;border-top:1px solid rgba(196,122,74,0.2);color:#c47a4a;">0.0000 SOL</div>
                         </div>
-                        <!-- Buyback -->
+                        <!-- AI-Driven AMM -->
                         <div class="distribution-feature" style="background:rgba(61,139,110,0.1);border:1px solid rgba(90,168,138,0.3);border-radius:var(--radius-lg);padding:20px;text-align:center;position:relative;overflow:hidden;transition:all 0.3s;">
                             <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#3d8b6e,#5aa88a);"></div>
                             <div id="allocBuyback" style="font-size:32px;font-weight:900;color:#5aa88a;line-height:1;">25%</div>
-                            <div style="font-size:12px;font-weight:700;letter-spacing:2px;margin-top:10px;color:var(--text);">BUYBACK</div>
-                            <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">RSI-based market buys</div>
+                            <div style="font-size:12px;font-weight:700;letter-spacing:2px;margin-top:10px;color:var(--text);">AI-DRIVEN AMM</div>
+                            <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Smart market making</div>
                             <div id="buybackStat" style="font-size:13px;font-weight:600;margin-top:14px;padding-top:12px;border-top:1px solid rgba(90,168,138,0.2);color:#5aa88a;">0.0000 SOL</div>
                         </div>
-                        <!-- Holders -->
+                        <!-- Creator Fees -->
                         <div class="distribution-feature" style="background:rgba(74,124,155,0.1);border:1px solid rgba(106,156,184,0.3);border-radius:var(--radius-lg);padding:20px;text-align:center;position:relative;overflow:hidden;transition:all 0.3s;">
                             <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#4a7c9b,#6a9cb8);"></div>
                             <div id="allocHolders" style="font-size:32px;font-weight:900;color:#6a9cb8;line-height:1;">25%</div>
-                            <div style="font-size:12px;font-weight:700;letter-spacing:2px;margin-top:10px;color:var(--text);">HOLDERS</div>
-                            <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Top 100 by % holdings</div>
+                            <div style="font-size:12px;font-weight:700;letter-spacing:2px;margin-top:10px;color:var(--text);">CREATOR FEES</div>
+                            <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Revenue to token creator</div>
                             <div id="holdersStat" style="font-size:13px;font-weight:600;margin-top:14px;padding-top:12px;border-top:1px solid rgba(106,156,184,0.2);color:#6a9cb8;">0.0000 SOL</div>
                         </div>
                         <!-- Liquidity -->
@@ -2135,7 +2135,7 @@
                             <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#7a5a8c,#9a7aac);"></div>
                             <div id="allocLiquidity" style="font-size:32px;font-weight:900;color:#9a7aac;line-height:1;">25%</div>
                             <div style="font-size:12px;font-weight:700;letter-spacing:2px;margin-top:10px;color:var(--text);">LIQUIDITY</div>
-                            <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Add LP + burn LP tokens</div>
+                            <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Add LP take out + LP tokens</div>
                             <div id="lpStat" style="font-size:13px;font-weight:600;margin-top:14px;padding-top:12px;border-top:1px solid rgba(154,122,172,0.2);color:#9a7aac;">0.0000 SOL</div>
                         </div>
                     </div>
@@ -3686,32 +3686,32 @@
         // ═══════════════════════════════════════════════════════════════════════
 
         function updateTokenAnalytics(tokenData) {
-            // Default/demo data if no real data provided
+            // Show zeros when no token is connected - only show real data when token is selected
             const data = tokenData || {
-                marketCap: 125000,
-                liquidity: 45000,
-                volume24h: 89000,
-                holders: 342,
-                transactions: 1247,
-                score: 78,
-                priceChange1m: 2.5,
-                priceChange5m: 8.3,
-                priceChange1h: -3.2,
-                priceChange24h: 45.7,
-                buys24h: 856,
-                sells24h: 391,
-                liqDepth: 12.5,
-                volMcapRatio: 0.71,
-                flow5m: 2340,
-                momentum: 82,
-                top10Pct: 28.5,
-                noMint: true,
-                noFreeze: true,
-                organic: 85,
-                bundlerPct: 2.3,
-                insiderPct: 5.1,
-                devHoldPct: 3.2,
-                verified: true
+                marketCap: 0,
+                liquidity: 0,
+                volume24h: 0,
+                holders: 0,
+                transactions: 0,
+                score: 0,
+                priceChange1m: 0,
+                priceChange5m: 0,
+                priceChange1h: 0,
+                priceChange24h: 0,
+                buys24h: 0,
+                sells24h: 0,
+                liqDepth: 0,
+                volMcapRatio: 0,
+                flow5m: 0,
+                momentum: 0,
+                top10Pct: 0,
+                noMint: false,
+                noFreeze: false,
+                organic: 0,
+                bundlerPct: 0,
+                insiderPct: 0,
+                devHoldPct: 0,
+                verified: false
             };
 
             // Update main stats
