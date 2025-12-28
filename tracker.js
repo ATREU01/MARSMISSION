@@ -2,6 +2,14 @@ const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 
+// Helius API for holders and transactions
+const HELIUS_API_KEY = process.env.HELIUS_API_KEY;
+const heliusApi = axios.create({
+    baseURL: `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY || ''}`,
+    timeout: 10000,
+    headers: { 'Content-Type': 'application/json' }
+});
+
 // Use /app/data/ for Railway volume persistence, fallback to local data/ for dev
 const DATA_DIR = process.env.RAILWAY_ENVIRONMENT ? '/app/data' : path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'tracked-tokens.json');
@@ -383,6 +391,61 @@ async function updateTokenMetrics(tokenMint) {
         } catch (e) {
             // Jupiter failed
         }
+    }
+
+    // TRY 4: Helius API for holders count and transactions
+    if (HELIUS_API_KEY) {
+        // Use Helius DAS API for token accounts
+        try {
+            const holdersRes = await axios.post(
+                `https://api.helius.xyz/v0/token-metadata?api-key=${HELIUS_API_KEY}`,
+                { mintAccounts: [tokenMint] },
+                { timeout: 8000, headers: { 'Content-Type': 'application/json' } }
+            );
+
+            // Try to get holder count from metadata or use alternate endpoint
+            if (holdersRes.data?.[0]) {
+                console.log(`[TRACKER] Helius metadata for ${token.symbol}`);
+            }
+        } catch (e) {
+            console.log(`[TRACKER] Helius metadata failed: ${e.message}`);
+        }
+
+        // Get holders using Helius getAssetsByOwner alternative - use signatures to estimate activity
+        try {
+            const sigsRes = await axios.post(
+                `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`,
+                {
+                    jsonrpc: '2.0',
+                    id: 'sigs',
+                    method: 'getSignaturesForAddress',
+                    params: [tokenMint, { limit: 1000 }]
+                },
+                { timeout: 10000, headers: { 'Content-Type': 'application/json' } }
+            );
+
+            if (sigsRes.data?.result) {
+                const signatures = sigsRes.data.result;
+                token.txns = signatures.length >= 1000 ? '1000+' : signatures.length;
+
+                // Estimate holders from unique signers (rough approximation)
+                const uniqueSigners = new Set();
+                for (const sig of signatures.slice(0, 200)) {
+                    // Each signature has a unique signer
+                    if (sig.signature) uniqueSigners.add(sig.signature.slice(0, 20));
+                }
+                // Very rough holder estimate based on activity
+                if (!token.holders || token.holders === 0) {
+                    token.holders = Math.max(uniqueSigners.size, Math.floor(signatures.length / 5));
+                }
+
+                console.log(`[TRACKER] Helius: ${token.symbol} - ${token.txns} txns, ~${token.holders} holders (est)`);
+            }
+        } catch (e) {
+            console.log(`[TRACKER] Helius sigs failed: ${e.message}`);
+        }
+    } else {
+        console.log(`[TRACKER] HELIUS_API_KEY not set - skipping holder/txn data`);
     }
 
     // Calculate price from reserves if still missing

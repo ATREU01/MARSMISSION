@@ -1612,6 +1612,7 @@ The 4 percentages MUST sum to exactly 100.`;
                     liquidity: t.liquidity || 0,
                     priceChange24h: t.priceChange24h || 0,
                     holders: t.holders || 0,
+                    txns: t.txns || 0,
                     buys: t.buys || 0,
                     sells: t.sells || 0,
                 }));
