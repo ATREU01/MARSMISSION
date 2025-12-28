@@ -1042,6 +1042,30 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    // API: Debug Config - Check if PRIVY_APP_ID and other configs are set
+    if (url.pathname === '/api/debug-config' && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+            privy: {
+                configured: !!PRODUCTION_CONFIG.PRIVY_APP_ID,
+                appIdPrefix: PRODUCTION_CONFIG.PRIVY_APP_ID ? PRODUCTION_CONFIG.PRIVY_APP_ID.substring(0, 8) + '...' : null,
+            },
+            helius: {
+                configured: !!PRODUCTION_CONFIG.HELIUS_RPC,
+            },
+            feeWallet: {
+                configured: !!FEE_WALLET_PUBLIC_KEY,
+                address: FEE_WALLET_PUBLIC_KEY ? FEE_WALLET_PUBLIC_KEY.substring(0, 8) + '...' : null,
+            },
+            railway: {
+                environment: process.env.RAILWAY_ENVIRONMENT || null,
+                dataDir: DATA_DIR,
+            },
+            timestamp: new Date().toISOString(),
+        }));
+        return;
+    }
+
     // API: Get Status
     if (url.pathname === '/api/status' && req.method === 'GET') {
         res.writeHead(200, { 'Content-Type': 'application/json' });

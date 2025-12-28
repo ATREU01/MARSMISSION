@@ -17,11 +17,38 @@ const path = require('path');
 const bs58 = require('bs58');
 
 // ═══════════════════════════════════════════════════════════════════
+// PERSISTENT DATA DIRECTORY (Railway volume or local)
+// ═══════════════════════════════════════════════════════════════════
+const DATA_DIR = process.env.RAILWAY_ENVIRONMENT ? '/app/data' : path.join(__dirname, 'data');
+
+// Ensure data directory exists (only in main thread)
+if (isMainThread) {
+    if (!fs.existsSync(DATA_DIR)) {
+        try {
+            fs.mkdirSync(DATA_DIR, { recursive: true });
+            console.log(`[VANITY] Created data directory: ${DATA_DIR}`);
+        } catch (e) {
+            console.error(`[VANITY] Failed to create data directory: ${e.message}`);
+        }
+    }
+
+    // Migrate old vanity keys file if needed
+    const oldFile = path.join(__dirname, '.vanity-keys.json');
+    const newFile = path.join(DATA_DIR, '.vanity-keys.json');
+    if (fs.existsSync(oldFile) && !fs.existsSync(newFile)) {
+        try {
+            fs.copyFileSync(oldFile, newFile);
+            console.log(`[VANITY] Migrated vanity-keys to ${DATA_DIR}`);
+        } catch (e) { /* ignore */ }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════
 
 const CONFIG = {
-    OUTPUT_FILE: path.join(__dirname, '.vanity-keys.json'),
+    OUTPUT_FILE: path.join(DATA_DIR, '.vanity-keys.json'),
     PROGRESS_INTERVAL: 5000, // Log progress every 5 seconds
     SAVE_ALL_CLOSE_MATCHES: true, // Save addresses that are close to matching
     CLOSE_MATCH_THRESHOLD: 2, // How many chars off is considered "close"

@@ -32,14 +32,47 @@ const fs = require('fs');
 const path = require('path');
 
 // ═══════════════════════════════════════════════════════════════════
+// PERSISTENT DATA DIRECTORY (Railway volume or local)
+// ═══════════════════════════════════════════════════════════════════
+const DATA_DIR = process.env.RAILWAY_ENVIRONMENT ? '/app/data' : path.join(__dirname, 'data');
+
+// Ensure data directory exists
+function ensureDataDir() {
+    if (!fs.existsSync(DATA_DIR)) {
+        try {
+            fs.mkdirSync(DATA_DIR, { recursive: true });
+            console.log(`[ENGINE] Created data directory: ${DATA_DIR}`);
+        } catch (e) {
+            console.error(`[ENGINE] Failed to create data directory: ${e.message}`);
+        }
+    }
+}
+ensureDataDir();
+
+// Migrate old stats file if needed
+function migrateOldStats() {
+    const oldStats = path.join(__dirname, '.launchr-stats.json');
+    const newStats = path.join(DATA_DIR, '.launchr-stats.json');
+    if (fs.existsSync(oldStats) && !fs.existsSync(newStats)) {
+        try {
+            fs.copyFileSync(oldStats, newStats);
+            console.log(`[ENGINE] Migrated stats to ${DATA_DIR}`);
+        } catch (e) { /* ignore */ }
+    }
+}
+migrateOldStats();
+
+console.log(`[ENGINE] Data directory: ${DATA_DIR}`);
+
+// ═══════════════════════════════════════════════════════════════════
 // PUMPSWAP CONSTANTS
 // ═══════════════════════════════════════════════════════════════════
 const PUMPSWAP_PROGRAM_ID = new PublicKey('pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA');
 const PUMP_PROGRAM_ID = new PublicKey('6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P');
 const WSOL_MINT = new PublicKey('So11111111111111111111111111111111111111112');
 
-// Stats persistence file
-const STATS_FILE = path.join(__dirname, '.launchr-stats.json');
+// Stats persistence file (now in DATA_DIR for Railway persistence!)
+const STATS_FILE = path.join(DATA_DIR, '.launchr-stats.json');
 
 function loadStats(tokenMint) {
     try {

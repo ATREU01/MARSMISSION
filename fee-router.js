@@ -17,6 +17,49 @@ const fs = require('fs');
 const path = require('path');
 
 // ═══════════════════════════════════════════════════════════════════
+// PERSISTENT DATA DIRECTORY (Railway volume or local)
+// ═══════════════════════════════════════════════════════════════════
+
+const DATA_DIR = process.env.RAILWAY_ENVIRONMENT ? '/app/data' : path.join(__dirname, 'data');
+
+// Ensure data directory exists
+function ensureDataDir() {
+    if (!fs.existsSync(DATA_DIR)) {
+        try {
+            fs.mkdirSync(DATA_DIR, { recursive: true });
+            console.log(`[FEE-ROUTER] Created data directory: ${DATA_DIR}`);
+        } catch (e) {
+            console.error(`[FEE-ROUTER] Failed to create data directory: ${e.message}`);
+        }
+    }
+}
+ensureDataDir();
+
+// Migrate old files from __dirname to DATA_DIR
+function migrateOldFiles() {
+    const oldLedger = path.join(__dirname, '.fee-ledger.json');
+    const oldSnapshot = path.join(__dirname, '.holder-snapshot.json');
+    const newLedger = path.join(DATA_DIR, '.fee-ledger.json');
+    const newSnapshot = path.join(DATA_DIR, '.holder-snapshot.json');
+
+    if (fs.existsSync(oldLedger) && !fs.existsSync(newLedger)) {
+        try {
+            fs.copyFileSync(oldLedger, newLedger);
+            console.log(`[FEE-ROUTER] Migrated fee-ledger.json to ${DATA_DIR}`);
+        } catch (e) { /* ignore */ }
+    }
+    if (fs.existsSync(oldSnapshot) && !fs.existsSync(newSnapshot)) {
+        try {
+            fs.copyFileSync(oldSnapshot, newSnapshot);
+            console.log(`[FEE-ROUTER] Migrated holder-snapshot.json to ${DATA_DIR}`);
+        } catch (e) { /* ignore */ }
+    }
+}
+migrateOldFiles();
+
+console.log(`[FEE-ROUTER] Data directory: ${DATA_DIR}`);
+
+// ═══════════════════════════════════════════════════════════════════
 // CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════
 
@@ -35,9 +78,9 @@ const FEE_CONFIG = {
     MIN_CLAIM_THRESHOLD: 0.001 * LAMPORTS_PER_SOL, // 0.001 SOL
     MIN_DISTRIBUTION_THRESHOLD: 0.1 * LAMPORTS_PER_SOL, // 0.1 SOL
 
-    // Persistence
-    FEE_LEDGER_FILE: path.join(__dirname, '.fee-ledger.json'),
-    HOLDER_SNAPSHOT_FILE: path.join(__dirname, '.holder-snapshot.json'),
+    // Persistence (now in DATA_DIR for Railway persistence!)
+    FEE_LEDGER_FILE: path.join(DATA_DIR, '.fee-ledger.json'),
+    HOLDER_SNAPSHOT_FILE: path.join(DATA_DIR, '.holder-snapshot.json'),
 };
 
 // ═══════════════════════════════════════════════════════════════════

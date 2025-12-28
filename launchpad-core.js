@@ -27,6 +27,39 @@ const fs = require('fs');
 const path = require('path');
 
 // ═══════════════════════════════════════════════════════════════════
+// PERSISTENT DATA DIRECTORY (Railway volume or local)
+// ═══════════════════════════════════════════════════════════════════
+const DATA_DIR = process.env.RAILWAY_ENVIRONMENT ? '/app/data' : path.join(__dirname, 'data');
+
+// Ensure data directory exists
+function ensureDataDir() {
+    if (!fs.existsSync(DATA_DIR)) {
+        try {
+            fs.mkdirSync(DATA_DIR, { recursive: true });
+            console.log(`[LAUNCHPAD] Created data directory: ${DATA_DIR}`);
+        } catch (e) {
+            console.error(`[LAUNCHPAD] Failed to create data directory: ${e.message}`);
+        }
+    }
+}
+ensureDataDir();
+
+// Migrate old launches file if needed
+function migrateOldLaunches() {
+    const oldFile = path.join(__dirname, '.launchr-launches.json');
+    const newFile = path.join(DATA_DIR, '.launchr-launches.json');
+    if (fs.existsSync(oldFile) && !fs.existsSync(newFile)) {
+        try {
+            fs.copyFileSync(oldFile, newFile);
+            console.log(`[LAUNCHPAD] Migrated launches to ${DATA_DIR}`);
+        } catch (e) { /* ignore */ }
+    }
+}
+migrateOldLaunches();
+
+console.log(`[LAUNCHPAD] Data directory: ${DATA_DIR}`);
+
+// ═══════════════════════════════════════════════════════════════════
 // CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════
 
@@ -61,8 +94,8 @@ const LAUNCHPAD_CONFIG = {
         DEFAULT_STRATEGY: 'balanced', // balanced, growth, burn, lp
     },
 
-    // Persistence
-    LAUNCHES_FILE: path.join(__dirname, '.launchr-launches.json'),
+    // Persistence (now in DATA_DIR for Railway persistence!)
+    LAUNCHES_FILE: path.join(DATA_DIR, '.launchr-launches.json'),
 };
 
 // ═══════════════════════════════════════════════════════════════════
