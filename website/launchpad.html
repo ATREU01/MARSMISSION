@@ -585,36 +585,15 @@
             100% { transform: translateX(-50%); }
         }
         .trending-bar {
-            background: var(--bg-elevated);
+            background: var(--surface);
             border-bottom: 1px solid var(--border);
             padding: 10px 0;
             overflow: hidden;
-            position: fixed;
-            top: 64px;
-            left: 0;
-            right: 0;
-            z-index: 999;
-        }
-        .trending-bar::before,
-        .trending-bar::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            width: 40px;
-            z-index: 2;
-            pointer-events: none;
-        }
-        .trending-bar::before {
-            left: 0;
-            background: linear-gradient(to right, var(--bg-elevated), transparent);
-        }
-        .trending-bar::after {
-            right: 0;
-            background: linear-gradient(to left, var(--bg-elevated), transparent);
+            width: 100%;
+            position: relative;
         }
         .main {
-            padding-top: 44px;
+            padding-top: 0;
         }
         .trending-scroll-wrapper {
             display: flex;
@@ -1431,11 +1410,8 @@
             <div class="nav-links">
                 <a href="/" class="nav-link">Home</a>
                 <a href="/launchpad" class="nav-link active">Launchpad</a>
-                <a href="#leaderboard" class="nav-link leaderboard-link" onclick="scrollToLeaderboard(event)">&#x1F3C6; Leaderboard</a>
-                <div class="nav-divider"></div>
                 <a href="/dashboard" class="nav-link">Dashboard</a>
                 <a href="/roadmap" class="nav-link">Docs</a>
-                <div class="nav-divider"></div>
                 <a href="https://t.me/LAUNCHR_V2_BOT" class="nav-link" target="_blank">Telegram</a>
                 <a href="https://x.com/LaunchrTG" class="nav-link" target="_blank">Twitter</a>
             </div>
@@ -1445,19 +1421,6 @@
             </div>
         </div>
     </nav>
-
-    <!-- Scrolling Leaderboard Bar (below nav) -->
-    <div class="trending-bar" id="trendingBar">
-        <div class="trending-scroll-wrapper" id="trendingScrollWrapper">
-            <div id="trendingTokens" style="display:flex;gap:20px;align-items:center;">
-                <!-- Rendered by JS -->
-            </div>
-            <!-- Duplicate for seamless loop -->
-            <div id="trendingTokensDupe" style="display:flex;gap:20px;align-items:center;">
-                <!-- Duplicate rendered by JS -->
-            </div>
-        </div>
-    </div>
 
     <!-- Wallet Modal -->
     <div id="walletModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeWalletModal()">
@@ -1602,8 +1565,8 @@
             <div class="page-header-inner">
                 <div class="page-header-left">
                     <div class="page-title-group">
-                        <h1 class="page-title">Leaderboard</h1>
-                        <p class="page-subtitle">Top performing tokens. 1% of creator fees go to the distribution pool.</p>
+                        <h1 class="page-title">Launchpad</h1>
+                        <p class="page-subtitle">Launch tokens. Track performance. 1% of creator fees go to the distribution pool.</p>
                     </div>
                 </div>
                 <div class="page-header-right">
@@ -1642,6 +1605,18 @@
                 <div class="stat-cell clickable" onclick="scrollToTokens('graduated')">
                     <div class="stat-cell-value success">0</div>
                     <div class="stat-cell-label">Graduated</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scrolling Leaderboard Bar -->
+        <div class="trending-bar" id="trendingBar">
+            <div class="trending-scroll-wrapper" id="trendingScrollWrapper">
+                <div id="trendingTokens" style="display:flex;gap:20px;align-items:center;">
+                    <!-- Rendered by JS -->
+                </div>
+                <div id="trendingTokensDupe" style="display:flex;gap:20px;align-items:center;">
+                    <!-- Duplicate for seamless loop -->
                 </div>
             </div>
         </div>
