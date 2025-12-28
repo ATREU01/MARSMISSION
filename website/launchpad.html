@@ -1408,7 +1408,7 @@
             </a>
             <div class="nav-links">
                 <a href="/" class="nav-link">Home</a>
-                <a href="/launchpad" class="nav-link active">Launchpad</a>
+                <a href="/launchpad" class="nav-link active">Leaderboard</a>
                 <a href="/dashboard" class="nav-link">Dashboard</a>
                 <a href="/guide" class="nav-link">Guide</a>
                 <a href="https://t.me/LAUNCHR_V2_BOT" class="nav-link" target="_blank">Telegram</a>
@@ -2032,123 +2032,61 @@
                 return;
             }
 
-            const BONDING_CURVE_TARGET = 85;
-
-            // Build table header
+            // Build simple clean table
             const tableHeader = `
-                <div class="token-table-header" style="display:grid;grid-template-columns:50px 200px 80px 100px 80px 70px 80px 90px 80px 70px 120px;gap:8px;padding:12px 16px;background:var(--surface-2);border-radius:8px 8px 0 0;font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;">
-                    <div>Age</div>
-                    <div>Token Info</div>
-                    <div>Socials</div>
-                    <div>Market Cap</div>
-                    <div>Liquidity</div>
-                    <div>Holders</div>
-                    <div>Volume</div>
-                    <div>Txns</div>
-                    <div>Score</div>
-                    <div>Signal</div>
-                    <div>Action</div>
+                <div style="display:grid;grid-template-columns:1fr 120px 100px 100px 80px;gap:16px;padding:14px 20px;background:var(--bg-elevated);font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">
+                    <div>Token</div>
+                    <div style="text-align:right;">Market Cap</div>
+                    <div style="text-align:right;">Liquidity</div>
+                    <div style="text-align:right;">Volume</div>
+                    <div style="text-align:center;">Action</div>
                 </div>
             `;
 
-            // Build table rows
             const tableRows = currentTokens.map(t => {
-                const solInCurve = (t.realSolReserves || 0) / 1e9;
-                const progress = Math.min((solInCurve / BONDING_CURVE_TARGET) * 100, 100);
-                const timeAgo = t.created ? getTimeAgo(t.created) : '-';
                 const mcapUsd = t.mcap || 0;
                 const priceChange = t.priceChange24h || 0;
-                const buys = t.buys || 0;
-                const sells = t.sells || 0;
-                const holders = t.holders || 0;
-                const liquidity = t.liquidity || solInCurve * 200; // Estimate if not available
+                const liquidity = t.liquidity || 0;
                 const volume = t.volume || 0;
-
-                // Calculate score (0-100 based on various factors)
-                const score = Math.min(100, Math.floor(
-                    (mcapUsd > 10000 ? 20 : mcapUsd / 500) +
-                    (volume > 1000 ? 20 : volume / 50) +
-                    (holders > 50 ? 20 : holders * 0.4) +
-                    (liquidity > 5000 ? 20 : liquidity / 250) +
-                    (buys > sells ? 20 : 10)
-                ));
-
-                // Determine signal
-                let signal = '→ Neutral';
-                let signalClass = 'neutral';
-                if (score >= 70) { signal = '↑ Strong'; signalClass = 'strong'; }
-                else if (score >= 50) { signal = '→ Moderate'; signalClass = 'moderate'; }
-                else if (score < 30) { signal = '↓ Weak'; signalClass = 'weak'; }
-
-                // Socials
                 const hasSocials = t.twitter || t.telegram || t.website;
-                const socialsHtml = `
-                    <div style="display:flex;gap:4px;">
-                        ${t.twitter ? `<a href="${escapeHtml(t.twitter)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:#1DA1F2;font-size:12px;" title="Twitter">𝕏</a>` : '<span style="color:#333;font-size:12px;">𝕏</span>'}
-                        ${t.website ? `<a href="${escapeHtml(t.website)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:#00e6ff;font-size:12px;" title="Website">🌐</a>` : ''}
-                    </div>
-                `;
 
                 return `
-                <div class="token-table-row" onclick="openPumpToken('${escapeHtml(t.mint)}')" style="display:grid;grid-template-columns:50px 200px 80px 100px 80px 70px 80px 90px 80px 70px 120px;gap:8px;padding:12px 16px;background:var(--surface-1);border-bottom:1px solid var(--border);cursor:pointer;align-items:center;font-size:13px;" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='var(--surface-1)'">
-                    <!-- AGE -->
-                    <div style="color:var(--text-muted);">${timeAgo}</div>
-
-                    <!-- TOKEN INFO -->
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <div style="width:32px;height:32px;border-radius:50%;background:var(--surface-3);background-size:cover;background-position:center;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:bold;color:var(--gold);font-size:12px;${t.image ? `background-image:url('${escapeHtml(t.image)}')` : ''}">
+                <div onclick="openPumpToken('${escapeHtml(t.mint)}')" style="display:grid;grid-template-columns:1fr 120px 100px 100px 80px;gap:16px;padding:16px 20px;border-bottom:1px solid var(--border);cursor:pointer;align-items:center;" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
+                    <!-- TOKEN -->
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div style="width:40px;height:40px;border-radius:10px;background:var(--surface-2);background-size:cover;background-position:center;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--gold);font-size:14px;border:1px solid var(--border);${t.image ? `background-image:url('${escapeHtml(t.image)}')` : ''}">
                             ${!t.image ? escapeHtml((t.symbol || '?')[0]) : ''}
                         </div>
-                        <div style="min-width:0;">
-                            <div style="font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(t.name || 'Unknown')}${hasSocials ? '<span style="color:#00ff88;margin-left:4px;font-size:10px;">✓</span>' : ''}</div>
-                            <div style="font-size:11px;color:var(--text-muted);">$${escapeHtml(t.symbol || '???')}</div>
+                        <div>
+                            <div style="font-weight:600;color:var(--text-primary);font-size:14px;display:flex;align-items:center;gap:6px;">
+                                ${escapeHtml(t.name || 'Unknown')}
+                                ${hasSocials ? '<span style="color:var(--gold);font-size:10px;">✓</span>' : ''}
+                            </div>
+                            <div style="font-size:12px;color:var(--text-muted);">$${escapeHtml(t.symbol || '???')}</div>
                         </div>
                     </div>
 
-                    <!-- SOCIALS -->
-                    <div onclick="event.stopPropagation()">${socialsHtml}</div>
-
                     <!-- MARKET CAP -->
-                    <div>
-                        <div style="font-weight:600;color:#fff;">${mcapUsd > 0 ? '$' + formatNumber(mcapUsd) : '-'}</div>
-                        <div style="font-size:11px;color:${priceChange >= 0 ? '#00ff88' : '#ff4757'};">${priceChange !== 0 ? (priceChange >= 0 ? '+' : '') + priceChange.toFixed(2) + '%' : ''}</div>
+                    <div style="text-align:right;">
+                        <div style="font-weight:600;color:var(--text-primary);font-size:14px;">${mcapUsd > 0 ? '$' + formatNumber(mcapUsd) : '-'}</div>
+                        ${priceChange !== 0 ? `<div style="font-size:11px;color:${priceChange >= 0 ? 'var(--success)' : 'var(--danger)'};">${priceChange >= 0 ? '+' : ''}${priceChange.toFixed(1)}%</div>` : ''}
                     </div>
 
                     <!-- LIQUIDITY -->
-                    <div style="color:var(--text-secondary);">${liquidity > 0 ? '$' + formatNumber(liquidity) : '-'}</div>
-
-                    <!-- HOLDERS -->
-                    <div style="color:var(--text-secondary);">${holders > 0 ? holders.toLocaleString() : '-'}</div>
+                    <div style="text-align:right;font-size:14px;color:var(--text-secondary);">${liquidity > 0 ? '$' + formatNumber(liquidity) : '-'}</div>
 
                     <!-- VOLUME -->
-                    <div style="color:var(--text-secondary);">${volume > 0 ? '$' + formatNumber(volume) : '-'}</div>
-
-                    <!-- TRANSACTIONS -->
-                    <div>
-                        <div style="font-weight:500;">${buys + sells > 0 ? buys + sells : '-'}</div>
-                        ${buys + sells > 0 ? `<div style="font-size:10px;"><span style="color:#00ff88;">${buys}</span> <span style="color:#ff4757;">${sells}</span></div>` : ''}
-                    </div>
-
-                    <!-- SCORE -->
-                    <div>
-                        <span style="background:${score >= 70 ? 'rgba(0,255,136,0.15)' : score >= 50 ? 'rgba(0,230,255,0.15)' : score >= 30 ? 'rgba(255,159,67,0.15)' : 'rgba(255,71,87,0.15)'};color:${score >= 70 ? '#00ff88' : score >= 50 ? '#00e6ff' : score >= 30 ? '#ff9f43' : '#ff4757'};padding:4px 8px;border-radius:4px;font-size:11px;font-weight:600;">${score}/100</span>
-                    </div>
-
-                    <!-- SIGNAL -->
-                    <div>
-                        <span style="color:${signalClass === 'strong' ? '#00ff88' : signalClass === 'moderate' ? '#00e6ff' : signalClass === 'weak' ? '#ff4757' : '#888'};font-size:11px;font-weight:500;">${signal}</span>
-                    </div>
+                    <div style="text-align:right;font-size:14px;color:var(--text-secondary);">${volume > 0 ? '$' + formatNumber(volume) : '-'}</div>
 
                     <!-- ACTION -->
-                    <div onclick="event.stopPropagation()" style="display:flex;gap:6px;">
-                        <button onclick="window.open('https://dexscreener.com/solana/${escapeHtml(t.mint)}','_blank')" style="padding:4px 10px;background:transparent;border:1px solid #00ff88;color:#00ff88;border-radius:4px;font-size:10px;font-weight:600;cursor:pointer;">CHART</button>
-                        <button onclick="openPumpToken('${escapeHtml(t.mint)}')" style="padding:4px 10px;background:#00ff88;color:#000;border:none;border-radius:4px;font-size:10px;font-weight:600;cursor:pointer;">BUY</button>
+                    <div onclick="event.stopPropagation()" style="text-align:center;">
+                        <button onclick="window.open('https://pump.fun/coin/${escapeHtml(t.mint)}','_blank')" style="padding:8px 16px;background:var(--gold);color:#000;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;transition:opacity 0.15s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">VIEW</button>
                     </div>
                 </div>
                 `;
             }).join('');
 
-            list.innerHTML = tableHeader + '<div class="token-table-body">' + tableRows + '</div>';
+            list.innerHTML = tableHeader + tableRows;
         }
 
         // Open token on Pump.fun
