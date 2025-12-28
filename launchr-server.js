@@ -2024,12 +2024,12 @@ The 4 percentages must sum to 100.`;
         return;
     }
 
-    // API: Get timer (legacy endpoint)
+    // API: Get timer (6-hour reward cycle)
     if (url.pathname === '/api/timer' && req.method === 'GET') {
-        // Timer endpoint - returns countdown data
+        // Timer endpoint - returns countdown data (6 hour cycle)
         const now = Date.now();
-        const twoHours = 2 * 60 * 60 * 1000;
-        const nextReward = Math.ceil(now / twoHours) * twoHours;
+        const sixHours = 6 * 60 * 60 * 1000; // 6 hours in ms
+        const nextReward = Math.ceil(now / sixHours) * sixHours;
         const secondsRemaining = Math.floor((nextReward - now) / 1000);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ secondsRemaining, nextRewardTime: nextReward }));

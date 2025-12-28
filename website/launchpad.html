@@ -1552,6 +1552,7 @@
         let leaderboard = [];
         let liveTokens = { trending: [], new: [], graduating: [] };
         let currentTab = 'trending';
+        let tokensLoaded = false; // Track if we've completed initial load
 
         // ═══════════════════════════════════════════════════════════════════════
         // INITIALIZATION
@@ -1597,7 +1598,10 @@
         const RETRY_DELAYS = [1000, 2000, 3000, 5000, 8000]; // Exponential-ish backoff
 
         async function fetchLiveTokens(isRetry = false) {
-            if (!isRetry) fetchAttempts = 0;
+            if (!isRetry) {
+                fetchAttempts = 0;
+                tokensLoaded = false; // Reset loading state for fresh fetch
+            }
 
             try {
                 console.log(`[PUMP] Fetching live tokens... (attempt ${fetchAttempts + 1})`);
@@ -1653,6 +1657,7 @@
 
                 console.log(`[PUMP] Loaded: ${liveTokens.new.length} new, ${liveTokens.trending.length} trending, ${liveTokens.graduating.length} graduating`);
                 fetchAttempts = 0; // Reset on success
+                tokensLoaded = true; // Mark as loaded (even if empty)
                 renderLiveTokens();
             } catch (e) {
                 console.error('[PUMP] Failed to fetch live tokens:', e);
@@ -1747,9 +1752,9 @@
             try {
                 const res = await fetch('/api/timer');
                 const data = await res.json();
-                startTimer(data.secondsRemaining || 7200);
+                startTimer(data.secondsRemaining || 21600); // 6 hour default
             } catch (e) {
-                startTimer(7200);
+                startTimer(21600); // 6 hours = 21600 seconds
             }
         }
 
@@ -1769,16 +1774,26 @@
             const currentTokens = liveTokens[currentTab] || [];
 
             if (currentTokens.length === 0) {
-                const emptyMessages = {
+                // Different messages for loading vs empty
+                const loadingMessages = {
                     trending: 'Loading trending tokens...',
                     new: 'Loading new tokens...',
+                    graduating: 'Loading graduating tokens...'
+                };
+                const emptyMessages = {
+                    trending: 'No trending tokens found',
+                    new: 'No new tokens found',
                     graduating: 'No tokens graduating yet'
                 };
+                const message = tokensLoaded ? emptyMessages[currentTab] : loadingMessages[currentTab];
+                const subMessage = tokensLoaded ? 'Check back soon for new launches' : 'Fetching from Pump.fun...';
+
                 list.innerHTML = `
                     <div style="padding:60px 20px;text-align:center;">
                         <div style="font-size:40px;margin-bottom:16px;opacity:0.3;">&#x1F680;</div>
-                        <div style="color:var(--text-secondary);font-size:15px;margin-bottom:8px;">${emptyMessages[currentTab]}</div>
-                        <div style="color:var(--text-muted);font-size:13px;">Live data from Pump.fun</div>
+                        <div style="color:var(--text-secondary);font-size:15px;margin-bottom:8px;">${message}</div>
+                        <div style="color:var(--text-muted);font-size:13px;">${subMessage}</div>
+                        ${tokensLoaded ? '<button onclick="fetchLiveTokens()" style="margin-top:16px;padding:8px 16px;background:var(--gold);color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Refresh</button>' : '<div class="loading-spinner" style="margin-top:16px;"></div>'}
                     </div>
                 `;
                 return;
@@ -1996,9 +2011,9 @@
         // TIMER
         // ═══════════════════════════════════════════════════════════════════════
         function startTimer(initialSeconds) {
-            let seconds = initialSeconds || 7200;
+            let seconds = initialSeconds || 21600; // 6 hours default
             const tick = () => {
-                seconds = seconds > 0 ? seconds - 1 : 7200;
+                seconds = seconds > 0 ? seconds - 1 : 21600; // Reset to 6 hours
                 const h = Math.floor(seconds / 3600);
                 const m = Math.floor((seconds % 3600) / 60);
                 const s = seconds % 60;
