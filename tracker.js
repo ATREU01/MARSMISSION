@@ -326,6 +326,25 @@ async function updateTokenMetrics(tokenMint) {
                 token.volume = pair.volume?.h24 || token.volume || 0;
                 token.liquidity = pair.liquidity?.usd || 0;
                 token.priceChange24h = pair.priceChange?.h24 || 0;
+
+                // Extract socials from DexScreener info.socials array
+                if (pair.info?.socials && Array.isArray(pair.info.socials)) {
+                    for (const social of pair.info.socials) {
+                        if (social.type === 'twitter' && social.url) {
+                            token.twitter = social.url;
+                        } else if (social.type === 'telegram' && social.url) {
+                            token.telegram = social.url;
+                        } else if (social.type === 'website' && social.url) {
+                            token.website = social.url;
+                        }
+                    }
+                }
+                // Also check info.websites array
+                if (pair.info?.websites && Array.isArray(pair.info.websites)) {
+                    const website = pair.info.websites[0];
+                    if (website?.url) token.website = website.url;
+                }
+
                 // Only mark graduated if on Raydium/PumpSwap (not pump.fun bonding curve)
                 // Check dexId to determine if actually graduated
                 const dexId = pair.dexId?.toLowerCase() || '';
