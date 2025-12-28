@@ -2036,7 +2036,7 @@
 
             // Full data table with LAUNCHR gold color scheme
             const tableHeader = `
-                <div style="display:grid;grid-template-columns:50px 180px 70px 95px 80px 65px 75px 70px 70px 70px 90px;gap:8px;padding:12px 16px;background:var(--bg-elevated);font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">
+                <div style="display:grid;grid-template-columns:50px 180px 70px 95px 80px 65px 75px 85px 70px 70px 90px;gap:8px;padding:12px 16px;background:var(--bg-elevated);font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">
                     <div>Age</div>
                     <div>Token</div>
                     <div>Socials</div>
@@ -2044,7 +2044,7 @@
                     <div>Liquidity</div>
                     <div>Holders</div>
                     <div>Volume</div>
-                    <div>Txns</div>
+                    <div style="text-align:center;">Txns</div>
                     <div>Score</div>
                     <div>Signal</div>
                     <div style="text-align:center;">Action</div>
@@ -2056,19 +2056,19 @@
                 const timeAgo = t.created ? getTimeAgo(t.created) : 'now';
                 const mcapUsd = t.mcap || 0;
                 const priceChange = t.priceChange24h || 0;
-                const buys = t.buys || 0;
-                const sells = t.sells || 0;
-                const holders = t.holders || 0;
-                const txns = t.txns || (buys + sells) || 0;
+                const buys = t.buys || t.dex?.txns?.h24?.buys || 0;
+                const sells = t.sells || t.dex?.txns?.h24?.sells || 0;
+                const holders = t.holders || t.holder_count || 0;
+                const totalTxns = buys + sells;
                 const liquidity = t.liquidity || solInCurve * 200;
-                const volume = t.volume || 0;
+                const volume = t.volume24h || t.volume || t.dex?.volume?.h24 || 0;
 
                 // Score calculation
                 const score = Math.min(100, Math.floor(
                     (mcapUsd > 10000 ? 20 : mcapUsd / 500) +
                     (volume > 1000 ? 20 : volume / 50) +
                     (holders > 50 ? 20 : holders * 0.4) +
-                    (liquidity > 5000 ? 20 : liquidity / 250) +
+                    (totalTxns > 100 ? 20 : totalTxns * 0.2) +
                     (buys > sells ? 20 : 10)
                 ));
 
@@ -2083,7 +2083,7 @@
                 const hasSocials = t.twitter || t.telegram || t.website;
 
                 return `
-                <div onclick="openPumpToken('${escapeHtml(t.mint)}')" style="display:grid;grid-template-columns:50px 180px 70px 95px 80px 65px 75px 70px 70px 70px 90px;gap:8px;padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer;align-items:center;font-size:13px;" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
+                <div onclick="openPumpToken('${escapeHtml(t.mint)}')" style="display:grid;grid-template-columns:50px 180px 70px 95px 80px 65px 75px 85px 70px 70px 90px;gap:8px;padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer;align-items:center;font-size:13px;" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
                     <!-- AGE -->
                     <div style="color:var(--text-muted);font-size:12px;">${timeAgo}</div>
 
@@ -2113,16 +2113,25 @@
                     </div>
 
                     <!-- LIQUIDITY -->
-                    <div style="color:var(--text-secondary);">${liquidity > 0 ? '$' + formatNumber(liquidity) : '-'}</div>
+                    <div style="color:var(--text-secondary);font-family:'JetBrains Mono',monospace;">${liquidity > 0 ? '$' + formatNumber(liquidity) : '-'}</div>
 
                     <!-- HOLDERS -->
-                    <div style="color:var(--text-secondary);">${holders > 0 ? holders.toLocaleString() : '-'}</div>
+                    <div style="color:#fff;font-family:'JetBrains Mono',monospace;text-align:right;">${holders > 0 ? holders.toLocaleString() : '-'}</div>
 
                     <!-- VOLUME -->
-                    <div style="color:var(--text-secondary);">${volume > 0 ? '$' + formatNumber(volume) : '-'}</div>
+                    <div style="color:#fff;font-family:'JetBrains Mono',monospace;text-align:right;">${volume > 0 ? '$' + formatNumber(volume) : '-'}</div>
 
-                    <!-- TXNS -->
-                    <div style="color:var(--text-secondary);">${txns > 0 ? (typeof txns === 'string' ? txns : txns.toLocaleString()) : '-'}</div>
+                    <!-- TXNS (with buys/sells breakdown) -->
+                    <div style="text-align:center;">
+                        ${totalTxns > 0 ? `
+                            <div style="font-weight:600;color:#fff;font-size:13px;">${totalTxns.toLocaleString()}</div>
+                            <div style="font-size:11px;margin-top:2px;">
+                                <span style="color:#00ff88;">${buys.toLocaleString()}</span>
+                                <span style="color:var(--text-muted);margin:0 2px;">/</span>
+                                <span style="color:#ff4757;">${sells.toLocaleString()}</span>
+                            </div>
+                        ` : '-'}
+                    </div>
 
                     <!-- SCORE -->
                     <div>
