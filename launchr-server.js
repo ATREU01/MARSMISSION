@@ -1587,6 +1587,48 @@ The 4 percentages MUST sum to exactly 100.`;
         return;
     }
 
+    // API: Remove a token by mint address
+    if (url.pathname === '/api/tracker/remove' && req.method === 'POST') {
+        try {
+            const body = await getBody(req);
+            const { mint } = JSON.parse(body);
+            if (!mint) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'mint required' }));
+                return;
+            }
+            console.log(`[API] Removing token: ${mint.slice(0,8)}...`);
+            const result = tracker.removeToken(mint);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, ...result }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Keep only specified tokens (remove all others)
+    if (url.pathname === '/api/tracker/keep-only' && req.method === 'POST') {
+        try {
+            const body = await getBody(req);
+            const { mints } = JSON.parse(body);
+            if (!Array.isArray(mints)) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'mints array required' }));
+                return;
+            }
+            console.log(`[API] Keeping only ${mints.length} tokens...`);
+            const result = tracker.keepOnlyTokens(mints);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, ...result }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
     // Tracker page
     if (url.pathname === '/tracker' && req.method === 'GET') {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });

@@ -677,11 +677,43 @@ async function updateAllTokenMetrics() {
     return { updated, total: tokens.length };
 }
 
+// Keep only specified tokens, remove all others
+function keepOnlyTokens(mintsToKeep = []) {
+    const data = loadTokens();
+    const before = data.tokens.length;
+
+    data.tokens = data.tokens.filter(t => mintsToKeep.includes(t.mint));
+    data.stats.totalTokens = data.tokens.length;
+
+    saveTokens(data);
+
+    const removed = before - data.tokens.length;
+    console.log(`[TRACKER] Kept ${data.tokens.length} tokens, removed ${removed}`);
+    return { kept: data.tokens.length, removed };
+}
+
+// Remove a specific token by mint
+function removeToken(mint) {
+    const data = loadTokens();
+    const before = data.tokens.length;
+
+    data.tokens = data.tokens.filter(t => t.mint !== mint);
+    data.stats.totalTokens = data.tokens.length;
+
+    saveTokens(data);
+
+    const removed = before - data.tokens.length;
+    console.log(`[TRACKER] Removed ${removed} token(s) with mint ${mint.slice(0,8)}...`);
+    return { removed, remaining: data.tokens.length };
+}
+
 module.exports = {
     registerToken,
     updateTokenStats,
     getTokens,
     getTokensByCreator,
+    keepOnlyTokens,
+    removeToken,
     getTokenSentiment,
     getPublicStats,
     checkGraduationStatus,
