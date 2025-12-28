@@ -326,9 +326,16 @@ async function updateTokenMetrics(tokenMint) {
                 token.volume = pair.volume?.h24 || token.volume || 0;
                 token.liquidity = pair.liquidity?.usd || 0;
                 token.priceChange24h = pair.priceChange?.h24 || 0;
-                token.graduated = true; // On DEX = graduated
+                // Only mark graduated if on Raydium/PumpSwap (not pump.fun bonding curve)
+                // Check dexId to determine if actually graduated
+                const dexId = pair.dexId?.toLowerCase() || '';
+                if (dexId === 'raydium' || dexId === 'pumpswap' || dexId.includes('raydium')) {
+                    token.graduated = true;
+                }
+                // DON'T set graduated=true just because it's on DexScreener
+                // Pump.fun bonding curve tokens also appear on DexScreener
                 updated = true;
-                console.log(`[TRACKER] DexScreener: ${token.name} ($${token.symbol})`);
+                console.log(`[TRACKER] DexScreener: ${token.name} ($${token.symbol}) dex=${dexId}`);
             }
         } catch (e) {
             // DexScreener failed
