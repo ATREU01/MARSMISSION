@@ -920,6 +920,19 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    // Serve Guide page (alias for docs)
+    if (url.pathname === '/guide' && req.method === 'GET') {
+        try {
+            const html = fs.readFileSync(path.join(__dirname, 'website', 'docs.html'), 'utf8');
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(injectConfig(html));
+        } catch (e) {
+            res.writeHead(302, { 'Location': '/' });
+            res.end();
+        }
+        return;
+    }
+
     // Serve Profile page (with config injection)
     if (url.pathname.startsWith('/profile/') && req.method === 'GET') {
         try {

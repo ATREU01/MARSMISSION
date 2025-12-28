@@ -587,13 +587,12 @@
         .trending-bar {
             background: var(--surface);
             border-bottom: 1px solid var(--border);
-            padding: 10px 0;
+            border-top: 1px solid var(--border);
+            padding: 12px 0;
             overflow: hidden;
-            width: 100%;
+            width: 100vw;
+            margin-left: calc(-50vw + 50%);
             position: relative;
-        }
-        .main {
-            padding-top: 0;
         }
         .trending-scroll-wrapper {
             display: flex;
@@ -1411,7 +1410,7 @@
                 <a href="/" class="nav-link">Home</a>
                 <a href="/launchpad" class="nav-link active">Launchpad</a>
                 <a href="/dashboard" class="nav-link">Dashboard</a>
-                <a href="/website/docs.html" class="nav-link">Guide</a>
+                <a href="/guide" class="nav-link">Guide</a>
                 <a href="https://t.me/LAUNCHR_V2_BOT" class="nav-link" target="_blank">Telegram</a>
                 <a href="https://x.com/LaunchrTG" class="nav-link" target="_blank">Twitter</a>
             </div>
@@ -1560,6 +1559,18 @@
 
     <!-- Main -->
     <main class="main">
+        <!-- Scrolling Leaderboard Bar - RIGHT under nav -->
+        <div class="trending-bar" id="trendingBar">
+            <div class="trending-scroll-wrapper" id="trendingScrollWrapper">
+                <div id="trendingTokens" style="display:flex;gap:20px;align-items:center;">
+                    <!-- Rendered by JS -->
+                </div>
+                <div id="trendingTokensDupe" style="display:flex;gap:20px;align-items:center;">
+                    <!-- Duplicate for seamless loop -->
+                </div>
+            </div>
+        </div>
+
         <!-- Page Header -->
         <div class="page-header">
             <div class="page-header-inner">
@@ -1605,18 +1616,6 @@
                 <div class="stat-cell clickable" onclick="scrollToTokens('graduated')">
                     <div class="stat-cell-value success">0</div>
                     <div class="stat-cell-label">Graduated</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Scrolling Leaderboard Bar -->
-        <div class="trending-bar" id="trendingBar">
-            <div class="trending-scroll-wrapper" id="trendingScrollWrapper">
-                <div id="trendingTokens" style="display:flex;gap:20px;align-items:center;">
-                    <!-- Rendered by JS -->
-                </div>
-                <div id="trendingTokensDupe" style="display:flex;gap:20px;align-items:center;">
-                    <!-- Duplicate for seamless loop -->
                 </div>
             </div>
         </div>
