@@ -2944,6 +2944,13 @@
 
                     fetchEngineStatus();
                     refreshEngineLogs();
+
+                    // Restore chart and analytics for connected token
+                    const savedMint = localStorage.getItem('connectedTokenMint');
+                    if (savedMint) {
+                        updateChartFromMint(savedMint);
+                        fetchTokenAnalytics(savedMint);
+                    }
                 } else {
                     // Token invalid, clear it
                     localStorage.removeItem('engineAuthToken');
@@ -2988,6 +2995,7 @@
                     engineConfigured = true;
                     authToken = data.token;
                     localStorage.setItem('engineAuthToken', authToken);  // Persist for page refresh
+                    localStorage.setItem('connectedTokenMint', tokenMint);  // Store for analytics
 
                     // Update UI
                     document.getElementById('engineConfigCard').style.display = 'none';
@@ -3010,6 +3018,9 @@
 
                     // Load chart for the connected token
                     updateChartFromMint(tokenMint);
+
+                    // Fetch and update token analytics
+                    fetchTokenAnalytics(tokenMint);
 
                     showNotification('Engine connected!', 'success');
                 } else {
@@ -4123,8 +4134,95 @@
         }
 
         // ═══════════════════════════════════════════════════════════════════════
-        // TOKEN ANALYTICS UPDATE FUNCTION
+        // TOKEN ANALYTICS FETCH & UPDATE FUNCTIONS
         // ═══════════════════════════════════════════════════════════════════════
+
+        // Fetch token analytics from Pump.fun and DexScreener
+        async function fetchTokenAnalytics(mint) {
+            if (!mint) return;
+
+            console.log('[ANALYTICS] Fetching data for:', mint);
+
+            let pumpData = null;
+            let dexData = null;
+
+            try {
+                // Fetch from both sources in parallel
+                const [pumpRes, dexRes] = await Promise.all([
+                    fetch(`/api/pump/coin/${mint}`).catch(() => null),
+                    fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`).catch(() => null)
+                ]);
+
+                if (pumpRes?.ok) {
+                    pumpData = await pumpRes.json();
+                    console.log('[ANALYTICS] Pump.fun data:', pumpData);
+                }
+
+                if (dexRes?.ok) {
+                    const dexJson = await dexRes.json();
+                    dexData = dexJson.pairs?.[0];
+                    console.log('[ANALYTICS] DexScreener data:', dexData);
+                }
+            } catch (e) {
+                console.error('[ANALYTICS] Fetch error:', e);
+            }
+
+            // Get transaction counts from DexScreener
+            const buys = dexData?.txns?.h24?.buys || 0;
+            const sells = dexData?.txns?.h24?.sells || 0;
+            const totalTxns = buys + sells;
+
+            // Get holder count from Pump.fun
+            const holders = pumpData?.holder_count || 0;
+
+            // Calculate metrics
+            const mcap = dexData?.marketCap || dexData?.fdv || pumpData?.usd_market_cap || 0;
+            const liq = dexData?.liquidity?.usd || 0;
+            const vol = dexData?.volume?.h24 || pumpData?.volume_24h || 0;
+
+            // Calculate score
+            const score = Math.min(100, Math.floor(
+                (mcap > 10000 ? 20 : mcap / 500) +
+                (vol > 5000 ? 20 : vol / 250) +
+                (holders > 100 ? 20 : holders * 0.2) +
+                (totalTxns > 100 ? 20 : totalTxns * 0.2) +
+                (buys > sells ? 20 : 10)
+            ));
+
+            // Calculate momentum
+            const momentum = totalTxns > 0 ? Math.floor((buys / totalTxns) * 100) : 0;
+
+            // Build analytics data
+            const analyticsData = {
+                marketCap: mcap,
+                liquidity: liq,
+                volume24h: vol,
+                holders: holders,
+                transactions: totalTxns,
+                score: score,
+                priceChange1m: dexData?.priceChange?.m5 || 0,
+                priceChange5m: dexData?.priceChange?.m5 || 0,
+                priceChange1h: dexData?.priceChange?.h1 || 0,
+                priceChange24h: dexData?.priceChange?.h24 || 0,
+                buys24h: buys,
+                sells24h: sells,
+                liqDepth: mcap > 0 ? (liq / mcap) * 100 : 0,
+                volMcapRatio: mcap > 0 ? vol / mcap : 0,
+                flow5m: buys - sells,
+                momentum: momentum,
+                top10Pct: pumpData?.top_10_holder_pct || 0,
+                noMint: pumpData?.mint_authority === null,
+                noFreeze: pumpData?.freeze_authority === null,
+                organic: holders > 50 ? Math.min(100, Math.floor(holders / 10)) : 0,
+                bundlerPct: 0,
+                insiderPct: pumpData?.insider_pct || 0,
+                devHoldPct: pumpData?.dev_hold_pct || 0,
+                verified: pumpData?.is_verified || false
+            };
+
+            console.log('[ANALYTICS] Updating with:', analyticsData);
+            updateTokenAnalytics(analyticsData);
+        }
 
         function updateTokenAnalytics(tokenData) {
             // Show zeros when no token is connected - only show real data when token is selected
@@ -4262,9 +4360,15 @@
             // Delay a bit to ensure DOM is ready
             setTimeout(async () => {
                 // Check if there's a saved token to restore
-                const savedToken = localStorage.getItem('connectedTokenMint');
-                if (savedToken && myTokens.length > 0) {
-                    await selectTokenLocal(savedToken);
+                const savedMint = localStorage.getItem('connectedTokenMint');
+                if (savedMint) {
+                    // Try to select from myTokens first, otherwise just fetch analytics
+                    if (myTokens.length > 0 && myTokens.find(t => t.mint === savedMint)) {
+                        await selectTokenLocal(savedMint);
+                    } else {
+                        // Token not in myTokens - fetch analytics directly (TEK engine connection)
+                        await fetchTokenAnalytics(savedMint);
+                    }
                 } else {
                     updateTokenAnalytics();  // Show zeros if no token
                 }
@@ -4272,8 +4376,11 @@
 
             // Auto-refresh token analytics every 30 seconds
             setInterval(async () => {
+                const savedMint = localStorage.getItem('connectedTokenMint');
                 if (selectedToken) {
-                    await selectTokenLocal(selectedToken);  // Refresh data
+                    await selectTokenLocal(selectedToken);  // Refresh data for My Tokens selection
+                } else if (savedMint) {
+                    await fetchTokenAnalytics(savedMint);  // Refresh data for TEK engine connection
                 }
             }, 30000);
         });
