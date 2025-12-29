@@ -1983,6 +1983,9 @@
                 fetchAttempts = 0;
                 tokensLoaded = true;
                 renderLiveTokens();
+
+                // Enrich tokens with holder data from individual endpoints
+                enrichTokensWithHolders();
             } catch (e) {
                 console.error('[TOKENS] Failed:', e);
                 fetchAttempts++;
@@ -2029,6 +2032,77 @@
                     </div>
                 `;
             }
+        }
+
+        // Enrich tokens with holder and transaction data from individual endpoints
+        async function enrichTokensWithHolders() {
+            // Collect all unique tokens
+            const allTokens = [...new Map([
+                ...liveTokens.new,
+                ...liveTokens.trending,
+                ...liveTokens.graduating
+            ].map(t => [t.mint, t])).values()];
+
+            console.log(`[ENRICH] Fetching holder data for ${allTokens.length} tokens...`);
+
+            // Process in batches of 5
+            for (let i = 0; i < allTokens.length; i += 5) {
+                const batch = allTokens.slice(i, i + 5);
+
+                await Promise.all(batch.map(async (token) => {
+                    if (!token.mint) return;
+
+                    try {
+                        // Fetch from Pump.fun individual endpoint
+                        const res = await fetch(`/api/pump/coin/${token.mint}`);
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data) {
+                                // Update holder count
+                                if (data.holder_count > 0) {
+                                    token.holders = data.holder_count;
+                                }
+                                // Update other fields if available
+                                if (data.total_buys) token.buys = data.total_buys;
+                                if (data.total_sells) token.sells = data.total_sells;
+                            }
+                        }
+                    } catch (e) {
+                        // Silent fail - keep existing data
+                    }
+
+                    // Also try DexScreener for txns if we don't have them
+                    if (!token.buys && !token.sells) {
+                        try {
+                            const dexRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${token.mint}`);
+                            if (dexRes.ok) {
+                                const dexData = await dexRes.json();
+                                const pair = dexData.pairs?.[0];
+                                if (pair?.txns?.h24) {
+                                    token.buys = pair.txns.h24.buys || 0;
+                                    token.sells = pair.txns.h24.sells || 0;
+                                    token.dex = { txns: pair.txns };
+                                }
+                                if (pair?.liquidity?.usd) {
+                                    token.liquidity = pair.liquidity.usd;
+                                }
+                            }
+                        } catch (e) {
+                            // Silent fail
+                        }
+                    }
+                }));
+
+                // Re-render after each batch to show progress
+                renderLiveTokens();
+
+                // Small delay between batches to avoid rate limiting
+                if (i + 5 < allTokens.length) {
+                    await new Promise(r => setTimeout(r, 300));
+                }
+            }
+
+            console.log('[ENRICH] Holder data enrichment complete');
         }
 
         async function fetchTokens() {
