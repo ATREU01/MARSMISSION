@@ -4380,42 +4380,79 @@
                 document.getElementById('tokenPath').textContent = token.path === 'launchr' ? 'LAUNCHR' : 'PUMP';
                 document.getElementById('tokenPath').className = `path-badge ${token.path === 'launchr' ? 'launchr' : 'pumpfun'}`;
 
-                // Fetch REAL data from DexScreener
+                // Fetch data from multiple sources in parallel
                 let dexData = null;
+                let pumpData = null;
+
                 try {
-                    const dexRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`);
-                    if (dexRes.ok) {
+                    const [dexRes, pumpRes] = await Promise.all([
+                        fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`).catch(() => null),
+                        fetch(`/api/pump/coin/${mint}`).catch(() => null)
+                    ]);
+
+                    // Parse DexScreener data
+                    if (dexRes?.ok) {
                         const dexJson = await dexRes.json();
                         dexData = dexJson.pairs?.[0];
                     }
-                } catch (e) { console.log('DexScreener fetch failed:', e); }
+
+                    // Parse Pump.fun data (has holder_count)
+                    if (pumpRes?.ok) {
+                        pumpData = await pumpRes.json();
+                    }
+                } catch (e) { console.log('Data fetch failed:', e); }
+
+                // Get transaction counts from DexScreener
+                const buys = dexData?.txns?.h24?.buys || 0;
+                const sells = dexData?.txns?.h24?.sells || 0;
+                const totalTxns = buys + sells;
+
+                // Get holder count from Pump.fun (primary) or token data (fallback)
+                const holders = pumpData?.holder_count || token.holders || 0;
+
+                // Calculate metrics
+                const mcap = dexData?.marketCap || dexData?.fdv || pumpData?.usd_market_cap || token.mcap || 0;
+                const liq = dexData?.liquidity?.usd || token.liquidity || 0;
+                const vol = dexData?.volume?.h24 || pumpData?.volume_24h || token.volume || 0;
+
+                // Calculate score based on multiple factors
+                const score = Math.min(100, Math.floor(
+                    (mcap > 10000 ? 20 : mcap / 500) +
+                    (vol > 5000 ? 20 : vol / 250) +
+                    (holders > 100 ? 20 : holders * 0.2) +
+                    (totalTxns > 100 ? 20 : totalTxns * 0.2) +
+                    (buys > sells ? 20 : 10)
+                ));
+
+                // Calculate momentum (buy/sell ratio)
+                const momentum = totalTxns > 0 ? Math.floor((buys / totalTxns) * 100) : 0;
 
                 // Build complete analytics data
                 const analyticsData = {
-                    marketCap: dexData?.marketCap || dexData?.fdv || token.mcap || 0,
-                    liquidity: dexData?.liquidity?.usd || token.liquidity || 0,
-                    volume24h: dexData?.volume?.h24 || token.volume || 0,
-                    holders: token.holders || 0,
-                    transactions: token.txns || 0,
-                    score: token.aiScore || 0,
-                    priceChange1m: dexData?.priceChange?.m5 || 0,  // 5min as closest to 1m
+                    marketCap: mcap,
+                    liquidity: liq,
+                    volume24h: vol,
+                    holders: holders,
+                    transactions: totalTxns,
+                    score: score,
+                    priceChange1m: dexData?.priceChange?.m5 || 0,
                     priceChange5m: dexData?.priceChange?.m5 || 0,
                     priceChange1h: dexData?.priceChange?.h1 || 0,
                     priceChange24h: dexData?.priceChange?.h24 || token.priceChange24h || 0,
-                    buys24h: dexData?.txns?.h24?.buys || 0,
-                    sells24h: dexData?.txns?.h24?.sells || 0,
-                    liqDepth: dexData?.liquidity?.usd && dexData?.marketCap ? (dexData.liquidity.usd / dexData.marketCap) * 100 : 0,
-                    volMcapRatio: dexData?.marketCap > 0 ? (dexData?.volume?.h24 || 0) / dexData.marketCap : 0,
-                    flow5m: 0,  // Would need websocket for real-time
-                    momentum: 0,
-                    top10Pct: 0,
-                    noMint: true,
-                    noFreeze: true,
-                    organic: 0,
+                    buys24h: buys,
+                    sells24h: sells,
+                    liqDepth: mcap > 0 ? (liq / mcap) * 100 : 0,
+                    volMcapRatio: mcap > 0 ? vol / mcap : 0,
+                    flow5m: buys - sells,
+                    momentum: momentum,
+                    top10Pct: pumpData?.top_10_holder_pct || 0,
+                    noMint: pumpData?.mint_authority === null,
+                    noFreeze: pumpData?.freeze_authority === null,
+                    organic: holders > 50 ? Math.min(100, Math.floor(holders / 10)) : 0,
                     bundlerPct: 0,
-                    insiderPct: 0,
-                    devHoldPct: 0,
-                    verified: false
+                    insiderPct: pumpData?.insider_pct || 0,
+                    devHoldPct: pumpData?.dev_hold_pct || 0,
+                    verified: pumpData?.is_verified || false
                 };
 
                 updateTokenAnalytics(analyticsData);
@@ -4752,7 +4789,7 @@
             return [];
         }
 
-        // Update selectToken to fetch real data
+        // Update selectToken to fetch real data from multiple sources
         async function selectToken(mint) {
             selectedToken = mint;
             const token = myTokens.find(t => t.mint === mint);
@@ -4760,9 +4797,22 @@
             // Show trading panel
             document.getElementById('tradingPanel').style.display = 'block';
 
-            // Fetch real token data from Pump.fun
+            // Fetch data from Pump.fun AND DexScreener in parallel
             showNotification('Loading token data...', 'info');
-            const pumpData = await fetchPumpFunTokenData(mint);
+
+            let pumpData = null;
+            let dexData = null;
+
+            try {
+                const [pumpRes, dexRes] = await Promise.all([
+                    fetchPumpFunTokenData(mint),
+                    fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`).then(r => r.ok ? r.json() : null).catch(() => null)
+                ]);
+                pumpData = pumpRes;
+                dexData = dexRes?.pairs?.[0];
+            } catch (e) {
+                console.log('Data fetch error:', e);
+            }
 
             if (pumpData) {
                 currentTokenData = pumpData;
@@ -4782,43 +4832,59 @@
                 document.getElementById('tradeBtn').disabled = false;
                 setTradeMode(tradeMode);
 
-                // Calculate real analytics from Pump.fun data
-                // Bonding curve: exactly 85 SOL to graduate
-                const BONDING_CURVE_TARGET = 85; // 85 SOL exactly
+                // Calculate real analytics from Pump.fun + DexScreener data
+                const BONDING_CURVE_TARGET = 85;
                 const realSolInCurve = (pumpData.realSolReserves || 0) / 1e9;
                 const progress = Math.min((realSolInCurve / BONDING_CURVE_TARGET) * 100, 100);
-                const virtualSol = (pumpData.virtualSolReserves || 0) / 1e9;
-                const realTokens = (pumpData.realTokenReserves || 0) / 1e6;
 
-                // Liquidity depth = real SOL in curve
-                const liqDepthPct = pumpData.mcap > 0 ? (realSolInCurve * 200 / pumpData.mcap) * 100 : 0;
+                // Get transaction data from DexScreener
+                const buys = dexData?.txns?.h24?.buys || 0;
+                const sells = dexData?.txns?.h24?.sells || 0;
+                const totalTxns = buys + sells;
+
+                // Calculate metrics
+                const mcap = pumpData.mcap || dexData?.marketCap || 0;
+                const liq = dexData?.liquidity?.usd || realSolInCurve * 200;
+                const vol = pumpData.volume24h || dexData?.volume?.h24 || 0;
+                const holders = pumpData.holders || 0;
+
+                // Calculate score
+                const score = pumpData.complete === true ? 100 : Math.min(100, Math.floor(
+                    (mcap > 10000 ? 20 : mcap / 500) +
+                    (vol > 5000 ? 20 : vol / 250) +
+                    (holders > 100 ? 20 : holders * 0.2) +
+                    (totalTxns > 100 ? 20 : totalTxns * 0.2) +
+                    (buys > sells ? 20 : 10)
+                ));
+
+                // Calculate momentum
+                const momentum = totalTxns > 0 ? Math.floor((buys / totalTxns) * 100) : Math.floor(progress);
 
                 updateTokenAnalytics({
-                    marketCap: pumpData.mcap || 0,
-                    liquidity: realSolInCurve,  // Real SOL in bonding curve
-                    volume24h: pumpData.volume24h || 0,
-                    holders: pumpData.holders || 0,
-                    transactions: 0,  // Not available from API
-                    score: pumpData.complete === true ? 100 : Math.floor(progress),
-                    priceChange1m: 0,  // Would need historical data
-                    priceChange5m: 0,
-                    priceChange1h: 0,
-                    priceChange24h: 0,
-                    buys24h: 0,  // Not available from simple API
-                    sells24h: 0,
-                    liqDepth: liqDepthPct,
-                    volMcapRatio: pumpData.mcap > 0 ? (pumpData.volume24h || 0) / pumpData.mcap : 0,
-                    flow5m: 0,
-                    momentum: Math.floor(progress),  // Use bonding curve progress as momentum
-                    top10Pct: 0,  // Would need holder analysis
-                    noMint: true,  // Pump.fun tokens have no mint authority
-                    noFreeze: true,  // Pump.fun tokens have no freeze authority
-                    organic: 0,
+                    marketCap: mcap,
+                    liquidity: liq,
+                    volume24h: vol,
+                    holders: holders,
+                    transactions: totalTxns,
+                    score: score,
+                    priceChange1m: dexData?.priceChange?.m5 || 0,
+                    priceChange5m: dexData?.priceChange?.m5 || 0,
+                    priceChange1h: dexData?.priceChange?.h1 || 0,
+                    priceChange24h: dexData?.priceChange?.h24 || 0,
+                    buys24h: buys,
+                    sells24h: sells,
+                    liqDepth: mcap > 0 ? (liq / mcap) * 100 : 0,
+                    volMcapRatio: mcap > 0 ? vol / mcap : 0,
+                    flow5m: buys - sells,
+                    momentum: momentum,
+                    top10Pct: 0,
+                    noMint: true,
+                    noFreeze: true,
+                    organic: holders > 50 ? Math.min(100, Math.floor(holders / 10)) : 0,
                     bundlerPct: 0,
                     insiderPct: 0,
                     devHoldPct: 0,
                     verified: pumpData.complete === true,
-                    // Extra data for display
                     bondingProgress: progress,
                     solInCurve: realSolInCurve,
                     solTarget: BONDING_CURVE_TARGET
