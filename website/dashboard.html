@@ -4171,7 +4171,23 @@
                     trackerData = await trackerRes.json();
                     console.log('[ANALYTICS] Tracker data:', trackerData.symbol, 'holders:', trackerData.holders);
                 } else {
-                    console.log('[ANALYTICS] Token not in tracker');
+                    // Fallback: search in /api/tokens list (for when server hasn't restarted yet)
+                    console.log('[ANALYTICS] Trying /api/tokens fallback...');
+                    try {
+                        const tokensRes = await fetch('/api/tokens');
+                        if (tokensRes?.ok) {
+                            const tokensJson = await tokensRes.json();
+                            const mintLower = mint?.trim().toLowerCase();
+                            trackerData = (tokensJson.tokens || []).find(t =>
+                                t.mint?.trim().toLowerCase() === mintLower
+                            );
+                            if (trackerData) {
+                                console.log('[ANALYTICS] Found in /api/tokens:', trackerData.symbol, 'holders:', trackerData.holders);
+                            }
+                        }
+                    } catch (e) {
+                        console.log('[ANALYTICS] Fallback failed:', e);
+                    }
                 }
             } catch (e) {
                 console.error('[ANALYTICS] Fetch error:', e);
