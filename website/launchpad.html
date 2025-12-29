@@ -1536,7 +1536,7 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">Symbol</label>
-                            <input type="text" class="form-input" id="tokenSymbol" placeholder="TICKER" style="text-transform:uppercase;">
+                            <input type="text" class="form-input" id="tokenSymbol" placeholder="TICKER">
                         </div>
                     </div>
 
@@ -1866,7 +1866,9 @@
                             // Additional market data
                             liquidity: t.liquidity || 0,
                             priceChange24h: t.priceChange24h || 0,
-                            holders: t.holders || 0
+                            holders: t.holders || t.holder_count || 0,
+                            buys: t.buys || 0,
+                            sells: t.sells || 0
                         }));
                         console.log(`[TOKENS] Loaded ${registeredTokens.length} registered tokens`);
                     }
@@ -1896,7 +1898,11 @@
                             // Socials from Pump.fun API
                             twitter: t.twitter || null,
                             telegram: t.telegram || null,
-                            website: t.website || null
+                            website: t.website || null,
+                            // Market data - holders and transactions
+                            holders: t.holder_count || t.holders || 0,
+                            buys: t.total_buys || t.buys || 0,
+                            sells: t.total_sells || t.sells || 0
                         }));
                     }
                 } catch (e) {}
@@ -1919,7 +1925,11 @@
                             // Socials from Pump.fun API
                             twitter: t.twitter || null,
                             telegram: t.telegram || null,
-                            website: t.website || null
+                            website: t.website || null,
+                            // Market data - holders and transactions
+                            holders: t.holder_count || t.holders || 0,
+                            buys: t.total_buys || t.buys || 0,
+                            sells: t.total_sells || t.sells || 0
                         }));
                     }
                 } catch (e) {}
@@ -2774,7 +2784,7 @@
             }
 
             const name = document.getElementById('tokenName').value.trim();
-            const symbol = document.getElementById('tokenSymbol').value.trim().toUpperCase();
+            const symbol = document.getElementById('tokenSymbol').value.trim();
             const description = document.getElementById('tokenDesc').value.trim();
 
             // Get image file
