@@ -4211,8 +4211,9 @@
                 flow5m: buys - sells,
                 momentum: momentum,
                 top10Pct: pumpData?.top_10_holder_pct || 0,
-                noMint: pumpData?.mint_authority === null,
-                noFreeze: pumpData?.freeze_authority === null,
+                // Pump.fun tokens have NO mint/freeze authority by design (that's GOOD for safety)
+                noMint: !pumpData?.mint_authority,
+                noFreeze: !pumpData?.freeze_authority,
                 organic: holders > 50 ? Math.min(100, Math.floor(holders / 10)) : 0,
                 bundlerPct: 0,
                 insiderPct: pumpData?.insider_pct || 0,
@@ -4555,8 +4556,9 @@
                     flow5m: buys - sells,
                     momentum: momentum,
                     top10Pct: pumpData?.top_10_holder_pct || 0,
-                    noMint: pumpData?.mint_authority === null,
-                    noFreeze: pumpData?.freeze_authority === null,
+                    // Pump.fun tokens have NO mint/freeze authority by design (that's GOOD for safety)
+                    noMint: !pumpData?.mint_authority,
+                    noFreeze: !pumpData?.freeze_authority,
                     organic: holders > 50 ? Math.min(100, Math.floor(holders / 10)) : 0,
                     bundlerPct: 0,
                     insiderPct: pumpData?.insider_pct || 0,
