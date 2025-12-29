@@ -3454,6 +3454,10 @@
         // ═══════════════════════════════════════════════════════════════════════
         // WALLET FUNCTIONS
         // ═══════════════════════════════════════════════════════════════════════
+        // Store Privy 24/7 ORBIT credentials
+        let privyOrbitCredentials = null;
+        let orbitSessionToken = null;
+
         async function initPrivy() {
             if (!PRIVY_APP_ID) {
                 console.log('[PRIVY] App ID not configured - Privy disabled');
@@ -3462,24 +3466,130 @@
 
             // Listen for messages from Privy auth popup via BroadcastChannel (more reliable across tabs)
             const channel = new BroadcastChannel('launchr-auth');
-            channel.onmessage = (e) => {
+            channel.onmessage = async (e) => {
                 if (e.data?.type === 'privy-auth-success' && e.data?.address) {
                     console.log('[PRIVY] Received wallet from BroadcastChannel:', e.data.address);
                     handleWalletConnected(e.data.address);
-                    showNotification('Connected with Privy wallet!', 'success');
+
+                    // Store credentials for 24/7 ORBIT
+                    if (e.data.is24_7Ready) {
+                        privyOrbitCredentials = {
+                            privyWalletId: e.data.privyWalletId,
+                            privyAuthToken: e.data.privyAuthToken,
+                            publicKey: e.data.address
+                        };
+                        console.log('[PRIVY] 24/7 ORBIT credentials stored');
+                        showNotification('Connected with Privy wallet! 24/7 ORBIT available.', 'success');
+                        // Show 24/7 ORBIT badge
+                        show24_7Badge(true);
+                    } else {
+                        showNotification('Connected with Privy wallet!', 'success');
+                    }
                 }
             };
 
             // Also listen via window.opener.postMessage (fallback for popups)
-            window.addEventListener('message', (e) => {
+            window.addEventListener('message', async (e) => {
                 if (e.data?.type === 'privy-auth-success' && e.data?.address) {
                     console.log('[PRIVY] Received wallet from postMessage:', e.data.address);
                     handleWalletConnected(e.data.address);
-                    showNotification('Connected with Privy wallet!', 'success');
+
+                    // Store credentials for 24/7 ORBIT
+                    if (e.data.is24_7Ready) {
+                        privyOrbitCredentials = {
+                            privyWalletId: e.data.privyWalletId,
+                            privyAuthToken: e.data.privyAuthToken,
+                            publicKey: e.data.address
+                        };
+                        console.log('[PRIVY] 24/7 ORBIT credentials stored');
+                        show24_7Badge(true);
+                    }
                 }
             });
 
             console.log('[PRIVY] Ready - listening via BroadcastChannel + postMessage');
+        }
+
+        // Show/hide 24/7 ORBIT availability badge
+        function show24_7Badge(available) {
+            let badge = document.getElementById('orbit24Badge');
+            if (!badge && available) {
+                badge = document.createElement('div');
+                badge.id = 'orbit24Badge';
+                badge.innerHTML = `
+                    <span style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:linear-gradient(135deg,rgba(0,255,136,0.15),rgba(0,200,100,0.1));border:1px solid rgba(0,255,136,0.4);border-radius:20px;font-size:12px;color:#00ff88;font-weight:600;">
+                        <span style="width:8px;height:8px;background:#00ff88;border-radius:50%;animation:orbit-pulse 2s infinite;"></span>
+                        24/7 ORBIT Ready
+                    </span>
+                `;
+                badge.style.cssText = 'position:fixed;top:80px;right:20px;z-index:1000;';
+                document.body.appendChild(badge);
+            } else if (badge && !available) {
+                badge.remove();
+            }
+        }
+
+        // Register for 24/7 ORBIT server-side signing
+        async function enable24_7Orbit(tokenMint) {
+            if (!privyOrbitCredentials) {
+                showNotification('Connect with Privy wallet to enable 24/7 ORBIT', 'error');
+                return { success: false };
+            }
+
+            try {
+                console.log('[ORBIT] Registering for 24/7 server-side signing...');
+                const res = await fetch('/api/privy/register-orbit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        privyAuthToken: privyOrbitCredentials.privyAuthToken,
+                        privyWalletId: privyOrbitCredentials.privyWalletId,
+                        publicKey: privyOrbitCredentials.publicKey,
+                        tokenMint: tokenMint
+                    })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    orbitSessionToken = data.orbitSessionToken;
+                    console.log('[ORBIT] 24/7 ORBIT enabled!');
+                    showNotification('24/7 ORBIT enabled! Auto-claim continues even when browser is closed.', 'success');
+                    return { success: true, sessionToken: orbitSessionToken };
+                } else {
+                    console.error('[ORBIT] Registration failed:', data.error);
+                    showNotification('24/7 ORBIT registration failed: ' + data.error, 'error');
+                    return { success: false, error: data.error };
+                }
+            } catch (e) {
+                console.error('[ORBIT] Registration error:', e);
+                showNotification('24/7 ORBIT registration error', 'error');
+                return { success: false, error: e.message };
+            }
+        }
+
+        // Revoke 24/7 ORBIT session
+        async function disable24_7Orbit() {
+            if (!orbitSessionToken) return;
+
+            try {
+                const res = await fetch('/api/privy/revoke-orbit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        orbitSessionToken,
+                        privyAuthToken: privyOrbitCredentials?.privyAuthToken
+                    })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    orbitSessionToken = null;
+                    console.log('[ORBIT] 24/7 ORBIT disabled');
+                    showNotification('24/7 ORBIT disabled', 'info');
+                }
+            } catch (e) {
+                console.error('[ORBIT] Revoke error:', e);
+            }
         }
 
         async function connectWallet() {

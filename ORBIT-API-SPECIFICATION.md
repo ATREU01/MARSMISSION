@@ -282,6 +282,102 @@ def get_activity(limit: int = 50):
 
 ---
 
+## 24/7 ORBIT Server-Side Signing (Privy Integration)
+
+For applications using Privy embedded wallets, ORBIT supports server-side signing that continues even when the user's browser is closed.
+
+### Prerequisites
+
+1. User authenticates via Privy with a Solana embedded wallet
+2. Server has `PRIVY_APP_SECRET` and `PRIVY_AUTH_PRIVATE_KEY` configured
+3. Authorization key registered in Privy Dashboard
+
+### Register for 24/7 ORBIT
+
+**Endpoint:** `POST /api/privy/register-orbit`
+
+**Request Body:**
+```json
+{
+  "privyAuthToken": "eyJhbGciOiJFUz...",
+  "privyWalletId": "privy:user_abc123",
+  "publicKey": "ABC123...xyz",
+  "tokenMint": "DEF456...uvw"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "orbitSessionToken": "a1b2c3d4...",
+  "message": "24/7 ORBIT signing enabled. Your token will auto-claim even when browser is closed.",
+  "privyEnabled": true
+}
+```
+
+### Check Privy Status
+
+**Endpoint:** `GET /api/privy/status`
+
+**Response:**
+```json
+{
+  "success": true,
+  "privyEnabled": true,
+  "serverSideSigningAvailable": true,
+  "activeSessions": 5,
+  "message": "24/7 ORBIT available - close browser and auto-claim continues"
+}
+```
+
+### Revoke 24/7 Session
+
+**Endpoint:** `POST /api/privy/revoke-orbit`
+
+**Request Body:**
+```json
+{
+  "orbitSessionToken": "a1b2c3d4...",
+  "privyAuthToken": "eyJhbGciOiJFUz..."
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "24/7 ORBIT session revoked. Auto-claim stopped."
+}
+```
+
+### JavaScript Integration
+
+```javascript
+// After Privy authentication
+async function enable24_7Orbit(privyCredentials, tokenMint) {
+  const res = await fetch('/api/privy/register-orbit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      privyAuthToken: privyCredentials.authToken,
+      privyWalletId: privyCredentials.walletId,
+      publicKey: privyCredentials.address,
+      tokenMint: tokenMint
+    })
+  });
+
+  const data = await res.json();
+  if (data.success) {
+    // Store orbitSessionToken for later revocation
+    localStorage.setItem('orbitSession', data.orbitSessionToken);
+    console.log('24/7 ORBIT enabled!');
+  }
+}
+```
+
+---
+
 ## UI/UX Recommendations
 
 ### Status Indicator CSS
@@ -359,6 +455,7 @@ async function fetchWithRetry(url, maxRetries = 3) {
 
 | Version | Date           | Changes                              |
 |---------|----------------|--------------------------------------|
+| 1.1.0   | Dec 29, 2025   | Added 24/7 ORBIT with Privy server-side signing |
 | 1.0.0   | Dec 29, 2025   | Initial ORBIT API release            |
 
 ---
