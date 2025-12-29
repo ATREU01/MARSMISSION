@@ -469,6 +469,13 @@ async function updateTokenMetrics(tokenMint) {
                 token.liquidity = pair.liquidity?.usd || 0;
                 token.priceChange24h = pair.priceChange?.h24 || 0;
 
+                // Extract transaction counts (buys/sells)
+                if (pair.txns?.h24) {
+                    token.buys = pair.txns.h24.buys || 0;
+                    token.sells = pair.txns.h24.sells || 0;
+                    token.txns = (token.buys || 0) + (token.sells || 0);
+                }
+
                 // Extract socials from DexScreener info.socials array
                 if (pair.info?.socials && Array.isArray(pair.info.socials)) {
                     for (const social of pair.info.socials) {
