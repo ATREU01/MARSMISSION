@@ -4169,9 +4169,15 @@
                 // Get tracker data - this has reliable holder counts from multi-source backend fetching
                 if (trackerRes?.ok) {
                     const trackerJson = await trackerRes.json();
-                    trackerData = (trackerJson.tokens || []).find(t => t.mint === mint);
+                    const mintTrimmed = mint?.trim();
+                    trackerData = (trackerJson.tokens || []).find(t =>
+                        t.mint?.trim() === mintTrimmed ||
+                        t.mint?.trim().toLowerCase() === mintTrimmed?.toLowerCase()
+                    );
                     if (trackerData) {
-                        console.log('[ANALYTICS] Tracker data:', trackerData);
+                        console.log('[ANALYTICS] Tracker data found:', trackerData.symbol, 'holders:', trackerData.holders);
+                    } else {
+                        console.log('[ANALYTICS] Token not found in tracker, mint:', mintTrimmed);
                     }
                 }
             } catch (e) {
@@ -4184,9 +4190,17 @@
             const totalTxns = buys + sells || trackerData?.txns || 0;
 
             // Get holder count - prioritize tracker (has backend multi-source fetching)
-            // Fallback chain: Tracker -> Pump.fun -> 0
-            let holders = trackerData?.holders || pumpData?.holder_count || 0;
-            console.log('[ANALYTICS] Holder count:', holders, '(source:', trackerData?.holders ? 'Tracker' : 'Pump.fun', ')');
+            // Fallback chain: Tracker (if >0) -> Pump.fun -> 0
+            let holders = 0;
+            let holderSource = 'none';
+            if (trackerData?.holders > 0) {
+                holders = trackerData.holders;
+                holderSource = 'Tracker';
+            } else if (pumpData?.holder_count > 0) {
+                holders = pumpData.holder_count;
+                holderSource = 'Pump.fun';
+            }
+            console.log('[ANALYTICS] Holder count:', holders, '(source:', holderSource, ')');
 
             // Calculate metrics - use tracker data as fallback
             const mcap = dexData?.marketCap || dexData?.fdv || pumpData?.usd_market_cap || trackerData?.mcap || 0;
