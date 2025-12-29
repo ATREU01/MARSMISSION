@@ -270,13 +270,17 @@
 
         /* Light Mode Styles */
         body.light-mode {
-            --bg: #f8f9fa;
+            --bg: #f5f7fa;
             --bg-secondary: #ffffff;
             --bg-tertiary: #e9ecef;
+            --bg-elevated: #ffffff;
+            --surface: #ffffff;
+            --surface-2: #f8f9fa;
             --text: #1a1a2e;
             --text-secondary: #495057;
             --text-muted: #6c757d;
             --border: #dee2e6;
+            --border-subtle: rgba(0, 0, 0, 0.08);
             --gold-dim: rgba(255, 193, 7, 0.15);
         }
         body.light-mode .sidebar {
@@ -289,6 +293,7 @@
         }
         body.light-mode .stat-card {
             background: #ffffff;
+            border-color: #dee2e6;
         }
         body.light-mode .btn-secondary {
             background: #e9ecef;
@@ -309,6 +314,96 @@
         body.light-mode .notification {
             background: #ffffff;
             border-color: #dee2e6;
+        }
+        /* Light mode analytics panel */
+        body.light-mode .analytics-panel {
+            background: #ffffff;
+            border-color: #dee2e6;
+        }
+        body.light-mode .analytics-header {
+            background: #f8f9fa;
+            border-bottom-color: #dee2e6;
+        }
+        body.light-mode .analytics-title {
+            color: #2c3e50;
+        }
+        body.light-mode .token-stat {
+            background: #f8f9fa;
+            border-color: #e9ecef;
+        }
+        body.light-mode .token-stat-label {
+            color: #6c757d;
+        }
+        body.light-mode .token-stat-value {
+            color: #1a1a2e;
+        }
+        /* Light mode fee cards */
+        body.light-mode .fee-card {
+            background: #ffffff;
+            border-color: #dee2e6;
+        }
+        body.light-mode .fee-card-header {
+            background: #f8f9fa;
+            border-bottom-color: #e9ecef;
+        }
+        body.light-mode .fee-card-label {
+            color: #495057;
+        }
+        body.light-mode .fee-card-title {
+            color: #2c3e50;
+        }
+        /* Light mode holder pool */
+        body.light-mode .holder-pool {
+            background: linear-gradient(135deg, rgba(255, 193, 7, 0.1) 0%, rgba(255, 193, 7, 0.02) 100%);
+            border-color: rgba(255, 193, 7, 0.3);
+        }
+        /* Light mode price change strip */
+        body.light-mode .price-change-strip {
+            background: #f8f9fa;
+        }
+        body.light-mode .price-change-item {
+            background: #ffffff;
+        }
+        body.light-mode .price-change-label {
+            color: #6c757d;
+        }
+        /* Light mode trade metrics */
+        body.light-mode .trade-metric-label {
+            color: #6c757d;
+        }
+        /* Light mode rug check */
+        body.light-mode .rug-check-panel {
+            background: #ffffff;
+            border-color: #dee2e6;
+        }
+        body.light-mode .rug-check-title {
+            color: #2c3e50;
+        }
+        body.light-mode .rug-item {
+            background: #f8f9fa;
+            border-color: #e9ecef;
+        }
+        body.light-mode .rug-label {
+            color: #495057;
+        }
+        /* Light mode main content area */
+        body.light-mode .main {
+            background: #f5f7fa;
+        }
+        /* Light mode tables */
+        body.light-mode .table-wrapper {
+            background: #ffffff;
+        }
+        body.light-mode table th {
+            background: #f8f9fa;
+            color: #495057;
+        }
+        body.light-mode table td {
+            color: #1a1a2e;
+            border-bottom-color: #e9ecef;
+        }
+        body.light-mode table tr:hover td {
+            background: #f8f9fa;
         }
 
         /* Main content */
@@ -4737,9 +4832,99 @@
                 document.getElementById('tradeBtn').disabled = false;
                 setTradeMode(tradeMode);
 
+                // Update analytics with local token data
+                updateTokenAnalytics({
+                    marketCap: token.mcap || 0,
+                    liquidity: token.liquidity || 0,
+                    volume24h: token.volume || 0,
+                    holders: token.holders || 0,
+                    transactions: token.txns || 0,
+                    score: token.aiScore || 0,
+                    priceChange1m: 0,
+                    priceChange5m: 0,
+                    priceChange1h: 0,
+                    priceChange24h: token.priceChange24h || 0,
+                    buys24h: token.buys || 0,
+                    sells24h: token.sells || 0,
+                    liqDepth: 0,
+                    volMcapRatio: token.mcap > 0 ? (token.volume || 0) / token.mcap : 0,
+                    flow5m: 0,
+                    momentum: 0,
+                    top10Pct: 0,
+                    noMint: true,
+                    noFreeze: true,
+                    organic: 0,
+                    bundlerPct: 0,
+                    insiderPct: 0,
+                    devHoldPct: 0,
+                    verified: false
+                });
+
                 showNotification(`Using local data for ${token.symbol}`, 'info');
             } else {
-                showNotification('Token not found', 'error');
+                // Final fallback: try DexScreener for any token
+                try {
+                    const dexRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`);
+                    if (dexRes.ok) {
+                        const dexJson = await dexRes.json();
+                        const pair = dexJson.pairs?.[0];
+                        if (pair) {
+                            currentTokenData = { mint, name: pair.baseToken?.name, symbol: pair.baseToken?.symbol };
+                            currentTokenPrice = parseFloat(pair.priceUsd) || 0;
+
+                            document.getElementById('tokenName').textContent = pair.baseToken?.name || 'Unknown';
+                            document.getElementById('tokenMint').textContent = mint;
+                            document.getElementById('tokenAvatar').textContent = pair.baseToken?.symbol?.slice(0, 2) || '??';
+                            document.getElementById('tokenPath').textContent = 'DEX';
+                            document.getElementById('tradingTokenLabel').textContent = `${pair.baseToken?.symbol || '???'} / SOL`;
+                            document.getElementById('tradeBalance').textContent = `Balance: ${walletBalance.toFixed(4)} SOL`;
+                            document.getElementById('tradeBtn').disabled = false;
+                            setTradeMode(tradeMode);
+
+                            // Update analytics from DexScreener
+                            updateTokenAnalytics({
+                                marketCap: pair.marketCap || pair.fdv || 0,
+                                liquidity: pair.liquidity?.usd || 0,
+                                volume24h: pair.volume?.h24 || 0,
+                                holders: 0,
+                                transactions: (pair.txns?.h24?.buys || 0) + (pair.txns?.h24?.sells || 0),
+                                score: 0,
+                                priceChange1m: pair.priceChange?.m5 || 0,
+                                priceChange5m: pair.priceChange?.m5 || 0,
+                                priceChange1h: pair.priceChange?.h1 || 0,
+                                priceChange24h: pair.priceChange?.h24 || 0,
+                                buys24h: pair.txns?.h24?.buys || 0,
+                                sells24h: pair.txns?.h24?.sells || 0,
+                                liqDepth: pair.marketCap > 0 ? (pair.liquidity?.usd / pair.marketCap) * 100 : 0,
+                                volMcapRatio: pair.marketCap > 0 ? (pair.volume?.h24 || 0) / pair.marketCap : 0,
+                                flow5m: 0,
+                                momentum: 0,
+                                top10Pct: 0,
+                                noMint: true,
+                                noFreeze: true,
+                                organic: 0,
+                                bundlerPct: 0,
+                                insiderPct: 0,
+                                devHoldPct: 0,
+                                verified: false
+                            });
+
+                            // Update chart
+                            if (pair.pairAddress) {
+                                updateChart(pair.pairAddress);
+                            }
+
+                            showNotification(`Loaded from DexScreener`, 'success');
+                        } else {
+                            showNotification('Token not found on any source', 'error');
+                        }
+                    } else {
+                        showNotification('Token not found', 'error');
+                    }
+                } catch (e) {
+                    console.error('[DEX FALLBACK] Error:', e);
+                    showNotification('Token not found', 'error');
+                }
             }
 
             renderMyTokens();
