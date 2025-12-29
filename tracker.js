@@ -443,8 +443,12 @@ async function updateTokenMetrics(tokenMint) {
             token.twitter = d.twitter || token.twitter;
             token.telegram = d.telegram || token.telegram;
             token.website = d.website || token.website;
+            // CRITICAL: Extract holder_count from Pump.fun
+            if (d.holder_count && d.holder_count > 0) {
+                token.holders = d.holder_count;
+            }
             updated = true;
-            console.log(`[TRACKER] Pump.fun: ${token.name} ($${token.symbol})`);
+            console.log(`[TRACKER] Pump.fun: ${token.name} ($${token.symbol}) holders=${d.holder_count || 0}`);
         }
     } catch (e) {
         // Pump.fun failed, try fallbacks
