@@ -4172,8 +4172,41 @@
             const sells = dexData?.txns?.h24?.sells || 0;
             const totalTxns = buys + sells;
 
-            // Get holder count from Pump.fun
-            const holders = pumpData?.holder_count || 0;
+            // Get holder count with 3-tier fallback: Pump.fun -> Jupiter -> Solscan
+            let holders = pumpData?.holder_count || 0;
+
+            // TRY 2: Jupiter API if no holders from Pump.fun
+            if (!holders) {
+                try {
+                    const jupRes = await fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${mint}`).catch(() => null);
+                    if (jupRes?.ok) {
+                        const jupData = await jupRes.json();
+                        const jupToken = jupData.find(t => t.address === mint);
+                        if (jupToken?.holderCount > 0) {
+                            holders = jupToken.holderCount;
+                            console.log('[ANALYTICS] Jupiter holder count:', holders);
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[ANALYTICS] Jupiter API error:', e);
+                }
+            }
+
+            // TRY 3: Solscan API if still no holders
+            if (!holders) {
+                try {
+                    const solRes = await fetch(`https://public-api.solscan.io/token/meta?tokenAddress=${mint}`).catch(() => null);
+                    if (solRes?.ok) {
+                        const solData = await solRes.json();
+                        if (solData?.holder > 0) {
+                            holders = solData.holder;
+                            console.log('[ANALYTICS] Solscan holder count:', holders);
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[ANALYTICS] Solscan API error:', e);
+                }
+            }
 
             // Calculate metrics
             const mcap = dexData?.marketCap || dexData?.fdv || pumpData?.usd_market_cap || 0;
