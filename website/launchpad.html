@@ -1391,6 +1391,63 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        /* Theme Toggle */
+        .theme-toggle-btn {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 8px 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .theme-toggle-btn:hover {
+            border-color: var(--gold);
+            background: var(--gold-dim);
+        }
+        .theme-toggle-btn svg {
+            width: 18px;
+            height: 18px;
+            color: var(--text-secondary);
+        }
+        .theme-toggle-btn:hover svg { color: var(--gold); }
+        .theme-icon-light { display: none; }
+        body.light-mode .theme-icon-dark { display: none; }
+        body.light-mode .theme-icon-light { display: block; }
+
+        /* Light Mode */
+        body.light-mode {
+            --bg: #f5f7fa;
+            --bg-elevated: #ffffff;
+            --surface: #ffffff;
+            --surface-2: #f0f2f5;
+            --surface-3: #e4e6eb;
+            --border: rgba(0, 0, 0, 0.08);
+            --text: #2c3e50;
+            --text-secondary: #546e7a;
+            --text-muted: #90a4ae;
+            --gold-dim: rgba(255, 193, 7, 0.12);
+        }
+        body.light-mode .nav {
+            background: rgba(255, 255, 255, 0.98);
+            border-bottom-color: rgba(0, 0, 0, 0.06);
+        }
+        body.light-mode .card, body.light-mode .token-row {
+            background: #ffffff;
+            border-color: rgba(0, 0, 0, 0.06);
+        }
+        body.light-mode .token-row:hover {
+            background: #f8f9fa;
+        }
+        body.light-mode .modal {
+            background: #ffffff;
+        }
+        body.light-mode .ambient {
+            opacity: 0.2;
+        }
     </style>
 </head>
 <body>
@@ -1415,6 +1472,10 @@
                 <a href="https://x.com/LaunchrTG" class="nav-link" target="_blank">Twitter</a>
             </div>
             <div class="nav-actions">
+                <button class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle theme">
+                    <svg class="theme-icon-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                    <svg class="theme-icon-light" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                </button>
                 <button id="connectWallet" class="btn btn-secondary btn-sm" onclick="connectWallet()">Connect Wallet</button>
                 <button class="btn btn-primary btn-sm" onclick="showCreateModal()">Create Token</button>
             </div>
@@ -1704,9 +1765,25 @@
         }
 
         // ═══════════════════════════════════════════════════════════════════════
+        // THEME TOGGLE
+        // ═══════════════════════════════════════════════════════════════════════
+        function toggleTheme() {
+            const isLight = document.body.classList.toggle('light-mode');
+            localStorage.setItem('launchr-theme', isLight ? 'light' : 'dark');
+        }
+
+        function initTheme() {
+            const saved = localStorage.getItem('launchr-theme');
+            if (saved === 'light') {
+                document.body.classList.add('light-mode');
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
         // INITIALIZATION
         // ═══════════════════════════════════════════════════════════════════════
         document.addEventListener('DOMContentLoaded', async () => {
+            initTheme();
             await initPrivy();
             // Security: Don't auto-reconnect - require fresh login each time
             localStorage.removeItem('connectedWallet');

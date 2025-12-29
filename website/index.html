@@ -780,6 +780,77 @@
             .contract-value { flex-direction: column; gap: 8px; }
             .contract-value code { font-size: 10px; word-break: break-all; }
         }
+
+        /* Theme Toggle */
+        .theme-toggle-btn {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 8px 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .theme-toggle-btn:hover {
+            border-color: var(--gold);
+            background: var(--gold-dim);
+        }
+        .theme-toggle-btn svg {
+            width: 18px;
+            height: 18px;
+            color: var(--text-secondary);
+        }
+        .theme-toggle-btn:hover svg {
+            color: var(--gold);
+        }
+        .theme-icon-light { display: none; }
+        body.light-mode .theme-icon-dark { display: none; }
+        body.light-mode .theme-icon-light { display: block; }
+
+        /* Light Mode */
+        body.light-mode {
+            --bg: #f5f7fa;
+            --bg-elevated: #ffffff;
+            --surface: #ffffff;
+            --surface-2: #f0f2f5;
+            --surface-3: #e4e6eb;
+            --border: rgba(0, 0, 0, 0.08);
+            --border-active: rgba(255, 193, 7, 0.4);
+            --text: #2c3e50;
+            --text-secondary: #546e7a;
+            --text-muted: #90a4ae;
+            --gold-dim: rgba(255, 193, 7, 0.12);
+            --gold-glow: rgba(255, 193, 7, 0.08);
+        }
+        body.light-mode .nav {
+            background: rgba(255, 255, 255, 0.98);
+            border-bottom-color: rgba(0, 0, 0, 0.06);
+            backdrop-filter: blur(10px);
+        }
+        body.light-mode .card, body.light-mode .path-card, body.light-mode .feature-card {
+            background: #ffffff;
+            border-color: rgba(0, 0, 0, 0.06);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+        body.light-mode .modal {
+            background: #ffffff;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        }
+        body.light-mode .hero-title {
+            color: #1e3a5f;
+        }
+        body.light-mode .section-title {
+            color: #2c3e50;
+        }
+        body.light-mode .btn-secondary {
+            background: #e8edf2;
+            color: #2c3e50;
+        }
+        body.light-mode .atmosphere {
+            opacity: 0.3;
+        }
     </style>
 </head>
 <body>
@@ -799,6 +870,10 @@
                 <a href="/guide" class="nav-link">Guide</a>
             </div>
             <div class="nav-actions">
+                <button class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle theme">
+                    <svg class="theme-icon-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                    <svg class="theme-icon-light" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                </button>
                 <button id="connectWallet" class="btn btn-secondary btn-sm" onclick="connectWallet()">Connect</button>
                 <a href="/launchpad" class="btn btn-primary btn-sm">Launch</a>
             </div>
@@ -1024,8 +1099,22 @@
         let connectedWallet = null;
         let walletBalance = 0;
 
+        // Theme Toggle
+        function toggleTheme() {
+            const isLight = document.body.classList.toggle('light-mode');
+            localStorage.setItem('launchr-theme', isLight ? 'light' : 'dark');
+        }
+
+        function initTheme() {
+            const saved = localStorage.getItem('launchr-theme');
+            if (saved === 'light') {
+                document.body.classList.add('light-mode');
+            }
+        }
+
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
+            initTheme();
             await initPrivy();
             // Security: Don't auto-reconnect - require fresh login each time
             localStorage.removeItem('connectedWallet');
