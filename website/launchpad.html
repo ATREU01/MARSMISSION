@@ -2054,26 +2054,58 @@
                 await Promise.all(batch.map(async (token) => {
                     if (!token.mint) return;
 
+                    let gotHolders = false;
+
+                    // TRY 1: Pump.fun individual endpoint
                     try {
-                        // Fetch from Pump.fun individual endpoint
                         const res = await fetch(`/api/pump/coin/${token.mint}`);
                         if (res.ok) {
                             const data = await res.json();
                             if (data) {
-                                // Update holder count
                                 if (data.holder_count > 0) {
                                     token.holders = data.holder_count;
+                                    gotHolders = true;
+                                    console.log(`[ENRICH] Pump.fun holders for ${token.symbol}: ${data.holder_count}`);
                                 }
-                                // Update other fields if available
                                 if (data.total_buys) token.buys = data.total_buys;
                                 if (data.total_sells) token.sells = data.total_sells;
                             }
                         }
-                    } catch (e) {
-                        // Silent fail - keep existing data
+                    } catch (e) {}
+
+                    // TRY 2: Jupiter API (for non-pump.fun tokens)
+                    if (!gotHolders) {
+                        try {
+                            const res = await fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${token.mint}`);
+                            if (res.ok) {
+                                const arr = await res.json();
+                                const jupToken = Array.isArray(arr) ? arr.find(t => t.id === token.mint || t.address === token.mint) : null;
+                                if (jupToken?.holderCount > 0) {
+                                    token.holders = jupToken.holderCount;
+                                    gotHolders = true;
+                                    console.log(`[ENRICH] Jupiter holders for ${token.symbol}: ${jupToken.holderCount}`);
+                                }
+                            }
+                        } catch (e) {}
                     }
 
-                    // Also try DexScreener for txns if we don't have them
+                    // TRY 3: Solscan API
+                    if (!gotHolders) {
+                        try {
+                            const res = await fetch(`https://public-api.solscan.io/token/meta?tokenAddress=${token.mint}`);
+                            if (res.ok) {
+                                const data = await res.json();
+                                const holders = data.holder || data.holders || 0;
+                                if (holders > 0) {
+                                    token.holders = holders;
+                                    gotHolders = true;
+                                    console.log(`[ENRICH] Solscan holders for ${token.symbol}: ${holders}`);
+                                }
+                            }
+                        } catch (e) {}
+                    }
+
+                    // Get txns from DexScreener if we don't have them
                     if (!token.buys && !token.sells) {
                         try {
                             const dexRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${token.mint}`);
@@ -2089,9 +2121,7 @@
                                     token.liquidity = pair.liquidity.usd;
                                 }
                             }
-                        } catch (e) {
-                            // Silent fail
-                        }
+                        } catch (e) {}
                     }
                 }));
 
