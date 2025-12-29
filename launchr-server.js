@@ -1780,8 +1780,14 @@ The 4 percentages MUST sum to exactly 100.`;
         return;
     }
 
-    // API: Force refresh all token metrics (holders, txns, etc.)
+    // API: Force refresh all token metrics (holders, txns, etc.) - ADMIN ONLY
     if (url.pathname === '/api/tracker/refresh' && req.method === 'POST') {
+        // SECURITY: Require authentication for admin operations
+        if (!isAuthorized(req)) {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Unauthorized' }));
+            return;
+        }
         try {
             console.log('[API] Force refreshing all token metrics...');
             const result = await tracker.updateAllTokenMetrics();
@@ -1794,8 +1800,14 @@ The 4 percentages MUST sum to exactly 100.`;
         return;
     }
 
-    // API: Remove a token by mint address
+    // API: Remove a token by mint address - ADMIN ONLY
     if (url.pathname === '/api/tracker/remove' && req.method === 'POST') {
+        // SECURITY: Require authentication for destructive operations
+        if (!isAuthorized(req)) {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Unauthorized' }));
+            return;
+        }
         try {
             const body = await getBody(req);
             const { mint } = JSON.parse(body);
@@ -1815,8 +1827,14 @@ The 4 percentages MUST sum to exactly 100.`;
         return;
     }
 
-    // API: Keep only specified tokens (remove all others)
+    // API: Keep only specified tokens (remove all others) - ADMIN ONLY
     if (url.pathname === '/api/tracker/keep-only' && req.method === 'POST') {
+        // SECURITY: Require authentication for destructive operations
+        if (!isAuthorized(req)) {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Unauthorized' }));
+            return;
+        }
         try {
             const body = await getBody(req);
             const { mints } = JSON.parse(body);
@@ -2415,10 +2433,19 @@ The 4 percentages MUST sum to exactly 100.`;
 
     // ═══════════════════════════════════════════════════════════════════════════
     // ORBIT PUBLIC API - Transparency endpoints for external platforms (Moby, etc)
+    // Rate limited for DoS protection
     // ═══════════════════════════════════════════════════════════════════════════
 
-    // API: Get all active ORBIT instances (PUBLIC - no auth required)
+    // API: Get all active ORBIT instances (PUBLIC - rate limited)
     if (url.pathname === '/api/orbit/status' && req.method === 'GET') {
+        // Rate limit ORBIT endpoints
+        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const rateCheck = checkRateLimit(clientIP, 'general');
+        if (!rateCheck.allowed) {
+            res.writeHead(429, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: rateCheck.reason }));
+            return;
+        }
         try {
             const instances = [];
             for (const [mint, status] of orbitRegistry.entries()) {
@@ -2443,11 +2470,20 @@ The 4 percentages MUST sum to exactly 100.`;
         return;
     }
 
-    // API: Get ORBIT status for specific token (PUBLIC - no auth required)
+    // API: Get ORBIT status for specific token (PUBLIC - rate limited)
     if (url.pathname.startsWith('/api/orbit/status/') && req.method === 'GET') {
+        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const rateCheck = checkRateLimit(clientIP, 'general');
+        if (!rateCheck.allowed) {
+            res.writeHead(429, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: rateCheck.reason }));
+            return;
+        }
+
         const mint = url.pathname.replace('/api/orbit/status/', '').trim();
 
-        if (!mint || mint.length < 32) {
+        // Validate base58 format
+        if (!mint || mint.length < 32 || !/^[1-9A-HJ-NP-Za-km-z]+$/.test(mint)) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: false, error: 'Invalid mint address' }));
             return;
@@ -2476,21 +2512,27 @@ The 4 percentages MUST sum to exactly 100.`;
         return;
     }
 
-    // API: Get ORBIT activity log (PUBLIC - no auth required)
+    // API: Get ORBIT activity log (PUBLIC - rate limited)
     if (url.pathname === '/api/orbit/activity' && req.method === 'GET') {
+        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const rateCheck = checkRateLimit(clientIP, 'general');
+        if (!rateCheck.allowed) {
+            res.writeHead(429, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: rateCheck.reason }));
+            return;
+        }
         try {
-            const limit = parseInt(url.searchParams.get('limit')) || 100;
+            const limitParam = parseInt(url.searchParams.get('limit'));
+            const limit = isNaN(limitParam) ? 100 : Math.max(1, Math.min(limitParam, 500));
             const mint = url.searchParams.get('mint');
 
-            let activities = [...orbitActivityLog].reverse(); // Most recent first
+            // Get activities efficiently (slice before reverse)
+            let activities = orbitActivityLog.slice(-limit).reverse();
 
             // Filter by mint if specified
             if (mint) {
                 activities = activities.filter(a => a.mint === mint);
             }
-
-            // Limit results
-            activities = activities.slice(0, Math.min(limit, 500));
 
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
@@ -2508,7 +2550,23 @@ The 4 percentages MUST sum to exactly 100.`;
 
     // API: Check if token has ORBIT (simple boolean check for external platforms)
     if (url.pathname.startsWith('/api/orbit/check/') && req.method === 'GET') {
+        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const rateCheck = checkRateLimit(clientIP, 'general');
+        if (!rateCheck.allowed) {
+            res.writeHead(429, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: rateCheck.reason }));
+            return;
+        }
+
         const mint = url.pathname.replace('/api/orbit/check/', '').trim();
+
+        // Validate mint address format (base58)
+        if (!mint || mint.length < 32 || !/^[1-9A-HJ-NP-Za-km-z]+$/.test(mint)) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Invalid mint address' }));
+            return;
+        }
+
         const status = orbitRegistry.get(mint);
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
