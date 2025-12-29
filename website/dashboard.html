@@ -2523,12 +2523,12 @@
                         </div>
                         <p class="path-option-desc">One-click launch. Fast, beginner-friendly.</p>
                     </div>
-                    <div class="path-option disabled" data-path="launchr" style="opacity:0.5;cursor:not-allowed;">
+                    <div class="path-option" data-path="launchr" onclick="selectPath('launchr')">
                         <div class="path-option-header">
-                            <span class="path-option-name">Launchr</span>
-                            <span class="path-option-badge advanced">Coming Soon</span>
+                            <span class="path-option-name">LCHr Vanity</span>
+                            <span class="path-option-badge advanced" style="background:var(--gold-dim);color:var(--gold);">Premium</span>
                         </div>
-                        <p class="path-option-desc">Custom bonding curve. Full control over price discovery.</p>
+                        <p class="path-option-desc">Vanity address ending in <code style="color:var(--gold);">...LCHr</code></p>
                     </div>
                 </div>
 
@@ -3725,27 +3725,36 @@
             };
         }
 
-        // Generate a new mint keypair for the token (tries vanity pool first)
+        // Generate a new mint keypair for the token based on selected path
         async function generateMintKeypair() {
             const { Keypair } = solanaWeb3;
 
-            // Try to get a vanity keypair from the server pool (ends in "launchr")
-            try {
-                const res = await fetch('/api/vanity-keypair');
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.success && data.secretKey) {
-                        const secretKey = bs58.decode(data.secretKey);
-                        const mintKeypair = Keypair.fromSecretKey(secretKey);
-                        console.log('[DEPLOY] Got vanity mint address:', mintKeypair.publicKey.toString());
-                        return mintKeypair;
+            // LCHr Vanity path - must get vanity keypair
+            if (selectedLaunchPath === 'launchr') {
+                try {
+                    const res = await fetch('/api/vanity-keypair');
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.success && data.secretKey) {
+                            const secretKey = bs58.decode(data.secretKey);
+                            const mintKeypair = Keypair.fromSecretKey(secretKey);
+                            console.log('[DEPLOY] Got LCHr vanity mint address:', mintKeypair.publicKey.toString());
+                            return mintKeypair;
+                        }
                     }
+                    // No vanity available - check status
+                    const statusRes = await fetch('/api/vanity-status');
+                    const status = statusRes.ok ? await statusRes.json() : {};
+                    const msg = status.isGenerating
+                        ? `No LCHr addresses available. Mining in progress (${status.stats?.found || 0} found so far). Try again soon!`
+                        : 'No LCHr addresses available. Please try again later or use Pump.fun path.';
+                    throw new Error(msg);
+                } catch (e) {
+                    throw new Error(e.message || 'LCHr vanity keypair unavailable');
                 }
-            } catch (e) {
-                console.log('[DEPLOY] Vanity pool unavailable, using random keypair');
             }
 
-            // Fallback to random keypair
+            // Pump.fun path - random keypair
             const mintKeypair = Keypair.generate();
             console.log('[DEPLOY] Generated random mint address:', mintKeypair.publicKey.toString());
             return mintKeypair;
@@ -4050,7 +4059,7 @@
             try {
                 const tokenMetadata = await uploadTokenMetadata(name, symbol, description, imageFile, socials);
 
-                btn.textContent = 'Getting vanity address...';
+                btn.textContent = selectedLaunchPath === 'launchr' ? 'Getting LCHr address...' : 'Generating mint...';
                 const mintKeypair = await generateMintKeypair();
 
                 btn.textContent = 'Creating token...';
