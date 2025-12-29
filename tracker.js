@@ -538,6 +538,27 @@ async function updateTokenMetrics(tokenMint) {
         }
     }
 
+    // ALWAYS fetch txns (buys/sells) from DexScreener - this data isn't available from Pump.fun
+    if (!token.buys && !token.sells) {
+        try {
+            const dexTxnsRes = await axios.get(`https://api.dexscreener.com/latest/dex/tokens/${tokenMint}`, {
+                timeout: 5000,
+                headers: { 'Accept': 'application/json' }
+            });
+            const pair = dexTxnsRes.data?.pairs?.[0];
+            if (pair?.txns?.h24) {
+                token.buys = pair.txns.h24.buys || 0;
+                token.sells = pair.txns.h24.sells || 0;
+                token.txns = (token.buys || 0) + (token.sells || 0);
+                // Also grab volume if we don't have it
+                if (!token.volume) token.volume = pair.volume?.h24 || 0;
+                console.log(`[TRACKER] DexScreener txns: ${token.symbol} buys=${token.buys} sells=${token.sells}`);
+            }
+        } catch (e) {
+            // DexScreener txns failed
+        }
+    }
+
     // TRY 4: Multi-source HOLDER data (fallback chain)
     // Reset holders to re-fetch fresh data each time
     let holderSource = '';
