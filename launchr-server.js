@@ -1054,8 +1054,9 @@ const server = http.createServer(async (req, res) => {
             sessionToken = crypto.randomBytes(SESSION_TOKEN_BYTES).toString('hex');
             sessionCreatedAt = Date.now();
 
-            // Track this token in the registry
+            // Track this token in the registry and mark as TEK-connected
             tracker.registerToken(data.tokenMint, wallet.publicKey.toBase58());
+            tracker.markAsTekConnected(data.tokenMint);
 
             log('Connected: ' + wallet.publicKey.toBase58().slice(0, 8) + '...');
             res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -1689,6 +1690,86 @@ The 4 percentages MUST sum to exactly 100.`;
         } catch (e) {
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ tokens: [] }));
+        }
+        return;
+    }
+
+    // API: Get LAUNCHR-launched tokens only
+    if (url.pathname === '/api/launchr-launches' && req.method === 'GET') {
+        try {
+            const launchrTokens = tracker.getLaunchrLaunches()
+                .filter(t => !BLOCKED_MINTS.includes(t.mint))
+                .sort((a, b) => (b.registeredAt || 0) - (a.registeredAt || 0))
+                .slice(0, 50)
+                .map(t => ({
+                    mint: t.mint,
+                    name: t.name || 'Unknown Token',
+                    symbol: t.symbol || 'TOKEN',
+                    image: t.image || null,
+                    path: 'launchr',
+                    mcap: t.mcap || 0,
+                    volume: t.volume || 0,
+                    price: t.price || 0,
+                    change: t.change || 0,
+                    progress: t.progress || 0,
+                    graduated: t.graduated || false,
+                    time: formatTimeAgo(t.registeredAt),
+                    createdAt: t.registeredAt,
+                    liquidity: t.liquidity || 0,
+                    holders: t.holders || 0,
+                    txns: t.txns || 0,
+                    buys: t.buys || 0,
+                    sells: t.sells || 0,
+                    twitter: t.twitter || null,
+                    telegram: t.telegram || null,
+                    website: t.website || null,
+                }));
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ tokens: launchrTokens, count: launchrTokens.length }));
+        } catch (e) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ tokens: [], count: 0 }));
+        }
+        return;
+    }
+
+    // API: Get TEK-powered tokens only
+    if (url.pathname === '/api/tek-tokens' && req.method === 'GET') {
+        try {
+            const tekTokens = tracker.getTekTokens()
+                .filter(t => !BLOCKED_MINTS.includes(t.mint))
+                .sort((a, b) => (b.tekConnectedAt || b.lastSeen || 0) - (a.tekConnectedAt || a.lastSeen || 0))
+                .slice(0, 50)
+                .map(t => ({
+                    mint: t.mint,
+                    name: t.name || 'Unknown Token',
+                    symbol: t.symbol || 'TOKEN',
+                    image: t.image || null,
+                    path: t.path || 'pump',
+                    mcap: t.mcap || 0,
+                    volume: t.volume || 0,
+                    price: t.price || 0,
+                    change: t.change || 0,
+                    progress: t.progress || 0,
+                    graduated: t.graduated || false,
+                    time: formatTimeAgo(t.tekConnectedAt || t.lastSeen),
+                    tekConnectedAt: t.tekConnectedAt,
+                    totalClaimed: t.stats?.totalClaimed || 0,
+                    totalDistributed: t.stats?.totalDistributed || 0,
+                    liquidity: t.liquidity || 0,
+                    holders: t.holders || 0,
+                    txns: t.txns || 0,
+                    buys: t.buys || 0,
+                    sells: t.sells || 0,
+                    twitter: t.twitter || null,
+                    telegram: t.telegram || null,
+                    website: t.website || null,
+                }));
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ tokens: tekTokens, count: tekTokens.length }));
+        } catch (e) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ tokens: [], count: 0 }));
         }
         return;
     }

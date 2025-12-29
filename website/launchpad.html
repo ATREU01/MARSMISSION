@@ -1532,17 +1532,17 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Token Name</label>
-                            <input type="text" class="form-input" id="tokenName" placeholder="My Token">
+                            <input type="text" class="form-input" id="tokenName" placeholder="My Token" spellcheck="false" autocomplete="off">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Symbol</label>
-                            <input type="text" class="form-input" id="tokenSymbol" placeholder="TICKER" style="text-transform:uppercase;">
+                            <input type="text" class="form-input" id="tokenSymbol" placeholder="TICKER" spellcheck="false" autocomplete="off">
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Description</label>
-                        <textarea class="form-input" id="tokenDesc" placeholder="A brief description of your token..." rows="2" style="resize:vertical;min-height:60px;"></textarea>
+                        <textarea class="form-input" id="tokenDesc" placeholder="A brief description of your token..." rows="2" style="resize:vertical;min-height:60px;" spellcheck="false"></textarea>
                     </div>
 
                     <!-- Image Uploads -->
@@ -1683,14 +1683,42 @@
 
         <!-- Content -->
         <div class="content content-single">
-            <!-- Token Table - Full Data View -->
-            <div class="card">
+            <!-- LAUNCHR Launches Section -->
+            <div class="card" style="margin-bottom:24px;">
                 <div class="card-header">
-                    <span class="card-title">Discover Tokens</span>
-                    <span class="card-badge live">Live</span>
+                    <span class="card-title" style="color:var(--gold);">LAUNCHR Launches</span>
+                    <span class="card-badge" style="background:var(--gold);color:#000;">Official</span>
+                    <span id="launchrCount" style="margin-left:8px;font-size:12px;color:var(--text-muted);">0 tokens</span>
                     <button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="showCreateModal()">
                         Launch Token
                     </button>
+                </div>
+                <div class="token-list" id="launchrTokenList">
+                    <div style="padding:40px;text-align:center;color:var(--text-muted);">
+                        <p>No LAUNCHR launches yet. Be the first!</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TEK Powered Section -->
+            <div class="card" style="margin-bottom:24px;">
+                <div class="card-header">
+                    <span class="card-title" style="color:var(--cyan);">TEK Powered</span>
+                    <span class="card-badge" style="background:var(--cyan);color:#000;">Fee Engine</span>
+                    <span id="tekCount" style="margin-left:8px;font-size:12px;color:var(--text-muted);">0 tokens</span>
+                </div>
+                <div class="token-list" id="tekTokenList">
+                    <div style="padding:40px;text-align:center;color:var(--text-muted);">
+                        <p>No TEK-connected tokens yet.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- All Tokens Section -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Discover All Tokens</span>
+                    <span class="card-badge live">Live</span>
                 </div>
                 <div class="token-list" id="tokenList">
                     <!-- Rendered by JS - Full token table -->
@@ -1794,6 +1822,8 @@
                 fetchLeaderboard(),
                 fetchStats(),
                 syncTimer(),
+                fetchLaunchrTokens(),
+                fetchTekTokens(),
             ]);
 
             // Tab switching for live tokens
@@ -1811,6 +1841,8 @@
                 fetchLiveTokens();
                 fetchLeaderboard();
                 fetchStats();
+                fetchLaunchrTokens();
+                fetchTekTokens();
             }, 30000);
 
             // Auto-open create modal if coming from launch button
@@ -2031,6 +2063,99 @@
                 console.error('[API] Failed to fetch tokens:', e);
                 renderTokens();
             }
+        }
+
+        // Fetch LAUNCHR-launched tokens
+        let launchrTokens = [];
+        async function fetchLaunchrTokens() {
+            try {
+                const res = await fetch('/api/launchr-launches');
+                const data = await res.json();
+                launchrTokens = data.tokens || [];
+                document.getElementById('launchrCount').textContent = `${data.count || 0} tokens`;
+                renderLaunchrTokens();
+            } catch (e) {
+                console.error('[API] Failed to fetch LAUNCHR tokens:', e);
+                renderLaunchrTokens();
+            }
+        }
+
+        // Fetch TEK-powered tokens
+        let tekTokens = [];
+        async function fetchTekTokens() {
+            try {
+                const res = await fetch('/api/tek-tokens');
+                const data = await res.json();
+                tekTokens = data.tokens || [];
+                document.getElementById('tekCount').textContent = `${data.count || 0} tokens`;
+                renderTekTokens();
+            } catch (e) {
+                console.error('[API] Failed to fetch TEK tokens:', e);
+                renderTekTokens();
+            }
+        }
+
+        // Render LAUNCHR launches
+        function renderLaunchrTokens() {
+            const list = document.getElementById('launchrTokenList');
+            if (launchrTokens.length === 0) {
+                list.innerHTML = `
+                    <div style="padding:40px;text-align:center;color:var(--text-muted);">
+                        <p>No LAUNCHR launches yet. Be the first!</p>
+                        <button class="btn btn-primary btn-sm" onclick="showCreateModal()" style="margin-top:12px;">Launch Token</button>
+                    </div>
+                `;
+                return;
+            }
+            list.innerHTML = launchrTokens.map(t => renderTokenRow(t, 'launchr')).join('');
+        }
+
+        // Render TEK-powered tokens
+        function renderTekTokens() {
+            const list = document.getElementById('tekTokenList');
+            if (tekTokens.length === 0) {
+                list.innerHTML = `
+                    <div style="padding:40px;text-align:center;color:var(--text-muted);">
+                        <p>No TEK-connected tokens yet.</p>
+                        <a href="/dashboard" class="btn btn-secondary btn-sm" style="margin-top:12px;">Connect TEK Engine</a>
+                    </div>
+                `;
+                return;
+            }
+            list.innerHTML = tekTokens.map(t => renderTokenRow(t, 'tek')).join('');
+        }
+
+        // Shared token row renderer
+        function renderTokenRow(t, source = 'all') {
+            const badgeStyle = source === 'launchr'
+                ? 'background:var(--gold);color:#000;'
+                : source === 'tek'
+                    ? 'background:var(--cyan);color:#000;'
+                    : '';
+            const badgeText = source === 'launchr' ? 'LCHR' : source === 'tek' ? 'TEK' : (t.path === 'launchr' ? 'LCHr' : 'Pump.fun');
+
+            return `
+                <div class="token-row" onclick="window.open('https://pump.fun/coin/${t.mint}', '_blank')">
+                    <div class="token-info">
+                        <div class="token-img">${t.image ? `<img src="${t.image}" alt="${t.symbol}">` : (t.symbol?.slice(0,2) || '??')}</div>
+                        <div>
+                            <div class="token-name">${escapeHtml(t.name || 'Unknown')}</div>
+                            <div class="token-symbol">$${escapeHtml(t.symbol || '???')}</div>
+                        </div>
+                    </div>
+                    <div class="token-mcap">${formatNum(t.mcap)}</div>
+                    <div class="token-volume">${formatNum(t.volume)}</div>
+                    <div class="token-holders">${t.holders || 0}</div>
+                    <div class="token-txns">${t.txns || ((t.buys||0)+(t.sells||0)) || '-'}</div>
+                    <div class="token-time">${t.time || 'Recently'}</div>
+                    <div class="token-path"><span class="token-path ${t.path}" style="${badgeStyle}">${badgeText}</span></div>
+                    <div class="token-actions">
+                        ${t.twitter ? `<a href="${t.twitter}" target="_blank" onclick="event.stopPropagation()" class="social-icon">X</a>` : ''}
+                        ${t.telegram ? `<a href="${t.telegram}" target="_blank" onclick="event.stopPropagation()" class="social-icon">TG</a>` : ''}
+                        <a href="https://dexscreener.com/solana/${t.mint}" target="_blank" onclick="event.stopPropagation()" class="social-icon">DEX</a>
+                    </div>
+                </div>
+            `;
         }
 
         async function fetchLeaderboard() {

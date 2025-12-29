@@ -739,6 +739,53 @@ function removeToken(mint) {
     return { removed, remaining: data.tokens.length };
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// TRACKER CATEGORIES: LAUNCHR vs TEK
+// ═══════════════════════════════════════════════════════════════════
+
+// Mark token as launched via LAUNCHR launchpad
+function markAsLaunchrLaunch(tokenMint) {
+    const data = loadTokens();
+    const token = data.tokens.find(t => t.mint === tokenMint);
+    if (token) {
+        token.launchedViaLaunchr = true;
+        token.path = 'launchr';
+        saveTokens(data);
+        console.log(`[TRACKER] Marked ${tokenMint.slice(0,8)}... as LAUNCHR launch`);
+        return true;
+    }
+    return false;
+}
+
+// Mark token as TEK-connected (fee engine connected)
+function markAsTekConnected(tokenMint) {
+    const data = loadTokens();
+    const token = data.tokens.find(t => t.mint === tokenMint);
+    if (token) {
+        token.tekConnected = true;
+        token.tekConnectedAt = token.tekConnectedAt || Date.now();
+        saveTokens(data);
+        console.log(`[TRACKER] Marked ${tokenMint.slice(0,8)}... as TEK connected`);
+        return true;
+    }
+    return false;
+}
+
+// Get tokens launched via LAUNCHR launchpad
+function getLaunchrLaunches() {
+    const data = loadTokens();
+    return data.tokens.filter(t => t.launchedViaLaunchr === true || t.path === 'launchr');
+}
+
+// Get tokens that have connected TEK engine
+function getTekTokens() {
+    const data = loadTokens();
+    return data.tokens.filter(t =>
+        t.tekConnected === true ||
+        (t.stats && (t.stats.totalClaimed > 0 || t.stats.totalDistributed > 0))
+    );
+}
+
 module.exports = {
     registerToken,
     updateTokenStats,
@@ -755,4 +802,9 @@ module.exports = {
     updateTokenMetrics,
     updateAllTokenMetrics,
     GRADUATION_THRESHOLD_SOL,
+    // Category tracking
+    markAsLaunchrLaunch,
+    markAsTekConnected,
+    getLaunchrLaunches,
+    getTekTokens,
 };
