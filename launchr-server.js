@@ -601,6 +601,156 @@ let priceUpdateInterval = null; // Updates price every 10s for RSI
 let sessionToken = null; // Auth token for this session
 let sessionCreatedAt = null; // When session was created
 
+// ═══════════════════════════════════════════════════════════════════════════
+// ORBIT - Public Transparency Registry
+// Tracks all active ORBIT instances for public monitoring
+// ═══════════════════════════════════════════════════════════════════════════
+const ORBIT_FILE = path.join(DATA_DIR, '.orbit-registry.json');
+const orbitRegistry = new Map(); // mint -> OrbitStatus
+const orbitActivityLog = []; // Global activity log (last 1000 events)
+const ORBIT_ACTIVITY_MAX = 1000;
+
+// ORBIT status structure
+function createOrbitStatus(mint, walletAddress) {
+    return {
+        mint,
+        wallet: walletAddress,
+        status: 'active', // active, paused, stopped
+        startedAt: Date.now(),
+        lastClaimAt: null,
+        lastDistributeAt: null,
+        totalClaimed: 0,
+        totalDistributed: 0,
+        claimCount: 0,
+        distributeCount: 0,
+        lastError: null,
+        uptime: 0, // calculated on read
+    };
+}
+
+// Load ORBIT registry from disk
+function loadOrbitRegistry() {
+    try {
+        if (fs.existsSync(ORBIT_FILE)) {
+            const data = JSON.parse(fs.readFileSync(ORBIT_FILE, 'utf8'));
+            if (data.registry) {
+                for (const [mint, status] of Object.entries(data.registry)) {
+                    orbitRegistry.set(mint, status);
+                }
+            }
+            if (data.activityLog) {
+                orbitActivityLog.push(...data.activityLog.slice(-ORBIT_ACTIVITY_MAX));
+            }
+            console.log(`[ORBIT] Loaded ${orbitRegistry.size} registered instances`);
+        }
+    } catch (e) {
+        console.error('[ORBIT] Failed to load registry:', e.message);
+    }
+}
+
+// Save ORBIT registry to disk
+function saveOrbitRegistry() {
+    try {
+        const data = {
+            registry: Object.fromEntries(orbitRegistry),
+            activityLog: orbitActivityLog.slice(-ORBIT_ACTIVITY_MAX),
+            updatedAt: Date.now()
+        };
+        fs.writeFileSync(ORBIT_FILE, JSON.stringify(data, null, 2));
+    } catch (e) {
+        console.error('[ORBIT] Failed to save registry:', e.message);
+    }
+}
+
+// Log ORBIT activity (public transparency)
+function logOrbitActivity(mint, action, details = {}) {
+    const event = {
+        timestamp: Date.now(),
+        mint,
+        action, // 'started', 'stopped', 'claimed', 'distributed', 'error'
+        ...details
+    };
+    orbitActivityLog.push(event);
+    if (orbitActivityLog.length > ORBIT_ACTIVITY_MAX) {
+        orbitActivityLog.shift();
+    }
+
+    // Update registry stats
+    const status = orbitRegistry.get(mint);
+    if (status) {
+        if (action === 'claimed' && details.amount) {
+            status.lastClaimAt = Date.now();
+            status.totalClaimed += details.amount;
+            status.claimCount++;
+        } else if (action === 'distributed' && details.amount) {
+            status.lastDistributeAt = Date.now();
+            status.totalDistributed += details.amount;
+            status.distributeCount++;
+        } else if (action === 'error') {
+            status.lastError = details.error;
+        }
+        orbitRegistry.set(mint, status);
+    }
+
+    saveOrbitRegistry();
+}
+
+// Register a new ORBIT instance
+function registerOrbit(mint, walletAddress) {
+    if (!orbitRegistry.has(mint)) {
+        const status = createOrbitStatus(mint, walletAddress);
+        orbitRegistry.set(mint, status);
+        logOrbitActivity(mint, 'started', { wallet: walletAddress });
+        console.log(`[ORBIT] Registered: ${mint.slice(0, 8)}...`);
+    } else {
+        // Reactivate existing
+        const status = orbitRegistry.get(mint);
+        status.status = 'active';
+        status.lastError = null;
+        orbitRegistry.set(mint, status);
+    }
+    saveOrbitRegistry();
+}
+
+// Stop an ORBIT instance
+function stopOrbit(mint) {
+    const status = orbitRegistry.get(mint);
+    if (status) {
+        status.status = 'stopped';
+        orbitRegistry.set(mint, status);
+        logOrbitActivity(mint, 'stopped');
+        saveOrbitRegistry();
+    }
+}
+
+// Get ORBIT status with calculated uptime
+function getOrbitStatus(mint) {
+    const status = orbitRegistry.get(mint);
+    if (!status) return null;
+
+    return {
+        ...status,
+        uptime: status.status === 'active' ? Date.now() - status.startedAt : status.uptime,
+        uptimeFormatted: formatUptime(status.status === 'active' ? Date.now() - status.startedAt : status.uptime)
+    };
+}
+
+// Format uptime as human readable
+function formatUptime(ms) {
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) return `${days}d ${hours % 24}h`;
+    if (hours > 0) return `${hours}h ${minutes % 60}m`;
+    if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+    return `${seconds}s`;
+}
+
+// Initialize ORBIT registry
+loadOrbitRegistry();
+
 // Auto-fund configuration
 let autoFundConfig = {
     enabled: false,
@@ -1057,6 +1207,9 @@ const server = http.createServer(async (req, res) => {
             // Track this token in the registry
             tracker.registerToken(data.tokenMint, wallet.publicKey.toBase58());
 
+            // Register ORBIT instance for public transparency
+            registerOrbit(data.tokenMint, wallet.publicKey.toBase58());
+
             log('Connected: ' + wallet.publicKey.toBase58().slice(0, 8) + '...');
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
@@ -1213,6 +1366,22 @@ const server = http.createServer(async (req, res) => {
             if (result.claimed > 0) {
                 log('Claimed: ' + (result.claimed / LAMPORTS_PER_SOL).toFixed(4) + ' SOL');
                 log('Distributed: ' + (result.distributed / LAMPORTS_PER_SOL).toFixed(4) + ' SOL');
+
+                // Log ORBIT activity for public transparency
+                logOrbitActivity(engine.tokenMintStr, 'claimed', {
+                    amount: result.claimed,
+                    amountSOL: (result.claimed / LAMPORTS_PER_SOL).toFixed(6),
+                    manual: true
+                });
+
+                if (result.distributed > 0) {
+                    logOrbitActivity(engine.tokenMintStr, 'distributed', {
+                        amount: result.distributed,
+                        amountSOL: (result.distributed / LAMPORTS_PER_SOL).toFixed(6),
+                        holderFee: result.holderFee || 0,
+                        manual: true
+                    });
+                }
             } else {
                 log('No fees to claim');
             }
@@ -1220,6 +1389,10 @@ const server = http.createServer(async (req, res) => {
             res.end(JSON.stringify(result));
         } catch (e) {
             log('Error: ' + e.message);
+            // Log ORBIT errors
+            if (engine?.tokenMintStr) {
+                logOrbitActivity(engine.tokenMintStr, 'error', { error: e.message, manual: true });
+            }
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: false, error: e.message }));
         }
@@ -1318,9 +1491,27 @@ const server = http.createServer(async (req, res) => {
                 const result = await engine.claimAndDistribute();
                 if (result.claimed > 0) {
                     log('Auto: Claimed ' + (result.claimed / LAMPORTS_PER_SOL).toFixed(4) + ' SOL');
+
+                    // Log ORBIT activity for public transparency
+                    logOrbitActivity(engine.tokenMintStr, 'claimed', {
+                        amount: result.claimed,
+                        amountSOL: (result.claimed / LAMPORTS_PER_SOL).toFixed(6)
+                    });
+
+                    if (result.distributed > 0) {
+                        logOrbitActivity(engine.tokenMintStr, 'distributed', {
+                            amount: result.distributed,
+                            amountSOL: (result.distributed / LAMPORTS_PER_SOL).toFixed(6),
+                            holderFee: result.holderFee || 0
+                        });
+                    }
                 }
             } catch (e) {
                 log('Auto error: ' + e.message);
+                // Log ORBIT errors for transparency
+                if (engine?.tokenMintStr) {
+                    logOrbitActivity(engine.tokenMintStr, 'error', { error: e.message });
+                }
             }
         };
 
@@ -1356,6 +1547,12 @@ const server = http.createServer(async (req, res) => {
             clearInterval(priceUpdateInterval);
             priceUpdateInterval = null;
         }
+
+        // Log ORBIT stopped for transparency
+        if (engine?.tokenMintStr) {
+            stopOrbit(engine.tokenMintStr);
+        }
+
         log('Auto-claim stopped');
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true }));
@@ -2192,27 +2389,135 @@ The 4 percentages MUST sum to exactly 100.`;
                 totalLaunches: tokens.length,
                 vanityTokens: tokens.length, // Tokens with vanity addresses
                 totalVolume: tokens.reduce((sum, t) => sum + (t.volume || 0), 0),
-                holderRewards: (data.stats?.totalDistributed || 0) * 0.01, // 1% to holders
+                poolDistribution: (data.stats?.totalDistributed || 0) * 0.01, // 1% to distribution pool
                 graduated: tokens.filter(t => t.graduated).length,
             };
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify(stats));
         } catch (e) {
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ totalLaunches: 0, vanityTokens: 0, totalVolume: 0, holderRewards: 0, graduated: 0 }));
+            res.end(JSON.stringify({ totalLaunches: 0, vanityTokens: 0, totalVolume: 0, poolDistribution: 0, graduated: 0 }));
         }
         return;
     }
 
-    // API: Get timer (6-hour reward cycle)
+    // API: Get timer (6-hour distribution cycle)
     if (url.pathname === '/api/timer' && req.method === 'GET') {
         // Timer endpoint - returns countdown data (6 hour cycle)
         const now = Date.now();
         const sixHours = 6 * 60 * 60 * 1000; // 6 hours in ms
-        const nextReward = Math.ceil(now / sixHours) * sixHours;
-        const secondsRemaining = Math.floor((nextReward - now) / 1000);
+        const nextDistribution = Math.ceil(now / sixHours) * sixHours;
+        const secondsRemaining = Math.floor((nextDistribution - now) / 1000);
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ secondsRemaining, nextRewardTime: nextReward }));
+        res.end(JSON.stringify({ secondsRemaining, nextDistributionTime: nextDistribution }));
+        return;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ORBIT PUBLIC API - Transparency endpoints for external platforms (Moby, etc)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // API: Get all active ORBIT instances (PUBLIC - no auth required)
+    if (url.pathname === '/api/orbit/status' && req.method === 'GET') {
+        try {
+            const instances = [];
+            for (const [mint, status] of orbitRegistry.entries()) {
+                instances.push(getOrbitStatus(mint));
+            }
+
+            // Sort by most recently active
+            instances.sort((a, b) => (b.lastClaimAt || b.startedAt) - (a.lastClaimAt || a.startedAt));
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                count: instances.length,
+                activeCount: instances.filter(i => i.status === 'active').length,
+                instances,
+                timestamp: Date.now()
+            }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Get ORBIT status for specific token (PUBLIC - no auth required)
+    if (url.pathname.startsWith('/api/orbit/status/') && req.method === 'GET') {
+        const mint = url.pathname.replace('/api/orbit/status/', '').trim();
+
+        if (!mint || mint.length < 32) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Invalid mint address' }));
+            return;
+        }
+
+        const status = getOrbitStatus(mint);
+
+        if (!status) {
+            res.writeHead(404, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                error: 'No ORBIT found for this token',
+                mint,
+                hasOrbit: false
+            }));
+            return;
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+            success: true,
+            hasOrbit: true,
+            ...status,
+            timestamp: Date.now()
+        }));
+        return;
+    }
+
+    // API: Get ORBIT activity log (PUBLIC - no auth required)
+    if (url.pathname === '/api/orbit/activity' && req.method === 'GET') {
+        try {
+            const limit = parseInt(url.searchParams.get('limit')) || 100;
+            const mint = url.searchParams.get('mint');
+
+            let activities = [...orbitActivityLog].reverse(); // Most recent first
+
+            // Filter by mint if specified
+            if (mint) {
+                activities = activities.filter(a => a.mint === mint);
+            }
+
+            // Limit results
+            activities = activities.slice(0, Math.min(limit, 500));
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                count: activities.length,
+                activities,
+                timestamp: Date.now()
+            }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Check if token has ORBIT (simple boolean check for external platforms)
+    if (url.pathname.startsWith('/api/orbit/check/') && req.method === 'GET') {
+        const mint = url.pathname.replace('/api/orbit/check/', '').trim();
+        const status = orbitRegistry.get(mint);
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+            mint,
+            hasOrbit: !!status,
+            isActive: status?.status === 'active',
+            timestamp: Date.now()
+        }));
         return;
     }
 

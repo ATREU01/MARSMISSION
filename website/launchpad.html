@@ -1649,7 +1649,7 @@
                             <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                         </div>
                         <div class="timer-content">
-                            <div class="timer-label">Holder Rewards</div>
+                            <div class="timer-label">Next Distribution</div>
                             <div class="timer-value" id="timer" style="font-size:18px;">Coming Soon</div>
                         </div>
                     </div>
@@ -1674,7 +1674,7 @@
                 </div>
                 <div class="stat-cell clickable" onclick="scrollToLeaderboard()">
                     <div class="stat-cell-value teal">0</div>
-                    <div class="stat-cell-label">Holder Rewards</div>
+                    <div class="stat-cell-label">Pool (SOL)</div>
                 </div>
                 <div class="stat-cell clickable" onclick="scrollToTokens('graduated')">
                     <div class="stat-cell-value success">0</div>
@@ -2168,7 +2168,7 @@
                 document.querySelector('.stat-cell:nth-child(1) .stat-cell-value').textContent = stats.totalLaunches || 0;
                 document.querySelector('.stat-cell:nth-child(2) .stat-cell-value').textContent = stats.vanityTokens || stats.totalLaunches || 0;
                 document.querySelector('.stat-cell:nth-child(3) .stat-cell-value').textContent = formatVolume(stats.totalVolume || 0);
-                document.querySelector('.stat-cell:nth-child(4) .stat-cell-value').textContent = (stats.holderRewards || 0).toFixed(1);
+                document.querySelector('.stat-cell:nth-child(4) .stat-cell-value').textContent = (stats.poolDistribution || 0).toFixed(1);
                 document.querySelector('.stat-cell:nth-child(5) .stat-cell-value').textContent = stats.graduated || 0;
             } catch (e) {
                 console.error('[API] Failed to fetch stats:', e);
@@ -2419,7 +2419,7 @@
                 list.innerHTML = `
                     <div style="padding:40px 20px;text-align:center;">
                         <div style="color:var(--text-secondary);font-size:14px;margin-bottom:6px;">No competition data</div>
-                        <div style="color:var(--text-muted);font-size:12px;">Launch tokens to compete for rewards</div>
+                        <div style="color:var(--text-muted);font-size:12px;">Launch tokens to join the leaderboard</div>
                     </div>
                 `;
                 if (trendingBar) trendingBar.innerHTML = '<span style="color:var(--text-muted);font-size:12px;">No trending tokens</span>';
