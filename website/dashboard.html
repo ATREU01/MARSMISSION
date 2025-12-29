@@ -4145,12 +4145,14 @@
 
             let pumpData = null;
             let dexData = null;
+            let trackerData = null;
 
             try {
-                // Fetch from both sources in parallel
-                const [pumpRes, dexRes] = await Promise.all([
+                // Fetch from all sources in parallel - including tracker which has reliable holder data
+                const [pumpRes, dexRes, trackerRes] = await Promise.all([
                     fetch(`/api/pump/coin/${mint}`).catch(() => null),
-                    fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`).catch(() => null)
+                    fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`).catch(() => null),
+                    fetch('/api/tokens').catch(() => null)
                 ]);
 
                 if (pumpRes?.ok) {
@@ -4163,55 +4165,33 @@
                     dexData = dexJson.pairs?.[0];
                     console.log('[ANALYTICS] DexScreener data:', dexData);
                 }
+
+                // Get tracker data - this has reliable holder counts from multi-source backend fetching
+                if (trackerRes?.ok) {
+                    const trackerJson = await trackerRes.json();
+                    trackerData = (trackerJson.tokens || []).find(t => t.mint === mint);
+                    if (trackerData) {
+                        console.log('[ANALYTICS] Tracker data:', trackerData);
+                    }
+                }
             } catch (e) {
                 console.error('[ANALYTICS] Fetch error:', e);
             }
 
-            // Get transaction counts from DexScreener
-            const buys = dexData?.txns?.h24?.buys || 0;
-            const sells = dexData?.txns?.h24?.sells || 0;
-            const totalTxns = buys + sells;
+            // Get transaction counts from DexScreener or tracker
+            const buys = dexData?.txns?.h24?.buys || trackerData?.buys || 0;
+            const sells = dexData?.txns?.h24?.sells || trackerData?.sells || 0;
+            const totalTxns = buys + sells || trackerData?.txns || 0;
 
-            // Get holder count with 3-tier fallback: Pump.fun -> Jupiter -> Solscan
-            let holders = pumpData?.holder_count || 0;
+            // Get holder count - prioritize tracker (has backend multi-source fetching)
+            // Fallback chain: Tracker -> Pump.fun -> 0
+            let holders = trackerData?.holders || pumpData?.holder_count || 0;
+            console.log('[ANALYTICS] Holder count:', holders, '(source:', trackerData?.holders ? 'Tracker' : 'Pump.fun', ')');
 
-            // TRY 2: Jupiter API if no holders from Pump.fun
-            if (!holders) {
-                try {
-                    const jupRes = await fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${mint}`).catch(() => null);
-                    if (jupRes?.ok) {
-                        const jupData = await jupRes.json();
-                        const jupToken = jupData.find(t => t.address === mint);
-                        if (jupToken?.holderCount > 0) {
-                            holders = jupToken.holderCount;
-                            console.log('[ANALYTICS] Jupiter holder count:', holders);
-                        }
-                    }
-                } catch (e) {
-                    console.warn('[ANALYTICS] Jupiter API error:', e);
-                }
-            }
-
-            // TRY 3: Solscan API if still no holders
-            if (!holders) {
-                try {
-                    const solRes = await fetch(`https://public-api.solscan.io/token/meta?tokenAddress=${mint}`).catch(() => null);
-                    if (solRes?.ok) {
-                        const solData = await solRes.json();
-                        if (solData?.holder > 0) {
-                            holders = solData.holder;
-                            console.log('[ANALYTICS] Solscan holder count:', holders);
-                        }
-                    }
-                } catch (e) {
-                    console.warn('[ANALYTICS] Solscan API error:', e);
-                }
-            }
-
-            // Calculate metrics
-            const mcap = dexData?.marketCap || dexData?.fdv || pumpData?.usd_market_cap || 0;
-            const liq = dexData?.liquidity?.usd || 0;
-            const vol = dexData?.volume?.h24 || pumpData?.volume_24h || 0;
+            // Calculate metrics - use tracker data as fallback
+            const mcap = dexData?.marketCap || dexData?.fdv || pumpData?.usd_market_cap || trackerData?.mcap || 0;
+            const liq = dexData?.liquidity?.usd || trackerData?.liquidity || 0;
+            const vol = dexData?.volume?.h24 || pumpData?.volume_24h || trackerData?.volume || 0;
 
             // Calculate score
             const score = Math.min(100, Math.floor(
