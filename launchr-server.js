@@ -1693,6 +1693,49 @@ The 4 percentages MUST sum to exactly 100.`;
         return;
     }
 
+    // API: Get single token by mint from tracker (for Token Analytics)
+    if (url.pathname.startsWith('/api/tracker/token/') && req.method === 'GET') {
+        const mint = url.pathname.replace('/api/tracker/token/', '').trim();
+        if (!mint || mint.length < 30) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Invalid mint address' }));
+            return;
+        }
+
+        try {
+            const data = tracker.getTokens();
+            const token = (data.tokens || []).find(t =>
+                t.mint?.trim() === mint ||
+                t.mint?.trim().toLowerCase() === mint.toLowerCase()
+            );
+
+            if (token) {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    mint: token.mint,
+                    name: token.name,
+                    symbol: token.symbol,
+                    holders: token.holders || 0,
+                    txns: token.txns || 0,
+                    buys: token.buys || 0,
+                    sells: token.sells || 0,
+                    mcap: token.mcap || 0,
+                    volume: token.volume || 0,
+                    liquidity: token.liquidity || 0,
+                    price: token.price || 0,
+                    priceChange24h: token.priceChange24h || 0
+                }));
+            } else {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Token not found in tracker' }));
+            }
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: e.message }));
+        }
+        return;
+    }
+
     // API: Proxy for Pump.fun individual token with caching (ALICE pattern)
     if (url.pathname.startsWith('/api/pump/coin/') && req.method === 'GET') {
         const mint = url.pathname.replace('/api/pump/coin/', '');

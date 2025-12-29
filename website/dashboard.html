@@ -4148,11 +4148,11 @@
             let trackerData = null;
 
             try {
-                // Fetch from all sources in parallel - including tracker which has reliable holder data
+                // Fetch from all sources in parallel - tracker endpoint gives reliable holder data
                 const [pumpRes, dexRes, trackerRes] = await Promise.all([
                     fetch(`/api/pump/coin/${mint}`).catch(() => null),
                     fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`).catch(() => null),
-                    fetch('/api/tokens').catch(() => null)
+                    fetch(`/api/tracker/token/${mint}`).catch(() => null)
                 ]);
 
                 if (pumpRes?.ok) {
@@ -4166,19 +4166,12 @@
                     console.log('[ANALYTICS] DexScreener data:', dexData);
                 }
 
-                // Get tracker data - this has reliable holder counts from multi-source backend fetching
+                // Get tracker data - direct endpoint for this specific mint
                 if (trackerRes?.ok) {
-                    const trackerJson = await trackerRes.json();
-                    const mintTrimmed = mint?.trim();
-                    trackerData = (trackerJson.tokens || []).find(t =>
-                        t.mint?.trim() === mintTrimmed ||
-                        t.mint?.trim().toLowerCase() === mintTrimmed?.toLowerCase()
-                    );
-                    if (trackerData) {
-                        console.log('[ANALYTICS] Tracker data found:', trackerData.symbol, 'holders:', trackerData.holders);
-                    } else {
-                        console.log('[ANALYTICS] Token not found in tracker, mint:', mintTrimmed);
-                    }
+                    trackerData = await trackerRes.json();
+                    console.log('[ANALYTICS] Tracker data:', trackerData.symbol, 'holders:', trackerData.holders);
+                } else {
+                    console.log('[ANALYTICS] Token not in tracker');
                 }
             } catch (e) {
                 console.error('[ANALYTICS] Fetch error:', e);
