@@ -17,8 +17,13 @@ const PRODUCTION_CONFIG = {
     // Main Fee Wallet - ALL REVENUE GOES HERE
     FEE_WALLET_PRIVATE_KEY: process.env.FEE_WALLET_PRIVATE_KEY || '',
 
-    // Privy configuration (for embedded wallets)
+    // Privy configuration (for embedded wallets & server signing)
     PRIVY_APP_ID: process.env.PRIVY_APP_ID || '',
+    PRIVY_APP_SECRET: process.env.PRIVY_APP_SECRET || '',
+    // Authorization key for server-side wallet signing (generated via openssl)
+    // openssl ecparam -name prime256v1 -genkey -noout -out private.pem
+    // openssl ec -in private.pem -pubout -out public.pem
+    PRIVY_AUTH_PRIVATE_KEY: process.env.PRIVY_AUTH_PRIVATE_KEY || '',
 
     // Helius RPC (Solana)
     HELIUS_RPC: process.env.HELIUS_RPC || process.env.RPC_URL || 'https://api.mainnet-beta.solana.com',
@@ -26,6 +31,9 @@ const PRODUCTION_CONFIG = {
     // Fee Structure
     PLATFORM_FEE_PERCENT: 1,      // 1% of all fees to LAUNCHR distribution pool
     CREATOR_FEE_PERCENT: 99,       // 99% to creator's allocation engine
+
+    // Solana CAIP2 identifier for Privy (mainnet-beta)
+    SOLANA_CAIP2: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp', // mainnet
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -49,8 +57,198 @@ if (PRODUCTION_CONFIG.FEE_WALLET_PRIVATE_KEY) {
 
 console.log('[CONFIG] Production config loaded:');
 console.log(`  - Privy App ID: ${PRODUCTION_CONFIG.PRIVY_APP_ID ? 'SET' : 'NOT SET'}`);
+console.log(`  - Privy App Secret: ${PRODUCTION_CONFIG.PRIVY_APP_SECRET ? 'SET' : 'NOT SET'}`);
+console.log(`  - Privy Auth Key: ${PRODUCTION_CONFIG.PRIVY_AUTH_PRIVATE_KEY ? 'SET' : 'NOT SET'}`);
 console.log(`  - Helius RPC: ${PRODUCTION_CONFIG.HELIUS_RPC ? 'SET' : 'NOT SET'}`);
 console.log(`  - Fee Wallet: ${FEE_WALLET_PUBLIC_KEY ? 'SET' : 'NOT SET'}`);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PRIVY SERVER SDK - 24/7 Server-Side Wallet Signing for ORBIT
+// ═══════════════════════════════════════════════════════════════════════════
+
+let privyClient = null;
+let privyEnabled = false;
+
+// Initialize Privy client for server-side signing
+async function initPrivyClient() {
+    if (!PRODUCTION_CONFIG.PRIVY_APP_ID || !PRODUCTION_CONFIG.PRIVY_APP_SECRET) {
+        console.log('[PRIVY] Server SDK disabled - missing PRIVY_APP_ID or PRIVY_APP_SECRET');
+        return false;
+    }
+
+    try {
+        // Dynamic import for @privy-io/node (ESM compatibility)
+        const { PrivyClient } = await import('@privy-io/node');
+
+        const clientConfig = {
+            appId: PRODUCTION_CONFIG.PRIVY_APP_ID,
+            appSecret: PRODUCTION_CONFIG.PRIVY_APP_SECRET,
+        };
+
+        // Add authorization key if available (required for server-side wallet signing)
+        if (PRODUCTION_CONFIG.PRIVY_AUTH_PRIVATE_KEY) {
+            clientConfig.walletApi = {
+                authorizationPrivateKey: PRODUCTION_CONFIG.PRIVY_AUTH_PRIVATE_KEY
+            };
+            console.log('[PRIVY] Authorization key configured for server-side signing');
+        }
+
+        privyClient = new PrivyClient(clientConfig);
+        privyEnabled = true;
+        console.log('[PRIVY] Server SDK initialized successfully');
+        console.log('[PRIVY] 24/7 ORBIT signing ENABLED');
+        return true;
+    } catch (e) {
+        console.error('[PRIVY] Failed to initialize server SDK:', e.message);
+        privyEnabled = false;
+        return false;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PRIVY WALLET SIGNER - Server-side transaction signing via Privy API
+// Implements the same interface as Keypair for LaunchrEngine compatibility
+// ═══════════════════════════════════════════════════════════════════════════
+
+class PrivyWalletSigner {
+    constructor(privyWalletId, publicKeyString) {
+        this.privyWalletId = privyWalletId;
+        this.publicKey = new PublicKey(publicKeyString);
+        this.isPrivySigner = true; // Flag to identify Privy signers
+    }
+
+    // Sign a transaction using Privy's server-side API
+    // Returns the signed transaction
+    async signTransaction(transaction) {
+        if (!privyClient || !privyEnabled) {
+            throw new Error('Privy server SDK not initialized');
+        }
+
+        try {
+            // Serialize transaction to base64 for Privy API
+            const serialized = transaction.serialize({
+                requireAllSignatures: false,
+                verifySignatures: false
+            });
+            const base64Tx = Buffer.from(serialized).toString('base64');
+
+            // Call Privy's Solana signTransaction API
+            const response = await privyClient.walletApi.solana.signTransaction({
+                walletId: this.privyWalletId,
+                transaction: base64Tx,
+                caip2: PRODUCTION_CONFIG.SOLANA_CAIP2
+            });
+
+            // Deserialize the signed transaction
+            const signedTxBuffer = Buffer.from(response.signedTransaction, 'base64');
+
+            // Check if it's a versioned transaction
+            if (transaction.version !== undefined) {
+                const { VersionedTransaction } = require('@solana/web3.js');
+                return VersionedTransaction.deserialize(signedTxBuffer);
+            } else {
+                const { Transaction } = require('@solana/web3.js');
+                return Transaction.from(signedTxBuffer);
+            }
+        } catch (e) {
+            console.error('[PRIVY] signTransaction failed:', e.message);
+            throw new Error(`Privy signing failed: ${e.message}`);
+        }
+    }
+
+    // Sign and send transaction in one call (more efficient)
+    async signAndSendTransaction(transaction, connection) {
+        if (!privyClient || !privyEnabled) {
+            throw new Error('Privy server SDK not initialized');
+        }
+
+        try {
+            // Serialize transaction to base64
+            const serialized = transaction.serialize({
+                requireAllSignatures: false,
+                verifySignatures: false
+            });
+            const base64Tx = Buffer.from(serialized).toString('base64');
+
+            // Call Privy's signAndSendTransaction API
+            const response = await privyClient.walletApi.solana.signAndSendTransaction({
+                walletId: this.privyWalletId,
+                transaction: base64Tx,
+                caip2: PRODUCTION_CONFIG.SOLANA_CAIP2
+            });
+
+            return {
+                signature: response.hash,
+                success: true
+            };
+        } catch (e) {
+            console.error('[PRIVY] signAndSendTransaction failed:', e.message);
+            throw new Error(`Privy send failed: ${e.message}`);
+        }
+    }
+}
+
+// Storage for Privy wallet sessions (maps user session to Privy wallet ID)
+// Persisted to disk for 24/7 operation even after server restart
+const PRIVY_SESSIONS_FILE = path.join(
+    process.env.RAILWAY_ENVIRONMENT ? '/app/data' : __dirname,
+    '.privy-sessions.json'
+);
+const privyWalletSessions = new Map(); // sessionToken -> { privyWalletId, publicKey, userId, createdAt }
+
+// Load Privy sessions from disk
+function loadPrivySessions() {
+    try {
+        if (fs.existsSync(PRIVY_SESSIONS_FILE)) {
+            const data = JSON.parse(fs.readFileSync(PRIVY_SESSIONS_FILE, 'utf8'));
+            for (const [key, value] of Object.entries(data.sessions || {})) {
+                privyWalletSessions.set(key, value);
+            }
+            console.log(`[PRIVY] Loaded ${privyWalletSessions.size} wallet sessions`);
+        }
+    } catch (e) {
+        console.error('[PRIVY] Failed to load sessions:', e.message);
+    }
+}
+
+// Save Privy sessions to disk
+function savePrivySessions() {
+    try {
+        const data = {
+            sessions: Object.fromEntries(privyWalletSessions),
+            updatedAt: Date.now()
+        };
+        fs.writeFileSync(PRIVY_SESSIONS_FILE, JSON.stringify(data, null, 2));
+    } catch (e) {
+        console.error('[PRIVY] Failed to save sessions:', e.message);
+    }
+}
+
+// Register a Privy wallet for 24/7 ORBIT operation
+function registerPrivyWallet(sessionToken, privyWalletId, publicKey, userId) {
+    privyWalletSessions.set(sessionToken, {
+        privyWalletId,
+        publicKey,
+        userId,
+        createdAt: Date.now()
+    });
+    savePrivySessions();
+    console.log(`[PRIVY] Registered wallet ${publicKey.slice(0, 8)}... for 24/7 ORBIT`);
+}
+
+// Get Privy signer for a session
+function getPrivySigner(sessionToken) {
+    const session = privyWalletSessions.get(sessionToken);
+    if (!session) return null;
+    return new PrivyWalletSigner(session.privyWalletId, session.publicKey);
+}
+
+// Initialize Privy on server start
+initPrivyClient().then(success => {
+    if (success) {
+        loadPrivySessions();
+    }
+});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // VANITY KEYPAIR POOL - Pre-generated keypairs ending in "LCHr" (LAUNCHr)
@@ -2576,6 +2774,148 @@ The 4 percentages MUST sum to exactly 100.`;
             isActive: status?.status === 'active',
             timestamp: Date.now()
         }));
+        return;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PRIVY 24/7 ORBIT API - Register Privy wallet for server-side signing
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // API: Register Privy wallet for 24/7 ORBIT (requires Privy auth token)
+    if (url.pathname === '/api/privy/register-orbit' && req.method === 'POST') {
+        if (!privyEnabled) {
+            res.writeHead(503, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                error: 'Privy server-side signing not configured. Contact support.'
+            }));
+            return;
+        }
+
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', async () => {
+            try {
+                const data = JSON.parse(body);
+                const { privyAuthToken, privyWalletId, publicKey, tokenMint } = data;
+
+                if (!privyAuthToken || !privyWalletId || !publicKey) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({
+                        success: false,
+                        error: 'Missing required fields: privyAuthToken, privyWalletId, publicKey'
+                    }));
+                    return;
+                }
+
+                // Verify the Privy auth token to get user info
+                try {
+                    const verifiedUser = await privyClient.verifyAuthToken(privyAuthToken);
+
+                    // Generate a session token for this ORBIT instance
+                    const orbitSessionToken = crypto.randomBytes(32).toString('hex');
+
+                    // Register the wallet for 24/7 signing
+                    registerPrivyWallet(orbitSessionToken, privyWalletId, publicKey, verifiedUser.userId);
+
+                    // If token mint provided, register ORBIT instance
+                    if (tokenMint) {
+                        registerOrbit(tokenMint, publicKey);
+                    }
+
+                    console.log(`[PRIVY] 24/7 ORBIT registered for user ${verifiedUser.userId}`);
+
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({
+                        success: true,
+                        orbitSessionToken,
+                        message: '24/7 ORBIT signing enabled. Your token will auto-claim even when browser is closed.',
+                        privyEnabled: true
+                    }));
+                } catch (verifyError) {
+                    console.error('[PRIVY] Auth token verification failed:', verifyError.message);
+                    res.writeHead(401, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({
+                        success: false,
+                        error: 'Invalid Privy auth token'
+                    }));
+                }
+            } catch (e) {
+                console.error('[PRIVY] Register ORBIT error:', e.message);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: e.message }));
+            }
+        });
+        return;
+    }
+
+    // API: Check Privy 24/7 status
+    if (url.pathname === '/api/privy/status' && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+            success: true,
+            privyEnabled,
+            serverSideSigningAvailable: privyEnabled && !!PRODUCTION_CONFIG.PRIVY_AUTH_PRIVATE_KEY,
+            activeSessions: privyWalletSessions.size,
+            message: privyEnabled
+                ? '24/7 ORBIT available - close browser and auto-claim continues'
+                : 'Privy server signing not configured'
+        }));
+        return;
+    }
+
+    // API: Revoke 24/7 ORBIT session
+    if (url.pathname === '/api/privy/revoke-orbit' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', async () => {
+            try {
+                const data = JSON.parse(body);
+                const { orbitSessionToken, privyAuthToken } = data;
+
+                if (!orbitSessionToken) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Missing orbitSessionToken' }));
+                    return;
+                }
+
+                // Verify ownership via Privy auth token if provided
+                const session = privyWalletSessions.get(orbitSessionToken);
+                if (!session) {
+                    res.writeHead(404, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Session not found' }));
+                    return;
+                }
+
+                if (privyAuthToken && privyEnabled) {
+                    try {
+                        const verifiedUser = await privyClient.verifyAuthToken(privyAuthToken);
+                        if (verifiedUser.userId !== session.userId) {
+                            res.writeHead(403, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ success: false, error: 'Not authorized to revoke this session' }));
+                            return;
+                        }
+                    } catch (e) {
+                        // Continue with revocation even if auth fails (user may have logged out)
+                    }
+                }
+
+                // Revoke the session
+                privyWalletSessions.delete(orbitSessionToken);
+                savePrivySessions();
+
+                console.log(`[PRIVY] 24/7 ORBIT session revoked for wallet ${session.publicKey.slice(0, 8)}...`);
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: true,
+                    message: '24/7 ORBIT session revoked. Auto-claim stopped.'
+                }));
+            } catch (e) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: e.message }));
+            }
+        });
         return;
     }
 

@@ -7,7 +7,7 @@ const DEBUG = true
 const log = (...args) => DEBUG && console.log('[PRIVY-DEBUG]', ...args)
 
 function App() {
-  const { ready, authenticated, user, login, logout } = usePrivy()
+  const { ready, authenticated, user, login, logout, getAccessToken } = usePrivy()
   const { wallets } = useWallets()
 
   // Debug: Log all state changes
@@ -62,40 +62,75 @@ function App() {
   const isPopup = !!window.opener
   const isAuthPage = window.location.pathname === '/auth'
 
+  // Get the Privy wallet ID for the Solana wallet
+  const privyWalletId = useMemo(() => {
+    // Check wallets array for embedded wallet with ID
+    const solanaWallet = wallets?.find(w => !w.address?.startsWith('0x'))
+    if (solanaWallet?.walletClientType === 'privy' && solanaWallet?.address) {
+      // Privy embedded wallets have format "privy:<user_id>"
+      return `privy:${user?.id}`
+    }
+    // For linked wallets, we use the linked account info
+    const linkedSolana = user?.linkedAccounts?.find(
+      (acc) => acc.type === 'wallet' && acc.chainType === 'solana'
+    )
+    if (linkedSolana?.walletClientType === 'privy') {
+      return `privy:${user?.id}`
+    }
+    return null
+  }, [wallets, user])
+
   // When authenticated, notify parent window (via BroadcastChannel + postMessage for cross-tab reliability)
   useEffect(() => {
-    if (authenticated && walletAddress && (isPopup || isAuthPage)) {
-      const message = {
-        type: 'privy-auth-success',
-        address: walletAddress
-      }
-
-      // Use BroadcastChannel for reliable cross-tab communication
-      try {
-        const channel = new BroadcastChannel('launchr-auth')
-        channel.postMessage(message)
-        log('Sent auth via BroadcastChannel:', walletAddress)
-        channel.close()
-      } catch (e) {
-        log('BroadcastChannel failed:', e)
-      }
-
-      // Also try window.opener.postMessage as fallback
-      if (window.opener) {
+    const sendAuthMessage = async () => {
+      if (authenticated && walletAddress && (isPopup || isAuthPage)) {
+        // Get access token for 24/7 ORBIT server-side signing
+        let authToken = null
         try {
-          window.opener.postMessage(message, '*')
-          log('Sent auth via postMessage:', walletAddress)
+          authToken = await getAccessToken()
+          log('Got auth token for 24/7 ORBIT')
         } catch (e) {
-          log('postMessage failed:', e)
+          log('Failed to get auth token:', e)
+        }
+
+        const message = {
+          type: 'privy-auth-success',
+          address: walletAddress,
+          // Include data for 24/7 ORBIT registration
+          privyWalletId: privyWalletId,
+          privyAuthToken: authToken,
+          privyUserId: user?.id,
+          is24_7Ready: !!privyWalletId && !!authToken
+        }
+
+        // Use BroadcastChannel for reliable cross-tab communication
+        try {
+          const channel = new BroadcastChannel('launchr-auth')
+          channel.postMessage(message)
+          log('Sent auth via BroadcastChannel:', walletAddress, 'ORBIT ready:', message.is24_7Ready)
+          channel.close()
+        } catch (e) {
+          log('BroadcastChannel failed:', e)
+        }
+
+        // Also try window.opener.postMessage as fallback
+        if (window.opener) {
+          try {
+            window.opener.postMessage(message, '*')
+            log('Sent auth via postMessage:', walletAddress)
+          } catch (e) {
+            log('postMessage failed:', e)
+          }
+        }
+
+        // Close tab after a short delay if we're in popup mode
+        if (isPopup) {
+          setTimeout(() => window.close(), 500)
         }
       }
-
-      // Close tab after a short delay if we're in popup mode
-      if (isPopup) {
-        setTimeout(() => window.close(), 500)
-      }
     }
-  }, [authenticated, walletAddress, isPopup, isAuthPage])
+    sendAuthMessage()
+  }, [authenticated, walletAddress, isPopup, isAuthPage, privyWalletId, user?.id, getAccessToken])
 
   // Auto-open login on auth page
   useEffect(() => {
