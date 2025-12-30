@@ -2410,6 +2410,26 @@
                         </div>
 
                         <p style="font-size:11px;color:var(--text-muted);margin-top:12px;text-align:center;">Must total exactly 100%</p>
+
+                        <!-- Burn LP Toggle - Lock Liquidity Forever -->
+                        <div style="margin-top:16px;padding:16px;background:linear-gradient(135deg,rgba(239,68,68,0.1),rgba(220,38,38,0.05));border:1px solid rgba(239,68,68,0.3);border-radius:var(--radius);display:flex;align-items:center;justify-content:space-between;">
+                            <div>
+                                <div style="font-size:13px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px;">
+                                    <span style="font-size:16px;">🔥</span> BURN LP TOKENS
+                                </div>
+                                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Lock liquidity forever (unruggable)</div>
+                            </div>
+                            <label style="position:relative;display:inline-block;width:48px;height:26px;cursor:pointer;">
+                                <input type="checkbox" id="toggle-burnLP" checked style="opacity:0;width:0;height:0;" onchange="toggleBurnLP(this.checked)">
+                                <span style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:#374151;transition:0.3s;border-radius:26px;"></span>
+                                <span style="position:absolute;content:'';height:20px;width:20px;left:3px;bottom:3px;background-color:white;transition:0.3s;border-radius:50%;"></span>
+                            </label>
+                        </div>
+                        <style>
+                            #toggle-burnLP:checked + span { background: linear-gradient(135deg, #ef4444, #dc2626) !important; }
+                            #toggle-burnLP:checked + span + span { transform: translateX(22px); }
+                        </style>
+
                         <button class="btn btn-primary" onclick="saveAllocations()" id="saveAllocBtn" disabled style="margin-top:12px;width:100%;">Save Allocations</button>
 
                         <!-- Smart Optimizer -->
@@ -2778,6 +2798,28 @@
             if (allocBuyback) allocBuyback.textContent = (allocations.marketMaking || 25) + '%';
             if (allocHolders) allocHolders.textContent = (allocations.creatorRevenue || 25) + '%';
             if (allocLiquidity) allocLiquidity.textContent = (allocations.liquidity || 25) + '%';
+        }
+
+        // Toggle Burn LP feature - Lock liquidity forever
+        async function toggleBurnLP(enabled) {
+            try {
+                const res = await fetch('/api/feature', {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify({ feature: 'burnLP', enabled: enabled })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showNotification(enabled ? 'LP Burn ENABLED - Liquidity will be locked forever' : 'LP Burn DISABLED', enabled ? 'success' : 'info');
+                } else {
+                    showNotification('Error: ' + data.error, 'error');
+                    // Revert toggle
+                    document.getElementById('toggle-burnLP').checked = !enabled;
+                }
+            } catch (e) {
+                showNotification('Error: ' + e.message, 'error');
+                document.getElementById('toggle-burnLP').checked = !enabled;
+            }
         }
 
         // Smart Optimizer - AI analysis with REAL market data
@@ -3272,6 +3314,12 @@
                         if (allocBuyback) allocBuyback.textContent = (data.allocations.marketMaking || 25) + '%';
                         if (allocHolders) allocHolders.textContent = (data.allocations.creatorRevenue || 25) + '%';
                         if (allocLiquidity) allocLiquidity.textContent = (data.allocations.liquidity || 25) + '%';
+                    }
+
+                    // Sync burnLP toggle state
+                    if (data.features) {
+                        const burnLPToggle = document.getElementById('toggle-burnLP');
+                        if (burnLPToggle) burnLPToggle.checked = data.features.burnLP !== false;
                     }
 
                     // Update feature SOL stats - USE REAL CUMULATIVE STATS from engine

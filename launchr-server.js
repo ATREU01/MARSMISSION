@@ -1526,7 +1526,7 @@ const server = http.createServer(async (req, res) => {
             const data = await parseBody(req);
 
             // Validate feature name
-            const validFeatures = ['marketMaking', 'buybackBurn', 'liquidity', 'creatorRevenue'];
+            const validFeatures = ['marketMaking', 'buybackBurn', 'liquidity', 'creatorRevenue', 'burnLP'];
             if (!validFeatures.includes(data.feature)) {
                 throw new Error('Invalid feature name');
             }
@@ -1584,7 +1584,8 @@ const server = http.createServer(async (req, res) => {
                 log('No fees to claim');
             }
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify(result));
+            // Always include success: true when no error thrown
+            res.end(JSON.stringify({ success: true, ...result }));
         } catch (e) {
             log('Error: ' + e.message);
             // Log ORBIT errors
