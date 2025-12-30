@@ -4304,13 +4304,17 @@
             let pumpData = null;
             let dexData = null;
             let trackerData = null;
+            let jupiterHolders = 0;
+            let gmgnHolders = 0;
 
             try {
-                // Fetch from all sources in parallel - tracker endpoint gives reliable holder data
-                const [pumpRes, dexRes, trackerRes] = await Promise.all([
+                // Fetch from all sources in parallel - include Jupiter and GMGN for fresh holder data
+                const [pumpRes, dexRes, trackerRes, jupRes, gmgnRes] = await Promise.all([
                     fetch(`/api/pump/coin/${mint}`).catch(() => null),
                     fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`).catch(() => null),
-                    fetch(`/api/tracker/token/${mint}`).catch(() => null)
+                    fetch(`/api/tracker/token/${mint}`).catch(() => null),
+                    fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${mint}`).catch(() => null),
+                    fetch(`https://gmgn.ai/defi/quotation/v1/tokens/sol/${mint}`).catch(() => null)
                 ]);
 
                 if (pumpRes?.ok) {
@@ -4322,6 +4326,29 @@
                     const dexJson = await dexRes.json();
                     dexData = dexJson.pairs?.[0];
                     console.log('[ANALYTICS] DexScreener data:', dexData);
+                }
+
+                // Jupiter holder count
+                if (jupRes?.ok) {
+                    try {
+                        const jupArr = await jupRes.json();
+                        const jupToken = Array.isArray(jupArr) ? jupArr.find(t => t.id === mint || t.address === mint) : null;
+                        if (jupToken?.holderCount > 0) {
+                            jupiterHolders = jupToken.holderCount;
+                            console.log('[ANALYTICS] Jupiter holders:', jupiterHolders);
+                        }
+                    } catch (e) {}
+                }
+
+                // GMGN holder count
+                if (gmgnRes?.ok) {
+                    try {
+                        const gmgnData = await gmgnRes.json();
+                        gmgnHolders = gmgnData?.data?.token?.holder_count || gmgnData?.data?.token?.holders || 0;
+                        if (gmgnHolders > 0) {
+                            console.log('[ANALYTICS] GMGN holders:', gmgnHolders);
+                        }
+                    } catch (e) {}
                 }
 
                 // Get tracker data - direct endpoint for this specific mint
@@ -4356,16 +4383,22 @@
             const sells = dexData?.txns?.h24?.sells || trackerData?.sells || 0;
             const totalTxns = buys + sells || trackerData?.txns || 0;
 
-            // Get holder count - prioritize tracker (has backend multi-source fetching)
-            // Fallback chain: Tracker (if >0) -> Pump.fun -> 0
+            // Get holder count - prioritize FRESH data from live APIs
+            // Fallback chain: Pump.fun (fresh) -> Jupiter (fresh) -> GMGN (fresh) -> Tracker (cached)
             let holders = 0;
             let holderSource = 'none';
-            if (trackerData?.holders > 0) {
-                holders = trackerData.holders;
-                holderSource = 'Tracker';
-            } else if (pumpData?.holder_count > 0) {
+            if (pumpData?.holder_count > 0) {
                 holders = pumpData.holder_count;
                 holderSource = 'Pump.fun';
+            } else if (jupiterHolders > 0) {
+                holders = jupiterHolders;
+                holderSource = 'Jupiter';
+            } else if (gmgnHolders > 0) {
+                holders = gmgnHolders;
+                holderSource = 'GMGN';
+            } else if (trackerData?.holders > 0) {
+                holders = trackerData.holders;
+                holderSource = 'Tracker';
             }
             console.log('[ANALYTICS] Holder count:', holders, '(source:', holderSource, ')');
 
@@ -4684,14 +4717,18 @@
                 document.getElementById('tokenPath').textContent = token.path === 'launchr' ? 'LAUNCHR' : 'PUMP';
                 document.getElementById('tokenPath').className = `path-badge ${token.path === 'launchr' ? 'launchr' : 'pumpfun'}`;
 
-                // Fetch data from multiple sources in parallel
+                // Fetch data from multiple sources in parallel - include Jupiter and GMGN for fresh holders
                 let dexData = null;
                 let pumpData = null;
+                let jupiterHolders = 0;
+                let gmgnHolders = 0;
 
                 try {
-                    const [dexRes, pumpRes] = await Promise.all([
+                    const [dexRes, pumpRes, jupRes, gmgnRes] = await Promise.all([
                         fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`).catch(() => null),
-                        fetch(`/api/pump/coin/${mint}`).catch(() => null)
+                        fetch(`/api/pump/coin/${mint}`).catch(() => null),
+                        fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${mint}`).catch(() => null),
+                        fetch(`https://gmgn.ai/defi/quotation/v1/tokens/sol/${mint}`).catch(() => null)
                     ]);
 
                     // Parse DexScreener data
@@ -4704,6 +4741,23 @@
                     if (pumpRes?.ok) {
                         pumpData = await pumpRes.json();
                     }
+
+                    // Jupiter holder count
+                    if (jupRes?.ok) {
+                        try {
+                            const jupArr = await jupRes.json();
+                            const jupToken = Array.isArray(jupArr) ? jupArr.find(t => t.id === mint || t.address === mint) : null;
+                            if (jupToken?.holderCount > 0) jupiterHolders = jupToken.holderCount;
+                        } catch (e) {}
+                    }
+
+                    // GMGN holder count
+                    if (gmgnRes?.ok) {
+                        try {
+                            const gmgnData = await gmgnRes.json();
+                            gmgnHolders = gmgnData?.data?.token?.holder_count || gmgnData?.data?.token?.holders || 0;
+                        } catch (e) {}
+                    }
                 } catch (e) { console.log('Data fetch failed:', e); }
 
                 // Get transaction counts from DexScreener
@@ -4711,8 +4765,9 @@
                 const sells = dexData?.txns?.h24?.sells || 0;
                 const totalTxns = buys + sells;
 
-                // Get holder count from Pump.fun (primary) or token data (fallback)
-                const holders = pumpData?.holder_count || token.holders || 0;
+                // Get holder count - prioritize FRESH data from live APIs
+                // Fallback: Pump.fun -> Jupiter -> GMGN -> token data (cached)
+                const holders = pumpData?.holder_count || jupiterHolders || gmgnHolders || token.holders || 0;
 
                 // Calculate metrics
                 const mcap = dexData?.marketCap || dexData?.fdv || pumpData?.usd_market_cap || token.mcap || 0;
