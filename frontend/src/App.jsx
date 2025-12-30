@@ -189,6 +189,8 @@ function App() {
             <div className="auth-prompt">
               <p>Connect your Solana wallet</p>
               <button onClick={login} className="btn-connect">Connect Wallet</button>
+              <p className="auth-hint">After CAPTCHA passes, select your wallet (Phantom, Solflare, etc.)</p>
+              <p className="auth-hint-small">Stuck? Close any popups and click Connect Wallet again.</p>
             </div>
           )}
         </div>
