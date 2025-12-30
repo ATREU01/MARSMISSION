@@ -58,7 +58,7 @@ class LaunchrBot {
             await this.request('setMyCommands', { commands });
             console.log('Bot commands registered');
         } catch (e) {
-            console.error('Failed to register commands:', e.message);
+            console.error('Failed to register commands:', e.message || e.code || e);
         }
     }
 
@@ -306,7 +306,7 @@ RSI: ${engine.rsi.value.toFixed(1)}
                     }
                 }
             } catch (e) {
-                console.error('Polling error:', e.message);
+                console.error('Polling error:', e.message || e.code || e);
                 await new Promise(r => setTimeout(r, 5000));
             }
         }
