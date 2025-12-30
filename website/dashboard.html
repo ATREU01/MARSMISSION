@@ -3729,8 +3729,11 @@
                 return;
             }
 
-            // Open in new tab - wallet extensions work better in full tabs than popups
-            window.open('/auth', '_blank');
+            // Open as centered popup for better UX (stays on same page feel)
+            const w = 420, h = 650;
+            const left = (screen.width - w) / 2;
+            const top = (screen.height - h) / 2;
+            window.open('/auth', 'privy-auth', `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
         }
 
         async function handleWalletConnected(address) {
