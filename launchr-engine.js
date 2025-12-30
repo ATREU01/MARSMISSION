@@ -869,6 +869,7 @@ class LaunchrEngine {
             buybackBurn: true,
             liquidity: true,
             creatorRevenue: true,
+            burnLP: true, // Burn LP tokens after adding (lock liquidity forever - unruggable)
         };
 
         // Stats tracking - load from file if exists
@@ -880,6 +881,7 @@ class LaunchrEngine {
             buybackBurn: 0,
             liquidity: 0,
             creatorRevenue: 0,
+            lpBurned: 0, // Track LP tokens burned (liquidity locked forever)
             transactions: [],
         };
 
@@ -1566,6 +1568,72 @@ class LaunchrEngine {
 
                     console.log(`[LP] ✅ REAL LP ADDED! TX: ${sig}`);
                     this.logTransaction('lp_add_real', amount, sig);
+
+                    // ═══════════════════════════════════════════════════════════
+                    // BURN LP TOKENS - Lock liquidity forever (unruggable)
+                    // ═══════════════════════════════════════════════════════════
+                    if (this.features.burnLP) {
+                        try {
+                            // Wait for LP tokens to arrive
+                            await new Promise(r => setTimeout(r, 3000));
+
+                            const lpTokenAccount = liquiditySolanaState.userPoolTokenAccount;
+                            const lpMint = pool.lpMint;
+
+                            console.log(`[LP-BURN] 🔥 Burning LP tokens to lock liquidity forever...`);
+                            console.log(`[LP-BURN] LP Mint: ${lpMint.toBase58()}`);
+                            console.log(`[LP-BURN] LP Account: ${lpTokenAccount.toBase58()}`);
+
+                            // Check LP balance
+                            const lpBalance = await this.connection.getTokenAccountBalance(lpTokenAccount);
+                            const lpAmount = BigInt(lpBalance.value.amount);
+
+                            if (lpAmount > 0n) {
+                                console.log(`[LP-BURN] LP Balance: ${lpAmount.toString()}`);
+
+                                // Burn LP tokens using standard burn instruction
+                                const burnTx = new Transaction().add(
+                                    createBurnInstruction(
+                                        lpTokenAccount,
+                                        lpMint,
+                                        this.wallet.publicKey,
+                                        lpAmount,
+                                        [],
+                                        TOKEN_PROGRAM_ID // LP tokens use standard SPL Token
+                                    )
+                                );
+
+                                const burnSig = await this.connection.sendTransaction(burnTx, [this.wallet], {
+                                    skipPreflight: true,
+                                    maxRetries: 3,
+                                });
+
+                                await new Promise(r => setTimeout(r, 3000));
+
+                                console.log(`[LP-BURN] ✅ LP BURNED! Liquidity locked forever. TX: ${burnSig}`);
+                                this.logTransaction('lp_burn', Number(lpAmount), burnSig);
+
+                                // Track LP burned in stats
+                                this.stats.lpBurned = (this.stats.lpBurned || 0) + Number(lpAmount);
+                                this.persistStats();
+
+                                return {
+                                    amount,
+                                    success: true,
+                                    action: 'lp_add_and_burn',
+                                    signature: sig,
+                                    burnSignature: burnSig,
+                                    lpBurned: Number(lpAmount)
+                                };
+                            } else {
+                                console.log(`[LP-BURN] No LP tokens to burn (balance: 0)`);
+                            }
+                        } catch (burnError) {
+                            // LP add succeeded but burn failed - still a success overall
+                            console.log(`[LP-BURN] Burn failed: ${burnError.message} - LP still added successfully`);
+                        }
+                    }
+
                     return { amount, success: true, action: 'lp_add_real', signature: sig };
 
                 } catch (pumpSwapError) {
