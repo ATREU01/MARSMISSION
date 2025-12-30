@@ -81,3 +81,8 @@ button:focus-visible {
   margin-top: 8px;
   text-align: center;
 }
+
+/* Spinner animation */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
