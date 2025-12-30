@@ -189,8 +189,14 @@ function App() {
             <div className="auth-prompt">
               <p>Connect your Solana wallet</p>
               <button onClick={login} className="btn-connect">Connect Wallet</button>
-              <p className="auth-hint">After CAPTCHA passes, select your wallet (Phantom, Solflare, etc.)</p>
-              <p className="auth-hint-small">Stuck? Close any popups and click Connect Wallet again.</p>
+              <div style={{ marginTop: '20px', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', margin: '0 0 8px 0', textAlign: 'center' }}>
+                  💡 After CAPTCHA passes, select your wallet
+                </p>
+                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', margin: 0, textAlign: 'center' }}>
+                  Stuck on "Success"? Close the popup and click Connect again
+                </p>
+              </div>
             </div>
           )}
         </div>
