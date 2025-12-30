@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { usePrivy, useWallets } from '@privy-io/react-auth'
 import './App.css'
 
@@ -9,6 +9,27 @@ const log = (...args) => DEBUG && console.log('[PRIVY-DEBUG]', ...args)
 function App() {
   const { ready, authenticated, user, login, logout, getAccessToken } = usePrivy()
   const { wallets } = useWallets()
+  const [isConnecting, setIsConnecting] = useState(false)
+
+  // Handle login with loading state
+  const handleLogin = async () => {
+    if (isConnecting || !ready) return
+    setIsConnecting(true)
+    try {
+      await login()
+    } catch (e) {
+      log('Login error:', e)
+    }
+    // Don't set false here - let the auth state change handle it
+    setTimeout(() => setIsConnecting(false), 5000) // Fallback reset after 5s
+  }
+
+  // Reset connecting state when auth changes
+  useEffect(() => {
+    if (authenticated) {
+      setIsConnecting(false)
+    }
+  }, [authenticated])
 
   // Debug: Log all state changes
   useEffect(() => {
@@ -132,12 +153,12 @@ function App() {
     sendAuthMessage()
   }, [authenticated, walletAddress, isPopup, isAuthPage, privyWalletId, user?.id, getAccessToken])
 
-  // Auto-open login on auth page
+  // Auto-open login on auth page (with debounce to prevent multiple calls)
   useEffect(() => {
-    if (isAuthPage && ready && !authenticated) {
-      login()
+    if (isAuthPage && ready && !authenticated && !isConnecting) {
+      handleLogin()
     }
-  }, [isAuthPage, ready, authenticated, login])
+  }, [isAuthPage, ready, authenticated, isConnecting])
 
   // Auto-logout if authenticated but no Solana wallet found (only Ethereum)
   useEffect(() => {
@@ -188,7 +209,38 @@ function App() {
           ) : (
             <div className="auth-prompt">
               <p>Connect your Solana wallet</p>
-              <button onClick={login} className="btn-connect">Connect Wallet</button>
+              <button
+                onClick={handleLogin}
+                className="btn-connect"
+                disabled={isConnecting || !ready}
+                style={{
+                  opacity: (isConnecting || !ready) ? 0.7 : 1,
+                  cursor: (isConnecting || !ready) ? 'wait' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+              >
+                {isConnecting ? (
+                  <>
+                    <span style={{
+                      display: 'inline-block',
+                      width: '16px',
+                      height: '16px',
+                      border: '2px solid rgba(0,0,0,0.2)',
+                      borderTopColor: '#000',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }}></span>
+                    Connecting...
+                  </>
+                ) : !ready ? (
+                  'Loading...'
+                ) : (
+                  'Connect Wallet'
+                )}
+              </button>
               <div style={{ marginTop: '20px', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
                 <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', margin: '0 0 8px 0', textAlign: 'center' }}>
                   💡 After CAPTCHA passes, select your wallet
@@ -225,7 +277,9 @@ function App() {
             <button onClick={logout} className="btn-disconnect">Disconnect</button>
           </div>
         ) : (
-          <button onClick={login} className="btn-connect">Connect Wallet</button>
+          <button onClick={handleLogin} disabled={isConnecting || !ready} className="btn-connect">
+            {isConnecting ? 'Connecting...' : !ready ? 'Loading...' : 'Connect Wallet'}
+          </button>
         )}
       </header>
 
@@ -243,7 +297,9 @@ function App() {
           <div className="connect-prompt">
             <h2>Connect Your Wallet</h2>
             <p>Connect with email or your existing wallet to access the dashboard.</p>
-            <button onClick={login} className="btn-connect-large">Connect with Privy</button>
+            <button onClick={handleLogin} disabled={isConnecting || !ready} className="btn-connect-large">
+              {isConnecting ? 'Connecting...' : !ready ? 'Loading...' : 'Connect with Privy'}
+            </button>
           </div>
         )}
       </main>
