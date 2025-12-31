@@ -1717,6 +1717,11 @@ const server = http.createServer(async (req, res) => {
         runClaim();
         autoClaimInterval = setInterval(runClaim, intervalMs);
 
+        // Register ORBIT for TEK indicator
+        if (engine?.tokenMintStr && wallet?.publicKey) {
+            registerOrbit(engine.tokenMintStr, wallet.publicKey.toBase58());
+        }
+
         // Start price updates every 10s to build RSI data
         if (!priceUpdateInterval) {
             priceUpdateInterval = setInterval(async () => {
