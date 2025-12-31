@@ -2330,6 +2330,7 @@ The 4 percentages MUST sum to exactly 100.`;
                     time: formatTimeAgo(t.registeredAt),
                     stats: t.stats || { totalClaimed: 0, totalDistributed: 0 },
                     lastMetricsUpdate: t.lastMetricsUpdate || null,
+                    hasOrbit: orbitRegistry.has(t.mint) && orbitRegistry.get(t.mint)?.status === 'active',
                 }));
 
             res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -2366,6 +2367,7 @@ The 4 percentages MUST sum to exactly 100.`;
                     txns: t.txns || 0,
                     aiScore: t.aiScore || 0,
                     hasOrbit: orbitRegistry.has(t.mint) && orbitRegistry.get(t.mint)?.status === 'active',
+                    createdAt: t.registeredAt || null,
                 }));
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ leaderboard }));

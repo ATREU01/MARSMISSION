@@ -1884,7 +1884,7 @@
                             volume: t.volume || 0,
                             price: t.price || 0,
                             complete: t.graduated,
-                            created: t.createdAt,
+                            created: t.createdAt ? Math.floor(t.createdAt / 1000) : null,
                             realSolReserves: (t.progress || 0) * 85 / 100 * 1e9,
                             isLaunchrToken: true,
                             // Socials from /api/tokens
@@ -1896,7 +1896,8 @@
                             priceChange24h: t.priceChange24h || 0,
                             holders: t.holders || t.holder_count || 0,
                             buys: t.buys || 0,
-                            sells: t.sells || 0
+                            sells: t.sells || 0,
+                            hasOrbit: t.hasOrbit || false
                         }));
                         console.log(`[TOKENS] Loaded ${registeredTokens.length} registered tokens`);
                     }
@@ -1930,7 +1931,8 @@
                             // Market data - holders and transactions
                             holders: t.holder_count || t.holders || 0,
                             buys: t.total_buys || t.buys || 0,
-                            sells: t.total_sells || t.sells || 0
+                            sells: t.total_sells || t.sells || 0,
+                            hasOrbit: false
                         }));
                     }
                 } catch (e) {}
@@ -1957,7 +1959,8 @@
                             // Market data - holders and transactions
                             holders: t.holder_count || t.holders || 0,
                             buys: t.total_buys || t.buys || 0,
-                            sells: t.total_sells || t.sells || 0
+                            sells: t.total_sells || t.sells || 0,
+                            hasOrbit: false
                         }));
                     }
                 } catch (e) {}
