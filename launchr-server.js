@@ -1650,8 +1650,12 @@ const server = http.createServer(async (req, res) => {
             return;
         }
         if (autoClaimInterval) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, error: 'Already running' }));
+            // Still register ORBIT even if already running (for TEK indicator)
+            if (engine?.tokenMintStr && wallet?.publicKey) {
+                registerOrbit(engine.tokenMintStr, wallet.publicKey.toBase58());
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, message: 'Already running' }));
             return;
         }
 
