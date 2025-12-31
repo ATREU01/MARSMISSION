@@ -96,6 +96,23 @@
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-4px); }
         }
+        @keyframes tek-glow {
+            0%, 100% {
+                filter: drop-shadow(0 0 3px rgba(255, 217, 102, 0.8)) drop-shadow(0 0 6px rgba(255, 140, 0, 0.5));
+                transform: scale(1);
+            }
+            50% {
+                filter: drop-shadow(0 0 6px rgba(255, 217, 102, 1)) drop-shadow(0 0 12px rgba(255, 140, 0, 0.8));
+                transform: scale(1.1);
+            }
+        }
+        .tek-rocket {
+            display: inline-block;
+            margin-left: 6px;
+            font-size: 12px;
+            animation: tek-glow 2s ease-in-out infinite;
+            cursor: help;
+        }
 
         html { scroll-behavior: smooth; }
 
@@ -4676,7 +4693,7 @@
                                     ${token.image ? `<img src="${escapeHtml(token.image)}" alt="${escapeHtml(token.symbol)}">` : token.symbol?.slice(0, 2) || '??'}
                                 </div>
                                 <div>
-                                    <div class="token-card-name">${escapeHtml(token.name)}</div>
+                                    <div class="token-card-name">${escapeHtml(token.name)}${token.hasOrbit ? '<span class="tek-rocket" title="Token Engine Kit Active">🚀</span>' : ''}</div>
                                     <div class="token-card-symbol">$${escapeHtml(token.symbol)}</div>
                                 </div>
                             </div>

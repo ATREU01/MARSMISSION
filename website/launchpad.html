@@ -114,6 +114,25 @@
             100% { background-position: 0% 50%; }
         }
 
+        @keyframes tek-glow {
+            0%, 100% {
+                filter: drop-shadow(0 0 3px rgba(255, 217, 102, 0.8)) drop-shadow(0 0 6px rgba(255, 140, 0, 0.5));
+                transform: scale(1);
+            }
+            50% {
+                filter: drop-shadow(0 0 6px rgba(255, 217, 102, 1)) drop-shadow(0 0 12px rgba(255, 140, 0, 0.8));
+                transform: scale(1.1);
+            }
+        }
+
+        .tek-rocket {
+            display: inline-block;
+            margin-left: 6px;
+            font-size: 12px;
+            animation: tek-glow 2s ease-in-out infinite;
+            cursor: help;
+        }
+
         html { scroll-behavior: smooth; }
 
         body {
@@ -2383,6 +2402,7 @@
                 const changeClass = t.change >= 0 ? 'positive' : 'negative';
                 const changeText = t.change !== 0 ? (t.change >= 0 ? '+' : '') + t.change.toFixed(1) + '%' : '-';
                 const graduatedBadge = t.graduated === true ? '<span style="color:var(--success);font-size:10px;margin-left:6px;">GRADUATED</span>' : '';
+                const tekBadge = t.hasOrbit === true ? '<span class="tek-rocket" title="Token Engine Kit Active">🚀</span>' : '';
                 const progressBar = t.graduated !== true && t.progress > 0 ? `<div style="margin-top:6px;"><div style="background:var(--surface-3);height:4px;border-radius:2px;overflow:hidden;"><div style="background:linear-gradient(90deg, var(--gold), var(--success));height:100%;width:${Math.min(t.progress, 100).toFixed(1)}%;"></div></div><div style="font-size:9px;color:var(--text-muted);margin-top:2px;">${t.progress.toFixed(1)}% to graduation</div></div>` : '';
                 return `
                 <div class="token-item" onclick="openTokenLink('${t.mint}')" role="button" tabindex="0">
@@ -2390,7 +2410,7 @@
                         ${!t.image ? t.name.charAt(0) : ''}
                     </div>
                     <div class="token-details">
-                        <div class="token-name">${t.name}${graduatedBadge}</div>
+                        <div class="token-name">${t.name}${tekBadge}${graduatedBadge}</div>
                         <div class="token-meta">
                             <span class="token-ticker">$${t.symbol}</span>
                             <span class="token-path ${t.path}">${t.path === 'launchr' ? 'LCHr' : 'Pump.fun'}</span>
