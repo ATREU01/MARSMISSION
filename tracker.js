@@ -743,17 +743,23 @@ async function updateTokenMetrics(tokenMint) {
         token.image = `https://dd.dexscreener.com/ds-data/tokens/solana/${tokenMint}.png`;
     }
 
-    // TRY 6: AI Sentiment Analysis (Claude)
-    if (token.name && token.symbol && !token.aiScore) {
+    // TRY 6: AI Scoring Engine v2
+    // Recalculate if: no score, OR old scoring system (not engine+), OR score is suspiciously high (100)
+    const needsRescore = !token.aiScore ||
+                         !token.aiSource?.startsWith('engine') ||
+                         token.aiScore >= 100;
+
+    if (token.name && token.symbol && needsRescore) {
         try {
             const sentiment = await getTokenSentiment(token);
-            if (sentiment?.score) {
+            if (sentiment?.score !== undefined) {
                 token.aiScore = sentiment.score;
                 token.aiSource = sentiment.source;
-                console.log(`[AI] ${token.symbol}: Score ${token.aiScore} (${token.aiSource})`);
+                token.scoreBreakdown = sentiment.breakdown;
+                console.log(`[SCORE] ${token.symbol}: ${token.aiScore} (${token.aiSource})`);
             }
         } catch (e) {
-            // AI failed silently
+            // Scoring failed silently
         }
     }
 
