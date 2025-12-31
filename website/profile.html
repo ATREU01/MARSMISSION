@@ -858,6 +858,7 @@
     <script>
         const API_BASE = '';
         const SOLANA_RPC = 'https://api.mainnet-beta.solana.com';
+        const PRIVY_APP_ID = window.LAUNCHR_CONFIG?.PRIVY_APP_ID || '';
 
         let connectedWallet = null;
         let profileWallet = null;
@@ -876,6 +877,27 @@
         document.addEventListener('DOMContentLoaded', async () => {
             // Security: Don't auto-reconnect
             localStorage.removeItem('connectedWallet');
+
+            // Listen for Privy auth via BroadcastChannel (reliable cross-tab)
+            const channel = new BroadcastChannel('launchr-auth');
+            channel.onmessage = (e) => {
+                if (e.data?.type === 'privy-auth-success' && e.data?.address) {
+                    console.log('[PRIVY] Received wallet from BroadcastChannel:', e.data.address);
+                    handleWalletConnected(e.data.address);
+                    showNotification('Connected with Privy wallet!', 'success');
+                }
+            };
+
+            // Also listen via postMessage (fallback)
+            window.addEventListener('message', (e) => {
+                if (e.data?.type === 'privy-auth-success' && e.data?.address) {
+                    console.log('[PRIVY] Received wallet from postMessage:', e.data.address);
+                    handleWalletConnected(e.data.address);
+                    showNotification('Connected with Privy wallet!', 'success');
+                }
+            });
+
+            console.log('[PRIVY] Ready - listening via BroadcastChannel + postMessage');
 
             profileWallet = getProfileWallet();
             if (!profileWallet) {
@@ -1165,6 +1187,7 @@
         function showWalletModal() {
             const hasPhantom = window.solana?.isPhantom;
             const hasSolflare = window.solflare?.isSolflare;
+            const hasPrivy = !!PRIVY_APP_ID;
 
             const modal = document.createElement('div');
             modal.className = 'modal-overlay show';
@@ -1181,6 +1204,14 @@
                             Choose your wallet to connect
                         </p>
                         <div style="display:flex;flex-direction:column;gap:10px;">
+                            ${hasPrivy ? `<button class="btn btn-secondary" style="width:100%;justify-content:flex-start;gap:12px;display:flex;align-items:center;border-color:var(--gold);background:var(--gold-dim);"
+                                onclick="connectPrivy()">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="24" height="24" rx="6" fill="#8B5CF6"/><path d="M12 6L18 10V14L12 18L6 14V10L12 6Z" fill="white"/></svg>
+                                <span>Privy</span>
+                                <span style="margin-left:auto;font-size:11px;color:var(--success);background:var(--success-dim);padding:2px 8px;border-radius:10px;">
+                                    Email / Social
+                                </span>
+                            </button>` : ''}
                             <button class="btn btn-secondary" style="width:100%;justify-content:flex-start;gap:12px;display:flex;align-items:center;"
                                 onclick="${hasPhantom ? 'connectPhantom()' : ''}" ${hasPhantom ? '' : 'disabled'}>
                                 <img src="/website/phantom_icon.png" alt="Phantom" style="width:24px;height:24px;border-radius:6px;">
@@ -1224,6 +1255,15 @@
                 console.error('[SOLFLARE]', e);
                 showNotification('Failed to connect Solflare', 'error');
             }
+        }
+
+        function connectPrivy() {
+            document.getElementById('walletModal')?.remove();
+            // Open as centered popup for better UX (stays on same page feel)
+            const w = 420, h = 650;
+            const left = (screen.width - w) / 2;
+            const top = (screen.height - h) / 2;
+            window.open('/auth', 'privy-auth', `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
         }
 
         function handleWalletConnected(address) {
