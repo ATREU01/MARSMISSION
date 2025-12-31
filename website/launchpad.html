@@ -2357,14 +2357,15 @@
                 const liquidity = t.liquidity || solInCurve * 200;
                 const volume = t.volume24h || t.volume || t.dex?.volume?.h24 || 0;
 
-                // Use API score (capped at 89) or fallback calculation
+                // Use API score (capped at 89) or proportional fallback
+                // Scales properly - bigger metrics = higher score, no flat caps
                 const score = t.aiScore ? Math.min(89, t.aiScore) : Math.min(89, Math.floor(
-                    (mcapUsd > 10000 ? 15 : mcapUsd / 700) +
-                    (volume > 1000 ? 15 : volume / 70) +
-                    (holders > 50 ? 15 : holders * 0.3) +
-                    (totalTxns > 100 ? 15 : totalTxns * 0.15) +
-                    (buys > sells ? 15 : 8) +
-                    (liquidity > 5000 ? 10 : liquidity / 500)
+                    Math.min(20, mcapUsd / 5000) +                    // 0-20 pts (scales to $100K)
+                    Math.min(15, volume / 4000) +                     // 0-15 pts (scales to $60K)
+                    Math.min(15, holders / 40) +                      // 0-15 pts (scales to 600)
+                    Math.min(15, totalTxns / 80) +                    // 0-15 pts (scales to 1200)
+                    Math.min(10, (buys / Math.max(1, sells)) * 4) +   // 0-10 pts (buy/sell ratio)
+                    Math.min(14, liquidity / 3000)                    // 0-14 pts (scales to $42K)
                 ));
 
                 // Signal based on score - gold theme
