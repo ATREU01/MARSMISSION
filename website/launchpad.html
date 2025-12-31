@@ -2357,13 +2357,14 @@
                 const liquidity = t.liquidity || solInCurve * 200;
                 const volume = t.volume24h || t.volume || t.dex?.volume?.h24 || 0;
 
-                // Score calculation
-                const score = Math.min(100, Math.floor(
-                    (mcapUsd > 10000 ? 20 : mcapUsd / 500) +
-                    (volume > 1000 ? 20 : volume / 50) +
-                    (holders > 50 ? 20 : holders * 0.4) +
-                    (totalTxns > 100 ? 20 : totalTxns * 0.2) +
-                    (buys > sells ? 20 : 10)
+                // Use API score (capped at 89) or fallback calculation
+                const score = t.aiScore ? Math.min(89, t.aiScore) : Math.min(89, Math.floor(
+                    (mcapUsd > 10000 ? 15 : mcapUsd / 700) +
+                    (volume > 1000 ? 15 : volume / 70) +
+                    (holders > 50 ? 15 : holders * 0.3) +
+                    (totalTxns > 100 ? 15 : totalTxns * 0.15) +
+                    (buys > sells ? 15 : 8) +
+                    (liquidity > 5000 ? 10 : liquidity / 500)
                 ));
 
                 // Signal based on score - gold theme
