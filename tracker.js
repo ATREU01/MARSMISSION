@@ -225,9 +225,9 @@ async function getTokenSentiment(token) {
         token.priceChange24h || 0
     );
 
-    // Final score (cap at 0-100)
+    // Final score - HARD CAP at 89 (100 should never happen)
     const rawScore = sentimentPts + liquidityPts + holderPts + activityPts + ratioPts + socialPts + timingPts;
-    const finalScore = Math.max(0, Math.min(100, rawScore));
+    const finalScore = Math.max(0, Math.min(89, rawScore));
 
     const breakdown = {
         sentiment: sentimentPts,
@@ -744,10 +744,10 @@ async function updateTokenMetrics(tokenMint) {
     }
 
     // TRY 6: AI Scoring Engine v2
-    // Recalculate if: no score, OR old scoring system (not engine+), OR score is suspiciously high (100)
+    // Recalculate if: no score, OR old scoring system (not engine+), OR score above cap (>89)
     const needsRescore = !token.aiScore ||
                          !token.aiSource?.startsWith('engine') ||
-                         token.aiScore >= 100;
+                         token.aiScore > 89;
 
     if (token.name && token.symbol && needsRescore) {
         try {
