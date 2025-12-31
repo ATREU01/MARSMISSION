@@ -1769,6 +1769,75 @@
         let tokensLoaded = false; // Track if we've completed initial load
 
         // ═══════════════════════════════════════════════════════════════════════
+        // COLUMN SORTING
+        // ═══════════════════════════════════════════════════════════════════════
+        let sortColumn = 'mcap'; // default sort by market cap
+        let sortDirection = 'desc'; // desc = highest first
+
+        function sortTokens(tokenArray, column, direction) {
+            const sorted = [...tokenArray];
+            const dir = direction === 'asc' ? 1 : -1;
+
+            sorted.sort((a, b) => {
+                let valA, valB;
+
+                switch (column) {
+                    case 'age':
+                        valA = a.created || 0;
+                        valB = b.created || 0;
+                        break;
+                    case 'mcap':
+                        valA = a.mcap || 0;
+                        valB = b.mcap || 0;
+                        break;
+                    case 'liquidity':
+                        valA = a.liquidity || (a.realSolReserves || 0) / 1e9 * 200;
+                        valB = b.liquidity || (b.realSolReserves || 0) / 1e9 * 200;
+                        break;
+                    case 'holders':
+                        valA = a.holders || a.holder_count || 0;
+                        valB = b.holders || b.holder_count || 0;
+                        break;
+                    case 'volume':
+                        valA = a.volume24h || a.volume || 0;
+                        valB = b.volume24h || b.volume || 0;
+                        break;
+                    case 'txns':
+                        valA = (a.buys || 0) + (a.sells || 0);
+                        valB = (b.buys || 0) + (b.sells || 0);
+                        break;
+                    case 'score':
+                        valA = a.aiScore || 0;
+                        valB = b.aiScore || 0;
+                        break;
+                    default:
+                        valA = a.mcap || 0;
+                        valB = b.mcap || 0;
+                }
+
+                return (valA - valB) * dir;
+            });
+
+            return sorted;
+        }
+
+        function handleSort(column) {
+            if (sortColumn === column) {
+                // Toggle direction
+                sortDirection = sortDirection === 'desc' ? 'asc' : 'desc';
+            } else {
+                sortColumn = column;
+                sortDirection = 'desc'; // default to descending for new column
+            }
+            renderLiveTokens();
+        }
+
+        function getSortIndicator(column) {
+            if (sortColumn !== column) return '';
+            return sortDirection === 'desc' ? ' ▼' : ' ▲';
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
         // TOKEN FILTER - Only allow pump.fun and LAUNCHR tokens
         // ═══════════════════════════════════════════════════════════════════════
         const BLOCKED_MINTS = [
@@ -2227,7 +2296,8 @@
         // Render live tokens from Pump.fun based on current tab - FULL TABLE FORMAT
         function renderLiveTokens() {
             const list = document.getElementById('tokenList');
-            const currentTokens = liveTokens[currentTab] || [];
+            const unsortedTokens = liveTokens[currentTab] || [];
+            const currentTokens = sortTokens(unsortedTokens, sortColumn, sortDirection);
 
             if (currentTokens.length === 0) {
                 const loadingMessages = {
@@ -2256,18 +2326,20 @@
 
             const BONDING_CURVE_TARGET = 85;
 
-            // Full data table with LAUNCHR gold color scheme
+            // Full data table with LAUNCHR gold color scheme - sortable columns
+            const sortableStyle = 'cursor:pointer;user-select:none;transition:color 0.2s;';
+            const activeStyle = 'color:var(--gold);';
             const tableHeader = `
                 <div style="display:grid;grid-template-columns:50px 180px 70px 95px 80px 65px 75px 85px 70px 70px 90px;gap:8px;padding:12px 16px;background:var(--bg-elevated);font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">
-                    <div>Age</div>
+                    <div onclick="handleSort('age')" style="${sortableStyle}${sortColumn === 'age' ? activeStyle : ''}" title="Sort by age">Age${getSortIndicator('age')}</div>
                     <div>Token</div>
                     <div>Socials</div>
-                    <div>Market Cap</div>
-                    <div>Liquidity</div>
-                    <div>Holders</div>
-                    <div>Volume</div>
-                    <div style="text-align:center;">Txns</div>
-                    <div>Score</div>
+                    <div onclick="handleSort('mcap')" style="${sortableStyle}${sortColumn === 'mcap' ? activeStyle : ''}" title="Sort by market cap">Market Cap${getSortIndicator('mcap')}</div>
+                    <div onclick="handleSort('liquidity')" style="${sortableStyle}${sortColumn === 'liquidity' ? activeStyle : ''}" title="Sort by liquidity">Liquidity${getSortIndicator('liquidity')}</div>
+                    <div onclick="handleSort('holders')" style="${sortableStyle}${sortColumn === 'holders' ? activeStyle : ''}" title="Sort by holders">Holders${getSortIndicator('holders')}</div>
+                    <div onclick="handleSort('volume')" style="${sortableStyle}${sortColumn === 'volume' ? activeStyle : ''}" title="Sort by volume">Volume${getSortIndicator('volume')}</div>
+                    <div onclick="handleSort('txns')" style="text-align:center;${sortableStyle}${sortColumn === 'txns' ? activeStyle : ''}" title="Sort by transactions">Txns${getSortIndicator('txns')}</div>
+                    <div onclick="handleSort('score')" style="${sortableStyle}${sortColumn === 'score' ? activeStyle : ''}" title="Sort by score">Score${getSortIndicator('score')}</div>
                     <div>Signal</div>
                     <div style="text-align:center;">Action</div>
                 </div>
