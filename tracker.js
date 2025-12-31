@@ -34,15 +34,24 @@ const apiCache = new Map();
 const CACHE_TTL = 30000;
 
 // ═══════════════════════════════════════════════════════════════════
-// AI SENTIMENT ANALYSIS
+// LAUNCHR SCORE ENGINE v2 - Real Multi-Factor Scoring
+// ═══════════════════════════════════════════════════════════════════
+// Max 100 points (realistic max ~85)
+// - Sentiment: 25 pts (Claude AI or keywords)
+// - Liquidity: 20 pts
+// - Holders: 15 pts
+// - Activity: 15 pts (transaction count)
+// - Buy/Sell Ratio: 10 pts
+// - Socials: 10 pts
+// - Timing: +5 to -15 pts (bonus/penalty)
 // ═══════════════════════════════════════════════════════════════════
 
-const sentimentCache = new Map();
-const SENTIMENT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const scoreCache = new Map();
+const SCORE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-// Keyword fallback (no API needed)
-const BULLISH_WORDS = ['moon', 'pump', 'gem', 'alpha', 'degen', 'ape', 'rocket', 'lambo', '100x', 'buy', 'bull', 'send', 'fire'];
-const BEARISH_WORDS = ['scam', 'rug', 'dump', 'dead', 'fake', 'honeypot', 'drain', 'sell', 'bear', 'rekt'];
+// Keyword analysis for sentiment (no API needed)
+const BULLISH_WORDS = ['moon', 'pump', 'gem', 'alpha', 'degen', 'ape', 'rocket', 'lambo', '100x', 'buy', 'bull', 'send', 'fire', 'based', 'chad'];
+const BEARISH_WORDS = ['scam', 'rug', 'dump', 'dead', 'fake', 'honeypot', 'drain', 'sell', 'bear', 'rekt', 'slow', 'copy'];
 
 function analyzeKeywords(text) {
     const lower = text.toLowerCase();
@@ -62,42 +71,18 @@ function analyzeKeywords(text) {
     return Math.round(50 + (ratio * 40)); // Range: 10-90
 }
 
-// Claude API sentiment analysis with price context
-async function analyzeWithClaude(tokenName, tokenSymbol, priceData = null) {
+// Claude API sentiment analysis (returns 0-100)
+async function analyzeWithClaude(tokenName, tokenSymbol) {
     const apiKey = process.env.CLAUDE_API_KEY;
     if (!apiKey) return null;
 
     try {
-        // Build price context if available
-        let priceContext = '';
-        if (priceData) {
-            const { change5m, change1h, change24h } = priceData;
-            priceContext = `
-PRICE ACTION:
-- 5min change: ${change5m > 0 ? '+' : ''}${change5m?.toFixed(1) || 0}%
-- 1hr change: ${change1h > 0 ? '+' : ''}${change1h?.toFixed(1) || 0}%
-- 24hr change: ${change24h > 0 ? '+' : ''}${change24h?.toFixed(1) || 0}%
-
-TIMING:
-- If already pumped 100%+ in 1h: Max score 40 (late entry)
-- If 5m negative while 1h positive: Max score 50 (distribution)`;
-        }
-
         const response = await axios.post('https://api.anthropic.com/v1/messages', {
             model: 'claude-3-haiku-20240307',
-            max_tokens: 100,
+            max_tokens: 50,
             messages: [{
                 role: 'user',
-                content: `Rate crypto meme token "${tokenName}" ($${tokenSymbol}) from 0-100 for trading potential.
-${priceContext}
-SCORING:
-- 80-100: Viral meme potential + good entry timing
-- 60-79: Good concept + reasonable entry
-- 40-59: Average OR already pumped significantly
-- 20-39: Weak concept OR chasing pump
-- 0-19: Red flags or scam indicators
-
-Reply with ONLY a number 0-100.`
+                content: `Rate meme token "${tokenName}" ($${tokenSymbol}) for viral/meme potential only (not financial). 0=boring/scam vibes, 100=peak meme. Reply with ONLY a number.`
             }]
         }, {
             headers: {
@@ -105,61 +90,163 @@ Reply with ONLY a number 0-100.`
                 'x-api-key': apiKey,
                 'anthropic-version': '2023-06-01'
             },
-            timeout: 10000
+            timeout: 8000
         });
 
         const text = response.data?.content?.[0]?.text || '';
         const score = parseInt(text.match(/\d+/)?.[0]);
 
         if (score >= 0 && score <= 100) {
-            console.log(`[AI] Claude sentiment for ${tokenSymbol}: ${score}`);
             return score;
         }
         return null;
     } catch (e) {
-        console.log(`[AI] Claude error: ${e.message}`);
         return null;
     }
 }
 
-// Master sentiment function
+// ═══════════════════════════════════════════════════════════════════
+// SCORING COMPONENTS
+// ═══════════════════════════════════════════════════════════════════
+
+// Sentiment Score (max 25 points)
+function calcSentimentScore(claudeScore, keywordScore) {
+    const base = claudeScore !== null ? claudeScore : keywordScore;
+    return Math.round((base / 100) * 25);
+}
+
+// Liquidity Score (max 20 points)
+function calcLiquidityScore(liquidity) {
+    const liq = liquidity || 0;
+    if (liq >= 50000) return 20;
+    if (liq >= 10000) return 15;
+    if (liq >= 5000) return 12;
+    if (liq >= 1000) return 8;
+    if (liq >= 100) return 5;
+    return 2;
+}
+
+// Holder Score (max 15 points)
+function calcHolderScore(holders) {
+    const h = holders || 0;
+    if (h >= 500) return 15;
+    if (h >= 200) return 13;
+    if (h >= 100) return 10;
+    if (h >= 50) return 7;
+    if (h >= 10) return 4;
+    return 2;
+}
+
+// Activity Score (max 15 points) - based on transaction count
+function calcActivityScore(buys, sells) {
+    const total = (buys || 0) + (sells || 0);
+    if (total >= 500) return 15;
+    if (total >= 200) return 13;
+    if (total >= 100) return 10;
+    if (total >= 50) return 7;
+    if (total >= 10) return 4;
+    return 2;
+}
+
+// Buy/Sell Ratio Score (max 10 points)
+function calcRatioScore(buys, sells) {
+    const b = buys || 0;
+    const s = sells || 1; // avoid division by zero
+    const ratio = b / s;
+
+    if (ratio >= 2.0) return 10;
+    if (ratio >= 1.5) return 8;
+    if (ratio >= 1.0) return 6;
+    if (ratio >= 0.7) return 4;
+    return 2; // more sells than buys
+}
+
+// Social Score (max 10 points)
+function calcSocialScore(twitter, telegram, website) {
+    let score = 0;
+    if (twitter) score += 4;
+    if (telegram) score += 3;
+    if (website) score += 3;
+    return score;
+}
+
+// Timing Score (+5 to -15 points)
+function calcTimingScore(change5m, change1h, change24h) {
+    let score = 0;
+
+    // Already pumped hard = late entry penalty
+    if (change24h > 200) {
+        score -= 15; // Way too late
+    } else if (change24h > 100) {
+        score -= 10; // Late
+    } else if (change24h > 50) {
+        score -= 5; // Caution
+    } else if (change24h >= 0 && change24h <= 20) {
+        score += 5; // Fresh/stable = good entry
+    }
+
+    // Distribution pattern: 5m down while 1h up
+    if (change5m < -5 && change1h > 10) {
+        score -= 5; // Possible distribution
+    }
+
+    return Math.max(-15, Math.min(5, score));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MASTER SCORING FUNCTION
+// ═══════════════════════════════════════════════════════════════════
+
 async function getTokenSentiment(token) {
     const name = token.name || '';
     const symbol = token.symbol || '';
-    const cacheKey = `${symbol}-${name}`.toLowerCase();
+    const cacheKey = `${symbol}-${name}-${token.mint || ''}`.toLowerCase();
 
     // Check cache
-    const cached = sentimentCache.get(cacheKey);
-    if (cached && (Date.now() - cached.timestamp) < SENTIMENT_CACHE_TTL) {
+    const cached = scoreCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < SCORE_CACHE_TTL) {
         return cached.result;
     }
 
-    // Get price data
-    const priceData = {
-        change5m: token.priceChange5m || 0,
-        change1h: token.priceChange1h || 0,
-        change24h: token.priceChange24h || 0
-    };
-
-    // Keyword fallback
+    // Get Claude sentiment (0-100)
+    const claudeScore = await analyzeWithClaude(name, symbol);
     const keywordScore = analyzeKeywords(`${name} ${symbol}`);
 
-    // Try Claude
-    const claudeScore = await analyzeWithClaude(name, symbol, priceData);
+    // Calculate all components
+    const sentimentPts = calcSentimentScore(claudeScore, keywordScore);
+    const liquidityPts = calcLiquidityScore(token.liquidity);
+    const holderPts = calcHolderScore(token.holders || token.holder_count);
+    const activityPts = calcActivityScore(token.buys, token.sells);
+    const ratioPts = calcRatioScore(token.buys, token.sells);
+    const socialPts = calcSocialScore(token.twitter, token.telegram, token.website);
+    const timingPts = calcTimingScore(
+        token.priceChange5m || 0,
+        token.priceChange1h || 0,
+        token.priceChange24h || 0
+    );
 
-    let finalScore, source;
-    if (claudeScore !== null) {
-        finalScore = claudeScore;
-        source = 'claude';
-    } else {
-        finalScore = keywordScore;
-        source = 'keywords';
-    }
+    // Final score (cap at 0-100)
+    const rawScore = sentimentPts + liquidityPts + holderPts + activityPts + ratioPts + socialPts + timingPts;
+    const finalScore = Math.max(0, Math.min(100, rawScore));
 
-    const result = { score: finalScore, source, claudeScore, keywordScore };
+    const breakdown = {
+        sentiment: sentimentPts,
+        liquidity: liquidityPts,
+        holders: holderPts,
+        activity: activityPts,
+        ratio: ratioPts,
+        socials: socialPts,
+        timing: timingPts
+    };
+
+    const source = claudeScore !== null ? 'engine+claude' : 'engine+keywords';
+
+    console.log(`[SCORE] ${symbol}: ${finalScore} (S:${sentimentPts} L:${liquidityPts} H:${holderPts} A:${activityPts} R:${ratioPts} So:${socialPts} T:${timingPts})`);
+
+    const result = { score: finalScore, source, breakdown, claudeScore, keywordScore };
 
     // Cache it
-    sentimentCache.set(cacheKey, { result, timestamp: Date.now() });
+    scoreCache.set(cacheKey, { result, timestamp: Date.now() });
 
     return result;
 }
