@@ -2104,7 +2104,7 @@ The 4 percentages MUST sum to exactly 100.`;
                     txns: t.txns || 0,
                     buys: t.buys || 0,
                     sells: t.sells || 0,
-                    aiScore: t.aiScore || 0,
+                    aiScore: Math.min(89, t.aiScore || 0),
                     aiSource: t.aiSource || null,
                     // TEK indicator
                     hasOrbit: orbitRegistry.has(t.mint) && orbitRegistry.get(t.mint)?.status === 'active',
@@ -2365,7 +2365,7 @@ The 4 percentages MUST sum to exactly 100.`;
                     reward: index < 3 ? 'Winner' : null,
                     holders: t.holders || 0,
                     txns: t.txns || 0,
-                    aiScore: t.aiScore || 0,
+                    aiScore: Math.min(89, t.aiScore || 0),
                     hasOrbit: orbitRegistry.has(t.mint) && orbitRegistry.get(t.mint)?.status === 'active',
                     createdAt: t.registeredAt || null,
                 }));
