@@ -1121,14 +1121,26 @@
         });
 
         async function initPrivy() {
-            // Listen for wallet connection from Privy auth popup
+            // Listen for messages from Privy auth popup via BroadcastChannel (more reliable across tabs)
+            const channel = new BroadcastChannel('launchr-auth');
+            channel.onmessage = (e) => {
+                if (e.data?.type === 'privy-auth-success' && e.data?.address) {
+                    console.log('[PRIVY] Received wallet from BroadcastChannel:', e.data.address);
+                    handleWalletConnected(e.data.address);
+                    showNotification('Connected with Privy wallet!', 'success');
+                }
+            };
+
+            // Also listen via window.postMessage (fallback for popups)
             window.addEventListener('message', (e) => {
                 if (e.data?.type === 'privy-auth-success' && e.data?.address) {
-                    console.log('[PRIVY] Received wallet from popup:', e.data.address);
+                    console.log('[PRIVY] Received wallet from postMessage:', e.data.address);
                     handleWalletConnected(e.data.address);
-                    showNotification('Wallet connected!', 'success');
+                    showNotification('Connected with Privy wallet!', 'success');
                 }
             });
+
+            console.log('[PRIVY] Ready - listening via BroadcastChannel + postMessage');
 
             try {
                 if (typeof window.Privy !== 'undefined') {
@@ -1145,6 +1157,7 @@
                     const user = await privyClient.getUser();
                     if (user?.wallet?.address) {
                         handleWalletConnected(user.wallet.address);
+                        showNotification('Connected with Privy wallet!', 'success');
                     }
                 }
             } catch (e) { console.error('[PRIVY]', e); }
