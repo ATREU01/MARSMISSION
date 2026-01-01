@@ -1307,6 +1307,22 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    // Serve Culture Coins page (preview for team/testers)
+    if (url.pathname === '/culture-coins' && req.method === 'GET') {
+        try {
+            const html = fs.readFileSync(path.join(__dirname, 'website', 'culture-coins.html'), 'utf8');
+            res.writeHead(200, {
+                'Content-Type': 'text/html; charset=utf-8',
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
+            });
+            res.end(injectConfig(html));
+        } catch (e) {
+            res.writeHead(302, { 'Location': '/' });
+            res.end();
+        }
+        return;
+    }
+
     // Phantom Wallet Integration - Manifest
     if ((url.pathname === '/phantom/manifest.json' || url.pathname === '/.well-known/phantom.json') && req.method === 'GET') {
         try {
