@@ -12,7 +12,7 @@
     <link rel="icon" href="/favicon.ico" type="image/jpeg">
     <link rel="shortcut icon" href="/favicon.ico" type="image/jpeg">
     <link rel="apple-touch-icon" href="/website/logo-icon.jpg">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Solana Web3.js for transaction handling -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     <!-- bs58 for Base58 encoding -->
@@ -124,13 +124,18 @@
         html { scroll-behavior: smooth; }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: 'IBM Plex Mono', monospace;
             background: var(--bg);
             color: var(--text);
             line-height: 1.5;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             min-height: 100vh;
+        }
+
+        /* Editorial serif font for culture names and featured headings */
+        .culture-name, .section-title, .sidebar-brand-name, h1 {
+            font-family: 'Playfair Display', Georgia, serif;
         }
 
         /* Dynamic Multi-Color Atmosphere */
@@ -606,7 +611,7 @@
         .token-selector-info p {
             font-size: 12px;
             color: var(--text-muted);
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
         }
         .token-selector-path {
             margin-left: auto;
@@ -654,7 +659,7 @@
         .stat-card-value {
             font-size: 28px;
             font-weight: 600;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             letter-spacing: -0.02em;
         }
         .stat-card-value.gold { color: var(--gold); }
@@ -689,7 +694,7 @@
         .holder-pool-amount {
             font-size: 36px;
             font-weight: 700;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             color: var(--gold);
             margin-top: 4px;
         }
@@ -713,7 +718,7 @@
             letter-spacing: 0.1em;
         }
         .holder-stat-value {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 15px;
             font-weight: 600;
             margin-top: 4px;
@@ -775,7 +780,7 @@
         .fee-split-percentage {
             font-size: 36px;
             font-weight: 700;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
         }
         .fee-split-percentage.gold { color: var(--gold); }
         .fee-split-label {
@@ -823,7 +828,7 @@
             font-weight: 500;
         }
         .allocation-item-value {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 14px;
             font-weight: 600;
             color: var(--gold);
@@ -920,7 +925,7 @@
         .activity-row:last-child { border-bottom: none; }
         .activity-time {
             color: var(--text-muted);
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 11px;
         }
         .activity-type {
@@ -936,7 +941,7 @@
         .activity-type.buyback { background: var(--purple-dim); color: var(--purple); }
         .activity-type.burn { background: var(--error-dim); color: var(--error); }
         .activity-amount {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             text-align: right;
         }
         .activity-status { text-align: right; }
@@ -950,7 +955,7 @@
         .status-badge.success { background: var(--success-dim); color: var(--success); }
         .status-badge.pending { background: var(--warning-dim); color: var(--warning); }
         .activity-sig {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 11px;
             color: var(--text-muted);
         }
@@ -1036,7 +1041,7 @@
             padding: 20px 0;
         }
         .wallet-address {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 13px;
             color: var(--text);
             background: var(--bg);
@@ -1211,7 +1216,7 @@
             gap: 8px;
             color: var(--text-muted);
             font-size: 11px;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
         }
         .image-preview svg {
             opacity: 0.4;
@@ -1346,7 +1351,7 @@
             margin-bottom: 6px;
         }
         .token-stat-value {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 16px;
             font-weight: 600;
             color: var(--text);
@@ -1379,7 +1384,7 @@
             margin-bottom: 4px;
         }
         .price-change-value {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 14px;
             font-weight: 600;
         }
@@ -1421,7 +1426,7 @@
         .trade-metric-badge.warn { background: var(--warning-dim); color: var(--warning); }
         .trade-metric-badge.bad { background: var(--error-dim); color: var(--error); }
         .trade-metric-value {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 18px;
             font-weight: 600;
         }
@@ -1451,7 +1456,7 @@
             gap: 6px;
         }
         .safety-score-value {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 18px;
             font-weight: 700;
         }
@@ -1487,7 +1492,7 @@
         .safety-indicator-name { color: var(--text-secondary); }
         .safety-indicator-value {
             margin-left: auto;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             font-weight: 600;
         }
 
@@ -1573,7 +1578,7 @@
             border: none;
             color: var(--text);
             font-size: 18px;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
         }
         .trading-input:focus { outline: none; }
         .trading-input-suffix {
@@ -1614,7 +1619,7 @@
         }
         .trading-info-item { text-align: center; }
         .trading-info-label { color: var(--text-muted); margin-bottom: 4px; }
-        .trading-info-value { font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+        .trading-info-value { font-family: 'IBM Plex Mono', monospace; font-weight: 600; }
         .trading-btn {
             width: 100%;
             padding: 16px;
@@ -1712,7 +1717,7 @@
         .token-card-symbol {
             font-size: 12px;
             color: var(--gold);
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
         }
         .token-card-stats {
             display: grid;
@@ -1725,11 +1730,11 @@
             justify-content: space-between;
         }
         .token-card-stat-label { color: var(--text-muted); }
-        .token-card-stat-value { font-family: 'JetBrains Mono', monospace; }
+        .token-card-stat-value { font-family: 'IBM Plex Mono', monospace; }
         .token-card-mint {
             font-size: 10px;
             color: var(--text-muted);
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             margin-top: 10px;
             padding-top: 10px;
             border-top: 1px solid var(--border-subtle);

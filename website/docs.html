@@ -18,7 +18,7 @@
     <link rel="icon" href="/favicon.ico" type="image/jpeg">
     <link rel="shortcut icon" href="/favicon.ico" type="image/jpeg">
     <link rel="apple-touch-icon" href="/website/logo-icon.jpg">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <style>
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -53,12 +53,17 @@
         html { scroll-behavior: smooth; }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: 'IBM Plex Mono', monospace;
             background: var(--bg);
             color: var(--text);
             line-height: 1.7;
             min-height: 100vh;
             font-size: 15px;
+        }
+
+        /* Editorial serif font for culture names and featured headings */
+        .culture-name, h1, h2 {
+            font-family: 'Playfair Display', Georgia, serif;
         }
 
         ::selection {
@@ -336,7 +341,7 @@
 
         /* Code */
         code {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 13px;
             background: var(--surface-2);
             padding: 3px 7px;
@@ -402,7 +407,7 @@
 
         .code-content pre {
             margin: 0;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 13px;
             line-height: 1.6;
             color: var(--text-secondary);
