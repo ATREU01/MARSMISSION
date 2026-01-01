@@ -1750,6 +1750,31 @@
         const CreateCulturePage = () => {
           const [cultureName, setCultureName] = useState('');
           const [creatorName, setCreatorName] = useState('');
+          const [tiers, setTiers] = useState([
+            { name: 'Observer', holdingPercent: 0.1, access: 'Read-only access to culture feed' },
+            { name: 'Participant', holdingPercent: 0.5, access: 'Join discussions and auctions' },
+            { name: 'Insider', holdingPercent: 1.5, access: 'Live sessions and early drops' },
+            { name: 'Steward', holdingPercent: 5.0, access: 'Help shape culture direction' }
+          ]);
+
+          const updateTier = (index, field, value) => {
+            const newTiers = [...tiers];
+            newTiers[index] = { ...newTiers[index], [field]: value };
+            setTiers(newTiers);
+          };
+
+          const addTier = () => {
+            if (tiers.length < 6) {
+              const lastPercent = tiers[tiers.length - 1]?.holdingPercent || 0;
+              setTiers([...tiers, { name: '', holdingPercent: lastPercent + 2, access: '' }]);
+            }
+          };
+
+          const removeTier = (index) => {
+            if (tiers.length > 2) {
+              setTiers(tiers.filter((_, i) => i !== index));
+            }
+          };
 
           return (
             <div style={{ padding: '136px 40px 80px', maxWidth: '900px', margin: '0 auto' }}>
@@ -1923,7 +1948,7 @@
                 </div>
               </div>
 
-              {/* Section: Culture Tiers (Preview) */}
+              {/* Section: Define Tiers Based on Holdings */}
               <div style={{ marginBottom: '60px' }}>
                 <div style={{
                   fontFamily: "'Playfair Display', serif",
@@ -1931,7 +1956,7 @@
                   color: '#fff',
                   marginBottom: '12px'
                 }}>
-                  Culture Standing
+                  Define Tiers
                 </div>
                 <div style={{
                   fontFamily: "'IBM Plex Mono', monospace",
@@ -1939,64 +1964,161 @@
                   color: '#666',
                   marginBottom: '32px'
                 }}>
-                  Access evolves with participation.
+                  Set holding requirements for each access level.
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {[
-                    { name: 'Observer', description: 'Read and observe the culture' },
-                    { name: 'Participant', description: 'Join discussions and auctions' },
-                    { name: 'Insider', description: 'Direct access and early participation' },
-                    { name: 'Steward', description: 'Help shape the culture' }
-                  ].map((tier, i) => (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {tiers.map((tier, i) => (
                     <div
                       key={i}
                       style={{
-                        padding: '24px 28px',
+                        padding: '24px',
                         background: '#0a0a0a',
-                        border: '1px solid #1a1a1a',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
+                        border: '1px solid #1a1a1a'
                       }}
                     >
-                      <span style={{
-                        fontFamily: "'Playfair Display', serif",
-                        fontSize: '18px',
-                        color: '#fff'
-                      }}>
-                        {tier.name}
-                      </span>
-                      <span style={{
-                        fontFamily: "'IBM Plex Mono', monospace",
-                        fontSize: '12px',
-                        color: '#666'
-                      }}>
-                        {tier.description}
-                      </span>
+                      <div style={{ display: 'flex', gap: '16px', marginBottom: '16px', alignItems: 'center' }}>
+                        {/* Tier Name */}
+                        <input
+                          type="text"
+                          value={tier.name}
+                          onChange={(e) => updateTier(i, 'name', e.target.value)}
+                          placeholder="Tier Name"
+                          style={{
+                            flex: 1,
+                            padding: '12px 16px',
+                            background: '#111',
+                            border: '1px solid #222',
+                            color: '#fff',
+                            fontFamily: "'Playfair Display', serif",
+                            fontSize: '18px',
+                            outline: 'none'
+                          }}
+                        />
+
+                        {/* Holding Percent */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <input
+                            type="number"
+                            value={tier.holdingPercent}
+                            onChange={(e) => updateTier(i, 'holdingPercent', parseFloat(e.target.value) || 0)}
+                            step="0.1"
+                            min="0"
+                            max="100"
+                            style={{
+                              width: '80px',
+                              padding: '12px',
+                              background: '#111',
+                              border: '1px solid #222',
+                              color: '#fff',
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontSize: '14px',
+                              textAlign: 'center',
+                              outline: 'none'
+                            }}
+                          />
+                          <span style={{
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            fontSize: '12px',
+                            color: '#666'
+                          }}>
+                            % of supply
+                          </span>
+                        </div>
+
+                        {/* Remove Button */}
+                        {tiers.length > 2 && (
+                          <button
+                            onClick={() => removeTier(i)}
+                            style={{
+                              padding: '8px 12px',
+                              background: 'transparent',
+                              border: '1px solid #333',
+                              color: '#666',
+                              fontSize: '16px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            &times;
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Access Description */}
+                      <input
+                        type="text"
+                        value={tier.access}
+                        onChange={(e) => updateTier(i, 'access', e.target.value)}
+                        placeholder="What does this tier unlock? (e.g., Read-only access, Join discussions)"
+                        style={{
+                          width: '100%',
+                          padding: '12px 16px',
+                          background: '#111',
+                          border: '1px solid #222',
+                          color: '#888',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: '13px',
+                          outline: 'none'
+                        }}
+                      />
                     </div>
                   ))}
                 </div>
 
-                {/* CTA */}
-                <button
-                  style={{
-                    marginTop: '32px',
-                    padding: '16px 32px',
-                    background: 'transparent',
-                    border: '1px solid #fff',
-                    color: '#fff',
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    fontSize: '12px',
-                    letterSpacing: '0.1em',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseOver={(e) => { e.target.style.background = '#fff'; e.target.style.color = '#000'; }}
-                  onMouseOut={(e) => { e.target.style.background = 'transparent'; e.target.style.color = '#fff'; }}
-                >
-                  VIEW FULL TIER MAP
-                </button>
+                {/* Add Tier Button */}
+                {tiers.length < 6 && (
+                  <button
+                    onClick={addTier}
+                    style={{
+                      marginTop: '16px',
+                      padding: '14px 24px',
+                      background: 'transparent',
+                      border: '1px dashed #333',
+                      color: '#666',
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: '12px',
+                      letterSpacing: '0.1em',
+                      cursor: 'pointer',
+                      width: '100%'
+                    }}
+                  >
+                    + ADD TIER
+                  </button>
+                )}
+
+                {/* Preview Summary */}
+                <div style={{
+                  marginTop: '32px',
+                  padding: '20px 24px',
+                  background: '#0f0f0f',
+                  border: '1px solid #1a1a1a'
+                }}>
+                  <div style={{
+                    fontSize: '10px',
+                    letterSpacing: '0.15em',
+                    color: '#666',
+                    marginBottom: '16px',
+                    fontFamily: "'IBM Plex Mono', monospace"
+                  }}>
+                    TIER PREVIEW
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                    {tiers.filter(t => t.name).map((tier, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          padding: '8px 16px',
+                          background: '#1a1a1a',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: '11px',
+                          color: '#fff'
+                        }}
+                      >
+                        {tier.name} <span style={{ color: '#666' }}>@ {tier.holdingPercent}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           );
