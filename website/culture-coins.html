@@ -52,11 +52,135 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.4; }
         }
+
+        /* Access Gate */
+        .access-gate {
+            position: fixed;
+            inset: 0;
+            background: #0a0a0a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+        .access-box {
+            text-align: center;
+            max-width: 400px;
+            padding: 48px;
+        }
+        .access-logo {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 32px;
+        }
+        .access-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 28px;
+            color: #fff;
+            margin-bottom: 12px;
+        }
+        .access-subtitle {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 32px;
+        }
+        .access-input {
+            width: 100%;
+            padding: 16px 20px;
+            background: #111;
+            border: 1px solid #333;
+            color: #fff;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 14px;
+            text-align: center;
+            letter-spacing: 0.1em;
+            margin-bottom: 16px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .access-input:focus {
+            border-color: #FFD966;
+        }
+        .access-input::placeholder {
+            color: #444;
+        }
+        .access-btn {
+            width: 100%;
+            padding: 16px;
+            background: #fff;
+            color: #000;
+            border: none;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .access-btn:hover {
+            background: #eee;
+        }
+        .access-error {
+            color: #ef4444;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 12px;
+            margin-top: 16px;
+        }
+        .access-hint {
+            color: #333;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            margin-top: 24px;
+        }
     </style>
 </head>
 <body>
-    <div class="preview-banner">PREVIEW MODE - TESTERS ONLY</div>
+    <!-- Access Gate -->
+    <div class="access-gate" id="accessGate">
+        <div class="access-box">
+            <img src="/website/logo-icon.png" alt="LAUNCHR" class="access-logo">
+            <h1 class="access-title">Culture Coins</h1>
+            <p class="access-subtitle">This preview is restricted to team members and testers.</p>
+            <input
+                type="password"
+                class="access-input"
+                id="accessCode"
+                placeholder="ENTER ACCESS CODE"
+                onkeypress="if(event.key === 'Enter') checkAccess()"
+                autocomplete="off"
+            >
+            <button class="access-btn" onclick="checkAccess()">ENTER</button>
+            <div class="access-error" id="accessError"></div>
+            <div class="access-hint">Contact team lead for access</div>
+        </div>
+    </div>
+
+    <div class="preview-banner" id="previewBanner" style="display:none;">PREVIEW MODE - TESTERS ONLY</div>
     <div id="root"></div>
+
+    <script>
+        // Access control
+        const ACCESS_CODE = 'KINGSOFTHECHAIN100!';
+
+        function checkAccess() {
+            const input = document.getElementById('accessCode').value;
+            if (input === ACCESS_CODE) {
+                sessionStorage.setItem('cc_access', 'granted');
+                document.getElementById('accessGate').style.display = 'none';
+                document.getElementById('previewBanner').style.display = 'block';
+            } else {
+                document.getElementById('accessError').textContent = 'Invalid access code';
+                document.getElementById('accessCode').value = '';
+            }
+        }
+
+        // Check if already authenticated this session
+        if (sessionStorage.getItem('cc_access') === 'granted') {
+            document.getElementById('accessGate').style.display = 'none';
+            document.getElementById('previewBanner').style.display = 'block';
+        }
+    </script>
 
     <script type="text/babel">
         const { useState } = React;
