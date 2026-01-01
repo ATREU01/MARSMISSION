@@ -437,7 +437,7 @@
                 CULTURE COINS
               </a>
               <div style={{ display: 'flex', gap: '24px' }}>
-                {['discover', 'auctions', 'dashboard'].map(v => (
+                {['discover', 'create', 'auctions', 'dashboard'].map(v => (
                   <button
                     key={v}
                     onClick={() => setView(v)}
@@ -1496,6 +1496,262 @@
           );
         };
 
+        // Create Culture Page - Manifesto Style
+        const CreateCulturePage = () => {
+          const [cultureName, setCultureName] = useState('');
+          const [creatorName, setCreatorName] = useState('');
+
+          return (
+            <div style={{ padding: '136px 40px 80px', maxWidth: '900px', margin: '0 auto' }}>
+
+              {/* Culture Identity Header */}
+              <div style={{ marginBottom: '80px', textAlign: 'center' }}>
+                <input
+                  type="text"
+                  placeholder="Culture Name"
+                  value={cultureName}
+                  onChange={(e) => setCultureName(e.target.value)}
+                  style={{
+                    fontFamily: "'Playfair Display', serif",
+                    fontSize: '64px',
+                    fontWeight: 400,
+                    color: '#fff',
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: '1px solid #333',
+                    width: '100%',
+                    textAlign: 'center',
+                    marginBottom: '40px',
+                    outline: 'none',
+                    letterSpacing: '-0.02em'
+                  }}
+                />
+
+                {/* Ethos - Large Type */}
+                <div style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: '32px',
+                  fontStyle: 'italic',
+                  color: '#ccc',
+                  lineHeight: 1.6,
+                  marginBottom: '40px',
+                  maxWidth: '700px',
+                  margin: '0 auto 40px'
+                }}>
+                  <div>Discipline over hype.</div>
+                  <div>Signal over noise.</div>
+                  <div>Taste beats volume.</div>
+                </div>
+
+                {/* Founded By */}
+                <div style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: '13px',
+                  color: '#666',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}>
+                  <span>Curated by</span>
+                  <input
+                    type="text"
+                    placeholder="Creator Name"
+                    value={creatorName}
+                    onChange={(e) => setCreatorName(e.target.value)}
+                    style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: '13px',
+                      color: '#fff',
+                      background: 'transparent',
+                      border: 'none',
+                      borderBottom: '1px solid #333',
+                      padding: '4px 8px',
+                      outline: 'none',
+                      width: '200px'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Section: What This Culture Believes */}
+              <div style={{ marginBottom: '80px' }}>
+                <div style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: '28px',
+                  color: '#fff',
+                  marginBottom: '32px'
+                }}>
+                  What We Stand For
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {[
+                    'We prioritize long-term thinking over short-term wins',
+                    'We value judgment, not volume',
+                    'Participation matters more than presence',
+                    'Culture compounds when members contribute'
+                  ].map((belief, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        padding: '24px 28px',
+                        background: '#0f0f0f',
+                        border: '1px solid #1a1a1a',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: '15px',
+                        color: '#e0e0e0',
+                        lineHeight: 1.6,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '16px'
+                      }}
+                    >
+                      <span style={{ color: '#444' }}>&#9679;</span>
+                      {belief}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Section: What Holding Unlocks */}
+              <div style={{ marginBottom: '80px' }}>
+                <div style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: '28px',
+                  color: '#fff',
+                  marginBottom: '32px'
+                }}>
+                  What Participation Unlocks
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
+                  {[
+                    {
+                      title: 'Private Discussions',
+                      description: 'Member-only conversations focused on signal, not chatter.'
+                    },
+                    {
+                      title: 'Cultural Drops',
+                      description: 'Essays, sessions, or artifacts released through auction-style participation.'
+                    },
+                    {
+                      title: 'Live Moments',
+                      description: 'Scheduled live calls, AMAs, or IRL meetups.'
+                    },
+                    {
+                      title: 'Early Access',
+                      description: 'First access to new initiatives, tools, or collaborations.'
+                    }
+                  ].map((card, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        padding: '32px',
+                        background: '#0a0a0a',
+                        border: '1px solid #1a1a1a'
+                      }}
+                    >
+                      <div style={{
+                        fontFamily: "'Playfair Display', serif",
+                        fontSize: '20px',
+                        color: '#fff',
+                        marginBottom: '12px'
+                      }}>
+                        {card.title}
+                      </div>
+                      <div style={{
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: '13px',
+                        color: '#888',
+                        lineHeight: 1.6
+                      }}>
+                        {card.description}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Section: Culture Tiers (Preview) */}
+              <div style={{ marginBottom: '60px' }}>
+                <div style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: '28px',
+                  color: '#fff',
+                  marginBottom: '12px'
+                }}>
+                  Culture Standing
+                </div>
+                <div style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: '13px',
+                  color: '#666',
+                  marginBottom: '32px'
+                }}>
+                  Access evolves with participation.
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {[
+                    { name: 'Observer', description: 'Read and observe the culture' },
+                    { name: 'Participant', description: 'Join discussions and auctions' },
+                    { name: 'Insider', description: 'Direct access and early participation' },
+                    { name: 'Steward', description: 'Help shape the culture' }
+                  ].map((tier, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        padding: '24px 28px',
+                        background: '#0a0a0a',
+                        border: '1px solid #1a1a1a',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}
+                    >
+                      <span style={{
+                        fontFamily: "'Playfair Display', serif",
+                        fontSize: '18px',
+                        color: '#fff'
+                      }}>
+                        {tier.name}
+                      </span>
+                      <span style={{
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: '12px',
+                        color: '#666'
+                      }}>
+                        {tier.description}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* CTA */}
+                <button
+                  style={{
+                    marginTop: '32px',
+                    padding: '16px 32px',
+                    background: 'transparent',
+                    border: '1px solid #fff',
+                    color: '#fff',
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: '12px',
+                    letterSpacing: '0.1em',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseOver={(e) => { e.target.style.background = '#fff'; e.target.style.color = '#000'; }}
+                  onMouseOut={(e) => { e.target.style.background = 'transparent'; e.target.style.color = '#fff'; }}
+                >
+                  VIEW FULL TIER MAP
+                </button>
+              </div>
+            </div>
+          );
+        };
+
         // Main App
         function CultureCoinsApp() {
           const [view, setView] = useState('discover');
@@ -1511,6 +1767,7 @@
               <Navigation view={view} setView={(v) => { setView(v); setSelectedCulture(null); }} />
 
               {view === 'discover' && <DiscoveryView onSelectCulture={handleSelectCulture} />}
+              {view === 'create' && <CreateCulturePage />}
               {view === 'culture' && selectedCulture && (
                 <CulturePage
                   culture={selectedCulture}
