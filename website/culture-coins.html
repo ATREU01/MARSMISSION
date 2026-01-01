@@ -183,7 +183,13 @@
     </script>
 
     <script type="text/babel">
-        const { useState } = React;
+        const { useState, useEffect, createContext, useContext } = React;
+
+        // Wallet Context for global state
+        const WalletContext = createContext(null);
+
+        // Config from server
+        const SOLANA_RPC = window.LAUNCHR_CONFIG?.SOLANA_RPC || 'https://api.mainnet-beta.solana.com';
 
         // Sample data
         const CULTURES = [
@@ -460,17 +466,56 @@
                 ))}
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <span style={{ fontSize: '11px', color: '#666', fontFamily: "'IBM Plex Mono', monospace" }}>0x7a3...f291</span>
-              <div style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                background: '#22c55e'
-              }} />
-            </div>
+            <WalletButton />
           </nav>
         );
+
+        // Wallet Button Component
+        const WalletButton = () => {
+          const wallet = useContext(WalletContext);
+
+          if (wallet?.address) {
+            return (
+              <button
+                onClick={wallet.showModal}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '10px 16px',
+                  background: '#111',
+                  border: '1px solid #333',
+                  color: '#fff',
+                  fontSize: '12px',
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  cursor: 'pointer'
+                }}
+              >
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e' }} />
+                {wallet.address.slice(0,4)}...{wallet.address.slice(-4)}
+              </button>
+            );
+          }
+
+          return (
+            <button
+              onClick={wallet?.connect}
+              style={{
+                padding: '10px 20px',
+                background: '#fff',
+                border: 'none',
+                color: '#000',
+                fontSize: '11px',
+                fontFamily: "'IBM Plex Mono', monospace",
+                letterSpacing: '0.1em',
+                cursor: 'pointer',
+                fontWeight: 600
+              }}
+            >
+              CONNECT
+            </button>
+          );
+        };
 
         // Discovery View
         const DiscoveryView = ({ onSelectCulture }) => {
@@ -877,8 +922,32 @@
         // Culture Page
         const CulturePage = ({ culture, onBack }) => {
           const [showJoinModal, setShowJoinModal] = useState(false);
-          const userHolding = { percent: 0.62, tier: 'Participant', coins: 3100 };
+          const [selectedTier, setSelectedTier] = useState(null);
+          const [agreedToTerms, setAgreedToTerms] = useState(false);
+          const wallet = useContext(WalletContext);
+
+          // Check if user already has this culture
+          const existingHolding = wallet?.holdings?.find(h => h.cultureId === culture.id);
+          const userHolding = existingHolding ? {
+            percent: existingHolding.percent,
+            tier: existingHolding.tier,
+            coins: existingHolding.coins
+          } : null;
+
           const cultureAuctions = AUCTIONS.filter(a => a.cultureId === culture.id);
+
+          const handleJoin = () => {
+            if (!wallet?.address) {
+              wallet?.connect();
+              return;
+            }
+            if (selectedTier && agreedToTerms) {
+              wallet.joinCulture(culture, selectedTier);
+              setShowJoinModal(false);
+              setSelectedTier(null);
+              setAgreedToTerms(false);
+            }
+          };
 
           return (
             <div style={{ padding: '136px 40px 60px' }}>
@@ -1092,23 +1161,58 @@
                       JOIN THE CULTURE
                     </div>
 
-                    <button
-                      onClick={() => setShowJoinModal(true)}
-                      style={{
-                        width: '100%',
+                    {userHolding ? (
+                      <div style={{
                         padding: '16px',
-                        background: '#fff',
-                        color: '#000',
-                        border: 'none',
-                        fontSize: '12px',
-                        fontFamily: "'IBM Plex Mono', monospace",
-                        letterSpacing: '0.1em',
-                        cursor: 'pointer',
-                        marginBottom: '16px'
-                      }}
-                    >
-                      ACQUIRE ACCESS
-                    </button>
+                        background: 'rgba(34,197,94,0.15)',
+                        border: '1px solid rgba(34,197,94,0.3)',
+                        marginBottom: '16px',
+                        textAlign: 'center'
+                      }}>
+                        <div style={{
+                          fontSize: '10px',
+                          letterSpacing: '0.1em',
+                          color: '#22c55e',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          marginBottom: '8px'
+                        }}>
+                          YOU ARE A MEMBER
+                        </div>
+                        <div style={{
+                          fontFamily: "'Playfair Display', serif",
+                          fontSize: '18px',
+                          color: '#fff'
+                        }}>
+                          {userHolding.tier}
+                        </div>
+                        <div style={{
+                          fontSize: '11px',
+                          color: '#888',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          marginTop: '4px'
+                        }}>
+                          {userHolding.percent}% ({userHolding.coins.toLocaleString()} coins)
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setShowJoinModal(true)}
+                        style={{
+                          width: '100%',
+                          padding: '16px',
+                          background: '#fff',
+                          color: '#000',
+                          border: 'none',
+                          fontSize: '12px',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          letterSpacing: '0.1em',
+                          cursor: 'pointer',
+                          marginBottom: '16px'
+                        }}
+                      >
+                        ACQUIRE ACCESS
+                      </button>
+                    )}
 
                     <p style={{
                       fontSize: '11px',
@@ -1117,7 +1221,7 @@
                       lineHeight: 1.6,
                       textAlign: 'center'
                     }}>
-                      This is participation, not a trade.
+                      {userHolding ? 'Welcome to the culture.' : 'This is participation, not a trade.'}
                     </p>
                   </div>
 
@@ -1231,8 +1335,54 @@
                       </p>
                     </div>
 
+                    {/* Tier Selection */}
+                    <div style={{ marginBottom: '24px' }}>
+                      <div style={{
+                        fontSize: '10px',
+                        letterSpacing: '0.15em',
+                        color: '#666',
+                        marginBottom: '12px',
+                        fontFamily: "'IBM Plex Mono', monospace"
+                      }}>
+                        SELECT YOUR TIER
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {culture.tiers.map((tier, i) => (
+                          <button
+                            key={i}
+                            onClick={() => setSelectedTier(tier)}
+                            style={{
+                              padding: '14px 16px',
+                              background: selectedTier?.name === tier.name ? '#222' : '#0a0a0a',
+                              border: '1px solid',
+                              borderColor: selectedTier?.name === tier.name ? '#fff' : '#222',
+                              color: '#fff',
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <span style={{ fontFamily: "'Playfair Display', serif", fontSize: '16px' }}>
+                              {tier.name}
+                            </span>
+                            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '11px', color: '#888' }}>
+                              {tier.percent}% of supply
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-                      <input type="checkbox" id="understand" style={{ width: '18px', height: '18px', accentColor: '#fff' }} />
+                      <input
+                        type="checkbox"
+                        id="understand"
+                        checked={agreedToTerms}
+                        onChange={(e) => setAgreedToTerms(e.target.checked)}
+                        style={{ width: '18px', height: '18px', accentColor: '#fff' }}
+                      />
                       <label htmlFor="understand" style={{
                         fontFamily: "'IBM Plex Mono', monospace",
                         fontSize: '12px',
@@ -1245,7 +1395,7 @@
 
                     <div style={{ display: 'flex', gap: '12px' }}>
                       <button
-                        onClick={() => setShowJoinModal(false)}
+                        onClick={() => { setShowJoinModal(false); setSelectedTier(null); setAgreedToTerms(false); }}
                         style={{
                           flex: 1,
                           padding: '14px',
@@ -1260,18 +1410,22 @@
                       >
                         CANCEL
                       </button>
-                      <button style={{
-                        flex: 1,
-                        padding: '14px',
-                        background: '#fff',
-                        color: '#000',
-                        border: 'none',
-                        fontSize: '12px',
-                        fontFamily: "'IBM Plex Mono', monospace",
-                        letterSpacing: '0.1em',
-                        cursor: 'pointer'
-                      }}>
-                        ENTER THE CULTURE
+                      <button
+                        onClick={handleJoin}
+                        disabled={!selectedTier || !agreedToTerms}
+                        style={{
+                          flex: 1,
+                          padding: '14px',
+                          background: (selectedTier && agreedToTerms) ? '#fff' : '#333',
+                          color: (selectedTier && agreedToTerms) ? '#000' : '#666',
+                          border: 'none',
+                          fontSize: '12px',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          letterSpacing: '0.1em',
+                          cursor: (selectedTier && agreedToTerms) ? 'pointer' : 'not-allowed'
+                        }}
+                      >
+                        {wallet?.address ? 'ENTER THE CULTURE' : 'CONNECT WALLET'}
                       </button>
                     </div>
                   </div>
@@ -1320,13 +1474,109 @@
 
         // Dashboard View
         const DashboardView = () => {
-          const userCultures = [
-            { ...CULTURES[0], holding: { percent: 0.62, tier: 'Participant', coins: 3100, daysHeld: 47 } },
-            { ...CULTURES[2], holding: { percent: 0.31, tier: 'Participant', coins: 6200, daysHeld: 89 } },
-            { ...CULTURES[5], holding: { percent: 0.12, tier: 'Observer', coins: 1800, daysHeld: 12 } }
-          ];
+          const wallet = useContext(WalletContext);
 
-          const totalParticipation = { auctionsWon: 3, sessionsAttended: 12, contributionsMade: 7 };
+          // Build user cultures from holdings
+          const userCultures = wallet?.holdings?.map(holding => {
+            const culture = CULTURES.find(c => c.id === holding.cultureId);
+            if (!culture) return null;
+            const daysHeld = Math.floor((Date.now() - holding.joinedAt) / (1000 * 60 * 60 * 24));
+            return {
+              ...culture,
+              holding: {
+                percent: holding.percent,
+                tier: holding.tier,
+                coins: holding.coins,
+                daysHeld: daysHeld
+              }
+            };
+          }).filter(Boolean) || [];
+
+          const totalParticipation = {
+            auctionsWon: userCultures.length > 0 ? Math.floor(Math.random() * 5) : 0,
+            sessionsAttended: userCultures.length > 0 ? Math.floor(Math.random() * 15) : 0,
+            contributionsMade: userCultures.length > 0 ? Math.floor(Math.random() * 10) : 0
+          };
+
+          // Not connected state
+          if (!wallet?.address) {
+            return (
+              <div style={{ padding: '136px 40px 60px', textAlign: 'center' }}>
+                <div style={{ maxWidth: '500px', margin: '0 auto' }}>
+                  <h1 style={{
+                    fontFamily: "'Playfair Display', serif",
+                    fontSize: '48px',
+                    fontWeight: 400,
+                    color: '#fff',
+                    marginBottom: '24px'
+                  }}>
+                    Your Cultures
+                  </h1>
+                  <p style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: '14px',
+                    color: '#666',
+                    marginBottom: '40px',
+                    lineHeight: 1.7
+                  }}>
+                    Connect your wallet to view your culture holdings and participation standing.
+                  </p>
+                  <button
+                    onClick={wallet?.connect}
+                    style={{
+                      padding: '16px 40px',
+                      background: '#fff',
+                      border: 'none',
+                      color: '#000',
+                      fontSize: '12px',
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      letterSpacing: '0.1em',
+                      cursor: 'pointer',
+                      fontWeight: 600
+                    }}
+                  >
+                    CONNECT WALLET
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          // No holdings state
+          if (userCultures.length === 0) {
+            return (
+              <div style={{ padding: '136px 40px 60px', textAlign: 'center' }}>
+                <div style={{ maxWidth: '500px', margin: '0 auto' }}>
+                  <h1 style={{
+                    fontFamily: "'Playfair Display', serif",
+                    fontSize: '48px',
+                    fontWeight: 400,
+                    color: '#fff',
+                    marginBottom: '24px'
+                  }}>
+                    No Cultures Yet
+                  </h1>
+                  <p style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: '14px',
+                    color: '#666',
+                    marginBottom: '16px',
+                    lineHeight: 1.7
+                  }}>
+                    You haven't joined any cultures yet. Explore and find communities that align with your values.
+                  </p>
+                  <p style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: '12px',
+                    color: '#444',
+                    marginBottom: '40px'
+                  }}>
+                    Connected: {wallet.address.slice(0,6)}...{wallet.address.slice(-4)}
+                  </p>
+                </div>
+              </div>
+            );
+          }
 
           return (
             <div style={{ padding: '136px 40px 60px' }}>
@@ -1357,7 +1607,7 @@
                 marginBottom: '48px'
               }}>
                 {[
-                  { value: totalParticipation.auctionsWon, label: 'AUCTIONS WON' },
+                  { value: userCultures.length, label: 'CULTURES JOINED' },
                   { value: totalParticipation.sessionsAttended, label: 'SESSIONS ATTENDED' },
                   { value: totalParticipation.contributionsMade, label: 'CONTRIBUTIONS' }
                 ].map((stat, i) => (
@@ -1752,31 +2002,422 @@
           );
         };
 
+        // Wallet Select Modal Component
+        const WalletSelectModal = ({ onClose, onConnect }) => {
+          const hasPhantom = typeof window !== 'undefined' && window.solana?.isPhantom;
+          const hasSolflare = typeof window !== 'undefined' && window.solflare?.isSolflare;
+
+          const connectPhantom = async () => {
+            try {
+              const res = await window.solana.connect();
+              onConnect(res.publicKey.toString());
+              onClose();
+            } catch (e) { console.error('[PHANTOM]', e); }
+          };
+
+          const connectSolflare = async () => {
+            try {
+              await window.solflare.connect();
+              onConnect(window.solflare.publicKey.toString());
+              onClose();
+            } catch (e) { console.error('[SOLFLARE]', e); }
+          };
+
+          const connectPrivy = () => {
+            const w = 420, h = 650;
+            const left = (screen.width - w) / 2;
+            const top = (screen.height - h) / 2;
+            window.open('/auth', 'privy-auth', `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
+            onClose();
+          };
+
+          return (
+            <div
+              onClick={(e) => e.target === e.currentTarget && onClose()}
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.85)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 2000
+              }}
+            >
+              <div style={{
+                background: '#111',
+                border: '1px solid #222',
+                maxWidth: '400px',
+                width: '90%'
+              }}>
+                <div style={{
+                  padding: '20px 24px',
+                  borderBottom: '1px solid #222',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <span style={{ fontFamily: "'Playfair Display', serif", fontSize: '18px', color: '#fff' }}>
+                    Connect Wallet
+                  </span>
+                  <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#666', fontSize: '24px', cursor: 'pointer' }}>
+                    &times;
+                  </button>
+                </div>
+                <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <p style={{ color: '#666', fontSize: '13px', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '8px', textAlign: 'center' }}>
+                    Choose your wallet to connect
+                  </p>
+                  <button
+                    onClick={connectPrivy}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '14px',
+                      padding: '16px 20px',
+                      background: 'rgba(139,92,246,0.15)',
+                      border: '1px solid rgba(139,92,246,0.3)',
+                      color: '#fff',
+                      fontSize: '14px',
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      cursor: 'pointer',
+                      width: '100%'
+                    }}
+                  >
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                      <rect width="24" height="24" rx="6" fill="#8B5CF6"/>
+                      <path d="M12 6L18 10V14L12 18L6 14V10L12 6Z" fill="white"/>
+                    </svg>
+                    <span style={{ flex: 1, textAlign: 'left' }}>Privy</span>
+                    <span style={{ fontSize: '10px', color: '#22c55e', background: 'rgba(34,197,94,0.15)', padding: '4px 8px' }}>
+                      EMBEDDED
+                    </span>
+                  </button>
+                  <button
+                    onClick={hasPhantom ? connectPhantom : null}
+                    disabled={!hasPhantom}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '14px',
+                      padding: '16px 20px',
+                      background: '#0a0a0a',
+                      border: '1px solid #222',
+                      color: hasPhantom ? '#fff' : '#444',
+                      fontSize: '14px',
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      cursor: hasPhantom ? 'pointer' : 'not-allowed',
+                      width: '100%',
+                      opacity: hasPhantom ? 1 : 0.5
+                    }}
+                  >
+                    <img src="/website/phantom_icon.png" alt="Phantom" style={{ width: '28px', height: '28px', borderRadius: '6px' }} />
+                    <span style={{ flex: 1, textAlign: 'left' }}>Phantom</span>
+                    <span style={{ fontSize: '10px', color: hasPhantom ? '#22c55e' : '#666' }}>
+                      {hasPhantom ? 'DETECTED' : 'NOT INSTALLED'}
+                    </span>
+                  </button>
+                  <button
+                    onClick={hasSolflare ? connectSolflare : null}
+                    disabled={!hasSolflare}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '14px',
+                      padding: '16px 20px',
+                      background: '#0a0a0a',
+                      border: '1px solid #222',
+                      color: hasSolflare ? '#fff' : '#444',
+                      fontSize: '14px',
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      cursor: hasSolflare ? 'pointer' : 'not-allowed',
+                      width: '100%',
+                      opacity: hasSolflare ? 1 : 0.5
+                    }}
+                  >
+                    <img src="https://solflare.com/favicon.ico" alt="Solflare" style={{ width: '28px', height: '28px', borderRadius: '6px' }} />
+                    <span style={{ flex: 1, textAlign: 'left' }}>Solflare</span>
+                    <span style={{ fontSize: '10px', color: hasSolflare ? '#22c55e' : '#666' }}>
+                      {hasSolflare ? 'DETECTED' : 'NOT INSTALLED'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        // Wallet Info Modal
+        const WalletInfoModal = ({ address, balance, holdings, onClose, onDisconnect }) => (
+          <div
+            onClick={(e) => e.target === e.currentTarget && onClose()}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.85)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 2000
+            }}
+          >
+            <div style={{
+              background: '#111',
+              border: '1px solid #222',
+              maxWidth: '400px',
+              width: '90%'
+            }}>
+              <div style={{
+                padding: '20px 24px',
+                borderBottom: '1px solid #222',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <span style={{ fontFamily: "'Playfair Display', serif", fontSize: '18px', color: '#fff' }}>
+                  Wallet
+                </span>
+                <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#666', fontSize: '24px', cursor: 'pointer' }}>
+                  &times;
+                </button>
+              </div>
+              <div style={{ padding: '24px' }}>
+                <div style={{ marginBottom: '24px' }}>
+                  <div style={{ fontSize: '11px', color: '#666', fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.1em', marginBottom: '8px' }}>
+                    ADDRESS
+                  </div>
+                  <div style={{ fontSize: '14px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace", wordBreak: 'break-all' }}>
+                    {address}
+                  </div>
+                </div>
+                <div style={{ marginBottom: '24px' }}>
+                  <div style={{ fontSize: '11px', color: '#666', fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.1em', marginBottom: '8px' }}>
+                    BALANCE
+                  </div>
+                  <div style={{ fontSize: '24px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
+                    {balance.toFixed(4)} SOL
+                  </div>
+                </div>
+                <div style={{ marginBottom: '24px' }}>
+                  <div style={{ fontSize: '11px', color: '#666', fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.1em', marginBottom: '8px' }}>
+                    CULTURES JOINED
+                  </div>
+                  <div style={{ fontSize: '24px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
+                    {holdings.length}
+                  </div>
+                </div>
+                <button
+                  onClick={onDisconnect}
+                  style={{
+                    width: '100%',
+                    padding: '14px',
+                    background: 'transparent',
+                    border: '1px solid #ef4444',
+                    color: '#ef4444',
+                    fontSize: '12px',
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    letterSpacing: '0.1em',
+                    cursor: 'pointer'
+                  }}
+                >
+                  DISCONNECT
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+
+        // Notification Component
+        const Notification = ({ message, type, onClose }) => {
+          useEffect(() => {
+            const timer = setTimeout(onClose, 3000);
+            return () => clearTimeout(timer);
+          }, []);
+
+          return (
+            <div style={{
+              position: 'fixed',
+              bottom: '24px',
+              right: '24px',
+              padding: '16px 24px',
+              background: type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#fff',
+              color: '#000',
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: '13px',
+              zIndex: 3000,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              {message}
+              <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#000', cursor: 'pointer', fontSize: '16px' }}>
+                &times;
+              </button>
+            </div>
+          );
+        };
+
         // Main App
         function CultureCoinsApp() {
           const [view, setView] = useState('discover');
           const [selectedCulture, setSelectedCulture] = useState(null);
+
+          // Wallet state
+          const [walletAddress, setWalletAddress] = useState(null);
+          const [walletBalance, setWalletBalance] = useState(0);
+          const [showWalletSelect, setShowWalletSelect] = useState(false);
+          const [showWalletInfo, setShowWalletInfo] = useState(false);
+
+          // User holdings (persisted in sessionStorage for demo)
+          const [userHoldings, setUserHoldings] = useState(() => {
+            const saved = sessionStorage.getItem('cc_holdings');
+            return saved ? JSON.parse(saved) : [];
+          });
+
+          // Notifications
+          const [notification, setNotification] = useState(null);
+
+          const showNotification = (message, type = 'success') => {
+            setNotification({ message, type });
+          };
+
+          // Save holdings to sessionStorage
+          useEffect(() => {
+            sessionStorage.setItem('cc_holdings', JSON.stringify(userHoldings));
+          }, [userHoldings]);
+
+          // Listen for Privy auth via BroadcastChannel
+          useEffect(() => {
+            const channel = new BroadcastChannel('launchr-auth');
+            channel.onmessage = (e) => {
+              if (e.data?.type === 'privy-auth-success' && e.data?.address) {
+                handleWalletConnected(e.data.address);
+                showNotification('Connected with Privy wallet!');
+              }
+            };
+
+            window.addEventListener('message', (e) => {
+              if (e.data?.type === 'privy-auth-success' && e.data?.address) {
+                handleWalletConnected(e.data.address);
+                showNotification('Connected with Privy wallet!');
+              }
+            });
+
+            return () => channel.close();
+          }, []);
+
+          const handleWalletConnected = async (address) => {
+            setWalletAddress(address);
+            setShowWalletSelect(false);
+
+            // Fetch balance
+            try {
+              const res = await fetch(SOLANA_RPC, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getBalance', params: [address] }),
+              });
+              const data = await res.json();
+              if (data.result?.value !== undefined) {
+                setWalletBalance(data.result.value / 1e9);
+              }
+            } catch (e) { console.error('[BALANCE]', e); }
+          };
+
+          const disconnectWallet = () => {
+            setWalletAddress(null);
+            setWalletBalance(0);
+            setShowWalletInfo(false);
+            showNotification('Wallet disconnected');
+          };
+
+          const joinCulture = (culture, tier) => {
+            if (!walletAddress) {
+              setShowWalletSelect(true);
+              return;
+            }
+
+            const existingIndex = userHoldings.findIndex(h => h.cultureId === culture.id);
+            if (existingIndex >= 0) {
+              showNotification(`Already a member of ${culture.name}`, 'error');
+              return;
+            }
+
+            const newHolding = {
+              cultureId: culture.id,
+              cultureName: culture.name,
+              ticker: culture.ticker,
+              category: culture.category,
+              tier: tier.name,
+              percent: tier.percent,
+              coins: Math.floor(culture.supply * (tier.percent / 100)),
+              joinedAt: Date.now(),
+              daysHeld: 0
+            };
+
+            setUserHoldings([...userHoldings, newHolding]);
+            showNotification(`Joined ${culture.name} as ${tier.name}!`);
+          };
 
           const handleSelectCulture = (culture) => {
             setSelectedCulture(culture);
             setView('culture');
           };
 
-          return (
-            <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#fff' }}>
-              <Navigation view={view} setView={(v) => { setView(v); setSelectedCulture(null); }} />
+          // Wallet context value
+          const walletContextValue = {
+            address: walletAddress,
+            balance: walletBalance,
+            holdings: userHoldings,
+            connect: () => setShowWalletSelect(true),
+            showModal: () => setShowWalletInfo(true),
+            joinCulture,
+            showNotification
+          };
 
-              {view === 'discover' && <DiscoveryView onSelectCulture={handleSelectCulture} />}
-              {view === 'create' && <CreateCulturePage />}
-              {view === 'culture' && selectedCulture && (
-                <CulturePage
-                  culture={selectedCulture}
-                  onBack={() => { setView('discover'); setSelectedCulture(null); }}
-                />
-              )}
-              {view === 'auctions' && <AuctionsView />}
-              {view === 'dashboard' && <DashboardView />}
-            </div>
+          return (
+            <WalletContext.Provider value={walletContextValue}>
+              <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#fff' }}>
+                <Navigation view={view} setView={(v) => { setView(v); setSelectedCulture(null); }} />
+
+                {view === 'discover' && <DiscoveryView onSelectCulture={handleSelectCulture} />}
+                {view === 'create' && <CreateCulturePage />}
+                {view === 'culture' && selectedCulture && (
+                  <CulturePage
+                    culture={selectedCulture}
+                    onBack={() => { setView('discover'); setSelectedCulture(null); }}
+                  />
+                )}
+                {view === 'auctions' && <AuctionsView />}
+                {view === 'dashboard' && <DashboardView />}
+
+                {/* Modals */}
+                {showWalletSelect && (
+                  <WalletSelectModal
+                    onClose={() => setShowWalletSelect(false)}
+                    onConnect={handleWalletConnected}
+                  />
+                )}
+                {showWalletInfo && walletAddress && (
+                  <WalletInfoModal
+                    address={walletAddress}
+                    balance={walletBalance}
+                    holdings={userHoldings}
+                    onClose={() => setShowWalletInfo(false)}
+                    onDisconnect={disconnectWallet}
+                  />
+                )}
+
+                {/* Notification */}
+                {notification && (
+                  <Notification
+                    message={notification.message}
+                    type={notification.type}
+                    onClose={() => setNotification(null)}
+                  />
+                )}
+              </div>
+            </WalletContext.Provider>
           );
         }
 
