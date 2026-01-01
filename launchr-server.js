@@ -1199,7 +1199,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Serve logo images explicitly
-    if ((url.pathname === '/website/logo-icon.jpg' || url.pathname === '/website/logo-full.jpg' || url.pathname === '/website/phantom_icon.png' || url.pathname === '/website/logo-icon.png' || url.pathname === '/website/logo-banner.png') && req.method === 'GET') {
+    if ((url.pathname === '/website/logo-icon.jpg' || url.pathname === '/website/logo-full.jpg' || url.pathname === '/website/phantom_icon.png' || url.pathname === '/website/logo-icon.png' || url.pathname === '/website/logo-banner.png' || url.pathname === '/website/transparentbanner.png') && req.method === 'GET') {
         try {
             const filename = url.pathname.replace('/website/', '');
             const img = fs.readFileSync(path.join(__dirname, 'website', filename));
