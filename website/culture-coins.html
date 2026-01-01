@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <title>Culture Coins - LAUNCHR (Preview)</title>
+    <meta name="description" content="Culture Coins - Participate in communities, not trades.">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" href="/favicon.ico" type="image/jpeg">
+    <link rel="apple-touch-icon" href="/website/logo-icon.png">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+    <!-- React -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body, #root {
+            min-height: 100vh;
+            background: #0a0a0a;
+        }
+
+        ::selection {
+            background: #fff;
+            color: #000;
+        }
+
+        /* Preview Banner */
+        .preview-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(90deg, #FFD966, #FF3D8E);
+            color: #000;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            font-weight: 600;
+            text-align: center;
+            padding: 8px;
+            letter-spacing: 0.1em;
+            z-index: 9999;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+    </style>
+</head>
+<body>
+    <div class="preview-banner">PREVIEW MODE - TESTERS ONLY</div>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // Sample data
+        const CULTURES = [
+          {
+            id: 1,
+            name: "Quiet Capital",
+            ticker: "QUIET",
+            ethos: "Long-term thinkers. Patient deployers. No noise.",
+            category: "Trading & Markets",
+            creator: "0x7a3...f291",
+            creatorName: "Silent Operator",
+            supply: 1000000,
+            burned: 127340,
+            pillars: [
+              "Patience over performance theater",
+              "Conviction requires silence",
+              "Signal is inverse to volume",
+              "Decades, not quarters"
+            ],
+            tiers: [
+              { name: "Observer", percent: 0.1, access: "Read-only feed access", expectation: "Learn quietly" },
+              { name: "Participant", percent: 0.5, access: "Bidding rights, weekly threads", expectation: "Contribute signal monthly" },
+              { name: "Insider", percent: 1.5, access: "Live sessions, early drops", expectation: "Active participation" },
+              { name: "Steward", percent: 5, access: "Direct access, culture shaping", expectation: "Guide new members" }
+            ],
+            avgHoldDays: 127,
+            participationRate: 73,
+            holders: 1247,
+            activeAuctions: 2
+          },
+          {
+            id: 2,
+            name: "Form & Function",
+            ticker: "FORM",
+            ethos: "Taste is a muscle. Train it daily.",
+            category: "Taste & Curation",
+            creator: "0x3b1...e892",
+            creatorName: "Curator Zero",
+            supply: 500000,
+            burned: 43200,
+            pillars: [
+              "Less, but better",
+              "Context over content",
+              "Edit ruthlessly",
+              "Beauty is not optional"
+            ],
+            tiers: [
+              { name: "Observer", percent: 0.2, access: "Weekly curation drops", expectation: "None" },
+              { name: "Participant", percent: 1, access: "Submit for review", expectation: "One submission monthly" },
+              { name: "Insider", percent: 3, access: "Private collection access", expectation: "Provide feedback" },
+              { name: "Steward", percent: 8, access: "Co-curation rights", expectation: "Active curation" }
+            ],
+            avgHoldDays: 89,
+            participationRate: 61,
+            holders: 834,
+            activeAuctions: 1
+          },
+          {
+            id: 3,
+            name: "Iron Protocol",
+            ticker: "IRON",
+            ethos: "Discipline is freedom. The body keeps score.",
+            category: "Fitness & Performance",
+            creator: "0x9c4...a123",
+            creatorName: "Protocol One",
+            supply: 2000000,
+            burned: 289000,
+            pillars: [
+              "Show up before you feel ready",
+              "Progressive overload in all things",
+              "Recovery is not optional",
+              "Numbers don't lie"
+            ],
+            tiers: [
+              { name: "Observer", percent: 0.05, access: "Public programming", expectation: "None" },
+              { name: "Participant", percent: 0.25, access: "Full program library", expectation: "Log workouts" },
+              { name: "Insider", percent: 1, access: "Form checks, live Q&A", expectation: "Weekly check-ins" },
+              { name: "Steward", percent: 3, access: "1:1 programming", expectation: "Mentor newcomers" }
+            ],
+            avgHoldDays: 201,
+            participationRate: 84,
+            holders: 2103,
+            activeAuctions: 3
+          },
+          {
+            id: 4,
+            name: "First Principles",
+            ticker: "FIRST",
+            ethos: "Think from zero. Build from truth.",
+            category: "Mindset & Philosophy",
+            creator: "0x2e8...b445",
+            creatorName: "Zero Base",
+            supply: 750000,
+            burned: 67800,
+            pillars: [
+              "Question the question",
+              "Complexity is debt",
+              "Mental models compound",
+              "Write to think"
+            ],
+            tiers: [
+              { name: "Observer", percent: 0.1, access: "Essay archive", expectation: "None" },
+              { name: "Participant", percent: 0.4, access: "Discussion threads", expectation: "One comment weekly" },
+              { name: "Insider", percent: 1.2, access: "Draft reviews, AMAs", expectation: "Share frameworks" },
+              { name: "Steward", percent: 4, access: "Co-authorship", expectation: "Original contributions" }
+            ],
+            avgHoldDays: 156,
+            participationRate: 68,
+            holders: 967,
+            activeAuctions: 1
+          },
+          {
+            id: 5,
+            name: "Local Maximum",
+            ticker: "LOCAL",
+            ethos: "Your city. Your people. Your spots.",
+            category: "Local & IRL",
+            creator: "0x5f2...c789",
+            creatorName: "City Scout",
+            supply: 300000,
+            burned: 18900,
+            pillars: [
+              "The best things aren't online",
+              "Regulars over tourists",
+              "Support the neighborhood",
+              "Show up in person"
+            ],
+            tiers: [
+              { name: "Observer", percent: 0.15, access: "City guide access", expectation: "None" },
+              { name: "Participant", percent: 0.6, access: "Event invites", expectation: "Attend quarterly" },
+              { name: "Insider", percent: 2, access: "Private dinners", expectation: "Host one event yearly" },
+              { name: "Steward", percent: 6, access: "Location partnerships", expectation: "Active community building" }
+            ],
+            avgHoldDays: 112,
+            participationRate: 79,
+            holders: 523,
+            activeAuctions: 0
+          },
+          {
+            id: 6,
+            name: "Ship Daily",
+            ticker: "SHIP",
+            ethos: "Momentum over perfection. Build in public.",
+            category: "Operator",
+            creator: "0x1a7...d234",
+            creatorName: "Builder Prime",
+            supply: 1500000,
+            burned: 198400,
+            pillars: [
+              "Done beats perfect",
+              "Feedback is fuel",
+              "Compound in public",
+              "Constraints create"
+            ],
+            tiers: [
+              { name: "Observer", percent: 0.08, access: "Build logs", expectation: "None" },
+              { name: "Participant", percent: 0.35, access: "Beta access, feedback loops", expectation: "Test and report" },
+              { name: "Insider", percent: 1.5, access: "Architecture reviews", expectation: "Ship weekly" },
+              { name: "Steward", percent: 4.5, access: "Co-build opportunities", expectation: "Mentor builders" }
+            ],
+            avgHoldDays: 94,
+            participationRate: 91,
+            holders: 1876,
+            activeAuctions: 4
+          }
+        ];
+
+        const CATEGORIES = [
+          { name: "Operator", description: "Builders, founders, tacticians", count: 47 },
+          { name: "Taste & Curation", description: "Fashion, art, music, aesthetics", count: 32 },
+          { name: "Mindset & Philosophy", description: "Long-term thinkers, writers, strategists", count: 28 },
+          { name: "Fitness & Performance", description: "Health, discipline, routine-based", count: 41 },
+          { name: "Trading & Markets", description: "Signal-first, thesis-driven", count: 23 },
+          { name: "Local & IRL", description: "City-based, event-driven communities", count: 19 }
+        ];
+
+        const AUCTIONS = [
+          {
+            id: 1,
+            cultureId: 1,
+            cultureName: "Quiet Capital",
+            title: "The Case for Doing Nothing",
+            description: "A framework for strategic patience in volatile markets. When inaction is the highest-conviction trade.",
+            type: "Essay",
+            minBid: 500,
+            currentBid: 2340,
+            bidCount: 12,
+            endsIn: "2h 14m",
+            burnOrReturn: "burn",
+            bidder: "0x8f2...a901"
+          },
+          {
+            id: 2,
+            cultureId: 1,
+            cultureName: "Quiet Capital",
+            title: "Q1 Thesis Review - Live Session",
+            description: "90-minute breakdown of positions, mistakes, and recalibrations. Unfiltered.",
+            type: "Live Session",
+            minBid: 1000,
+            currentBid: 4120,
+            bidCount: 8,
+            endsIn: "6h 42m",
+            burnOrReturn: "treasury",
+            bidder: "0x3c1...b234"
+          },
+          {
+            id: 3,
+            cultureId: 3,
+            cultureName: "Iron Protocol",
+            title: "12-Week Hypertrophy Block",
+            description: "Complete programming with progression schemes, deload protocols, and nutrition timing.",
+            type: "Program",
+            minBid: 250,
+            currentBid: 890,
+            bidCount: 23,
+            endsIn: "18h 03m",
+            burnOrReturn: "burn",
+            bidder: "0x7e4...c567"
+          }
+        ];
+
+        // Navigation Component
+        const Navigation = ({ view, setView }) => (
+          <nav style={{
+            position: 'fixed',
+            top: '36px',
+            left: 0,
+            right: 0,
+            height: '60px',
+            background: '#0a0a0a',
+            borderBottom: '1px solid #1a1a1a',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 40px',
+            zIndex: 1000,
+            fontFamily: "'IBM Plex Mono', monospace"
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
+              <a href="/" style={{
+                fontSize: '14px',
+                fontWeight: 600,
+                letterSpacing: '0.15em',
+                color: '#fff',
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                <img src="/website/logo-icon.png" alt="LAUNCHR" style={{ height: '28px', width: '28px' }} />
+                CULTURE COINS
+              </a>
+              <div style={{ display: 'flex', gap: '24px' }}>
+                {['discover', 'auctions', 'dashboard'].map(v => (
+                  <button
+                    key={v}
+                    onClick={() => setView(v)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: view === v ? '#fff' : '#666',
+                      fontSize: '11px',
+                      letterSpacing: '0.1em',
+                      textTransform: 'uppercase',
+                      cursor: 'pointer',
+                      padding: '4px 0',
+                      borderBottom: view === v ? '1px solid #fff' : '1px solid transparent',
+                      transition: 'all 0.2s',
+                      fontFamily: "'IBM Plex Mono', monospace"
+                    }}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <span style={{ fontSize: '11px', color: '#666', fontFamily: "'IBM Plex Mono', monospace" }}>0x7a3...f291</span>
+              <div style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                background: '#22c55e'
+              }} />
+            </div>
+          </nav>
+        );
+
+        // Discovery View
+        const DiscoveryView = ({ onSelectCulture }) => {
+          const [selectedCategory, setSelectedCategory] = useState(null);
+
+          const filteredCultures = selectedCategory
+            ? CULTURES.filter(c => c.category === selectedCategory)
+            : CULTURES;
+
+          return (
+            <div style={{ padding: '136px 40px 60px' }}>
+              {/* Header */}
+              <div style={{ marginBottom: '60px' }}>
+                <h1 style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: '48px',
+                  fontWeight: 400,
+                  color: '#fff',
+                  marginBottom: '16px',
+                  letterSpacing: '-0.02em'
+                }}>
+                  Explore Cultures
+                </h1>
+                <p style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: '14px',
+                  color: '#888',
+                  maxWidth: '600px',
+                  lineHeight: 1.7
+                }}>
+                  Culture Coins are not traded for profit. They are held to participate,
+                  signal belief, and shape a way of life.
+                </p>
+              </div>
+
+              {/* Categories */}
+              <div style={{ marginBottom: '48px' }}>
+                <div style={{
+                  fontSize: '10px',
+                  letterSpacing: '0.15em',
+                  color: '#666',
+                  marginBottom: '16px',
+                  fontFamily: "'IBM Plex Mono', monospace"
+                }}>
+                  CATEGORIES
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  <button
+                    onClick={() => setSelectedCategory(null)}
+                    style={{
+                      padding: '10px 16px',
+                      background: !selectedCategory ? '#fff' : 'transparent',
+                      color: !selectedCategory ? '#000' : '#888',
+                      border: '1px solid',
+                      borderColor: !selectedCategory ? '#fff' : '#333',
+                      fontSize: '11px',
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      letterSpacing: '0.05em',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    All Cultures
+                  </button>
+                  {CATEGORIES.map(cat => (
+                    <button
+                      key={cat.name}
+                      onClick={() => setSelectedCategory(cat.name)}
+                      style={{
+                        padding: '10px 16px',
+                        background: selectedCategory === cat.name ? '#fff' : 'transparent',
+                        color: selectedCategory === cat.name ? '#000' : '#888',
+                        border: '1px solid',
+                        borderColor: selectedCategory === cat.name ? '#fff' : '#333',
+                        fontSize: '11px',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        letterSpacing: '0.05em',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      {cat.name} <span style={{ opacity: 0.5 }}>({cat.count})</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Culture Grid */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))',
+                gap: '24px'
+              }}>
+                {filteredCultures.map(culture => (
+                  <div
+                    key={culture.id}
+                    onClick={() => onSelectCulture(culture)}
+                    style={{
+                      background: '#0f0f0f',
+                      border: '1px solid #1a1a1a',
+                      padding: '32px',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.borderColor = '#333';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.borderColor = '#1a1a1a';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    {/* Category Tag */}
+                    <div style={{
+                      fontSize: '9px',
+                      letterSpacing: '0.15em',
+                      color: '#666',
+                      marginBottom: '16px',
+                      fontFamily: "'IBM Plex Mono', monospace"
+                    }}>
+                      {culture.category.toUpperCase()}
+                    </div>
+
+                    {/* Name & Ethos */}
+                    <h3 style={{
+                      fontFamily: "'Playfair Display', serif",
+                      fontSize: '28px',
+                      fontWeight: 400,
+                      color: '#fff',
+                      marginBottom: '12px'
+                    }}>
+                      {culture.name}
+                    </h3>
+                    <p style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: '13px',
+                      color: '#999',
+                      lineHeight: 1.6,
+                      marginBottom: '24px'
+                    }}>
+                      "{culture.ethos}"
+                    </p>
+
+                    {/* Stats */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(3, 1fr)',
+                      gap: '16px',
+                      borderTop: '1px solid #1a1a1a',
+                      paddingTop: '20px'
+                    }}>
+                      <div>
+                        <div style={{
+                          fontSize: '18px',
+                          color: '#fff',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          marginBottom: '4px'
+                        }}>
+                          {culture.avgHoldDays}d
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em' }}>
+                          AVG HOLD
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{
+                          fontSize: '18px',
+                          color: '#fff',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          marginBottom: '4px'
+                        }}>
+                          {culture.participationRate}%
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em' }}>
+                          ACTIVE
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{
+                          fontSize: '18px',
+                          color: '#fff',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          marginBottom: '4px'
+                        }}>
+                          {culture.holders.toLocaleString()}
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em' }}>
+                          HOLDERS
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Active indicator */}
+                    {culture.activeAuctions > 0 && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '24px',
+                        right: '24px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}>
+                        <div style={{
+                          width: '6px',
+                          height: '6px',
+                          borderRadius: '50%',
+                          background: '#22c55e',
+                          animation: 'pulse 2s infinite'
+                        }} />
+                        <span style={{
+                          fontSize: '10px',
+                          color: '#22c55e',
+                          fontFamily: "'IBM Plex Mono', monospace"
+                        }}>
+                          {culture.activeAuctions} LIVE
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        };
+
+        // Auction Card Component
+        const AuctionCard = ({ auction, compact = false }) => {
+          const [bidAmount, setBidAmount] = useState('');
+          const [showBidInput, setShowBidInput] = useState(false);
+
+          return (
+            <div style={{
+              background: '#0f0f0f',
+              border: '1px solid #1a1a1a',
+              padding: compact ? '24px' : '32px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                <div>
+                  <div style={{
+                    fontSize: '9px',
+                    letterSpacing: '0.15em',
+                    color: '#666',
+                    marginBottom: '8px',
+                    fontFamily: "'IBM Plex Mono', monospace"
+                  }}>
+                    {auction.type.toUpperCase()} - {auction.cultureName}
+                  </div>
+                  <h3 style={{
+                    fontFamily: "'Playfair Display', serif",
+                    fontSize: compact ? '18px' : '22px',
+                    color: '#fff',
+                    marginBottom: '8px'
+                  }}>
+                    {auction.title}
+                  </h3>
+                </div>
+                <div style={{
+                  background: '#1a1a1a',
+                  padding: '8px 12px',
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: '11px',
+                  color: '#fff'
+                }}>
+                  {auction.endsIn}
+                </div>
+              </div>
+
+              {!compact && (
+                <p style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: '13px',
+                  color: '#888',
+                  lineHeight: 1.6,
+                  marginBottom: '24px'
+                }}>
+                  {auction.description}
+                </p>
+              )}
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '16px',
+                borderTop: '1px solid #1a1a1a',
+                paddingTop: '16px',
+                marginBottom: '16px'
+              }}>
+                <div>
+                  <div style={{
+                    fontSize: compact ? '16px' : '20px',
+                    color: '#fff',
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    marginBottom: '4px'
+                  }}>
+                    {auction.currentBid.toLocaleString()}
+                  </div>
+                  <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em' }}>
+                    CURRENT BID
+                  </div>
+                </div>
+                <div>
+                  <div style={{
+                    fontSize: compact ? '16px' : '20px',
+                    color: '#666',
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    marginBottom: '4px'
+                  }}>
+                    {auction.bidCount}
+                  </div>
+                  <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em' }}>
+                    BIDS
+                  </div>
+                </div>
+                <div>
+                  <div style={{
+                    fontSize: compact ? '16px' : '20px',
+                    color: auction.burnOrReturn === 'burn' ? '#ef4444' : '#22c55e',
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    marginBottom: '4px'
+                  }}>
+                    {auction.burnOrReturn === 'burn' ? 'BURN' : 'TREASURY'}
+                  </div>
+                  <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em' }}>
+                    OUTCOME
+                  </div>
+                </div>
+              </div>
+
+              <div style={{
+                background: '#0a0a0a',
+                padding: '12px 16px',
+                marginBottom: '16px',
+                fontSize: '11px',
+                color: '#666',
+                fontFamily: "'IBM Plex Mono', monospace",
+                lineHeight: 1.5
+              }}>
+                {auction.burnOrReturn === 'burn'
+                  ? 'Winning bid is burned to strengthen the culture economy.'
+                  : 'Winning bid returns to creator treasury for future rewards.'}
+              </div>
+
+              {showBidInput ? (
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <input
+                    type="number"
+                    value={bidAmount}
+                    onChange={e => setBidAmount(e.target.value)}
+                    placeholder={`Min: ${auction.currentBid + 100}`}
+                    style={{
+                      flex: 1,
+                      padding: '12px 16px',
+                      background: '#0a0a0a',
+                      border: '1px solid #333',
+                      color: '#fff',
+                      fontSize: '14px',
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      outline: 'none'
+                    }}
+                  />
+                  <button
+                    style={{
+                      padding: '12px 24px',
+                      background: '#fff',
+                      color: '#000',
+                      border: 'none',
+                      fontSize: '11px',
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      letterSpacing: '0.1em',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    PLACE BID
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowBidInput(true)}
+                  style={{
+                    width: '100%',
+                    padding: '14px',
+                    background: 'transparent',
+                    color: '#fff',
+                    border: '1px solid #333',
+                    fontSize: '11px',
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    letterSpacing: '0.1em',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = '#666'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = '#333'}
+                >
+                  SIGNAL VALUE
+                </button>
+              )}
+            </div>
+          );
+        };
+
+        // Culture Page
+        const CulturePage = ({ culture, onBack }) => {
+          const [showJoinModal, setShowJoinModal] = useState(false);
+          const userHolding = { percent: 0.62, tier: 'Participant', coins: 3100 };
+          const cultureAuctions = AUCTIONS.filter(a => a.cultureId === culture.id);
+
+          return (
+            <div style={{ padding: '136px 40px 60px' }}>
+              <button
+                onClick={onBack}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#666',
+                  fontSize: '11px',
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  letterSpacing: '0.1em',
+                  cursor: 'pointer',
+                  marginBottom: '40px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                &#8592; BACK TO CULTURES
+              </button>
+
+              <div style={{ maxWidth: '800px', marginBottom: '60px' }}>
+                <div style={{
+                  fontSize: '10px',
+                  letterSpacing: '0.15em',
+                  color: '#666',
+                  marginBottom: '16px',
+                  fontFamily: "'IBM Plex Mono', monospace"
+                }}>
+                  {culture.category.toUpperCase()}
+                </div>
+
+                <h1 style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: '56px',
+                  fontWeight: 400,
+                  color: '#fff',
+                  marginBottom: '20px',
+                  letterSpacing: '-0.02em'
+                }}>
+                  {culture.name}
+                </h1>
+
+                <p style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: '24px',
+                  fontStyle: 'italic',
+                  color: '#ccc',
+                  lineHeight: 1.5,
+                  marginBottom: '24px'
+                }}>
+                  "{culture.ethos}"
+                </p>
+
+                <div style={{
+                  fontSize: '12px',
+                  color: '#666',
+                  fontFamily: "'IBM Plex Mono', monospace"
+                }}>
+                  Created by {culture.creatorName}
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: '60px' }}>
+                <div>
+                  {/* Pillars */}
+                  <div style={{ marginBottom: '48px' }}>
+                    <div style={{
+                      fontSize: '10px',
+                      letterSpacing: '0.15em',
+                      color: '#666',
+                      marginBottom: '24px',
+                      fontFamily: "'IBM Plex Mono', monospace"
+                    }}>
+                      WHAT THIS CULTURE BELIEVES
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      {culture.pillars.map((pillar, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            padding: '20px 24px',
+                            background: '#0f0f0f',
+                            border: '1px solid #1a1a1a',
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            fontSize: '14px',
+                            color: '#fff',
+                            lineHeight: 1.5
+                          }}
+                        >
+                          {pillar}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Tiers */}
+                  <div style={{ marginBottom: '48px' }}>
+                    <div style={{
+                      fontSize: '10px',
+                      letterSpacing: '0.15em',
+                      color: '#666',
+                      marginBottom: '24px',
+                      fontFamily: "'IBM Plex Mono', monospace"
+                    }}>
+                      CULTURE TIERS
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {culture.tiers.map((tier, i) => {
+                        const isUserTier = tier.name === userHolding.tier;
+                        return (
+                          <div
+                            key={i}
+                            style={{
+                              padding: '24px',
+                              background: isUserTier ? '#111' : '#0a0a0a',
+                              border: '1px solid',
+                              borderColor: isUserTier ? '#333' : '#1a1a1a',
+                              position: 'relative'
+                            }}
+                          >
+                            {isUserTier && (
+                              <div style={{
+                                position: 'absolute',
+                                top: '-1px',
+                                right: '24px',
+                                background: '#22c55e',
+                                color: '#000',
+                                fontSize: '9px',
+                                fontFamily: "'IBM Plex Mono', monospace",
+                                letterSpacing: '0.1em',
+                                padding: '4px 10px'
+                              }}>
+                                YOUR TIER
+                              </div>
+                            )}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '12px' }}>
+                              <span style={{
+                                fontFamily: "'Playfair Display', serif",
+                                fontSize: '20px',
+                                color: '#fff'
+                              }}>
+                                {tier.name}
+                              </span>
+                              <span style={{
+                                fontFamily: "'IBM Plex Mono', monospace",
+                                fontSize: '12px',
+                                color: '#666'
+                              }}>
+                                {tier.percent}% of supply
+                              </span>
+                            </div>
+                            <div style={{
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontSize: '12px',
+                              color: '#999',
+                              marginBottom: '8px'
+                            }}>
+                              Access: {tier.access}
+                            </div>
+                            <div style={{
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontSize: '11px',
+                              color: '#666'
+                            }}>
+                              Expected: {tier.expectation}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Auctions */}
+                  {cultureAuctions.length > 0 && (
+                    <div>
+                      <div style={{
+                        fontSize: '10px',
+                        letterSpacing: '0.15em',
+                        color: '#666',
+                        marginBottom: '24px',
+                        fontFamily: "'IBM Plex Mono', monospace"
+                      }}>
+                        OPEN BIDDING
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {cultureAuctions.map(auction => (
+                          <AuctionCard key={auction.id} auction={auction} compact />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Column */}
+                <div>
+                  <div style={{
+                    background: '#0f0f0f',
+                    border: '1px solid #1a1a1a',
+                    padding: '32px',
+                    marginBottom: '24px'
+                  }}>
+                    <div style={{
+                      fontSize: '10px',
+                      letterSpacing: '0.15em',
+                      color: '#666',
+                      marginBottom: '20px',
+                      fontFamily: "'IBM Plex Mono', monospace"
+                    }}>
+                      JOIN THE CULTURE
+                    </div>
+
+                    <button
+                      onClick={() => setShowJoinModal(true)}
+                      style={{
+                        width: '100%',
+                        padding: '16px',
+                        background: '#fff',
+                        color: '#000',
+                        border: 'none',
+                        fontSize: '12px',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        letterSpacing: '0.1em',
+                        cursor: 'pointer',
+                        marginBottom: '16px'
+                      }}
+                    >
+                      ACQUIRE ACCESS
+                    </button>
+
+                    <p style={{
+                      fontSize: '11px',
+                      color: '#666',
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      lineHeight: 1.6,
+                      textAlign: 'center'
+                    }}>
+                      This is participation, not a trade.
+                    </p>
+                  </div>
+
+                  {/* Economics */}
+                  <div style={{
+                    background: '#0a0a0a',
+                    border: '1px solid #1a1a1a',
+                    padding: '32px'
+                  }}>
+                    <div style={{
+                      fontSize: '10px',
+                      letterSpacing: '0.15em',
+                      color: '#666',
+                      marginBottom: '24px',
+                      fontFamily: "'IBM Plex Mono', monospace"
+                    }}>
+                      CULTURE ECONOMICS
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '12px', color: '#666', fontFamily: "'IBM Plex Mono', monospace" }}>Total Supply</span>
+                        <span style={{ fontSize: '14px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>{culture.supply.toLocaleString()}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '12px', color: '#666', fontFamily: "'IBM Plex Mono', monospace" }}>Total Burned</span>
+                        <span style={{ fontSize: '14px', color: '#ef4444', fontFamily: "'IBM Plex Mono', monospace" }}>{culture.burned.toLocaleString()}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '12px', color: '#666', fontFamily: "'IBM Plex Mono', monospace" }}>Circulating</span>
+                        <span style={{ fontSize: '14px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>{(culture.supply - culture.burned).toLocaleString()}</span>
+                      </div>
+
+                      <div>
+                        <div style={{ height: '4px', background: '#1a1a1a', marginTop: '8px' }}>
+                          <div style={{
+                            height: '100%',
+                            width: `${(culture.burned / culture.supply) * 100}%`,
+                            background: '#ef4444'
+                          }} />
+                        </div>
+                        <div style={{
+                          fontSize: '10px',
+                          color: '#666',
+                          marginTop: '8px',
+                          fontFamily: "'IBM Plex Mono', monospace"
+                        }}>
+                          {((culture.burned / culture.supply) * 100).toFixed(1)}% burned through auctions
+                        </div>
+                      </div>
+
+                      <div style={{ borderTop: '1px solid #1a1a1a', paddingTop: '20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                          <span style={{ fontSize: '12px', color: '#666', fontFamily: "'IBM Plex Mono', monospace" }}>Holders</span>
+                          <span style={{ fontSize: '14px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>{culture.holders.toLocaleString()}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                          <span style={{ fontSize: '12px', color: '#666', fontFamily: "'IBM Plex Mono', monospace" }}>Avg Hold Time</span>
+                          <span style={{ fontSize: '14px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>{culture.avgHoldDays} days</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: '12px', color: '#666', fontFamily: "'IBM Plex Mono', monospace" }}>Active Participation</span>
+                          <span style={{ fontSize: '14px', color: '#22c55e', fontFamily: "'IBM Plex Mono', monospace" }}>{culture.participationRate}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Join Modal */}
+              {showJoinModal && (
+                <div style={{
+                  position: 'fixed',
+                  inset: 0,
+                  background: 'rgba(0,0,0,0.9)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 2000
+                }}>
+                  <div style={{
+                    background: '#0a0a0a',
+                    border: '1px solid #1a1a1a',
+                    padding: '48px',
+                    maxWidth: '500px',
+                    width: '100%'
+                  }}>
+                    <h2 style={{
+                      fontFamily: "'Playfair Display', serif",
+                      fontSize: '28px',
+                      color: '#fff',
+                      marginBottom: '24px'
+                    }}>
+                      Join {culture.name}
+                    </h2>
+
+                    <div style={{
+                      background: '#111',
+                      border: '1px solid #222',
+                      padding: '20px',
+                      marginBottom: '24px'
+                    }}>
+                      <p style={{
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: '13px',
+                        color: '#999',
+                        lineHeight: 1.7
+                      }}>
+                        "{culture.ethos}"
+                      </p>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+                      <input type="checkbox" id="understand" style={{ width: '18px', height: '18px', accentColor: '#fff' }} />
+                      <label htmlFor="understand" style={{
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: '12px',
+                        color: '#888',
+                        cursor: 'pointer'
+                      }}>
+                        I understand this is participation, not a trade.
+                      </label>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <button
+                        onClick={() => setShowJoinModal(false)}
+                        style={{
+                          flex: 1,
+                          padding: '14px',
+                          background: 'transparent',
+                          color: '#888',
+                          border: '1px solid #333',
+                          fontSize: '12px',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          letterSpacing: '0.1em',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        CANCEL
+                      </button>
+                      <button style={{
+                        flex: 1,
+                        padding: '14px',
+                        background: '#fff',
+                        color: '#000',
+                        border: 'none',
+                        fontSize: '12px',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        letterSpacing: '0.1em',
+                        cursor: 'pointer'
+                      }}>
+                        ENTER THE CULTURE
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        };
+
+        // Auctions View
+        const AuctionsView = () => (
+          <div style={{ padding: '136px 40px 60px' }}>
+            <div style={{ marginBottom: '48px' }}>
+              <h1 style={{
+                fontFamily: "'Playfair Display', serif",
+                fontSize: '48px',
+                fontWeight: 400,
+                color: '#fff',
+                marginBottom: '16px'
+              }}>
+                Open Bidding
+              </h1>
+              <p style={{
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: '14px',
+                color: '#888',
+                maxWidth: '600px',
+                lineHeight: 1.7
+              }}>
+                Content is not traded. It is bid on. Winning bids are burned or returned
+                to the creator treasury - never resold.
+              </p>
+            </div>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(450px, 1fr))',
+              gap: '24px'
+            }}>
+              {AUCTIONS.map(auction => (
+                <AuctionCard key={auction.id} auction={auction} />
+              ))}
+            </div>
+          </div>
+        );
+
+        // Dashboard View
+        const DashboardView = () => {
+          const userCultures = [
+            { ...CULTURES[0], holding: { percent: 0.62, tier: 'Participant', coins: 3100, daysHeld: 47 } },
+            { ...CULTURES[2], holding: { percent: 0.31, tier: 'Participant', coins: 6200, daysHeld: 89 } },
+            { ...CULTURES[5], holding: { percent: 0.12, tier: 'Observer', coins: 1800, daysHeld: 12 } }
+          ];
+
+          const totalParticipation = { auctionsWon: 3, sessionsAttended: 12, contributionsMade: 7 };
+
+          return (
+            <div style={{ padding: '136px 40px 60px' }}>
+              <div style={{ marginBottom: '48px' }}>
+                <h1 style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: '48px',
+                  fontWeight: 400,
+                  color: '#fff',
+                  marginBottom: '16px'
+                }}>
+                  Your Cultures
+                </h1>
+                <p style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: '14px',
+                  color: '#888'
+                }}>
+                  Your standing and participation across cultures.
+                </p>
+              </div>
+
+              {/* Stats */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '24px',
+                marginBottom: '48px'
+              }}>
+                {[
+                  { value: totalParticipation.auctionsWon, label: 'AUCTIONS WON' },
+                  { value: totalParticipation.sessionsAttended, label: 'SESSIONS ATTENDED' },
+                  { value: totalParticipation.contributionsMade, label: 'CONTRIBUTIONS' }
+                ].map((stat, i) => (
+                  <div key={i} style={{
+                    background: '#0f0f0f',
+                    border: '1px solid #1a1a1a',
+                    padding: '32px'
+                  }}>
+                    <div style={{
+                      fontSize: '36px',
+                      color: '#fff',
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      marginBottom: '8px'
+                    }}>
+                      {stat.value}
+                    </div>
+                    <div style={{
+                      fontSize: '10px',
+                      color: '#666',
+                      letterSpacing: '0.15em',
+                      fontFamily: "'IBM Plex Mono', monospace"
+                    }}>
+                      {stat.label}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Holdings */}
+              <div style={{
+                fontSize: '10px',
+                letterSpacing: '0.15em',
+                color: '#666',
+                marginBottom: '24px',
+                fontFamily: "'IBM Plex Mono', monospace"
+              }}>
+                YOUR STANDING
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {userCultures.map(culture => {
+                  const nextTier = culture.tiers.find(t => t.percent > culture.holding.percent);
+                  const progressToNext = nextTier
+                    ? ((culture.holding.percent / nextTier.percent) * 100).toFixed(0)
+                    : 100;
+
+                  return (
+                    <div
+                      key={culture.id}
+                      style={{
+                        background: '#0f0f0f',
+                        border: '1px solid #1a1a1a',
+                        padding: '32px',
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr 200px',
+                        gap: '32px',
+                        alignItems: 'center'
+                      }}
+                    >
+                      <div>
+                        <div style={{
+                          fontSize: '9px',
+                          letterSpacing: '0.15em',
+                          color: '#666',
+                          marginBottom: '8px',
+                          fontFamily: "'IBM Plex Mono', monospace"
+                        }}>
+                          {culture.category.toUpperCase()}
+                        </div>
+                        <h3 style={{
+                          fontFamily: "'Playfair Display', serif",
+                          fontSize: '24px',
+                          color: '#fff',
+                          marginBottom: '8px'
+                        }}>
+                          {culture.name}
+                        </h3>
+                        <div style={{
+                          display: 'inline-block',
+                          background: '#22c55e',
+                          color: '#000',
+                          fontSize: '10px',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          letterSpacing: '0.1em',
+                          padding: '4px 10px'
+                        }}>
+                          {culture.holding.tier.toUpperCase()}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+                        <div>
+                          <div style={{ fontSize: '20px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '4px' }}>
+                            {culture.holding.percent}%
+                          </div>
+                          <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em' }}>OF SUPPLY</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '20px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '4px' }}>
+                            {culture.holding.coins.toLocaleString()}
+                          </div>
+                          <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em' }}>COINS</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '20px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '4px' }}>
+                            {culture.holding.daysHeld}d
+                          </div>
+                          <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em' }}>HELD</div>
+                        </div>
+                      </div>
+
+                      <div>
+                        {nextTier ? (
+                          <>
+                            <div style={{ fontSize: '11px', color: '#666', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '8px' }}>
+                              {progressToNext}% to {nextTier.name}
+                            </div>
+                            <div style={{ height: '4px', background: '#1a1a1a' }}>
+                              <div style={{ height: '100%', width: `${progressToNext}%`, background: '#fff' }} />
+                            </div>
+                            <div style={{ fontSize: '10px', color: '#666', fontFamily: "'IBM Plex Mono', monospace", marginTop: '8px' }}>
+                              Need {nextTier.percent}% supply
+                            </div>
+                          </>
+                        ) : (
+                          <div style={{ fontSize: '11px', color: '#22c55e', fontFamily: "'IBM Plex Mono', monospace" }}>
+                            Maximum tier reached
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        };
+
+        // Main App
+        function CultureCoinsApp() {
+          const [view, setView] = useState('discover');
+          const [selectedCulture, setSelectedCulture] = useState(null);
+
+          const handleSelectCulture = (culture) => {
+            setSelectedCulture(culture);
+            setView('culture');
+          };
+
+          return (
+            <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#fff' }}>
+              <Navigation view={view} setView={(v) => { setView(v); setSelectedCulture(null); }} />
+
+              {view === 'discover' && <DiscoveryView onSelectCulture={handleSelectCulture} />}
+              {view === 'culture' && selectedCulture && (
+                <CulturePage
+                  culture={selectedCulture}
+                  onBack={() => { setView('discover'); setSelectedCulture(null); }}
+                />
+              )}
+              {view === 'auctions' && <AuctionsView />}
+              {view === 'dashboard' && <DashboardView />}
+            </div>
+          );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<CultureCoinsApp />);
+    </script>
+</body>
+</html>
