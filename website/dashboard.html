@@ -11,7 +11,7 @@
     <meta name="description" content="Manage your token's fee routing and allocation strategy.">
     <link rel="icon" href="/favicon.ico" type="image/jpeg">
     <link rel="shortcut icon" href="/favicon.ico" type="image/jpeg">
-    <link rel="apple-touch-icon" href="website/logo-icon.png">
+    <link rel="apple-touch-icon" href="/website/logo-icon.png">
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Solana Web3.js for transaction handling -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
@@ -1857,7 +1857,7 @@
         <aside class="sidebar">
             <div class="sidebar-header">
                 <a href="/">
-                    <img src="website/logo-icon.png" alt="LAUNCHR">
+                    <img src="/website/logo-icon.png" alt="LAUNCHR">
                     <div class="sidebar-brand-text">
                         <span class="sidebar-brand-name">LAUNCHR</span>
                         <span class="sidebar-brand-tag">Mission Control</span>
@@ -3868,7 +3868,7 @@
                         <div style="display:flex;flex-direction:column;gap:10px;">
                             ${hasPrivy ? '<button class="wallet-option recommended" onclick="connectPrivy()"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="24" height="24" rx="6" fill="#8B5CF6"/><path d="M12 6L18 10V14L12 18L6 14V10L12 6Z" fill="white"/></svg><span>Privy</span><span class="wallet-detected">Email / Social Login</span></button>' : ''}
                             <button class="wallet-option ${hasPhantom ? '' : 'disabled'}" onclick="${hasPhantom ? 'connectPhantom()' : ''}" ${hasPhantom ? '' : 'disabled'}>
-                                <img src="website/phantom_icon.png" alt="Phantom" style="width:28px;height:28px;border-radius:6px;">
+                                <img src="/website/phantom_icon.png" alt="Phantom" style="width:28px;height:28px;border-radius:6px;">
                                 <span>Phantom</span>
                                 ${hasPhantom ? '<span class="wallet-detected">Detected</span>' : '<span class="wallet-not-detected">Not installed</span>'}
                             </button>
