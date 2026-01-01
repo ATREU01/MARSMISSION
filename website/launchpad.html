@@ -11,7 +11,7 @@
     <meta name="description" content="Launch meme tokens on Pump.fun. 1% of creator fees go to the LAUNCHR distribution pool.">
     <link rel="icon" href="/favicon.ico" type="image/jpeg">
     <link rel="shortcut icon" href="/favicon.ico" type="image/jpeg">
-    <link rel="apple-touch-icon" href="website/logo-icon.png">
+    <link rel="apple-touch-icon" href="/website/logo-icon.png">
     <link rel="manifest" href="/phantom/manifest.json">
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Privy SDK for embedded wallet -->
@@ -1490,7 +1490,7 @@
     <nav class="nav">
         <div class="nav-inner">
             <a href="/" class="nav-brand">
-                <img src="website/logo-icon.png" alt="LAUNCHR">
+                <img src="/website/logo-icon.png" alt="LAUNCHR">
                 <div class="nav-brand-text">
                     <span class="nav-brand-name">LAUNCHR</span>
                     <span class="nav-brand-tag">Mission Control</span>
@@ -1741,7 +1741,7 @@
     <footer class="footer">
         <div class="footer-inner">
             <div class="footer-brand">
-                <img src="website/logo-icon.png" alt="LAUNCHR">
+                <img src="/website/logo-icon.png" alt="LAUNCHR">
                 <span>LAUNCHR Mission Control</span>
             </div>
             <div class="footer-links">
@@ -3285,7 +3285,7 @@
                         <div style="display:flex;flex-direction:column;gap:10px;">
                             ${hasPrivy ? '<button class="wallet-option recommended" onclick="connectPrivy()"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="24" height="24" rx="6" fill="#8B5CF6"/><path d="M12 6L18 10V14L12 18L6 14V10L12 6Z" fill="white"/></svg><span>Privy</span><span class="wallet-detected">Email / Social Login</span></button>' : ''}
                             <button class="wallet-option ${hasPhantom ? '' : 'disabled'}" onclick="${hasPhantom ? 'connectPhantom()' : ''}" ${hasPhantom ? '' : 'disabled'}>
-                                <img src="website/phantom_icon.png" alt="Phantom" style="width:28px;height:28px;border-radius:6px;">
+                                <img src="/website/phantom_icon.png" alt="Phantom" style="width:28px;height:28px;border-radius:6px;">
                                 <span>Phantom</span>
                                 ${hasPhantom ? '<span class="wallet-detected">Detected</span>' : '<span class="wallet-not-detected">Not installed</span>'}
                             </button>
