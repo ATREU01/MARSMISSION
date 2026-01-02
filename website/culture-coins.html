@@ -2722,7 +2722,7 @@
               console.log('[CREATE CULTURE] Using mint address:', mintKeypair.publicKey.toBase58());
 
               // Step 1a: Upload metadata to pump.fun IPFS
-              setCreateStatus('Uploading token to pump.fun...');
+              setCreateStatus('Step 1/4: Uploading to IPFS...');
               const ethosText = cultureEthos.filter(e => e.trim()).join(' · ');
               const description = `${cultureName}${ethosText ? ' - ' + ethosText : ''}. A Culture Coin on LAUNCHR.`;
               const tokenMetadata = await uploadCultureTokenMetadata(
@@ -2753,7 +2753,7 @@
               }
 
               // Step 1c: Create the token transaction with signing wallet address
-              setCreateStatus('Creating token on Pump.fun...');
+              setCreateStatus('Step 2/4: Creating token transaction...');
               const { transaction, connection } = await createCultureTokenTransaction(
                 signingWalletAddress, // Use the wallet that will sign
                 mintKeypair,
@@ -2762,7 +2762,7 @@
               );
 
               // Step 1d: Sign and send the transaction
-              setCreateStatus('Please sign the transaction in your wallet...');
+              setCreateStatus('Step 3/4: ⚡ SIGN IN WALLET - Check Phantom!');
               txSignature = await signAndSendCultureToken(
                 transaction,
                 connection,
@@ -2783,7 +2783,7 @@
               // STEP 2: Save culture data to backend with token address
               // ═══════════════════════════════════════════════════════════════
 
-              setCreateStatus('Saving culture data...');
+              setCreateStatus('Step 4/4: Saving culture page...');
 
               const cultureData = {
                 name: cultureName,
@@ -2826,12 +2826,18 @@
                 // Store the just-created culture to show immediately
                 localStorage.setItem('just_created_culture', JSON.stringify(result.culture));
 
-                setCreateStatus('Culture created successfully!');
+                setCreateStatus('🚀 Token LIVE on pump.fun!');
 
-                // Show success with pump.fun link
-                alert(`Culture "${cultureName}" created successfully!\n\nToken: ${tokenAddress}\n\nView on pump.fun: https://pump.fun/coin/${tokenAddress}`);
+                // Show success with pump.fun link - CLEAR messaging
+                alert(`🚀 SUCCESS! Your Culture Coin is LIVE!\n\n` +
+                      `Token: ${cultureName} ($${ticker})\n` +
+                      `Address: ${tokenAddress.slice(0,6)}...${tokenAddress.slice(-4)}\n\n` +
+                      `✅ Token created on Solana\n` +
+                      `✅ Listed on pump.fun\n` +
+                      `✅ Culture page saved\n\n` +
+                      `View on pump.fun:\npump.fun/coin/${tokenAddress}`);
 
-                // Redirect to culture-coins with culture ID to show it
+                // Redirect to culture page
                 window.location.href = `/culture-coins?show=${result.culture.id}`;
               } else {
                 throw new Error(result.error || 'Failed to save culture');
