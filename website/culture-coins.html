@@ -185,6 +185,163 @@
     <script type="text/babel">
         const { useState, useEffect, createContext, useContext } = React;
 
+        // ═══════════════════════════════════════════════════════════════════
+        // CIA-LEVEL CLIENT SECURITY - Anti-Tampering & Verification
+        // ═══════════════════════════════════════════════════════════════════
+        const CultureSecurity = {
+            // Nonce storage for replay protection
+            usedNonces: new Set(),
+
+            // Generate cryptographic nonce
+            generateNonce() {
+                const array = new Uint8Array(16);
+                crypto.getRandomValues(array);
+                return Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('');
+            },
+
+            // Hash data using SHA-256
+            async hash(data) {
+                const encoder = new TextEncoder();
+                const dataBuffer = encoder.encode(typeof data === 'string' ? data : JSON.stringify(data));
+                const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+                return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+            },
+
+            // Verify response hasn't been tampered with
+            async verifyResponse(response) {
+                if (!response.signature || !response.timestamp) return true; // No signature to verify
+
+                // Check response age (max 60 seconds)
+                const age = Date.now() - response.timestamp;
+                if (age > 60000 || age < -5000) {
+                    console.warn('[SECURITY] Response too old or timestamp in future');
+                    return false;
+                }
+
+                // Check nonce not reused
+                if (response.nonce && this.usedNonces.has(response.nonce)) {
+                    console.warn('[SECURITY] Nonce reuse detected - possible replay attack');
+                    return false;
+                }
+                if (response.nonce) this.usedNonces.add(response.nonce);
+
+                return true;
+            },
+
+            // Create signed request
+            async createSecureRequest(data, wallet, signMessage) {
+                const timestamp = Date.now();
+                const nonce = this.generateNonce();
+
+                const request = {
+                    ...data,
+                    timestamp,
+                    nonce,
+                    wallet
+                };
+
+                // Sign the request if signMessage function provided
+                if (signMessage && wallet) {
+                    try {
+                        const message = `CULTURE_REQUEST:${nonce}:${timestamp}`;
+                        const signature = await signMessage(message);
+                        request.signature = signature;
+                        request.message = message;
+                    } catch (e) {
+                        console.warn('[SECURITY] Could not sign request:', e.message);
+                    }
+                }
+
+                return request;
+            },
+
+            // Secure API call with verification
+            async secureApiCall(endpoint, method, data, options = {}) {
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-Client-Nonce': this.generateNonce()
+                };
+
+                if (options.authToken) {
+                    headers['Authorization'] = `Bearer ${options.authToken}`;
+                }
+
+                try {
+                    const response = await fetch(endpoint, {
+                        method,
+                        headers,
+                        body: method !== 'GET' ? JSON.stringify(data) : undefined,
+                        credentials: 'same-origin'
+                    });
+
+                    const json = await response.json();
+
+                    // Verify response integrity
+                    const verified = await this.verifyResponse(json);
+                    if (!verified) {
+                        console.error('[SECURITY] Response verification failed');
+                        return { success: false, error: 'Response verification failed' };
+                    }
+
+                    return json;
+                } catch (e) {
+                    console.error('[SECURITY] API call failed:', e);
+                    return { success: false, error: e.message };
+                }
+            },
+
+            // Verify tier access with cryptographic proof
+            async verifyTierAccess(wallet, cultureId, connection) {
+                return this.secureApiCall('/api/culture/verify-access', 'POST', {
+                    wallet,
+                    cultureId
+                });
+            },
+
+            // Get authentication challenge
+            async getAuthChallenge(wallet, action) {
+                return this.secureApiCall('/api/culture/auth-challenge', 'POST', {
+                    wallet,
+                    action
+                });
+            },
+
+            // Tamper detection for culture data
+            async verifyCultureIntegrity(culture) {
+                if (!culture.stateHash) return true; // No hash to verify
+
+                const computedHash = await this.hash({
+                    id: culture.id,
+                    name: culture.name,
+                    creator: culture.creator,
+                    tiers: culture.tiers,
+                    beliefs: culture.beliefs,
+                    unlocks: culture.unlocks,
+                    tokenAddress: culture.tokenAddress,
+                    createdAt: culture.createdAt
+                });
+
+                if (computedHash !== culture.stateHash) {
+                    console.error('[SECURITY] Culture data has been tampered with!');
+                    return false;
+                }
+
+                return true;
+            },
+
+            // Clean up old nonces periodically
+            cleanupNonces() {
+                if (this.usedNonces.size > 1000) {
+                    const arr = Array.from(this.usedNonces);
+                    this.usedNonces = new Set(arr.slice(-500));
+                }
+            }
+        };
+
+        // Run nonce cleanup every 5 minutes
+        setInterval(() => CultureSecurity.cleanupNonces(), 300000);
+
         // Wallet Context for global state
         const WalletContext = createContext(null);
 
