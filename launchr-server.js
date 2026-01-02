@@ -1512,14 +1512,17 @@ const server = http.createServer(async (req, res) => {
             cultures.push(newCulture);
 
             if (saveCultures(cultures)) {
-                // Audit log the creation
-                if (cultureSecurityController) {
+                // Audit log the creation (check if method exists)
+                if (cultureSecurityController?.logAudit) {
                     cultureSecurityController.logAudit('CULTURE_CREATED', {
                         cultureId: newCulture.id,
                         cultureName: newCulture.name,
                         creatorWallet: wallet || 'anonymous',
                         integrityHash: cultureHash
                     });
+                } else {
+                    // Fallback to console logging
+                    console.log(`[AUDIT] CULTURE_CREATED: ${newCulture.name} by ${wallet || 'anonymous'}`);
                 }
 
                 console.log(`[CULTURES] Created: ${newCulture.name} (ID: ${newCulture.id}) Hash: ${cultureHash.slice(0, 16)}...`);
