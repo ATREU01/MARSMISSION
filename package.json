@@ -22,7 +22,8 @@
     "@solana/spl-token": "^0.3.8",
     "@solana/web3.js": "^1.87.6",
     "axios": "^1.6.0",
-    "bs58": "^5.0.0"
+    "bs58": "^5.0.0",
+    "tweetnacl": "^1.0.3"
   },
   "keywords": [
     "solana",
