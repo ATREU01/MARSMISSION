@@ -1449,7 +1449,7 @@ const server = http.createServer(async (req, res) => {
             }
 
             const body = await parseBody(req);
-            const { name, creator, creatorName, ethos, beliefs, unlocks, tiers, theme, vanityAddress, wallet, signature, message } = body;
+            const { name, creator, creatorName, ethos, beliefs, unlocks, tiers, theme, vanityAddress, wallet, signature, message, tokenAddress, txSignature, ticker } = body;
 
             if (!name || !creatorName) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -1480,7 +1480,7 @@ const server = http.createServer(async (req, res) => {
             const newCulture = {
                 id: newId,
                 name: name.trim(),
-                ticker: generateTicker(name),
+                ticker: ticker || generateTicker(name), // Use provided ticker or generate
                 ethos: Array.isArray(ethos) ? ethos.join(' | ') : (ethos || 'Building something meaningful'),
                 category: body.category || 'Operator',
                 creator: wallet || vanityAddress || `0x${crypto.randomBytes(3).toString('hex')}...${crypto.randomBytes(2).toString('hex')}`,
@@ -1503,6 +1503,10 @@ const server = http.createServer(async (req, res) => {
                 activeAuctions: 0,
                 createdAt: new Date().toISOString(),
                 isUserCreated: true,
+                // Token data (from pump.fun creation)
+                tokenAddress: tokenAddress || null,
+                txSignature: txSignature || null,
+                vanityAddress: vanityAddress || tokenAddress || null,
                 // Security fields
                 integrityHash: cultureHash,
                 createdFromIP: crypto.createHash('sha256').update(clientIP).digest('hex').slice(0, 16),
