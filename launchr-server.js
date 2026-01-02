@@ -1346,19 +1346,15 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    // Serve Culture Coins page (preview for team/testers) - WITH CIA-LEVEL SECURITY HEADERS
+    // Serve Culture Coins page (preview for team/testers)
     if (url.pathname === '/culture-coins' && req.method === 'GET') {
         try {
             const html = fs.readFileSync(path.join(__dirname, 'website', 'culture-coins.html'), 'utf8');
 
-            // Get security headers from culture security controller
-            const securityHeaders = cultureSecurityController
-                ? cultureSecurityController.getSecurityHeaders()
-                : CULTURE_CSP.getSecurityHeaders();
-
+            // Basic headers only - no strict CSP (page uses inline scripts + external CDNs)
             res.writeHead(200, {
                 'Content-Type': 'text/html; charset=utf-8',
-                ...securityHeaders
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
             });
             res.end(injectConfig(html));
         } catch (e) {
