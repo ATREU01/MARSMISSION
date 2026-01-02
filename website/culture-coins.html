@@ -5184,21 +5184,30 @@
           }, []);
 
           const handleWalletConnected = async (address) => {
+            console.log('[WALLET] Connected:', address);
             setWalletAddress(address);
             setShowWalletSelect(false);
 
             // Fetch balance
             try {
+              console.log('[BALANCE] Fetching for:', address, 'via', SOLANA_RPC);
               const res = await fetch(SOLANA_RPC, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getBalance', params: [address] }),
               });
               const data = await res.json();
+              console.log('[BALANCE] Response:', data);
               if (data.result?.value !== undefined) {
-                setWalletBalance(data.result.value / 1e9);
+                const bal = data.result.value / 1e9;
+                console.log('[BALANCE] Setting:', bal, 'SOL');
+                setWalletBalance(bal);
+              } else if (data.error) {
+                console.error('[BALANCE] RPC error:', data.error);
               }
-            } catch (e) { console.error('[BALANCE]', e); }
+            } catch (e) {
+              console.error('[BALANCE] Fetch failed:', e);
+            }
           };
 
           const disconnectWallet = () => {
