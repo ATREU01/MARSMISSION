@@ -986,6 +986,7 @@
           const [selectedCategory, setSelectedCategory] = useState(null);
           const [cultures, setCultures] = useState(CULTURES);
           const [loading, setLoading] = useState(true);
+          const [searchQuery, setSearchQuery] = useState('');
 
           // Fetch cultures from API on mount
           useEffect(() => {
@@ -1008,9 +1009,20 @@
             fetchCultures();
           }, []);
 
-          const filteredCultures = selectedCategory
-            ? cultures.filter(c => c.category === selectedCategory)
-            : cultures;
+          // Filter by category and search query (name, ticker, or contract address)
+          const filteredCultures = cultures.filter(c => {
+            const matchesCategory = !selectedCategory || c.category === selectedCategory;
+            if (!searchQuery.trim()) return matchesCategory;
+
+            const query = searchQuery.toLowerCase().trim();
+            const matchesSearch =
+              (c.name && c.name.toLowerCase().includes(query)) ||
+              (c.ticker && c.ticker.toLowerCase().includes(query)) ||
+              (c.symbol && c.symbol.toLowerCase().includes(query)) ||
+              (c.tokenAddress && c.tokenAddress.toLowerCase().includes(query));
+
+            return matchesCategory && matchesSearch;
+          });
 
           return (
             <div style={{ padding: '136px 40px 60px' }}>
@@ -1036,6 +1048,50 @@
                   Culture Coins are not traded for profit. They are held to participate,
                   signal belief, and shape a way of life.
                 </p>
+              </div>
+
+              {/* Search */}
+              <div style={{ marginBottom: '32px' }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  background: '#0f0f0f',
+                  border: '1px solid #222',
+                  padding: '0 16px'
+                }}>
+                  <span style={{ color: '#666', marginRight: '12px', fontSize: '14px' }}>⌕</span>
+                  <input
+                    type="text"
+                    placeholder="Search by name, ticker, or contract address..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: '14px 0',
+                      background: 'transparent',
+                      border: 'none',
+                      outline: 'none',
+                      color: '#fff',
+                      fontSize: '13px',
+                      fontFamily: "'IBM Plex Mono', monospace"
+                    }}
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#666',
+                        cursor: 'pointer',
+                        fontSize: '16px',
+                        padding: '4px 8px'
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Categories */}
@@ -1984,47 +2040,108 @@
         };
 
         // Auctions View
-        const AuctionsView = () => (
-          <div style={{ padding: '136px 40px 60px' }}>
-            <div style={{ marginBottom: '48px' }}>
-              <h1 style={{
-                fontFamily: "'Playfair Display', serif",
-                fontSize: '48px',
-                fontWeight: 400,
-                color: '#fff',
-                marginBottom: '16px'
-              }}>
-                Open Bidding
-              </h1>
-              <p style={{
-                fontFamily: "'IBM Plex Mono', monospace",
-                fontSize: '14px',
-                color: '#888',
-                maxWidth: '600px',
-                lineHeight: 1.7
-              }}>
-                Content is not traded. It is bid on. Winning bids are burned or returned
-                to the creator treasury - never resold.
-              </p>
-            </div>
+        const AuctionsView = () => {
+          const [searchQuery, setSearchQuery] = useState('');
 
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(450px, 1fr))',
-              gap: '24px'
-            }}>
-              {AUCTIONS.map(auction => (
-                <AuctionCard key={auction.id} auction={auction} />
-              ))}
+          // Filter auctions by culture name, title, or type
+          const filteredAuctions = AUCTIONS.filter(auction => {
+            if (!searchQuery.trim()) return true;
+            const query = searchQuery.toLowerCase().trim();
+            return (
+              (auction.cultureName && auction.cultureName.toLowerCase().includes(query)) ||
+              (auction.title && auction.title.toLowerCase().includes(query)) ||
+              (auction.type && auction.type.toLowerCase().includes(query)) ||
+              (auction.description && auction.description.toLowerCase().includes(query))
+            );
+          });
+
+          return (
+            <div style={{ padding: '136px 40px 60px' }}>
+              <div style={{ marginBottom: '48px' }}>
+                <h1 style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: '48px',
+                  fontWeight: 400,
+                  color: '#fff',
+                  marginBottom: '16px'
+                }}>
+                  Open Bidding
+                </h1>
+                <p style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: '14px',
+                  color: '#888',
+                  maxWidth: '600px',
+                  lineHeight: 1.7
+                }}>
+                  Content is not traded. It is bid on. Winning bids are burned or returned
+                  to the creator treasury - never resold.
+                </p>
+              </div>
+
+              {/* Search */}
+              <div style={{ marginBottom: '32px' }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  background: '#0f0f0f',
+                  border: '1px solid #222',
+                  padding: '0 16px'
+                }}>
+                  <span style={{ color: '#666', marginRight: '12px', fontSize: '14px' }}>⌕</span>
+                  <input
+                    type="text"
+                    placeholder="Search by culture name, title, or type..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: '14px 0',
+                      background: 'transparent',
+                      border: 'none',
+                      outline: 'none',
+                      color: '#fff',
+                      fontSize: '13px',
+                      fontFamily: "'IBM Plex Mono', monospace"
+                    }}
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#666',
+                        cursor: 'pointer',
+                        fontSize: '16px',
+                        padding: '4px 8px'
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(450px, 1fr))',
+                gap: '24px'
+              }}>
+                {filteredAuctions.map(auction => (
+                  <AuctionCard key={auction.id} auction={auction} />
+                ))}
+              </div>
             </div>
-          </div>
-        );
+          );
+        };
 
         // Dashboard View - Shows cultures you CREATED (as owner)
         const DashboardView = () => {
           const wallet = useContext(WalletContext);
           const [myCultures, setMyCultures] = useState([]);
           const [loading, setLoading] = useState(true);
+          const [searchQuery, setSearchQuery] = useState('');
 
           // Fetch cultures I created from API
           useEffect(() => {
@@ -2059,6 +2176,18 @@
             totalHolders: myCultures.reduce((sum, c) => sum + (c.holders || 0), 0),
             totalVolume: myCultures.reduce((sum, c) => sum + (c.volume || 0), 0)
           };
+
+          // Filter by search query (name, ticker, or contract address)
+          const filteredCultures = myCultures.filter(c => {
+            if (!searchQuery.trim()) return true;
+            const query = searchQuery.toLowerCase().trim();
+            return (
+              (c.name && c.name.toLowerCase().includes(query)) ||
+              (c.ticker && c.ticker.toLowerCase().includes(query)) ||
+              (c.symbol && c.symbol.toLowerCase().includes(query)) ||
+              (c.tokenAddress && c.tokenAddress.toLowerCase().includes(query))
+            );
+          });
 
           // Not connected state
           if (!wallet?.address) {
@@ -2223,6 +2352,50 @@
                 ))}
               </div>
 
+              {/* Search */}
+              <div style={{ marginBottom: '24px' }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  background: '#0f0f0f',
+                  border: '1px solid #222',
+                  padding: '0 16px'
+                }}>
+                  <span style={{ color: '#666', marginRight: '12px', fontSize: '14px' }}>⌕</span>
+                  <input
+                    type="text"
+                    placeholder="Search by name, ticker, or contract address..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: '14px 0',
+                      background: 'transparent',
+                      border: 'none',
+                      outline: 'none',
+                      color: '#fff',
+                      fontSize: '13px',
+                      fontFamily: "'IBM Plex Mono', monospace"
+                    }}
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#666',
+                        cursor: 'pointer',
+                        fontSize: '16px',
+                        padding: '4px 8px'
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {/* My Cultures */}
               <div style={{
                 fontSize: '10px',
@@ -2231,11 +2404,11 @@
                 marginBottom: '24px',
                 fontFamily: "'IBM Plex Mono', monospace"
               }}>
-                YOUR CULTURES
+                YOUR CULTURES {searchQuery && `(${filteredCultures.length} of ${myCultures.length})`}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {myCultures.map(culture => (
+                {filteredCultures.map(culture => (
                   <div
                     key={culture.id || culture.tokenAddress}
                     style={{
