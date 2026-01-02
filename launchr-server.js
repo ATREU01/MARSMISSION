@@ -287,7 +287,39 @@ const VANITY_SUFFIX = 'LCHr'; // 4 chars = LCHr (LAUNCHr), findable in minutes
 const VANITY_POOL_TARGET = 10; // Keep 10 keypairs ready
 const VANITY_POOL_MIN = 3; // Start generating when below this
 
+// Culture Coins Database
+const CULTURES_FILE = path.join(DATA_DIR, 'cultures.json');
+
+// Load cultures from file
+const loadCultures = () => {
+    try {
+        if (fs.existsSync(CULTURES_FILE)) {
+            return JSON.parse(fs.readFileSync(CULTURES_FILE, 'utf8'));
+        }
+    } catch (e) {
+        console.error('[CULTURES] Error loading:', e.message);
+    }
+    return [];
+};
+
+// Save cultures to file
+const saveCultures = (cultures) => {
+    try {
+        fs.writeFileSync(CULTURES_FILE, JSON.stringify(cultures, null, 2));
+        return true;
+    } catch (e) {
+        console.error('[CULTURES] Error saving:', e.message);
+        return false;
+    }
+};
+
+// Generate ticker from name
+const generateTicker = (name) => {
+    return name.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 5) || 'CULT';
+};
+
 console.log(`[VANITY] Data directory: ${DATA_DIR}`);
+console.log(`[CULTURES] Database: ${CULTURES_FILE}`);
 
 let vanityPool = [];
 let vanityGenerating = false;
@@ -1368,6 +1400,152 @@ const server = http.createServer(async (req, res) => {
     // CULTURE COINS API - SECURE ENDPOINTS
     // All endpoints use CIA-level protection with signature verification
     // ═══════════════════════════════════════════════════════════════════════════
+
+    // API: Get all cultures
+    if (url.pathname === '/api/cultures' && req.method === 'GET') {
+        try {
+            const cultures = loadCultures();
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, cultures }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Get single culture by ID
+    if (url.pathname.startsWith('/api/culture/') && req.method === 'GET') {
+        const id = parseInt(url.pathname.split('/').pop());
+        if (!isNaN(id)) {
+            try {
+                const cultures = loadCultures();
+                const culture = cultures.find(c => c.id === id);
+                if (culture) {
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: true, culture }));
+                } else {
+                    res.writeHead(404, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Culture not found' }));
+                }
+            } catch (e) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: e.message }));
+            }
+            return;
+        }
+    }
+
+    // API: Create new culture (CIA-level security with wallet verification)
+    if (url.pathname === '/api/culture/create' && req.method === 'POST') {
+        try {
+            // Rate limit
+            const rateCheck = checkRateLimit(clientIP, 'sensitive');
+            if (!rateCheck.allowed) {
+                res.writeHead(429, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: rateCheck.reason }));
+                return;
+            }
+
+            const body = await parseBody(req);
+            const { name, creator, creatorName, ethos, beliefs, unlocks, tiers, theme, vanityAddress, wallet, signature, message } = body;
+
+            if (!name || !creatorName) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Name and creator name are required' }));
+                return;
+            }
+
+            // Verify wallet signature if security controller available
+            if (cultureSecurityController && wallet && signature && message) {
+                const isValid = cultureSecurityController.verifyWalletSignature(message, signature, wallet);
+                if (!isValid) {
+                    console.warn(`[CULTURES] Invalid signature from ${wallet}`);
+                    res.writeHead(403, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Invalid wallet signature' }));
+                    return;
+                }
+                console.log(`[CULTURES] Verified wallet: ${wallet}`);
+            }
+
+            const cultures = loadCultures();
+            const newId = cultures.length > 0 ? Math.max(...cultures.map(c => c.id)) + 1 : 1001;
+
+            // Generate integrity hash for the culture data
+            const cultureHash = crypto.createHash('sha256')
+                .update(JSON.stringify({ name, creatorName, ethos, beliefs }))
+                .digest('hex');
+
+            const newCulture = {
+                id: newId,
+                name: name.trim(),
+                ticker: generateTicker(name),
+                ethos: Array.isArray(ethos) ? ethos.join(' | ') : (ethos || 'Building something meaningful'),
+                category: body.category || 'Operator',
+                creator: wallet || vanityAddress || `0x${crypto.randomBytes(3).toString('hex')}...${crypto.randomBytes(2).toString('hex')}`,
+                creatorName: creatorName.trim(),
+                creatorWallet: wallet || null,
+                supply: 1000000,
+                burned: 0,
+                pillars: beliefs || [],
+                tiers: (tiers || []).map(t => ({
+                    name: t.name,
+                    percent: t.holdingPercent || t.percent || 0.1,
+                    access: t.access || 'Basic access',
+                    expectation: t.expectation || 'Participate'
+                })),
+                unlocks: unlocks || [],
+                theme: theme || {},
+                avgHoldDays: 0,
+                participationRate: 0,
+                holders: 1,
+                activeAuctions: 0,
+                createdAt: new Date().toISOString(),
+                isUserCreated: true,
+                // Security fields
+                integrityHash: cultureHash,
+                createdFromIP: crypto.createHash('sha256').update(clientIP).digest('hex').slice(0, 16),
+                securityVersion: 1
+            };
+
+            cultures.push(newCulture);
+
+            if (saveCultures(cultures)) {
+                // Audit log the creation
+                if (cultureSecurityController) {
+                    cultureSecurityController.logAudit('CULTURE_CREATED', {
+                        cultureId: newCulture.id,
+                        cultureName: newCulture.name,
+                        creatorWallet: wallet || 'anonymous',
+                        integrityHash: cultureHash
+                    });
+                }
+
+                console.log(`[CULTURES] Created: ${newCulture.name} (ID: ${newCulture.id}) Hash: ${cultureHash.slice(0, 16)}...`);
+
+                // Sign the response for tamper detection
+                const responseData = { success: true, culture: newCulture };
+                const responseSignature = crypto.createHmac('sha256', process.env.HMAC_SECRET || 'culture-coins-secret')
+                    .update(JSON.stringify(responseData))
+                    .digest('hex');
+
+                res.writeHead(200, {
+                    'Content-Type': 'application/json',
+                    'X-Response-Signature': responseSignature,
+                    'X-Culture-Hash': cultureHash.slice(0, 16)
+                });
+                res.end(JSON.stringify(responseData));
+            } else {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Failed to save culture' }));
+            }
+        } catch (e) {
+            console.error('[CULTURES] Create error:', e);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
 
     // API: Get authentication challenge for wallet signing
     if (url.pathname === '/api/culture/auth-challenge' && req.method === 'POST') {
