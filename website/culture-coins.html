@@ -2028,6 +2028,8 @@
         const CreateCulturePage = () => {
           const [cultureName, setCultureName] = useState('');
           const [creatorName, setCreatorName] = useState('');
+          const [cultureEthos, setCultureEthos] = useState(['CONVICTION', 'PATIENCE', 'SIGNAL']);
+          const [isCreating, setIsCreating] = useState(false);
 
           // Vanity Address Mining
           const [vanitySuffix, setVanitySuffix] = useState('');
@@ -2303,6 +2305,51 @@
             const newTiers = [...tiers];
             newTiers[tierIndex].content = newTiers[tierIndex].content.filter((_, i) => i !== contentIndex);
             setTiers(newTiers);
+          };
+
+          // Handle culture creation
+          const handleCreate = async () => {
+            if (!cultureName.trim()) {
+              alert('Please enter a culture name');
+              return;
+            }
+            if (!creatorName.trim()) {
+              alert('Please enter your name');
+              return;
+            }
+
+            setIsCreating(true);
+
+            try {
+              const cultureData = {
+                name: cultureName,
+                creator: creatorName,
+                ethos: cultureEthos.filter(e => e.trim()),
+                theme: theme,
+                beliefs: beliefs.filter(b => b.trim()),
+                unlocks: unlocks.filter(u => u.title.trim()),
+                tiers: tiers.filter(t => t.name.trim()),
+                vanityAddress: vanityResult?.address || null,
+                createdAt: new Date().toISOString()
+              };
+
+              console.log('[CREATE CULTURE]', cultureData);
+
+              // TODO: Send to backend API when ready
+              // const response = await fetch('/api/culture/create', {
+              //   method: 'POST',
+              //   headers: { 'Content-Type': 'application/json' },
+              //   body: JSON.stringify(cultureData)
+              // });
+
+              alert('Culture created successfully! (Preview Mode)');
+
+            } catch (error) {
+              console.error('[CREATE ERROR]', error);
+              alert('Failed to create culture. Please try again.');
+            } finally {
+              setIsCreating(false);
+            }
           };
 
           return (
@@ -3788,6 +3835,40 @@
                     )}
                   </div>
                 </div>
+              </div>
+
+              {/* CREATE CULTURE BUTTON */}
+              <div style={{
+                marginTop: '60px',
+                marginBottom: '80px',
+                textAlign: 'center'
+              }}>
+                <button
+                  onClick={handleCreate}
+                  disabled={isCreating}
+                  style={{
+                    padding: '20px 60px',
+                    background: isCreating ? '#333' : theme.accentColor,
+                    color: isCreating ? '#666' : '#000',
+                    border: 'none',
+                    fontFamily: "'Playfair Display', serif",
+                    fontSize: '18px',
+                    fontWeight: '500',
+                    letterSpacing: '0.05em',
+                    cursor: isCreating ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  {isCreating ? 'CREATING...' : 'CREATE CULTURE'}
+                </button>
+                <p style={{
+                  marginTop: '16px',
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: '12px',
+                  color: '#666'
+                }}>
+                  Your culture will be live on Solana
+                </p>
               </div>
               </div>
             </div>
