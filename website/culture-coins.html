@@ -2774,6 +2774,11 @@
               console.log('[CREATE CULTURE] Token address:', tokenAddress);
               console.log('[CREATE CULTURE] Transaction:', txSignature);
 
+              // Verify we have a valid transaction signature before saving
+              if (!txSignature || txSignature.length < 80) {
+                throw new Error('Token creation failed - no valid transaction signature received');
+              }
+
               // ═══════════════════════════════════════════════════════════════
               // STEP 2: Save culture data to backend with token address
               // ═══════════════════════════════════════════════════════════════
