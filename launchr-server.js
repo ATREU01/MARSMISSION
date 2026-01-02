@@ -9,6 +9,13 @@ const tracker = require('./tracker');
 const profiles = require('./profiles');
 const { LaunchrBot } = require('./telegram-bot');
 
+// Culture Coins Security Module - CIA-Level Protection
+const {
+    CultureSecurityController,
+    CULTURE_CSP,
+    CULTURE_SECURITY_CONFIG
+} = require('./culture-security');
+
 // ═══════════════════════════════════════════════════════════════════════════
 // PRODUCTION CONFIGURATION - All Revenue Goes Here
 // ═══════════════════════════════════════════════════════════════════════════
@@ -800,6 +807,17 @@ let sessionToken = null; // Auth token for this session
 let sessionCreatedAt = null; // When session was created
 
 // ═══════════════════════════════════════════════════════════════════════════
+// CULTURE COINS SECURITY - CIA-Level Protection
+// ═══════════════════════════════════════════════════════════════════════════
+let cultureSecurityController = null;
+try {
+    cultureSecurityController = new CultureSecurityController();
+    console.log('[CULTURE] Security controller initialized with CIA-level protection');
+} catch (e) {
+    console.error('[CULTURE] Failed to initialize security controller:', e.message);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // ORBIT - Public Transparency Registry
 // Tracks all active ORBIT instances for public monitoring
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1307,18 +1325,189 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    // Serve Culture Coins page (preview for team/testers)
+    // Serve Culture Coins page (preview for team/testers) - WITH CIA-LEVEL SECURITY HEADERS
     if (url.pathname === '/culture-coins' && req.method === 'GET') {
         try {
             const html = fs.readFileSync(path.join(__dirname, 'website', 'culture-coins.html'), 'utf8');
+
+            // Get security headers from culture security controller
+            const securityHeaders = cultureSecurityController
+                ? cultureSecurityController.getSecurityHeaders()
+                : CULTURE_CSP.getSecurityHeaders();
+
             res.writeHead(200, {
                 'Content-Type': 'text/html; charset=utf-8',
-                'Cache-Control': 'no-cache, no-store, must-revalidate'
+                ...securityHeaders
             });
             res.end(injectConfig(html));
         } catch (e) {
             res.writeHead(302, { 'Location': '/' });
             res.end();
+        }
+        return;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CULTURE COINS API - SECURE ENDPOINTS
+    // All endpoints use CIA-level protection with signature verification
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // API: Get authentication challenge for wallet signing
+    if (url.pathname === '/api/culture/auth-challenge' && req.method === 'POST') {
+        try {
+            const body = await parseBody(req);
+            const { wallet, action } = body;
+
+            if (!wallet || !action) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Missing wallet or action' }));
+                return;
+            }
+
+            // Validate wallet address
+            try {
+                new PublicKey(wallet);
+            } catch (e) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Invalid wallet address' }));
+                return;
+            }
+
+            // Generate challenge
+            const challenge = cultureSecurityController
+                ? cultureSecurityController.createAuthChallenge(action, wallet)
+                : { message: `CULTURE_AUTH:${action}:${wallet}:${Date.now()}`, timestamp: Date.now() };
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                challenge: challenge.message,
+                expiresAt: challenge.expiresAt || Date.now() + 300000
+            }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Verify tier access for a culture
+    if (url.pathname === '/api/culture/verify-access' && req.method === 'POST') {
+        try {
+            // Rate limit
+            const rateCheck = checkRateLimit(clientIP, 'sensitive');
+            if (!rateCheck.allowed) {
+                res.writeHead(429, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: rateCheck.reason }));
+                return;
+            }
+
+            const body = await parseBody(req);
+            const { wallet, cultureId, signature, message } = body;
+
+            if (!wallet || !cultureId) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Missing wallet or cultureId' }));
+                return;
+            }
+
+            // Verify request if signature provided
+            if (cultureSecurityController && signature && message) {
+                const validation = await cultureSecurityController.validateRequest({
+                    wallet,
+                    signature,
+                    message,
+                    ip: clientIP,
+                    timestamp: Date.now(),
+                    nonce: crypto.randomBytes(8).toString('hex')
+                }, 'tierAccess');
+
+                if (!validation.valid) {
+                    res.writeHead(403, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, errors: validation.errors }));
+                    return;
+                }
+            }
+
+            // Verify tier access
+            const accessResult = cultureSecurityController
+                ? await cultureSecurityController.verifyTierAccess(wallet, cultureId, connection)
+                : { valid: true, tier: 'Observer', holdingPercent: 0 };
+
+            // Sign response for anti-tampering
+            const signedResponse = cultureSecurityController
+                ? cultureSecurityController.signResponse(accessResult)
+                : accessResult;
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, ...signedResponse }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Get culture security stats (public)
+    if (url.pathname === '/api/culture/security-stats' && req.method === 'GET') {
+        try {
+            const stats = cultureSecurityController
+                ? cultureSecurityController.getStats()
+                : { error: 'Security controller not initialized' };
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, stats }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Get culture audit logs (admin only - requires auth)
+    if (url.pathname === '/api/culture/audit-logs' && req.method === 'GET') {
+        try {
+            // Require session token for audit access
+            const authHeader = req.headers.authorization;
+            if (!authHeader || !sessionToken || authHeader !== `Bearer ${sessionToken}`) {
+                res.writeHead(401, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Unauthorized' }));
+                return;
+            }
+
+            const since = parseInt(url.searchParams.get('since')) || 0;
+            const limit = Math.min(parseInt(url.searchParams.get('limit')) || 100, 1000);
+            const type = url.searchParams.get('type');
+
+            const logs = cultureSecurityController
+                ? cultureSecurityController.getAuditLogs({ since, limit, type })
+                : [];
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                logs,
+                chainValid: cultureSecurityController?.verifyAuditChain()?.valid
+            }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Verify audit chain integrity
+    if (url.pathname === '/api/culture/verify-audit-chain' && req.method === 'GET') {
+        try {
+            const result = cultureSecurityController
+                ? cultureSecurityController.verifyAuditChain()
+                : { valid: false, error: 'Security controller not initialized' };
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, ...result }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
         }
         return;
     }
