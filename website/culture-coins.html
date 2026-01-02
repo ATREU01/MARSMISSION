@@ -1751,6 +1751,127 @@
           const [cultureName, setCultureName] = useState('');
           const [creatorName, setCreatorName] = useState('');
 
+          // Vanity Address Mining
+          const [vanitySuffix, setVanitySuffix] = useState('');
+          const [vanityMining, setVanityMining] = useState(false);
+          const [vanityProgress, setVanityProgress] = useState({
+            attempts: 0,
+            rate: 0,
+            elapsed: 0,
+            estimatedTime: '',
+            difficulty: ''
+          });
+          const [vanityResult, setVanityResult] = useState(null);
+          const [miningWorker, setMiningWorker] = useState(null);
+
+          // Estimate difficulty for vanity suffix
+          const estimateVanityDifficulty = (suffix) => {
+            if (!suffix) return { attempts: 1, time: 'instant', probability: '100%' };
+            const charProbability = 34; // case insensitive base58
+            const attempts = Math.pow(charProbability, suffix.length);
+            const attemptsPerSecond = 50000; // browser estimate
+            const seconds = attempts / attemptsPerSecond;
+
+            let timeEstimate;
+            if (seconds < 60) timeEstimate = `~${Math.round(seconds)} seconds`;
+            else if (seconds < 3600) timeEstimate = `~${Math.round(seconds / 60)} minutes`;
+            else if (seconds < 86400) timeEstimate = `~${Math.round(seconds / 3600)} hours`;
+            else if (seconds < 604800) timeEstimate = `~${Math.round(seconds / 86400)} days`;
+            else timeEstimate = `~${Math.round(seconds / 604800)} weeks`;
+
+            return {
+              attempts: attempts.toLocaleString(),
+              time: timeEstimate,
+              probability: `1 in ${attempts.toLocaleString()}`
+            };
+          };
+
+          // Start vanity mining in web worker
+          const startVanityMining = () => {
+            if (!vanitySuffix || vanityMining) return;
+
+            setVanityMining(true);
+            setVanityProgress({ attempts: 0, rate: 0, elapsed: 0, estimatedTime: estimateVanityDifficulty(vanitySuffix).time, difficulty: estimateVanityDifficulty(vanitySuffix).probability });
+            setVanityResult(null);
+
+            // Create inline worker for browser-based mining
+            const workerCode = `
+              importScripts('https://cdn.jsdelivr.net/npm/@solana/web3.js@1.87.6/lib/index.iife.min.js');
+
+              const suffix = '${vanitySuffix.toLowerCase()}';
+              let attempts = 0;
+              const startTime = Date.now();
+
+              function mine() {
+                const batchSize = 1000;
+                for (let i = 0; i < batchSize; i++) {
+                  attempts++;
+                  const keypair = solanaWeb3.Keypair.generate();
+                  const address = keypair.publicKey.toBase58();
+
+                  if (address.toLowerCase().endsWith(suffix)) {
+                    postMessage({
+                      type: 'found',
+                      address: address,
+                      secretKey: Array.from(keypair.secretKey),
+                      attempts: attempts,
+                      elapsed: (Date.now() - startTime) / 1000
+                    });
+                    return;
+                  }
+                }
+
+                // Report progress
+                const elapsed = (Date.now() - startTime) / 1000;
+                postMessage({
+                  type: 'progress',
+                  attempts: attempts,
+                  rate: Math.round(attempts / elapsed),
+                  elapsed: Math.round(elapsed)
+                });
+
+                // Continue mining
+                setTimeout(mine, 0);
+              }
+
+              mine();
+            `;
+
+            const blob = new Blob([workerCode], { type: 'application/javascript' });
+            const worker = new Worker(URL.createObjectURL(blob));
+
+            worker.onmessage = (e) => {
+              if (e.data.type === 'progress') {
+                setVanityProgress(prev => ({
+                  ...prev,
+                  attempts: e.data.attempts,
+                  rate: e.data.rate,
+                  elapsed: e.data.elapsed
+                }));
+              } else if (e.data.type === 'found') {
+                setVanityResult({
+                  address: e.data.address,
+                  secretKey: e.data.secretKey,
+                  attempts: e.data.attempts,
+                  elapsed: e.data.elapsed
+                });
+                setVanityMining(false);
+                worker.terminate();
+              }
+            };
+
+            setMiningWorker(worker);
+          };
+
+          // Stop mining
+          const stopVanityMining = () => {
+            if (miningWorker) {
+              miningWorker.terminate();
+              setMiningWorker(null);
+            }
+            setVanityMining(false);
+          };
+
           // Theme customization
           const [theme, setTheme] = useState({
             bgType: 'solid', // solid, gradient, pattern, image
@@ -2133,6 +2254,281 @@
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* Vanity Address Mining Section */}
+              <div style={{
+                marginBottom: '60px',
+                padding: '32px',
+                background: 'rgba(0,0,0,0.5)',
+                border: `1px solid ${theme.borderColor}`,
+                backdropFilter: 'blur(10px)'
+              }}>
+                <div style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: '28px',
+                  color: theme.textColor,
+                  marginBottom: '12px'
+                }}>
+                  Culture Address
+                </div>
+                <div style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: '13px',
+                  color: '#666',
+                  marginBottom: '24px'
+                }}>
+                  Mine a custom vanity address for your culture token (e.g., ending in "KING")
+                </div>
+
+                {/* Suffix Input */}
+                <div style={{ marginBottom: '24px' }}>
+                  <div style={{ fontSize: '10px', letterSpacing: '0.15em', color: '#666', marginBottom: '12px', fontFamily: "'IBM Plex Mono', monospace" }}>
+                    VANITY SUFFIX (what your address ends with)
+                  </div>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      value={vanitySuffix}
+                      onChange={(e) => setVanitySuffix(e.target.value.replace(/[^a-zA-Z1-9]/g, '').toUpperCase().slice(0, 6))}
+                      placeholder="KING"
+                      disabled={vanityMining}
+                      maxLength={6}
+                      style={{
+                        flex: 1,
+                        padding: '16px',
+                        background: '#111',
+                        border: '1px solid #333',
+                        color: '#fff',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: '18px',
+                        letterSpacing: '0.2em',
+                        textAlign: 'center',
+                        textTransform: 'uppercase'
+                      }}
+                    />
+                    {!vanityMining && !vanityResult && (
+                      <button
+                        onClick={startVanityMining}
+                        disabled={!vanitySuffix}
+                        style={{
+                          padding: '16px 32px',
+                          background: vanitySuffix ? theme.accentColor : '#333',
+                          color: vanitySuffix ? '#000' : '#666',
+                          border: 'none',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: '12px',
+                          letterSpacing: '0.1em',
+                          cursor: vanitySuffix ? 'pointer' : 'not-allowed'
+                        }}
+                      >
+                        START MINING
+                      </button>
+                    )}
+                    {vanityMining && (
+                      <button
+                        onClick={stopVanityMining}
+                        style={{
+                          padding: '16px 32px',
+                          background: '#ef4444',
+                          color: '#fff',
+                          border: 'none',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: '12px',
+                          letterSpacing: '0.1em',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        STOP
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Difficulty Estimate */}
+                {vanitySuffix && !vanityMining && !vanityResult && (
+                  <div style={{
+                    padding: '16px',
+                    background: '#0a0a0a',
+                    border: '1px solid #222',
+                    marginBottom: '24px'
+                  }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', textAlign: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: '18px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
+                          {estimateVanityDifficulty(vanitySuffix).probability}
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginTop: '4px' }}>PROBABILITY</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '18px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
+                          {estimateVanityDifficulty(vanitySuffix).time}
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginTop: '4px' }}>EST. TIME</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '18px', color: vanitySuffix.length <= 3 ? '#22c55e' : vanitySuffix.length <= 5 ? '#f59e0b' : '#ef4444', fontFamily: "'IBM Plex Mono', monospace" }}>
+                          {vanitySuffix.length <= 3 ? 'EASY' : vanitySuffix.length <= 5 ? 'MEDIUM' : 'HARD'}
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginTop: '4px' }}>DIFFICULTY</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Mining Progress */}
+                {vanityMining && (
+                  <div style={{
+                    padding: '24px',
+                    background: 'linear-gradient(135deg, #1a1a2e, #0a0a0a)',
+                    border: '1px solid #333',
+                    marginBottom: '24px'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '16px',
+                      marginBottom: '20px'
+                    }}>
+                      <div style={{
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '50%',
+                        background: '#22c55e',
+                        animation: 'pulse 1s infinite'
+                      }} />
+                      <div style={{
+                        fontFamily: "'Playfair Display', serif",
+                        fontSize: '20px',
+                        color: '#fff'
+                      }}>
+                        Mining Address ending in "{vanitySuffix}"...
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', textAlign: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: '24px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
+                          {vanityProgress.attempts.toLocaleString()}
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginTop: '4px' }}>ATTEMPTS</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '24px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
+                          {vanityProgress.rate.toLocaleString()}/s
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginTop: '4px' }}>SPEED</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '24px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
+                          {vanityProgress.elapsed}s
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginTop: '4px' }}>ELAPSED</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '24px', color: '#f59e0b', fontFamily: "'IBM Plex Mono', monospace" }}>
+                          {vanityProgress.estimatedTime}
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginTop: '4px' }}>EST. TIME</div>
+                      </div>
+                    </div>
+
+                    {/* Mining Animation Bar */}
+                    <div style={{ marginTop: '20px', height: '4px', background: '#222', overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%',
+                        width: '30%',
+                        background: 'linear-gradient(90deg, transparent, #fff, transparent)',
+                        animation: 'shimmer 1.5s infinite'
+                      }} />
+                    </div>
+                  </div>
+                )}
+
+                {/* Found Result */}
+                {vanityResult && (
+                  <div style={{
+                    padding: '24px',
+                    background: 'linear-gradient(135deg, rgba(34,197,94,0.2), rgba(0,0,0,0.5))',
+                    border: '1px solid #22c55e'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      marginBottom: '20px'
+                    }}>
+                      <div style={{ fontSize: '24px' }}>✓</div>
+                      <div style={{
+                        fontFamily: "'Playfair Display', serif",
+                        fontSize: '20px',
+                        color: '#22c55e'
+                      }}>
+                        Address Found!
+                      </div>
+                    </div>
+
+                    <div style={{
+                      padding: '16px',
+                      background: '#0a0a0a',
+                      border: '1px solid #222',
+                      marginBottom: '16px'
+                    }}>
+                      <div style={{ fontSize: '10px', color: '#666', letterSpacing: '0.1em', marginBottom: '8px' }}>YOUR CULTURE ADDRESS</div>
+                      <div style={{
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: '14px',
+                        color: '#fff',
+                        wordBreak: 'break-all'
+                      }}>
+                        {vanityResult.address.slice(0, -vanitySuffix.length)}
+                        <span style={{ color: '#22c55e', fontWeight: 'bold' }}>{vanityResult.address.slice(-vanitySuffix.length)}</span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', textAlign: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: '16px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
+                          {vanityResult.attempts.toLocaleString()}
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginTop: '4px' }}>TOTAL ATTEMPTS</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '16px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
+                          {vanityResult.elapsed.toFixed(1)}s
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginTop: '4px' }}>TIME TAKEN</div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => { setVanityResult(null); setVanitySuffix(''); }}
+                      style={{
+                        marginTop: '16px',
+                        padding: '12px 24px',
+                        background: 'transparent',
+                        border: '1px solid #333',
+                        color: '#888',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: '11px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      MINE ANOTHER
+                    </button>
+                  </div>
+                )}
+
+                <style>{`
+                  @keyframes pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.5; }
+                  }
+                  @keyframes shimmer {
+                    0% { transform: translateX(-100%); }
+                    100% { transform: translateX(400%); }
+                  }
+                `}</style>
               </div>
 
               {/* Culture Identity Header */}
