@@ -2048,7 +2048,7 @@
           const wallet = useContext(WalletContext);
           const [cultureName, setCultureName] = useState('');
           const [creatorName, setCreatorName] = useState('');
-          const [cultureEthos, setCultureEthos] = useState(['CONVICTION', 'PATIENCE', 'SIGNAL']);
+          const [cultureEthos, setCultureEthos] = useState(['', '', '']); // Empty - user fills in
           const [isCreating, setIsCreating] = useState(false);
 
           // Vanity Address Mining
@@ -2064,10 +2064,11 @@
           const [vanityResult, setVanityResult] = useState(null);
           const [miningWorker, setMiningWorker] = useState(null);
 
-          // Estimate difficulty for vanity suffix
+          // Estimate difficulty for vanity suffix (CASE SENSITIVE)
           const estimateVanityDifficulty = (suffix) => {
             if (!suffix) return { attempts: 1, time: 'instant', probability: '100%' };
-            const charProbability = 34; // case insensitive base58
+            // Base58 has 58 characters, case sensitive matching
+            const charProbability = 58;
             const attempts = Math.pow(charProbability, suffix.length);
             const attemptsPerSecond = 50000; // browser estimate
             const seconds = attempts / attemptsPerSecond;
@@ -2095,10 +2096,11 @@
             setVanityResult(null);
 
             // Create inline worker for browser-based mining
+            // CASE SENSITIVE - exact match only
             const workerCode = `
               importScripts('https://cdn.jsdelivr.net/npm/@solana/web3.js@1.87.6/lib/index.iife.min.js');
 
-              const suffix = '${vanitySuffix.toLowerCase()}';
+              const suffix = '${vanitySuffix}';  // Keep exact case user typed
               let attempts = 0;
               const startTime = Date.now();
 
@@ -2109,7 +2111,8 @@
                   const keypair = solanaWeb3.Keypair.generate();
                   const address = keypair.publicKey.toBase58();
 
-                  if (address.toLowerCase().endsWith(suffix)) {
+                  // EXACT case match - "moon" only matches "moon", not "MOON" or "mooN"
+                  if (address.endsWith(suffix)) {
                     postMessage({
                       type: 'found',
                       address: address,
@@ -2697,7 +2700,7 @@
                   justifyContent: 'center',
                   gap: '32px',
                   flexWrap: 'wrap',
-                  marginBottom: '24px'
+                  marginBottom: '8px'
                 }}>
                   {cultureEthos.map((ethos, idx) => (
                     <input
@@ -2709,22 +2712,33 @@
                         newEthos[idx] = e.target.value;
                         setCultureEthos(newEthos);
                       }}
-                      placeholder={`Value ${idx + 1}`}
+                      placeholder={['CONVICTION', 'PATIENCE', 'SIGNAL'][idx] || `VALUE ${idx + 1}`}
                       style={{
                         background: 'transparent',
                         border: 'none',
+                        borderBottom: '1px dashed rgba(255,255,255,0.2)',
                         fontFamily: "'IBM Plex Mono', monospace",
                         fontSize: '13px',
-                        color: theme.accentColor,
+                        color: ethos ? theme.accentColor : '#666',
                         textAlign: 'center',
                         letterSpacing: '0.2em',
                         textTransform: 'uppercase',
                         outline: 'none',
-                        width: '150px'
+                        width: '150px',
+                        padding: '4px 0'
                       }}
                     />
                   ))}
                 </div>
+                <p style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: '10px',
+                  color: '#555',
+                  textAlign: 'center',
+                  marginBottom: '24px'
+                }}>
+                  Click to edit your culture's core values
+                </p>
 
                 {/* Creator Name */}
                 <div style={{
