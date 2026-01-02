@@ -2853,25 +2853,87 @@
                   </div>
                 )}
 
-                {/* Image URL */}
+                {/* Image Upload */}
                 {theme.bgType === 'image' && (
                   <div style={{ marginBottom: '24px' }}>
-                    <SectionHeader title="BACKGROUND IMAGE URL" tooltip="Paste a link to any image from the web. It will fill the entire background. Use high-resolution images for best results!" />
-                    <input
-                      type="text"
-                      value={theme.bgImage}
-                      onChange={(e) => setTheme({...theme, bgImage: e.target.value})}
-                      placeholder="https://example.com/image.jpg"
-                      style={{
-                        width: '100%',
-                        padding: '12px',
-                        background: '#111',
-                        border: '1px solid #333',
-                        color: '#fff',
-                        fontFamily: "'IBM Plex Mono', monospace",
-                        fontSize: '12px'
-                      }}
-                    />
+                    <SectionHeader title="BACKGROUND IMAGE" tooltip="Upload an image from your computer. It will fill the entire background. Use high-resolution images for best results!" />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <label
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '12px',
+                          padding: '20px',
+                          background: '#111',
+                          border: '2px dashed #333',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.borderColor = '#555'}
+                        onMouseOut={(e) => e.currentTarget.style.borderColor = '#333'}
+                      >
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (event) => {
+                                setTheme({...theme, bgImage: event.target.result});
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          style={{ display: 'none' }}
+                        />
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                          <polyline points="17 8 12 3 7 8"/>
+                          <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        <span style={{
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: '12px',
+                          color: '#888',
+                          letterSpacing: '0.05em'
+                        }}>
+                          {theme.bgImage ? 'CHANGE IMAGE' : 'UPLOAD IMAGE'}
+                        </span>
+                      </label>
+                      {theme.bgImage && (
+                        <div style={{ position: 'relative' }}>
+                          <img
+                            src={theme.bgImage}
+                            alt="Background preview"
+                            style={{
+                              width: '100%',
+                              height: '120px',
+                              objectFit: 'cover',
+                              border: '1px solid #333'
+                            }}
+                          />
+                          <button
+                            onClick={() => setTheme({...theme, bgImage: ''})}
+                            style={{
+                              position: 'absolute',
+                              top: '8px',
+                              right: '8px',
+                              background: 'rgba(0,0,0,0.7)',
+                              border: '1px solid #333',
+                              color: '#fff',
+                              padding: '4px 8px',
+                              fontSize: '10px',
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              cursor: 'pointer'
+                            }}
+                          >
+                            REMOVE
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
