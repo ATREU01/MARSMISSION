@@ -1448,7 +1448,8 @@ const server = http.createServer(async (req, res) => {
                 return;
             }
 
-            const body = await parseBody(req);
+            // Allow larger body for culture creation (theme data, etc.) - 500KB max
+            const body = await parseBody(req, 500 * 1024);
             const { name, creator, creatorName, ethos, beliefs, unlocks, tiers, theme, vanityAddress, wallet, signature, message, tokenAddress, txSignature, ticker, category, devBuyAmount } = body;
 
             if (!name || !creatorName) {
