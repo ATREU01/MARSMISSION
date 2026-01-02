@@ -984,10 +984,33 @@
         // Discovery View
         const DiscoveryView = ({ onSelectCulture }) => {
           const [selectedCategory, setSelectedCategory] = useState(null);
+          const [cultures, setCultures] = useState(CULTURES);
+          const [loading, setLoading] = useState(true);
+
+          // Fetch cultures from API on mount
+          useEffect(() => {
+            const fetchCultures = async () => {
+              try {
+                const res = await fetch('/api/cultures');
+                const data = await res.json();
+                if (data.success && data.cultures) {
+                  // Merge API cultures with base cultures (API cultures take priority)
+                  const apiCultureIds = new Set(data.cultures.map(c => c.id));
+                  const baseCulturesFiltered = BASE_CULTURES.filter(c => !apiCultureIds.has(c.id));
+                  setCultures([...data.cultures, ...baseCulturesFiltered]);
+                }
+              } catch (e) {
+                console.error('[DISCOVER] Failed to fetch cultures:', e);
+              } finally {
+                setLoading(false);
+              }
+            };
+            fetchCultures();
+          }, []);
 
           const filteredCultures = selectedCategory
-            ? CULTURES.filter(c => c.category === selectedCategory)
-            : CULTURES;
+            ? cultures.filter(c => c.category === selectedCategory)
+            : cultures;
 
           return (
             <div style={{ padding: '136px 40px 60px' }}>
