@@ -601,6 +601,14 @@
             // Try Phantom wallet first
             if (window.solana?.isPhantom) {
                 console.log('[CULTURE-DEPLOY] Using Phantom wallet for signing...');
+
+                // Ensure wallet is connected with signing permissions (error 4100 fix)
+                if (!window.solana.isConnected) {
+                    console.log('[CULTURE-DEPLOY] Phantom not connected, connecting...');
+                    await window.solana.connect();
+                }
+
+                console.log('[CULTURE-DEPLOY] Phantom connected:', window.solana.publicKey?.toBase58());
                 console.log('[CULTURE-DEPLOY] Transaction message signers:', tx.message.staticAccountKeys?.slice(0, tx.message.header?.numRequiredSignatures || 2).map(k => k.toBase58()));
                 try {
                     const signedTx = await window.solana.signTransaction(tx);
@@ -613,7 +621,26 @@
                 } catch (phantomErr) {
                     console.error('[CULTURE-DEPLOY] Phantom signing error:', phantomErr);
                     console.error('[CULTURE-DEPLOY] Error details:', JSON.stringify(phantomErr, Object.getOwnPropertyNames(phantomErr)));
-                    throw new Error('Wallet signing failed: ' + (phantomErr.message || 'Unknown error'));
+
+                    // If error 4100, try reconnecting
+                    if (phantomErr.code === 4100) {
+                        console.log('[CULTURE-DEPLOY] Trying to reconnect Phantom...');
+                        try {
+                            await window.solana.disconnect();
+                            await window.solana.connect();
+                            const signedTx = await window.solana.signTransaction(tx);
+                            console.log('[CULTURE-DEPLOY] Phantom signed after reconnect');
+                            signature = await connection.sendRawTransaction(signedTx.serialize(), {
+                                skipPreflight: false,
+                                preflightCommitment: 'confirmed',
+                                maxRetries: 3
+                            });
+                        } catch (retryErr) {
+                            throw new Error('Wallet signing failed after reconnect: ' + (retryErr.message || 'Unknown error'));
+                        }
+                    } else {
+                        throw new Error('Wallet signing failed: ' + (phantomErr.message || 'Unknown error'));
+                    }
                 }
             }
             // Try Solflare
