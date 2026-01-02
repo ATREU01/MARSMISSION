@@ -1227,7 +1227,7 @@
                       "{culture.ethos}"
                     </p>
 
-                    {/* Stats */}
+                    {/* Stats - Real data from pump.fun */}
                     <div style={{
                       display: 'grid',
                       gridTemplateColumns: 'repeat(3, 1fr)',
@@ -1238,14 +1238,18 @@
                       <div>
                         <div style={{
                           fontSize: '18px',
-                          color: '#fff',
+                          color: '#22c55e',
                           fontFamily: "'IBM Plex Mono', monospace",
                           marginBottom: '4px'
                         }}>
-                          {culture.avgHoldDays || 0}d
+                          {culture.marketCap
+                            ? (culture.marketCap >= 1000000
+                                ? `$${(culture.marketCap / 1000000).toFixed(1)}M`
+                                : `$${(culture.marketCap / 1000).toFixed(1)}K`)
+                            : '-'}
                         </div>
                         <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em' }}>
-                          AVG HOLD
+                          MCAP
                         </div>
                       </div>
                       <div>
@@ -1255,10 +1259,14 @@
                           fontFamily: "'IBM Plex Mono', monospace",
                           marginBottom: '4px'
                         }}>
-                          {culture.participationRate || 0}%
+                          {culture.volume
+                            ? (culture.volume >= 1000000
+                                ? `$${(culture.volume / 1000000).toFixed(1)}M`
+                                : `$${(culture.volume / 1000).toFixed(1)}K`)
+                            : '-'}
                         </div>
                         <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em' }}>
-                          ACTIVE
+                          VOLUME
                         </div>
                       </div>
                       <div>
