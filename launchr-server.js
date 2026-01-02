@@ -1449,7 +1449,7 @@ const server = http.createServer(async (req, res) => {
             }
 
             const body = await parseBody(req);
-            const { name, creator, creatorName, ethos, beliefs, unlocks, tiers, theme, vanityAddress, wallet, signature, message, tokenAddress, txSignature, ticker } = body;
+            const { name, creator, creatorName, ethos, beliefs, unlocks, tiers, theme, vanityAddress, wallet, signature, message, tokenAddress, txSignature, ticker, category, devBuyAmount } = body;
 
             if (!name || !creatorName) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -1482,7 +1482,8 @@ const server = http.createServer(async (req, res) => {
                 name: name.trim(),
                 ticker: ticker || generateTicker(name), // Use provided ticker or generate
                 ethos: Array.isArray(ethos) ? ethos.join(' | ') : (ethos || 'Building something meaningful'),
-                category: body.category || 'Operator',
+                category: category || 'other',
+                devBuyAmount: devBuyAmount || 0,
                 creator: wallet || vanityAddress || `0x${crypto.randomBytes(3).toString('hex')}...${crypto.randomBytes(2).toString('hex')}`,
                 creatorName: creatorName.trim(),
                 creatorWallet: wallet || null,

@@ -2282,6 +2282,37 @@
           const [tokenIcon, setTokenIcon] = useState(null); // File object
           const [tokenIconPreview, setTokenIconPreview] = useState(''); // Data URL for preview
           const [tokenTicker, setTokenTicker] = useState(''); // Custom ticker
+          const [devBuyAmount, setDevBuyAmount] = useState(0); // Initial dev buy in SOL (0-5)
+          const [category, setCategory] = useState(''); // Token category
+
+          // Available categories
+          const CATEGORIES = [
+            { id: 'meme', name: 'Meme', icon: '😂' },
+            { id: 'ai', name: 'AI', icon: '🤖' },
+            { id: 'utility', name: 'Utility', icon: '🔧' },
+            { id: 'finance', name: 'Finance', icon: '💰' },
+            { id: 'accounting', name: 'Accounting', icon: '📒' },
+            { id: 'tech', name: 'Tech', icon: '💻' },
+            { id: 'fitness', name: 'Fitness', icon: '💪' },
+            { id: 'wellness', name: 'Health & Wellness', icon: '🧘' },
+            { id: 'data', name: 'Data', icon: '📊' },
+            { id: 'fashion', name: 'Fashion', icon: '👗' },
+            { id: 'music', name: 'Music', icon: '🎵' },
+            { id: 'art', name: 'Art', icon: '🎨' },
+            { id: 'travel', name: 'Travel', icon: '✈️' },
+            { id: 'gaming', name: 'Gaming', icon: '🎮' },
+            { id: 'social', name: 'Social', icon: '👥' },
+            { id: 'law', name: 'Law', icon: '⚖️' },
+            { id: 'environmental', name: 'Environmental', icon: '🌱' },
+            { id: 'education', name: 'Education', icon: '📚' },
+            { id: 'political', name: 'Political', icon: '🗳️' },
+            { id: 'sports', name: 'Sports', icon: '⚽' },
+            { id: 'food', name: 'Food & Drink', icon: '🍕' },
+            { id: 'other', name: 'Other', icon: '✨' }
+          ];
+
+          // Light/Dark mode
+          const [lightMode, setLightMode] = useState(false);
 
           // Vanity Address Mining
           const [vanitySuffix, setVanitySuffix] = useState('');
@@ -2429,7 +2460,37 @@
             stars: 'url("data:image/svg+xml,%3Csvg width=\'30\' height=\'30\' viewBox=\'0 0 30 30\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Ctext x=\'10\' y=\'20\' fill=\'%23333\' opacity=\'0.3\'%3E★%3C/text%3E%3C/svg%3E")'
           };
 
+          // Light mode color overrides
+          const lightColors = {
+            bg: '#f8f9fa',
+            cardBg: '#ffffff',
+            text: '#1a1a1a',
+            textMuted: '#666666',
+            border: '#e0e0e0',
+            accent: '#1a1a1a',
+            inputBg: '#ffffff',
+            inputBorder: '#d0d0d0'
+          };
+
+          const darkColors = {
+            bg: '#0a0a0a',
+            cardBg: '#111111',
+            text: '#ffffff',
+            textMuted: '#888888',
+            border: '#333333',
+            accent: '#FFD966',
+            inputBg: '#111111',
+            inputBorder: '#333333'
+          };
+
+          const colors = lightMode ? lightColors : darkColors;
+
           const getBackgroundStyle = () => {
+            // If light mode, override with light background
+            if (lightMode) {
+              return { background: lightColors.bg };
+            }
+
             let bg = {};
             if (theme.bgType === 'solid') {
               bg.background = theme.bgColor;
@@ -2637,7 +2698,7 @@
                 wallet.address,
                 mintKeypair,
                 tokenMetadata,
-                0 // No initial buy for culture coins
+                devBuyAmount // Initial dev buy in SOL
               );
 
               // Step 1c: Sign and send the transaction
@@ -2665,10 +2726,12 @@
                 ticker: ticker,
                 creatorName: creatorName,
                 ethos: cultureEthos.filter(e => e.trim()),
+                category: category || 'other',
                 theme: theme,
                 beliefs: beliefs.filter(b => b.trim()),
                 unlocks: unlocks.filter(u => u.title.trim()),
                 tiers: tiers.filter(t => t.name.trim()),
+                devBuyAmount: devBuyAmount,
                 // Token data from on-chain creation
                 tokenAddress: tokenAddress,
                 vanityAddress: mintAddress || tokenAddress,
@@ -2733,9 +2796,39 @@
           return (
             <div style={{
               minHeight: '100vh',
-              ...getBackgroundStyle()
+              ...getBackgroundStyle(),
+              color: colors.text
             }}>
               <div style={{ padding: '136px 40px 80px', maxWidth: '900px', margin: '0 auto' }}>
+
+              {/* Light/Dark Mode Toggle */}
+              <div style={{
+                position: 'fixed',
+                top: '110px',
+                right: '40px',
+                zIndex: 100
+              }}>
+                <button
+                  onClick={() => setLightMode(!lightMode)}
+                  style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '50%',
+                    background: lightMode ? '#1a1a1a' : '#ffffff',
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '20px',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
+                    transition: 'all 0.3s'
+                  }}
+                  title={lightMode ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+                >
+                  {lightMode ? '🌙' : '☀️'}
+                </button>
+              </div>
 
               {/* Getting Started Guide - Collapsible */}
               {(() => {
@@ -3253,6 +3346,117 @@
                       Your token will be: ${tokenTicker || (cultureName ? cultureName.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 6) : 'TICKER')}
                     </p>
                   </div>
+                </div>
+
+                {/* Category Selector */}
+                <div style={{ marginTop: '24px' }}>
+                  <SectionHeader
+                    title="CATEGORY"
+                    tooltip="Select the category that best describes your culture coin. This helps users discover your token."
+                  />
+                  <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '8px'
+                  }}>
+                    {CATEGORIES.map(cat => (
+                      <button
+                        key={cat.id}
+                        onClick={() => setCategory(cat.id)}
+                        style={{
+                          padding: '10px 14px',
+                          background: category === cat.id ? 'rgba(255,217,102,0.2)' : '#111',
+                          border: category === cat.id ? '2px solid #FFD966' : '1px solid #333',
+                          borderRadius: '20px',
+                          color: category === cat.id ? '#FFD966' : '#888',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <span>{cat.icon}</span>
+                        <span>{cat.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Dev Buy Slider */}
+                <div style={{ marginTop: '32px', paddingTop: '24px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                  <SectionHeader
+                    title="INITIAL DEV BUY"
+                    tooltip="Buy tokens at launch to seed initial liquidity. This SOL will be used to purchase your own tokens when the coin is created. (0-5 SOL)"
+                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <input
+                      type="range"
+                      min="0"
+                      max="5"
+                      step="0.1"
+                      value={devBuyAmount}
+                      onChange={(e) => setDevBuyAmount(parseFloat(e.target.value))}
+                      style={{
+                        flex: 1,
+                        height: '6px',
+                        WebkitAppearance: 'none',
+                        appearance: 'none',
+                        background: `linear-gradient(to right, #FFD966 0%, #FFD966 ${devBuyAmount * 20}%, #333 ${devBuyAmount * 20}%, #333 100%)`,
+                        borderRadius: '3px',
+                        outline: 'none',
+                        cursor: 'pointer'
+                      }}
+                    />
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      <input
+                        type="number"
+                        min="0"
+                        max="5"
+                        step="0.1"
+                        value={devBuyAmount}
+                        onChange={(e) => {
+                          let val = parseFloat(e.target.value) || 0;
+                          if (val < 0) val = 0;
+                          if (val > 5) val = 5;
+                          setDevBuyAmount(val);
+                        }}
+                        style={{
+                          width: '70px',
+                          padding: '10px',
+                          background: '#111',
+                          border: '1px solid #333',
+                          color: '#fff',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: '14px',
+                          textAlign: 'center',
+                          outline: 'none'
+                        }}
+                      />
+                      <span style={{
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: '14px',
+                        color: '#888'
+                      }}>SOL</span>
+                    </div>
+                  </div>
+                  <p style={{
+                    marginTop: '8px',
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: '11px',
+                    color: '#666'
+                  }}>
+                    {devBuyAmount > 0
+                      ? `You'll spend ${devBuyAmount} SOL to buy tokens at launch`
+                      : 'Optional: Buy your own tokens at launch (0-5 SOL)'
+                    }
+                  </p>
                 </div>
               </div>
 
