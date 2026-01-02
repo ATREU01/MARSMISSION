@@ -1750,13 +1750,72 @@
         const CreateCulturePage = () => {
           const [cultureName, setCultureName] = useState('');
           const [creatorName, setCreatorName] = useState('');
-          const [tiers, setTiers] = useState([
-            { name: 'Observer', holdingPercent: 0.1, access: 'Read-only access to culture feed' },
-            { name: 'Participant', holdingPercent: 0.5, access: 'Join discussions and auctions' },
-            { name: 'Insider', holdingPercent: 1.5, access: 'Live sessions and early drops' },
-            { name: 'Steward', holdingPercent: 5.0, access: 'Help shape culture direction' }
+
+          // Editable beliefs
+          const [beliefs, setBeliefs] = useState([
+            'We prioritize long-term thinking over short-term wins',
+            'We value judgment, not volume',
+            'Participation matters more than presence',
+            'Culture compounds when members contribute'
           ]);
 
+          // Editable unlocks
+          const [unlocks, setUnlocks] = useState([
+            { title: 'Private Discussions', description: 'Member-only conversations focused on signal, not chatter.' },
+            { title: 'Cultural Drops', description: 'Essays, sessions, or artifacts released through auction-style participation.' },
+            { title: 'Live Moments', description: 'Scheduled live calls, AMAs, or IRL meetups.' },
+            { title: 'Early Access', description: 'First access to new initiatives, tools, or collaborations.' }
+          ]);
+
+          // Tiers with content drops
+          const [tiers, setTiers] = useState([
+            { name: 'Observer', holdingPercent: 0.1, access: 'Read-only access to culture feed', content: [] },
+            { name: 'Participant', holdingPercent: 0.5, access: 'Join discussions and auctions', content: [] },
+            { name: 'Insider', holdingPercent: 1.5, access: 'Live sessions and early drops', content: [] },
+            { name: 'Steward', holdingPercent: 5.0, access: 'Help shape culture direction', content: [] }
+          ]);
+
+          const [selectedTierIndex, setSelectedTierIndex] = useState(0);
+
+          // Belief functions
+          const updateBelief = (index, value) => {
+            const newBeliefs = [...beliefs];
+            newBeliefs[index] = value;
+            setBeliefs(newBeliefs);
+          };
+
+          const addBelief = () => {
+            if (beliefs.length < 8) {
+              setBeliefs([...beliefs, '']);
+            }
+          };
+
+          const removeBelief = (index) => {
+            if (beliefs.length > 1) {
+              setBeliefs(beliefs.filter((_, i) => i !== index));
+            }
+          };
+
+          // Unlock functions
+          const updateUnlock = (index, field, value) => {
+            const newUnlocks = [...unlocks];
+            newUnlocks[index] = { ...newUnlocks[index], [field]: value };
+            setUnlocks(newUnlocks);
+          };
+
+          const addUnlock = () => {
+            if (unlocks.length < 8) {
+              setUnlocks([...unlocks, { title: '', description: '' }]);
+            }
+          };
+
+          const removeUnlock = (index) => {
+            if (unlocks.length > 1) {
+              setUnlocks(unlocks.filter((_, i) => i !== index));
+            }
+          };
+
+          // Tier functions
           const updateTier = (index, field, value) => {
             const newTiers = [...tiers];
             newTiers[index] = { ...newTiers[index], [field]: value };
@@ -1766,14 +1825,43 @@
           const addTier = () => {
             if (tiers.length < 6) {
               const lastPercent = tiers[tiers.length - 1]?.holdingPercent || 0;
-              setTiers([...tiers, { name: '', holdingPercent: lastPercent + 2, access: '' }]);
+              setTiers([...tiers, { name: '', holdingPercent: lastPercent + 2, access: '', content: [] }]);
             }
           };
 
           const removeTier = (index) => {
             if (tiers.length > 2) {
               setTiers(tiers.filter((_, i) => i !== index));
+              if (selectedTierIndex >= tiers.length - 1) {
+                setSelectedTierIndex(Math.max(0, tiers.length - 2));
+              }
             }
+          };
+
+          // Tier content functions
+          const addTierContent = (tierIndex, contentType) => {
+            const newTiers = [...tiers];
+            newTiers[tierIndex].content = [...newTiers[tierIndex].content, {
+              type: contentType,
+              title: '',
+              description: ''
+            }];
+            setTiers(newTiers);
+          };
+
+          const updateTierContent = (tierIndex, contentIndex, field, value) => {
+            const newTiers = [...tiers];
+            newTiers[tierIndex].content[contentIndex] = {
+              ...newTiers[tierIndex].content[contentIndex],
+              [field]: value
+            };
+            setTiers(newTiers);
+          };
+
+          const removeTierContent = (tierIndex, contentIndex) => {
+            const newTiers = [...tiers];
+            newTiers[tierIndex].content = newTiers[tierIndex].content.filter((_, i) => i !== contentIndex);
+            setTiers(newTiers);
           };
 
           return (
@@ -1849,103 +1937,193 @@
                 </div>
               </div>
 
-              {/* Section: What This Culture Believes */}
+              {/* Section: What This Culture Believes - Editable */}
               <div style={{ marginBottom: '80px' }}>
                 <div style={{
                   fontFamily: "'Playfair Display', serif",
                   fontSize: '28px',
                   color: '#fff',
-                  marginBottom: '32px'
+                  marginBottom: '12px'
                 }}>
                   What We Stand For
                 </div>
+                <div style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: '13px',
+                  color: '#666',
+                  marginBottom: '32px'
+                }}>
+                  Define the core beliefs of your culture.
+                </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {[
-                    'We prioritize long-term thinking over short-term wins',
-                    'We value judgment, not volume',
-                    'Participation matters more than presence',
-                    'Culture compounds when members contribute'
-                  ].map((belief, i) => (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {beliefs.map((belief, i) => (
                     <div
                       key={i}
                       style={{
-                        padding: '24px 28px',
-                        background: '#0f0f0f',
-                        border: '1px solid #1a1a1a',
-                        fontFamily: "'IBM Plex Mono', monospace",
-                        fontSize: '15px',
-                        color: '#e0e0e0',
-                        lineHeight: 1.6,
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '16px'
+                        gap: '12px'
                       }}
                     >
-                      <span style={{ color: '#444' }}>&#9679;</span>
-                      {belief}
+                      <span style={{ color: '#444', fontSize: '8px' }}>&#9679;</span>
+                      <input
+                        type="text"
+                        value={belief}
+                        onChange={(e) => updateBelief(i, e.target.value)}
+                        placeholder="Enter a core belief..."
+                        style={{
+                          flex: 1,
+                          padding: '16px 20px',
+                          background: '#0f0f0f',
+                          border: '1px solid #1a1a1a',
+                          color: '#e0e0e0',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: '14px',
+                          outline: 'none'
+                        }}
+                      />
+                      {beliefs.length > 1 && (
+                        <button
+                          onClick={() => removeBelief(i)}
+                          style={{
+                            padding: '8px 12px',
+                            background: 'transparent',
+                            border: '1px solid #333',
+                            color: '#666',
+                            fontSize: '16px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          &times;
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
+
+                {beliefs.length < 8 && (
+                  <button
+                    onClick={addBelief}
+                    style={{
+                      marginTop: '12px',
+                      padding: '12px 20px',
+                      background: 'transparent',
+                      border: '1px dashed #333',
+                      color: '#666',
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: '12px',
+                      letterSpacing: '0.1em',
+                      cursor: 'pointer',
+                      width: '100%'
+                    }}
+                  >
+                    + ADD BELIEF
+                  </button>
+                )}
               </div>
 
-              {/* Section: What Holding Unlocks */}
+              {/* Section: What Holding Unlocks - Editable */}
               <div style={{ marginBottom: '80px' }}>
                 <div style={{
                   fontFamily: "'Playfair Display', serif",
                   fontSize: '28px',
                   color: '#fff',
-                  marginBottom: '32px'
+                  marginBottom: '12px'
                 }}>
                   What Participation Unlocks
                 </div>
+                <div style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: '13px',
+                  color: '#666',
+                  marginBottom: '32px'
+                }}>
+                  Define what members get access to.
+                </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
-                  {[
-                    {
-                      title: 'Private Discussions',
-                      description: 'Member-only conversations focused on signal, not chatter.'
-                    },
-                    {
-                      title: 'Cultural Drops',
-                      description: 'Essays, sessions, or artifacts released through auction-style participation.'
-                    },
-                    {
-                      title: 'Live Moments',
-                      description: 'Scheduled live calls, AMAs, or IRL meetups.'
-                    },
-                    {
-                      title: 'Early Access',
-                      description: 'First access to new initiatives, tools, or collaborations.'
-                    }
-                  ].map((card, i) => (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {unlocks.map((unlock, i) => (
                     <div
                       key={i}
                       style={{
-                        padding: '32px',
+                        padding: '24px',
                         background: '#0a0a0a',
                         border: '1px solid #1a1a1a'
                       }}
                     >
-                      <div style={{
-                        fontFamily: "'Playfair Display', serif",
-                        fontSize: '20px',
-                        color: '#fff',
-                        marginBottom: '12px'
-                      }}>
-                        {card.title}
+                      <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'center' }}>
+                        <input
+                          type="text"
+                          value={unlock.title}
+                          onChange={(e) => updateUnlock(i, 'title', e.target.value)}
+                          placeholder="Unlock Title"
+                          style={{
+                            flex: 1,
+                            padding: '12px 16px',
+                            background: '#111',
+                            border: '1px solid #222',
+                            color: '#fff',
+                            fontFamily: "'Playfair Display', serif",
+                            fontSize: '18px',
+                            outline: 'none'
+                          }}
+                        />
+                        {unlocks.length > 1 && (
+                          <button
+                            onClick={() => removeUnlock(i)}
+                            style={{
+                              padding: '8px 12px',
+                              background: 'transparent',
+                              border: '1px solid #333',
+                              color: '#666',
+                              fontSize: '16px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            &times;
+                          </button>
+                        )}
                       </div>
-                      <div style={{
-                        fontFamily: "'IBM Plex Mono', monospace",
-                        fontSize: '13px',
-                        color: '#888',
-                        lineHeight: 1.6
-                      }}>
-                        {card.description}
-                      </div>
+                      <input
+                        type="text"
+                        value={unlock.description}
+                        onChange={(e) => updateUnlock(i, 'description', e.target.value)}
+                        placeholder="Describe what this unlocks..."
+                        style={{
+                          width: '100%',
+                          padding: '12px 16px',
+                          background: '#111',
+                          border: '1px solid #222',
+                          color: '#888',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: '13px',
+                          outline: 'none'
+                        }}
+                      />
                     </div>
                   ))}
                 </div>
+
+                {unlocks.length < 8 && (
+                  <button
+                    onClick={addUnlock}
+                    style={{
+                      marginTop: '16px',
+                      padding: '14px 24px',
+                      background: 'transparent',
+                      border: '1px dashed #333',
+                      color: '#666',
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: '12px',
+                      letterSpacing: '0.1em',
+                      cursor: 'pointer',
+                      width: '100%'
+                    }}
+                  >
+                    + ADD UNLOCK
+                  </button>
+                )}
               </div>
 
               {/* Section: Define Tiers Based on Holdings */}
@@ -2117,6 +2295,249 @@
                         {tier.name} <span style={{ color: '#666' }}>@ {tier.holdingPercent}%</span>
                       </div>
                     ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Section: Tier Content Panel */}
+              <div style={{ marginBottom: '60px' }}>
+                <div style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: '28px',
+                  color: '#fff',
+                  marginBottom: '12px'
+                }}>
+                  Tier Content
+                </div>
+                <div style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: '13px',
+                  color: '#666',
+                  marginBottom: '32px'
+                }}>
+                  Drop content for each tier. Members see content based on their holding level.
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '24px' }}>
+                  {/* Left Panel - Tier Selection */}
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px'
+                  }}>
+                    {tiers.filter(t => t.name).map((tier, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setSelectedTierIndex(i)}
+                        style={{
+                          padding: '16px 20px',
+                          background: selectedTierIndex === i ? '#1a1a1a' : '#0a0a0a',
+                          border: '1px solid',
+                          borderColor: selectedTierIndex === i ? '#444' : '#1a1a1a',
+                          color: selectedTierIndex === i ? '#fff' : '#888',
+                          fontFamily: "'Playfair Display', serif",
+                          fontSize: '16px',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          position: 'relative'
+                        }}
+                      >
+                        {tier.name}
+                        <div style={{
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: '10px',
+                          color: '#666',
+                          marginTop: '4px'
+                        }}>
+                          {tier.holdingPercent}% • {tier.content?.length || 0} items
+                        </div>
+                        {selectedTierIndex === i && (
+                          <div style={{
+                            position: 'absolute',
+                            left: 0,
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            width: '3px',
+                            height: '24px',
+                            background: '#fff'
+                          }} />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Right Panel - Content for Selected Tier */}
+                  <div style={{
+                    background: '#0a0a0a',
+                    border: '1px solid #1a1a1a',
+                    padding: '24px',
+                    minHeight: '300px'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '24px'
+                    }}>
+                      <div>
+                        <div style={{
+                          fontFamily: "'Playfair Display', serif",
+                          fontSize: '20px',
+                          color: '#fff',
+                          marginBottom: '4px'
+                        }}>
+                          {tiers[selectedTierIndex]?.name || 'Select Tier'} Content
+                        </div>
+                        <div style={{
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: '11px',
+                          color: '#666'
+                        }}>
+                          Content visible to {tiers[selectedTierIndex]?.name} tier and above
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          onClick={() => addTierContent(selectedTierIndex, 'essay')}
+                          style={{
+                            padding: '8px 12px',
+                            background: '#111',
+                            border: '1px solid #333',
+                            color: '#888',
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            fontSize: '10px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          + ESSAY
+                        </button>
+                        <button
+                          onClick={() => addTierContent(selectedTierIndex, 'session')}
+                          style={{
+                            padding: '8px 12px',
+                            background: '#111',
+                            border: '1px solid #333',
+                            color: '#888',
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            fontSize: '10px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          + SESSION
+                        </button>
+                        <button
+                          onClick={() => addTierContent(selectedTierIndex, 'drop')}
+                          style={{
+                            padding: '8px 12px',
+                            background: '#111',
+                            border: '1px solid #333',
+                            color: '#888',
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            fontSize: '10px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          + DROP
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Content Items */}
+                    {tiers[selectedTierIndex]?.content?.length === 0 ? (
+                      <div style={{
+                        padding: '60px 20px',
+                        textAlign: 'center',
+                        border: '1px dashed #222'
+                      }}>
+                        <div style={{
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: '13px',
+                          color: '#444',
+                          marginBottom: '8px'
+                        }}>
+                          No content yet
+                        </div>
+                        <div style={{
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: '11px',
+                          color: '#333'
+                        }}>
+                          Add essays, sessions, or drops for this tier
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {tiers[selectedTierIndex]?.content?.map((item, ci) => (
+                          <div
+                            key={ci}
+                            style={{
+                              padding: '16px',
+                              background: '#111',
+                              border: '1px solid #222'
+                            }}
+                          >
+                            <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'center' }}>
+                              <span style={{
+                                padding: '4px 8px',
+                                background: item.type === 'essay' ? '#1a365d' : item.type === 'session' ? '#322659' : '#1a1a1a',
+                                color: item.type === 'essay' ? '#63b3ed' : item.type === 'session' ? '#b794f4' : '#888',
+                                fontFamily: "'IBM Plex Mono', monospace",
+                                fontSize: '9px',
+                                letterSpacing: '0.1em',
+                                textTransform: 'uppercase'
+                              }}>
+                                {item.type}
+                              </span>
+                              <input
+                                type="text"
+                                value={item.title}
+                                onChange={(e) => updateTierContent(selectedTierIndex, ci, 'title', e.target.value)}
+                                placeholder="Content title"
+                                style={{
+                                  flex: 1,
+                                  padding: '8px 12px',
+                                  background: 'transparent',
+                                  border: '1px solid #222',
+                                  color: '#fff',
+                                  fontFamily: "'IBM Plex Mono', monospace",
+                                  fontSize: '13px',
+                                  outline: 'none'
+                                }}
+                              />
+                              <button
+                                onClick={() => removeTierContent(selectedTierIndex, ci)}
+                                style={{
+                                  padding: '4px 8px',
+                                  background: 'transparent',
+                                  border: '1px solid #333',
+                                  color: '#666',
+                                  fontSize: '14px',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                &times;
+                              </button>
+                            </div>
+                            <input
+                              type="text"
+                              value={item.description}
+                              onChange={(e) => updateTierContent(selectedTierIndex, ci, 'description', e.target.value)}
+                              placeholder="Brief description..."
+                              style={{
+                                width: '100%',
+                                padding: '8px 12px',
+                                background: 'transparent',
+                                border: '1px solid #222',
+                                color: '#666',
+                                fontFamily: "'IBM Plex Mono', monospace",
+                                fontSize: '12px',
+                                outline: 'none'
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
