@@ -2020,30 +2020,44 @@
           </div>
         );
 
-        // Dashboard View
+        // Dashboard View - Shows cultures you CREATED (as owner)
         const DashboardView = () => {
           const wallet = useContext(WalletContext);
+          const [myCultures, setMyCultures] = useState([]);
+          const [loading, setLoading] = useState(true);
 
-          // Build user cultures from holdings
-          const userCultures = wallet?.holdings?.map(holding => {
-            const culture = CULTURES.find(c => c.id === holding.cultureId);
-            if (!culture) return null;
-            const daysHeld = Math.floor((Date.now() - holding.joinedAt) / (1000 * 60 * 60 * 24));
-            return {
-              ...culture,
-              holding: {
-                percent: holding.percent,
-                tier: holding.tier,
-                coins: holding.coins,
-                daysHeld: daysHeld
+          // Fetch cultures I created from API
+          useEffect(() => {
+            const fetchMyCultures = async () => {
+              if (!wallet?.address) {
+                setLoading(false);
+                return;
+              }
+              try {
+                const res = await fetch('/api/cultures');
+                const data = await res.json();
+                if (data.success && data.cultures) {
+                  // Filter to cultures created by this wallet
+                  const owned = data.cultures.filter(c =>
+                    c.wallet === wallet.address ||
+                    c.creator === wallet.address
+                  );
+                  console.log('[DASHBOARD] Found', owned.length, 'cultures owned by', wallet.address);
+                  setMyCultures(owned);
+                }
+              } catch (e) {
+                console.error('[DASHBOARD] Error fetching cultures:', e);
+              } finally {
+                setLoading(false);
               }
             };
-          }).filter(Boolean) || [];
+            fetchMyCultures();
+          }, [wallet?.address]);
 
           const totalParticipation = {
-            auctionsWon: userCultures.length > 0 ? Math.floor(Math.random() * 5) : 0,
-            sessionsAttended: userCultures.length > 0 ? Math.floor(Math.random() * 15) : 0,
-            contributionsMade: userCultures.length > 0 ? Math.floor(Math.random() * 10) : 0
+            culturesCreated: myCultures.length,
+            totalHolders: myCultures.reduce((sum, c) => sum + (c.holders || 0), 0),
+            totalVolume: myCultures.reduce((sum, c) => sum + (c.volume || 0), 0)
           };
 
           // Not connected state
@@ -2090,8 +2104,17 @@
             );
           }
 
-          // No holdings state
-          if (userCultures.length === 0) {
+          // Loading state
+          if (loading) {
+            return (
+              <div style={{ padding: '136px 40px 60px', textAlign: 'center' }}>
+                <p style={{ color: '#888', fontFamily: "'IBM Plex Mono', monospace" }}>Loading your cultures...</p>
+              </div>
+            );
+          }
+
+          // No cultures created yet
+          if (myCultures.length === 0) {
             return (
               <div style={{ padding: '136px 40px 60px', textAlign: 'center' }}>
                 <div style={{ maxWidth: '500px', margin: '0 auto' }}>
@@ -2102,7 +2125,7 @@
                     color: '#fff',
                     marginBottom: '24px'
                   }}>
-                    No Cultures Yet
+                    No Cultures Created
                   </h1>
                   <p style={{
                     fontFamily: "'IBM Plex Mono', monospace",
@@ -2111,7 +2134,7 @@
                     marginBottom: '16px',
                     lineHeight: 1.7
                   }}>
-                    You haven't joined any cultures yet. Explore and find communities that align with your values.
+                    You haven't created any cultures yet. Create your first culture coin and build your community.
                   </p>
                   <p style={{
                     fontFamily: "'IBM Plex Mono', monospace",
@@ -2121,6 +2144,22 @@
                   }}>
                     Connected: {wallet.address.slice(0,6)}...{wallet.address.slice(-4)}
                   </p>
+                  <button
+                    onClick={() => window.location.href = '/culture-coins?view=create'}
+                    style={{
+                      padding: '16px 40px',
+                      background: '#fff',
+                      border: 'none',
+                      color: '#000',
+                      fontSize: '12px',
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      letterSpacing: '0.1em',
+                      cursor: 'pointer',
+                      fontWeight: 600
+                    }}
+                  >
+                    CREATE CULTURE
+                  </button>
                 </div>
               </div>
             );
@@ -2136,14 +2175,14 @@
                   color: '#fff',
                   marginBottom: '16px'
                 }}>
-                  Your Cultures
+                  My Cultures
                 </h1>
                 <p style={{
                   fontFamily: "'IBM Plex Mono', monospace",
                   fontSize: '14px',
                   color: '#888'
                 }}>
-                  Your standing and participation across cultures.
+                  Cultures you've created. Manage settings and view performance.
                 </p>
               </div>
 
@@ -2155,9 +2194,9 @@
                 marginBottom: '48px'
               }}>
                 {[
-                  { value: userCultures.length, label: 'CULTURES JOINED' },
-                  { value: totalParticipation.sessionsAttended, label: 'SESSIONS ATTENDED' },
-                  { value: totalParticipation.contributionsMade, label: 'CONTRIBUTIONS' }
+                  { value: myCultures.length, label: 'CULTURES CREATED' },
+                  { value: totalParticipation.totalHolders, label: 'TOTAL HOLDERS' },
+                  { value: `$${totalParticipation.totalVolume.toLocaleString()}`, label: 'TOTAL VOLUME' }
                 ].map((stat, i) => (
                   <div key={i} style={{
                     background: '#0f0f0f',
@@ -2184,7 +2223,7 @@
                 ))}
               </div>
 
-              {/* Holdings */}
+              {/* My Cultures */}
               <div style={{
                 fontSize: '10px',
                 letterSpacing: '0.15em',
@@ -2192,29 +2231,26 @@
                 marginBottom: '24px',
                 fontFamily: "'IBM Plex Mono', monospace"
               }}>
-                YOUR STANDING
+                YOUR CULTURES
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {userCultures.map(culture => {
-                  const nextTier = culture.tiers.find(t => t.percent > culture.holding.percent);
-                  const progressToNext = nextTier
-                    ? ((culture.holding.percent / nextTier.percent) * 100).toFixed(0)
-                    : 100;
-
-                  return (
-                    <div
-                      key={culture.id}
-                      style={{
-                        background: '#0f0f0f',
-                        border: '1px solid #1a1a1a',
-                        padding: '32px',
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 1fr 200px',
-                        gap: '32px',
-                        alignItems: 'center'
-                      }}
-                    >
+                {myCultures.map(culture => (
+                  <div
+                    key={culture.id || culture.tokenAddress}
+                    style={{
+                      background: '#0f0f0f',
+                      border: '1px solid #1a1a1a',
+                      padding: '32px'
+                    }}
+                  >
+                    {/* Header row */}
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
+                      marginBottom: '24px'
+                    }}>
                       <div>
                         <div style={{
                           fontSize: '9px',
@@ -2223,11 +2259,11 @@
                           marginBottom: '8px',
                           fontFamily: "'IBM Plex Mono', monospace"
                         }}>
-                          {culture.category.toUpperCase()}
+                          {(culture.category || 'CULTURE').toUpperCase()}
                         </div>
                         <h3 style={{
                           fontFamily: "'Playfair Display', serif",
-                          fontSize: '24px',
+                          fontSize: '28px',
                           color: '#fff',
                           marginBottom: '8px'
                         }}>
@@ -2237,58 +2273,188 @@
                           display: 'inline-block',
                           background: '#22c55e',
                           color: '#000',
-                          fontSize: '10px',
+                          fontSize: '11px',
                           fontFamily: "'IBM Plex Mono', monospace",
                           letterSpacing: '0.1em',
-                          padding: '4px 10px'
+                          padding: '4px 12px',
+                          fontWeight: 600
                         }}>
-                          {culture.holding.tier.toUpperCase()}
+                          ${culture.ticker || culture.symbol || 'TOKEN'}
                         </div>
                       </div>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
-                        <div>
-                          <div style={{ fontSize: '20px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '4px' }}>
-                            {culture.holding.percent}%
-                          </div>
-                          <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em' }}>OF SUPPLY</div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '20px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '4px' }}>
-                            {culture.holding.coins.toLocaleString()}
-                          </div>
-                          <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em' }}>COINS</div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '20px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '4px' }}>
-                            {culture.holding.daysHeld}d
-                          </div>
-                          <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em' }}>HELD</div>
-                        </div>
-                      </div>
-
-                      <div>
-                        {nextTier ? (
-                          <>
-                            <div style={{ fontSize: '11px', color: '#666', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '8px' }}>
-                              {progressToNext}% to {nextTier.name}
-                            </div>
-                            <div style={{ height: '4px', background: '#1a1a1a' }}>
-                              <div style={{ height: '100%', width: `${progressToNext}%`, background: '#fff' }} />
-                            </div>
-                            <div style={{ fontSize: '10px', color: '#666', fontFamily: "'IBM Plex Mono', monospace", marginTop: '8px' }}>
-                              Need {nextTier.percent}% supply
-                            </div>
-                          </>
-                        ) : (
-                          <div style={{ fontSize: '11px', color: '#22c55e', fontFamily: "'IBM Plex Mono', monospace" }}>
-                            Maximum tier reached
-                          </div>
-                        )}
+                      <div style={{
+                        display: 'inline-block',
+                        background: '#1a1a1a',
+                        color: '#22c55e',
+                        fontSize: '10px',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        letterSpacing: '0.1em',
+                        padding: '6px 12px'
+                      }}>
+                        OWNER
                       </div>
                     </div>
-                  );
-                })}
+
+                    {/* Token address */}
+                    {culture.tokenAddress && (
+                      <div style={{ marginBottom: '24px' }}>
+                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginBottom: '8px', fontFamily: "'IBM Plex Mono', monospace" }}>
+                          TOKEN ADDRESS
+                        </div>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          background: '#0a0a0a',
+                          padding: '12px 16px',
+                          border: '1px solid #222'
+                        }}>
+                          <span style={{
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            fontSize: '13px',
+                            color: '#fff',
+                            flex: 1
+                          }}>
+                            {culture.tokenAddress}
+                          </span>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(culture.tokenAddress);
+                              alert('Copied!');
+                            }}
+                            style={{
+                              background: 'transparent',
+                              border: '1px solid #333',
+                              color: '#888',
+                              padding: '6px 12px',
+                              fontSize: '10px',
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              cursor: 'pointer'
+                            }}
+                          >
+                            COPY
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Stats row */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(4, 1fr)',
+                      gap: '24px',
+                      marginBottom: '24px'
+                    }}>
+                      <div>
+                        <div style={{ fontSize: '18px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '4px' }}>
+                          {culture.holders || 0}
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em' }}>HOLDERS</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '18px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '4px' }}>
+                          ${(culture.marketCap || 0).toLocaleString()}
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em' }}>MARKET CAP</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '18px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '4px' }}>
+                          ${(culture.volume || 0).toLocaleString()}
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em' }}>VOLUME</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '18px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '4px' }}>
+                          {culture.createdAt ? new Date(culture.createdAt).toLocaleDateString() : '-'}
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em' }}>CREATED</div>
+                      </div>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div style={{
+                      display: 'flex',
+                      gap: '12px',
+                      flexWrap: 'wrap'
+                    }}>
+                      {culture.tokenAddress && (
+                        <a
+                          href={`https://pump.fun/coin/${culture.tokenAddress}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            padding: '12px 24px',
+                            background: '#22c55e',
+                            border: 'none',
+                            color: '#000',
+                            fontSize: '11px',
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            letterSpacing: '0.1em',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                            textDecoration: 'none'
+                          }}
+                        >
+                          VIEW ON PUMP.FUN
+                        </a>
+                      )}
+                      <a
+                        href={`/culture-coins?view=culture&id=${culture.id || culture.slug}`}
+                        style={{
+                          padding: '12px 24px',
+                          background: 'transparent',
+                          border: '1px solid #333',
+                          color: '#fff',
+                          fontSize: '11px',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          letterSpacing: '0.1em',
+                          cursor: 'pointer',
+                          textDecoration: 'none'
+                        }}
+                      >
+                        VIEW PAGE
+                      </a>
+                      <button
+                        onClick={() => {
+                          // TODO: Open settings modal
+                          alert('Settings coming soon! For now, contact support to update your culture page.');
+                        }}
+                        style={{
+                          padding: '12px 24px',
+                          background: 'transparent',
+                          border: '1px solid #333',
+                          color: '#888',
+                          fontSize: '11px',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          letterSpacing: '0.1em',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        SETTINGS
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Create another culture button */}
+              <div style={{ marginTop: '32px', textAlign: 'center' }}>
+                <button
+                  onClick={() => window.location.href = '/culture-coins?view=create'}
+                  style={{
+                    padding: '16px 40px',
+                    background: 'transparent',
+                    border: '1px solid #333',
+                    color: '#fff',
+                    fontSize: '12px',
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    letterSpacing: '0.1em',
+                    cursor: 'pointer'
+                  }}
+                >
+                  + CREATE ANOTHER CULTURE
+                </button>
               </div>
             </div>
           );
