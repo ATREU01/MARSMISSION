@@ -188,6 +188,102 @@
         // Wallet Context for global state
         const WalletContext = createContext(null);
 
+        // ═══════════════════════════════════════════════════════════════════
+        // TOOLTIP COMPONENT - Hover explanations for users
+        // ═══════════════════════════════════════════════════════════════════
+        const Tooltip = ({ text, children }) => {
+          const [show, setShow] = useState(false);
+          const [position, setPosition] = useState({ x: 0, y: 0 });
+
+          const handleMouseEnter = (e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            setPosition({ x: rect.left + rect.width / 2, y: rect.top });
+            setShow(true);
+          };
+
+          return (
+            <span
+              style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'help' }}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={() => setShow(false)}
+            >
+              {children}
+              {show && (
+                <div style={{
+                  position: 'fixed',
+                  left: position.x,
+                  top: position.y - 10,
+                  transform: 'translate(-50%, -100%)',
+                  background: '#222',
+                  border: '1px solid #444',
+                  padding: '12px 16px',
+                  borderRadius: '4px',
+                  maxWidth: '300px',
+                  zIndex: 10000,
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
+                }}>
+                  <div style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: '12px',
+                    color: '#ccc',
+                    lineHeight: 1.6
+                  }}>
+                    {text}
+                  </div>
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '-6px',
+                    left: '50%',
+                    transform: 'translateX(-50%) rotate(45deg)',
+                    width: '10px',
+                    height: '10px',
+                    background: '#222',
+                    borderRight: '1px solid #444',
+                    borderBottom: '1px solid #444'
+                  }} />
+                </div>
+              )}
+            </span>
+          );
+        };
+
+        // Info icon for tooltips
+        const InfoIcon = ({ tooltip }) => (
+          <Tooltip text={tooltip}>
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '18px',
+              height: '18px',
+              borderRadius: '50%',
+              border: '1px solid #444',
+              fontSize: '11px',
+              color: '#888',
+              marginLeft: '8px',
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontWeight: 'bold'
+            }}>?</span>
+          </Tooltip>
+        );
+
+        // Section header with built-in tooltip support
+        const SectionHeader = ({ title, tooltip, style = {} }) => (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            fontSize: '10px',
+            letterSpacing: '0.15em',
+            color: '#666',
+            marginBottom: '12px',
+            fontFamily: "'IBM Plex Mono', monospace",
+            ...style
+          }}>
+            {title}
+            {tooltip && <InfoIcon tooltip={tooltip} />}
+          </div>
+        );
+
         // Config from server
         const SOLANA_RPC = window.LAUNCHR_CONFIG?.SOLANA_RPC || 'https://api.mainnet-beta.solana.com';
 
@@ -1751,6 +1847,169 @@
           const [cultureName, setCultureName] = useState('');
           const [creatorName, setCreatorName] = useState('');
 
+          // Vanity Address Mining
+          const [vanitySuffix, setVanitySuffix] = useState('');
+          const [vanityMining, setVanityMining] = useState(false);
+          const [vanityProgress, setVanityProgress] = useState({
+            attempts: 0,
+            rate: 0,
+            elapsed: 0,
+            estimatedTime: '',
+            difficulty: ''
+          });
+          const [vanityResult, setVanityResult] = useState(null);
+          const [miningWorker, setMiningWorker] = useState(null);
+
+          // Estimate difficulty for vanity suffix
+          const estimateVanityDifficulty = (suffix) => {
+            if (!suffix) return { attempts: 1, time: 'instant', probability: '100%' };
+            const charProbability = 34; // case insensitive base58
+            const attempts = Math.pow(charProbability, suffix.length);
+            const attemptsPerSecond = 50000; // browser estimate
+            const seconds = attempts / attemptsPerSecond;
+
+            let timeEstimate;
+            if (seconds < 60) timeEstimate = `~${Math.round(seconds)} seconds`;
+            else if (seconds < 3600) timeEstimate = `~${Math.round(seconds / 60)} minutes`;
+            else if (seconds < 86400) timeEstimate = `~${Math.round(seconds / 3600)} hours`;
+            else if (seconds < 604800) timeEstimate = `~${Math.round(seconds / 86400)} days`;
+            else timeEstimate = `~${Math.round(seconds / 604800)} weeks`;
+
+            return {
+              attempts: attempts.toLocaleString(),
+              time: timeEstimate,
+              probability: `1 in ${attempts.toLocaleString()}`
+            };
+          };
+
+          // Start vanity mining in web worker
+          const startVanityMining = () => {
+            if (!vanitySuffix || vanityMining) return;
+
+            setVanityMining(true);
+            setVanityProgress({ attempts: 0, rate: 0, elapsed: 0, estimatedTime: estimateVanityDifficulty(vanitySuffix).time, difficulty: estimateVanityDifficulty(vanitySuffix).probability });
+            setVanityResult(null);
+
+            // Create inline worker for browser-based mining
+            const workerCode = `
+              importScripts('https://cdn.jsdelivr.net/npm/@solana/web3.js@1.87.6/lib/index.iife.min.js');
+
+              const suffix = '${vanitySuffix.toLowerCase()}';
+              let attempts = 0;
+              const startTime = Date.now();
+
+              function mine() {
+                const batchSize = 1000;
+                for (let i = 0; i < batchSize; i++) {
+                  attempts++;
+                  const keypair = solanaWeb3.Keypair.generate();
+                  const address = keypair.publicKey.toBase58();
+
+                  if (address.toLowerCase().endsWith(suffix)) {
+                    postMessage({
+                      type: 'found',
+                      address: address,
+                      secretKey: Array.from(keypair.secretKey),
+                      attempts: attempts,
+                      elapsed: (Date.now() - startTime) / 1000
+                    });
+                    return;
+                  }
+                }
+
+                // Report progress
+                const elapsed = (Date.now() - startTime) / 1000;
+                postMessage({
+                  type: 'progress',
+                  attempts: attempts,
+                  rate: Math.round(attempts / elapsed),
+                  elapsed: Math.round(elapsed)
+                });
+
+                // Continue mining
+                setTimeout(mine, 0);
+              }
+
+              mine();
+            `;
+
+            const blob = new Blob([workerCode], { type: 'application/javascript' });
+            const worker = new Worker(URL.createObjectURL(blob));
+
+            worker.onmessage = (e) => {
+              if (e.data.type === 'progress') {
+                setVanityProgress(prev => ({
+                  ...prev,
+                  attempts: e.data.attempts,
+                  rate: e.data.rate,
+                  elapsed: e.data.elapsed
+                }));
+              } else if (e.data.type === 'found') {
+                setVanityResult({
+                  address: e.data.address,
+                  secretKey: e.data.secretKey,
+                  attempts: e.data.attempts,
+                  elapsed: e.data.elapsed
+                });
+                setVanityMining(false);
+                worker.terminate();
+              }
+            };
+
+            setMiningWorker(worker);
+          };
+
+          // Stop mining
+          const stopVanityMining = () => {
+            if (miningWorker) {
+              miningWorker.terminate();
+              setMiningWorker(null);
+            }
+            setVanityMining(false);
+          };
+
+          // Theme customization
+          const [theme, setTheme] = useState({
+            bgType: 'solid', // solid, gradient, pattern, image
+            bgColor: '#0a0a0a',
+            bgGradient: ['#0a0a0a', '#1a1a2e'],
+            bgPattern: 'none', // none, dots, grid, diagonal
+            bgImage: '',
+            accentColor: '#ffffff',
+            textColor: '#ffffff',
+            cardBg: '#0f0f0f',
+            borderColor: '#1a1a1a'
+          });
+
+          const patterns = {
+            none: 'none',
+            dots: 'radial-gradient(circle, #333 1px, transparent 1px)',
+            grid: 'linear-gradient(#222 1px, transparent 1px), linear-gradient(90deg, #222 1px, transparent 1px)',
+            diagonal: 'repeating-linear-gradient(45deg, #1a1a1a, #1a1a1a 10px, #0f0f0f 10px, #0f0f0f 20px)',
+            hearts: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' viewBox=\'0 0 40 40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M20 30l-7-7c-4-4-4-10 0-14s10-4 14 0l-7 7 7 7c4 4 4 10 0 14s-10 4-14 0l7-7z\' fill=\'%23333\' fill-opacity=\'0.3\'/%3E%3C/svg%3E")',
+            stars: 'url("data:image/svg+xml,%3Csvg width=\'30\' height=\'30\' viewBox=\'0 0 30 30\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Ctext x=\'10\' y=\'20\' fill=\'%23333\' opacity=\'0.3\'%3E★%3C/text%3E%3C/svg%3E")'
+          };
+
+          const getBackgroundStyle = () => {
+            let bg = {};
+            if (theme.bgType === 'solid') {
+              bg.background = theme.bgColor;
+            } else if (theme.bgType === 'gradient') {
+              bg.background = `linear-gradient(135deg, ${theme.bgGradient[0]}, ${theme.bgGradient[1]})`;
+            } else if (theme.bgType === 'pattern') {
+              bg.background = theme.bgColor;
+              if (theme.bgPattern !== 'none') {
+                bg.backgroundImage = patterns[theme.bgPattern];
+                bg.backgroundSize = theme.bgPattern === 'dots' ? '20px 20px' : theme.bgPattern === 'grid' ? '20px 20px' : 'auto';
+              }
+            } else if (theme.bgType === 'image' && theme.bgImage) {
+              bg.backgroundImage = `url(${theme.bgImage})`;
+              bg.backgroundSize = 'cover';
+              bg.backgroundPosition = 'center';
+            }
+            return bg;
+          };
+
           // Editable beliefs
           const [beliefs, setBeliefs] = useState([
             'We prioritize long-term thinking over short-term wins',
@@ -1865,10 +2124,793 @@
           };
 
           return (
-            <div style={{ padding: '136px 40px 80px', maxWidth: '900px', margin: '0 auto' }}>
+            <div style={{
+              minHeight: '100vh',
+              ...getBackgroundStyle()
+            }}>
+              <div style={{ padding: '136px 40px 80px', maxWidth: '900px', margin: '0 auto' }}>
+
+              {/* Getting Started Guide - Collapsible */}
+              {(() => {
+                const [guideOpen, setGuideOpen] = useState(true);
+                return (
+                  <div style={{
+                    marginBottom: '40px',
+                    background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+                    border: '1px solid #2a2a4a',
+                    borderRadius: '8px',
+                    overflow: 'hidden'
+                  }}>
+                    {/* Guide Header */}
+                    <button
+                      onClick={() => setGuideOpen(!guideOpen)}
+                      style={{
+                        width: '100%',
+                        padding: '20px 24px',
+                        background: 'transparent',
+                        border: 'none',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{ fontSize: '20px' }}>📖</span>
+                        <span style={{
+                          fontFamily: "'Playfair Display', serif",
+                          fontSize: '20px',
+                          color: '#fff'
+                        }}>
+                          How to Create Your Culture
+                        </span>
+                        <span style={{
+                          background: '#FFD966',
+                          color: '#000',
+                          padding: '4px 10px',
+                          fontSize: '10px',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontWeight: 600,
+                          letterSpacing: '0.1em',
+                          borderRadius: '4px'
+                        }}>
+                          START HERE
+                        </span>
+                      </div>
+                      <span style={{
+                        color: '#888',
+                        fontSize: '20px',
+                        transform: guideOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.2s'
+                      }}>▼</span>
+                    </button>
+
+                    {/* Guide Content */}
+                    {guideOpen && (
+                      <div style={{ padding: '0 24px 24px' }}>
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                          gap: '20px',
+                          marginBottom: '24px'
+                        }}>
+                          {/* Step 1 */}
+                          <div style={{
+                            background: 'rgba(0,0,0,0.3)',
+                            padding: '20px',
+                            borderRadius: '6px',
+                            border: '1px solid #333'
+                          }}>
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '10px',
+                              marginBottom: '12px'
+                            }}>
+                              <span style={{
+                                background: '#FFD966',
+                                color: '#000',
+                                width: '24px',
+                                height: '24px',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '12px',
+                                fontWeight: 'bold'
+                              }}>1</span>
+                              <span style={{
+                                fontFamily: "'IBM Plex Mono', monospace",
+                                fontSize: '11px',
+                                color: '#FFD966',
+                                letterSpacing: '0.1em'
+                              }}>CUSTOMIZE</span>
+                            </div>
+                            <p style={{
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontSize: '12px',
+                              color: '#aaa',
+                              lineHeight: 1.6
+                            }}>
+                              Make your page your own! Choose colors, backgrounds, and patterns that represent your culture's vibe.
+                            </p>
+                          </div>
+
+                          {/* Step 2 */}
+                          <div style={{
+                            background: 'rgba(0,0,0,0.3)',
+                            padding: '20px',
+                            borderRadius: '6px',
+                            border: '1px solid #333'
+                          }}>
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '10px',
+                              marginBottom: '12px'
+                            }}>
+                              <span style={{
+                                background: '#FFD966',
+                                color: '#000',
+                                width: '24px',
+                                height: '24px',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '12px',
+                                fontWeight: 'bold'
+                              }}>2</span>
+                              <span style={{
+                                fontFamily: "'IBM Plex Mono', monospace",
+                                fontSize: '11px',
+                                color: '#FFD966',
+                                letterSpacing: '0.1em'
+                              }}>DEFINE BELIEFS</span>
+                            </div>
+                            <p style={{
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontSize: '12px',
+                              color: '#aaa',
+                              lineHeight: 1.6
+                            }}>
+                              What does your culture stand for? Add your core values and beliefs that members will rally around.
+                            </p>
+                          </div>
+
+                          {/* Step 3 */}
+                          <div style={{
+                            background: 'rgba(0,0,0,0.3)',
+                            padding: '20px',
+                            borderRadius: '6px',
+                            border: '1px solid #333'
+                          }}>
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '10px',
+                              marginBottom: '12px'
+                            }}>
+                              <span style={{
+                                background: '#FFD966',
+                                color: '#000',
+                                width: '24px',
+                                height: '24px',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '12px',
+                                fontWeight: 'bold'
+                              }}>3</span>
+                              <span style={{
+                                fontFamily: "'IBM Plex Mono', monospace",
+                                fontSize: '11px',
+                                color: '#FFD966',
+                                letterSpacing: '0.1em'
+                              }}>SET TIERS</span>
+                            </div>
+                            <p style={{
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontSize: '12px',
+                              color: '#aaa',
+                              lineHeight: 1.6
+                            }}>
+                              Create membership tiers based on token holdings. More tokens = higher tier with exclusive access.
+                            </p>
+                          </div>
+
+                          {/* Step 4 */}
+                          <div style={{
+                            background: 'rgba(0,0,0,0.3)',
+                            padding: '20px',
+                            borderRadius: '6px',
+                            border: '1px solid #333'
+                          }}>
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '10px',
+                              marginBottom: '12px'
+                            }}>
+                              <span style={{
+                                background: '#FFD966',
+                                color: '#000',
+                                width: '24px',
+                                height: '24px',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '12px',
+                                fontWeight: 'bold'
+                              }}>4</span>
+                              <span style={{
+                                fontFamily: "'IBM Plex Mono', monospace",
+                                fontSize: '11px',
+                                color: '#FFD966',
+                                letterSpacing: '0.1em'
+                              }}>MINE ADDRESS</span>
+                            </div>
+                            <p style={{
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontSize: '12px',
+                              color: '#aaa',
+                              lineHeight: 1.6
+                            }}>
+                              Get a custom token address ending in letters you choose (like "KING"). This takes time but looks amazing!
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Pro Tips */}
+                        <div style={{
+                          background: 'rgba(255,217,102,0.1)',
+                          border: '1px solid rgba(255,217,102,0.3)',
+                          borderRadius: '6px',
+                          padding: '16px 20px'
+                        }}>
+                          <div style={{
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            fontSize: '10px',
+                            color: '#FFD966',
+                            letterSpacing: '0.15em',
+                            marginBottom: '8px'
+                          }}>
+                            💡 PRO TIP
+                          </div>
+                          <p style={{
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            fontSize: '12px',
+                            color: '#ccc',
+                            lineHeight: 1.6
+                          }}>
+                            Hover over any <span style={{ background: '#333', padding: '2px 6px', borderRadius: '3px' }}>?</span> icon to learn more about that section. Every feature has a tooltip explaining exactly what it does!
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Theme Customization Panel */}
+              <div style={{
+                marginBottom: '60px',
+                padding: '32px',
+                background: 'rgba(0,0,0,0.5)',
+                border: `1px solid ${theme.borderColor}`,
+                backdropFilter: 'blur(10px)'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  marginBottom: '24px'
+                }}>
+                  <span style={{
+                    fontFamily: "'Playfair Display', serif",
+                    fontSize: '28px',
+                    color: theme.textColor
+                  }}>
+                    Customize Your Page
+                  </span>
+                  <InfoIcon tooltip="Make your culture page unique! Choose backgrounds, colors, and patterns. This is like your MySpace page - express yourself and attract members who vibe with your aesthetic." />
+                </div>
+
+                {/* Background Type */}
+                <div style={{ marginBottom: '24px' }}>
+                  <SectionHeader
+                    title="BACKGROUND TYPE"
+                    tooltip="Choose how your page looks: Solid (one color), Gradient (two colors blend), Pattern (repeating designs), or Image (upload your own)."
+                  />
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {['solid', 'gradient', 'pattern', 'image'].map(type => (
+                      <button
+                        key={type}
+                        onClick={() => setTheme({...theme, bgType: type})}
+                        style={{
+                          padding: '10px 16px',
+                          background: theme.bgType === type ? theme.accentColor : '#111',
+                          color: theme.bgType === type ? '#000' : '#888',
+                          border: '1px solid #333',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: '11px',
+                          letterSpacing: '0.1em',
+                          cursor: 'pointer',
+                          textTransform: 'uppercase'
+                        }}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Solid Color */}
+                {theme.bgType === 'solid' && (
+                  <div style={{ marginBottom: '24px' }}>
+                    <SectionHeader title="BACKGROUND COLOR" tooltip="Click the color box to open a color picker, or type a hex code (like #FF5500) directly." />
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <input
+                        type="color"
+                        value={theme.bgColor}
+                        onChange={(e) => setTheme({...theme, bgColor: e.target.value})}
+                        style={{ width: '50px', height: '40px', border: 'none', cursor: 'pointer' }}
+                      />
+                      <input
+                        type="text"
+                        value={theme.bgColor}
+                        onChange={(e) => setTheme({...theme, bgColor: e.target.value})}
+                        style={{
+                          padding: '10px',
+                          background: '#111',
+                          border: '1px solid #333',
+                          color: '#fff',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: '12px',
+                          width: '100px'
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Gradient */}
+                {theme.bgType === 'gradient' && (
+                  <div style={{ marginBottom: '24px' }}>
+                    <SectionHeader title="GRADIENT COLORS" tooltip="Pick two colors that will smoothly blend together from top-left to bottom-right. Great for creating depth!" />
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: '9px', color: '#666', marginBottom: '4px' }}>FROM</div>
+                        <input
+                          type="color"
+                          value={theme.bgGradient[0]}
+                          onChange={(e) => setTheme({...theme, bgGradient: [e.target.value, theme.bgGradient[1]]})}
+                          style={{ width: '50px', height: '40px', border: 'none', cursor: 'pointer' }}
+                        />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '9px', color: '#666', marginBottom: '4px' }}>TO</div>
+                        <input
+                          type="color"
+                          value={theme.bgGradient[1]}
+                          onChange={(e) => setTheme({...theme, bgGradient: [theme.bgGradient[0], e.target.value]})}
+                          style={{ width: '50px', height: '40px', border: 'none', cursor: 'pointer' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Pattern */}
+                {theme.bgType === 'pattern' && (
+                  <div style={{ marginBottom: '24px' }}>
+                    <SectionHeader title="PATTERN STYLE" tooltip="Choose a repeating pattern: Dots, Grid lines, Diagonal stripes, Hearts, or Stars. Pick a base color below." />
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                      {Object.keys(patterns).map(p => (
+                        <button
+                          key={p}
+                          onClick={() => setTheme({...theme, bgPattern: p})}
+                          style={{
+                            padding: '10px 16px',
+                            background: theme.bgPattern === p ? '#333' : '#111',
+                            color: theme.bgPattern === p ? '#fff' : '#666',
+                            border: '1px solid #333',
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            fontSize: '11px',
+                            cursor: 'pointer',
+                            textTransform: 'capitalize'
+                          }}
+                        >
+                          {p}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <span style={{ fontSize: '10px', color: '#666' }}>Base Color:</span>
+                      <input
+                        type="color"
+                        value={theme.bgColor}
+                        onChange={(e) => setTheme({...theme, bgColor: e.target.value})}
+                        style={{ width: '40px', height: '30px', border: 'none', cursor: 'pointer' }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Image URL */}
+                {theme.bgType === 'image' && (
+                  <div style={{ marginBottom: '24px' }}>
+                    <SectionHeader title="BACKGROUND IMAGE URL" tooltip="Paste a link to any image from the web. It will fill the entire background. Use high-resolution images for best results!" />
+                    <input
+                      type="text"
+                      value={theme.bgImage}
+                      onChange={(e) => setTheme({...theme, bgImage: e.target.value})}
+                      placeholder="https://example.com/image.jpg"
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        background: '#111',
+                        border: '1px solid #333',
+                        color: '#fff',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: '12px'
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Accent & Text Colors */}
+                <div style={{ marginBottom: '16px' }}>
+                  <SectionHeader title="COLOR SCHEME" tooltip="Accent = buttons & highlights. Text = all text color. Cards = background of content boxes. Borders = lines between sections." />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+                  <div>
+                    <div style={{ fontSize: '9px', letterSpacing: '0.1em', color: '#666', marginBottom: '8px', fontFamily: "'IBM Plex Mono', monospace" }}>
+                      ACCENT
+                    </div>
+                    <input
+                      type="color"
+                      value={theme.accentColor}
+                      onChange={(e) => setTheme({...theme, accentColor: e.target.value})}
+                      style={{ width: '100%', height: '40px', border: 'none', cursor: 'pointer' }}
+                    />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '9px', letterSpacing: '0.1em', color: '#666', marginBottom: '8px', fontFamily: "'IBM Plex Mono', monospace" }}>
+                      TEXT
+                    </div>
+                    <input
+                      type="color"
+                      value={theme.textColor}
+                      onChange={(e) => setTheme({...theme, textColor: e.target.value})}
+                      style={{ width: '100%', height: '40px', border: 'none', cursor: 'pointer' }}
+                    />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '9px', letterSpacing: '0.1em', color: '#666', marginBottom: '8px', fontFamily: "'IBM Plex Mono', monospace" }}>
+                      CARDS
+                    </div>
+                    <input
+                      type="color"
+                      value={theme.cardBg}
+                      onChange={(e) => setTheme({...theme, cardBg: e.target.value})}
+                      style={{ width: '100%', height: '40px', border: 'none', cursor: 'pointer' }}
+                    />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '9px', letterSpacing: '0.1em', color: '#666', marginBottom: '8px', fontFamily: "'IBM Plex Mono', monospace" }}>
+                      BORDERS
+                    </div>
+                    <input
+                      type="color"
+                      value={theme.borderColor}
+                      onChange={(e) => setTheme({...theme, borderColor: e.target.value})}
+                      style={{ width: '100%', height: '40px', border: 'none', cursor: 'pointer' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Vanity Address Mining Section */}
+              <div style={{
+                marginBottom: '60px',
+                padding: '32px',
+                background: 'rgba(0,0,0,0.5)',
+                border: `1px solid ${theme.borderColor}`,
+                backdropFilter: 'blur(10px)'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  marginBottom: '12px'
+                }}>
+                  <span style={{
+                    fontFamily: "'Playfair Display', serif",
+                    fontSize: '28px',
+                    color: theme.textColor
+                  }}>
+                    Culture Address
+                  </span>
+                  <InfoIcon tooltip="Every token on Solana has a unique address (like 7xKXt...KING). We can mine a custom address that ends in letters you choose! This is purely cosmetic but looks super professional. Longer suffixes take exponentially longer to find." />
+                </div>
+                <div style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: '13px',
+                  color: '#666',
+                  marginBottom: '24px'
+                }}>
+                  Mine a custom vanity address for your culture token (e.g., ending in "KING")
+                </div>
+
+                {/* Suffix Input */}
+                <div style={{ marginBottom: '24px' }}>
+                  <SectionHeader
+                    title="VANITY SUFFIX (what your address ends with)"
+                    tooltip="Type 1-6 letters (A-Z) or numbers (1-9). Note: Solana addresses don't use 0, O, I, or L. Longer = harder to find. 3 chars = seconds, 4 chars = minutes, 5+ chars = hours or more!"
+                  />
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      value={vanitySuffix}
+                      onChange={(e) => setVanitySuffix(e.target.value.replace(/[^a-zA-Z1-9]/g, '').toUpperCase().slice(0, 6))}
+                      placeholder="KING"
+                      disabled={vanityMining}
+                      maxLength={6}
+                      style={{
+                        flex: 1,
+                        padding: '16px',
+                        background: '#111',
+                        border: '1px solid #333',
+                        color: '#fff',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: '18px',
+                        letterSpacing: '0.2em',
+                        textAlign: 'center',
+                        textTransform: 'uppercase'
+                      }}
+                    />
+                    {!vanityMining && !vanityResult && (
+                      <button
+                        onClick={startVanityMining}
+                        disabled={!vanitySuffix}
+                        style={{
+                          padding: '16px 32px',
+                          background: vanitySuffix ? theme.accentColor : '#333',
+                          color: vanitySuffix ? '#000' : '#666',
+                          border: 'none',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: '12px',
+                          letterSpacing: '0.1em',
+                          cursor: vanitySuffix ? 'pointer' : 'not-allowed'
+                        }}
+                      >
+                        START MINING
+                      </button>
+                    )}
+                    {vanityMining && (
+                      <button
+                        onClick={stopVanityMining}
+                        style={{
+                          padding: '16px 32px',
+                          background: '#ef4444',
+                          color: '#fff',
+                          border: 'none',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: '12px',
+                          letterSpacing: '0.1em',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        STOP
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Difficulty Estimate */}
+                {vanitySuffix && !vanityMining && !vanityResult && (
+                  <div style={{
+                    padding: '16px',
+                    background: '#0a0a0a',
+                    border: '1px solid #222',
+                    marginBottom: '24px'
+                  }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', textAlign: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: '18px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
+                          {estimateVanityDifficulty(vanitySuffix).probability}
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginTop: '4px' }}>PROBABILITY</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '18px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
+                          {estimateVanityDifficulty(vanitySuffix).time}
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginTop: '4px' }}>EST. TIME</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '18px', color: vanitySuffix.length <= 3 ? '#22c55e' : vanitySuffix.length <= 5 ? '#f59e0b' : '#ef4444', fontFamily: "'IBM Plex Mono', monospace" }}>
+                          {vanitySuffix.length <= 3 ? 'EASY' : vanitySuffix.length <= 5 ? 'MEDIUM' : 'HARD'}
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginTop: '4px' }}>DIFFICULTY</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Mining Progress */}
+                {vanityMining && (
+                  <div style={{
+                    padding: '24px',
+                    background: 'linear-gradient(135deg, #1a1a2e, #0a0a0a)',
+                    border: '1px solid #333',
+                    marginBottom: '24px'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '16px',
+                      marginBottom: '20px'
+                    }}>
+                      <div style={{
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '50%',
+                        background: '#22c55e',
+                        animation: 'pulse 1s infinite'
+                      }} />
+                      <div style={{
+                        fontFamily: "'Playfair Display', serif",
+                        fontSize: '20px',
+                        color: '#fff'
+                      }}>
+                        Mining Address ending in "{vanitySuffix}"...
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', textAlign: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: '24px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
+                          {vanityProgress.attempts.toLocaleString()}
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginTop: '4px' }}>ATTEMPTS</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '24px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
+                          {vanityProgress.rate.toLocaleString()}/s
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginTop: '4px' }}>SPEED</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '24px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
+                          {vanityProgress.elapsed}s
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginTop: '4px' }}>ELAPSED</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '24px', color: '#f59e0b', fontFamily: "'IBM Plex Mono', monospace" }}>
+                          {vanityProgress.estimatedTime}
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginTop: '4px' }}>EST. TIME</div>
+                      </div>
+                    </div>
+
+                    {/* Mining Animation Bar */}
+                    <div style={{ marginTop: '20px', height: '4px', background: '#222', overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%',
+                        width: '30%',
+                        background: 'linear-gradient(90deg, transparent, #fff, transparent)',
+                        animation: 'shimmer 1.5s infinite'
+                      }} />
+                    </div>
+                  </div>
+                )}
+
+                {/* Found Result */}
+                {vanityResult && (
+                  <div style={{
+                    padding: '24px',
+                    background: 'linear-gradient(135deg, rgba(34,197,94,0.2), rgba(0,0,0,0.5))',
+                    border: '1px solid #22c55e'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      marginBottom: '20px'
+                    }}>
+                      <div style={{ fontSize: '24px' }}>✓</div>
+                      <div style={{
+                        fontFamily: "'Playfair Display', serif",
+                        fontSize: '20px',
+                        color: '#22c55e'
+                      }}>
+                        Address Found!
+                      </div>
+                    </div>
+
+                    <div style={{
+                      padding: '16px',
+                      background: '#0a0a0a',
+                      border: '1px solid #222',
+                      marginBottom: '16px'
+                    }}>
+                      <div style={{ fontSize: '10px', color: '#666', letterSpacing: '0.1em', marginBottom: '8px' }}>YOUR CULTURE ADDRESS</div>
+                      <div style={{
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: '14px',
+                        color: '#fff',
+                        wordBreak: 'break-all'
+                      }}>
+                        {vanityResult.address.slice(0, -vanitySuffix.length)}
+                        <span style={{ color: '#22c55e', fontWeight: 'bold' }}>{vanityResult.address.slice(-vanitySuffix.length)}</span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', textAlign: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: '16px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
+                          {vanityResult.attempts.toLocaleString()}
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginTop: '4px' }}>TOTAL ATTEMPTS</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '16px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
+                          {vanityResult.elapsed.toFixed(1)}s
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginTop: '4px' }}>TIME TAKEN</div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => { setVanityResult(null); setVanitySuffix(''); }}
+                      style={{
+                        marginTop: '16px',
+                        padding: '12px 24px',
+                        background: 'transparent',
+                        border: '1px solid #333',
+                        color: '#888',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: '11px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      MINE ANOTHER
+                    </button>
+                  </div>
+                )}
+
+                <style>{`
+                  @keyframes pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.5; }
+                  }
+                  @keyframes shimmer {
+                    0% { transform: translateX(-100%); }
+                    100% { transform: translateX(400%); }
+                  }
+                `}</style>
+              </div>
 
               {/* Culture Identity Header */}
               <div style={{ marginBottom: '80px', textAlign: 'center' }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  marginBottom: '20px'
+                }}>
+                  <span style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: '10px',
+                    letterSpacing: '0.15em',
+                    color: '#666'
+                  }}>YOUR CULTURE IDENTITY</span>
+                  <InfoIcon tooltip="This is the face of your culture! The name should be memorable and unique. The taglines below set the tone. Your name at the bottom shows who's behind it all." />
+                </div>
                 <input
                   type="text"
                   placeholder="Culture Name"
@@ -1940,12 +2982,18 @@
               {/* Section: What This Culture Believes - Editable */}
               <div style={{ marginBottom: '80px' }}>
                 <div style={{
-                  fontFamily: "'Playfair Display', serif",
-                  fontSize: '28px',
-                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
                   marginBottom: '12px'
                 }}>
-                  What We Stand For
+                  <span style={{
+                    fontFamily: "'Playfair Display', serif",
+                    fontSize: '28px',
+                    color: '#fff'
+                  }}>
+                    What We Stand For
+                  </span>
+                  <InfoIcon tooltip="Your culture's core beliefs! These are the values that unite your community. Members will see these before joining - make them clear and inspiring. Good beliefs attract the right people." />
                 </div>
                 <div style={{
                   fontFamily: "'IBM Plex Mono', monospace",
@@ -1953,7 +3001,7 @@
                   color: '#666',
                   marginBottom: '32px'
                 }}>
-                  Define the core beliefs of your culture.
+                  Define the core beliefs of your culture. <span style={{ color: '#888' }}>(Click any belief to edit, use × to remove)</span>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -2026,12 +3074,18 @@
               {/* Section: What Holding Unlocks - Editable */}
               <div style={{ marginBottom: '80px' }}>
                 <div style={{
-                  fontFamily: "'Playfair Display', serif",
-                  fontSize: '28px',
-                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
                   marginBottom: '12px'
                 }}>
-                  What Participation Unlocks
+                  <span style={{
+                    fontFamily: "'Playfair Display', serif",
+                    fontSize: '28px',
+                    color: '#fff'
+                  }}>
+                    What Participation Unlocks
+                  </span>
+                  <InfoIcon tooltip="What do members get for holding your token? Think: exclusive content, private chats, early access, IRL events, 1-on-1 time, etc. These are the perks that make holding worthwhile!" />
                 </div>
                 <div style={{
                   fontFamily: "'IBM Plex Mono', monospace",
@@ -2039,7 +3093,7 @@
                   color: '#666',
                   marginBottom: '32px'
                 }}>
-                  Define what members get access to.
+                  Define what members get access to. <span style={{ color: '#888' }}>(Add a title and description for each perk)</span>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -2129,12 +3183,18 @@
               {/* Section: Define Tiers Based on Holdings */}
               <div style={{ marginBottom: '60px' }}>
                 <div style={{
-                  fontFamily: "'Playfair Display', serif",
-                  fontSize: '28px',
-                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
                   marginBottom: '12px'
                 }}>
-                  Define Tiers
+                  <span style={{
+                    fontFamily: "'Playfair Display', serif",
+                    fontSize: '28px',
+                    color: '#fff'
+                  }}>
+                    Define Tiers
+                  </span>
+                  <InfoIcon tooltip="Tiers are membership levels based on how much of your token someone holds. Example: 'Observer' might need 0.1% of supply, while 'Steward' needs 5%. Higher tiers get more exclusive access and content!" />
                 </div>
                 <div style={{
                   fontFamily: "'IBM Plex Mono', monospace",
@@ -2142,7 +3202,7 @@
                   color: '#666',
                   marginBottom: '32px'
                 }}>
-                  Set holding requirements for each access level.
+                  Set holding requirements for each access level. <span style={{ color: '#888' }}>(Enter a name, holding %, and what they can access)</span>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -2302,12 +3362,18 @@
               {/* Section: Tier Content Panel */}
               <div style={{ marginBottom: '60px' }}>
                 <div style={{
-                  fontFamily: "'Playfair Display', serif",
-                  fontSize: '28px',
-                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
                   marginBottom: '12px'
                 }}>
-                  Tier Content
+                  <span style={{
+                    fontFamily: "'Playfair Display', serif",
+                    fontSize: '28px',
+                    color: '#fff'
+                  }}>
+                    Tier Content
+                  </span>
+                  <InfoIcon tooltip="This is where you drop exclusive content for each tier! Click a tier on the left, then add Essays, Live Sessions, or Drops. Higher tiers can see everything from lower tiers too - it's like a VIP access system!" />
                 </div>
                 <div style={{
                   fontFamily: "'IBM Plex Mono', monospace",
@@ -2315,7 +3381,7 @@
                   color: '#666',
                   marginBottom: '32px'
                 }}>
-                  Drop content for each tier. Members see content based on their holding level.
+                  Drop content for each tier. <span style={{ color: '#888' }}>(Select a tier on the left → add content on the right)</span>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '24px' }}>
@@ -2540,6 +3606,7 @@
                     )}
                   </div>
                 </div>
+              </div>
               </div>
             </div>
           );
