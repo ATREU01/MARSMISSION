@@ -1751,6 +1751,48 @@
           const [cultureName, setCultureName] = useState('');
           const [creatorName, setCreatorName] = useState('');
 
+          // Theme customization
+          const [theme, setTheme] = useState({
+            bgType: 'solid', // solid, gradient, pattern, image
+            bgColor: '#0a0a0a',
+            bgGradient: ['#0a0a0a', '#1a1a2e'],
+            bgPattern: 'none', // none, dots, grid, diagonal
+            bgImage: '',
+            accentColor: '#ffffff',
+            textColor: '#ffffff',
+            cardBg: '#0f0f0f',
+            borderColor: '#1a1a1a'
+          });
+
+          const patterns = {
+            none: 'none',
+            dots: 'radial-gradient(circle, #333 1px, transparent 1px)',
+            grid: 'linear-gradient(#222 1px, transparent 1px), linear-gradient(90deg, #222 1px, transparent 1px)',
+            diagonal: 'repeating-linear-gradient(45deg, #1a1a1a, #1a1a1a 10px, #0f0f0f 10px, #0f0f0f 20px)',
+            hearts: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' viewBox=\'0 0 40 40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M20 30l-7-7c-4-4-4-10 0-14s10-4 14 0l-7 7 7 7c4 4 4 10 0 14s-10 4-14 0l7-7z\' fill=\'%23333\' fill-opacity=\'0.3\'/%3E%3C/svg%3E")',
+            stars: 'url("data:image/svg+xml,%3Csvg width=\'30\' height=\'30\' viewBox=\'0 0 30 30\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Ctext x=\'10\' y=\'20\' fill=\'%23333\' opacity=\'0.3\'%3E★%3C/text%3E%3C/svg%3E")'
+          };
+
+          const getBackgroundStyle = () => {
+            let bg = {};
+            if (theme.bgType === 'solid') {
+              bg.background = theme.bgColor;
+            } else if (theme.bgType === 'gradient') {
+              bg.background = `linear-gradient(135deg, ${theme.bgGradient[0]}, ${theme.bgGradient[1]})`;
+            } else if (theme.bgType === 'pattern') {
+              bg.background = theme.bgColor;
+              if (theme.bgPattern !== 'none') {
+                bg.backgroundImage = patterns[theme.bgPattern];
+                bg.backgroundSize = theme.bgPattern === 'dots' ? '20px 20px' : theme.bgPattern === 'grid' ? '20px 20px' : 'auto';
+              }
+            } else if (theme.bgType === 'image' && theme.bgImage) {
+              bg.backgroundImage = `url(${theme.bgImage})`;
+              bg.backgroundSize = 'cover';
+              bg.backgroundPosition = 'center';
+            }
+            return bg;
+          };
+
           // Editable beliefs
           const [beliefs, setBeliefs] = useState([
             'We prioritize long-term thinking over short-term wins',
@@ -1865,7 +1907,233 @@
           };
 
           return (
-            <div style={{ padding: '136px 40px 80px', maxWidth: '900px', margin: '0 auto' }}>
+            <div style={{
+              minHeight: '100vh',
+              ...getBackgroundStyle()
+            }}>
+              <div style={{ padding: '136px 40px 80px', maxWidth: '900px', margin: '0 auto' }}>
+
+              {/* Theme Customization Panel */}
+              <div style={{
+                marginBottom: '60px',
+                padding: '32px',
+                background: 'rgba(0,0,0,0.5)',
+                border: `1px solid ${theme.borderColor}`,
+                backdropFilter: 'blur(10px)'
+              }}>
+                <div style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: '28px',
+                  color: theme.textColor,
+                  marginBottom: '24px'
+                }}>
+                  Customize Your Page
+                </div>
+
+                {/* Background Type */}
+                <div style={{ marginBottom: '24px' }}>
+                  <div style={{
+                    fontSize: '10px',
+                    letterSpacing: '0.15em',
+                    color: '#666',
+                    marginBottom: '12px',
+                    fontFamily: "'IBM Plex Mono', monospace"
+                  }}>
+                    BACKGROUND TYPE
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {['solid', 'gradient', 'pattern', 'image'].map(type => (
+                      <button
+                        key={type}
+                        onClick={() => setTheme({...theme, bgType: type})}
+                        style={{
+                          padding: '10px 16px',
+                          background: theme.bgType === type ? theme.accentColor : '#111',
+                          color: theme.bgType === type ? '#000' : '#888',
+                          border: '1px solid #333',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: '11px',
+                          letterSpacing: '0.1em',
+                          cursor: 'pointer',
+                          textTransform: 'uppercase'
+                        }}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Solid Color */}
+                {theme.bgType === 'solid' && (
+                  <div style={{ marginBottom: '24px' }}>
+                    <div style={{ fontSize: '10px', letterSpacing: '0.15em', color: '#666', marginBottom: '12px', fontFamily: "'IBM Plex Mono', monospace" }}>
+                      BACKGROUND COLOR
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <input
+                        type="color"
+                        value={theme.bgColor}
+                        onChange={(e) => setTheme({...theme, bgColor: e.target.value})}
+                        style={{ width: '50px', height: '40px', border: 'none', cursor: 'pointer' }}
+                      />
+                      <input
+                        type="text"
+                        value={theme.bgColor}
+                        onChange={(e) => setTheme({...theme, bgColor: e.target.value})}
+                        style={{
+                          padding: '10px',
+                          background: '#111',
+                          border: '1px solid #333',
+                          color: '#fff',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: '12px',
+                          width: '100px'
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Gradient */}
+                {theme.bgType === 'gradient' && (
+                  <div style={{ marginBottom: '24px' }}>
+                    <div style={{ fontSize: '10px', letterSpacing: '0.15em', color: '#666', marginBottom: '12px', fontFamily: "'IBM Plex Mono', monospace" }}>
+                      GRADIENT COLORS
+                    </div>
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: '9px', color: '#666', marginBottom: '4px' }}>FROM</div>
+                        <input
+                          type="color"
+                          value={theme.bgGradient[0]}
+                          onChange={(e) => setTheme({...theme, bgGradient: [e.target.value, theme.bgGradient[1]]})}
+                          style={{ width: '50px', height: '40px', border: 'none', cursor: 'pointer' }}
+                        />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '9px', color: '#666', marginBottom: '4px' }}>TO</div>
+                        <input
+                          type="color"
+                          value={theme.bgGradient[1]}
+                          onChange={(e) => setTheme({...theme, bgGradient: [theme.bgGradient[0], e.target.value]})}
+                          style={{ width: '50px', height: '40px', border: 'none', cursor: 'pointer' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Pattern */}
+                {theme.bgType === 'pattern' && (
+                  <div style={{ marginBottom: '24px' }}>
+                    <div style={{ fontSize: '10px', letterSpacing: '0.15em', color: '#666', marginBottom: '12px', fontFamily: "'IBM Plex Mono', monospace" }}>
+                      PATTERN STYLE
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                      {Object.keys(patterns).map(p => (
+                        <button
+                          key={p}
+                          onClick={() => setTheme({...theme, bgPattern: p})}
+                          style={{
+                            padding: '10px 16px',
+                            background: theme.bgPattern === p ? '#333' : '#111',
+                            color: theme.bgPattern === p ? '#fff' : '#666',
+                            border: '1px solid #333',
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            fontSize: '11px',
+                            cursor: 'pointer',
+                            textTransform: 'capitalize'
+                          }}
+                        >
+                          {p}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <span style={{ fontSize: '10px', color: '#666' }}>Base Color:</span>
+                      <input
+                        type="color"
+                        value={theme.bgColor}
+                        onChange={(e) => setTheme({...theme, bgColor: e.target.value})}
+                        style={{ width: '40px', height: '30px', border: 'none', cursor: 'pointer' }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Image URL */}
+                {theme.bgType === 'image' && (
+                  <div style={{ marginBottom: '24px' }}>
+                    <div style={{ fontSize: '10px', letterSpacing: '0.15em', color: '#666', marginBottom: '12px', fontFamily: "'IBM Plex Mono', monospace" }}>
+                      BACKGROUND IMAGE URL
+                    </div>
+                    <input
+                      type="text"
+                      value={theme.bgImage}
+                      onChange={(e) => setTheme({...theme, bgImage: e.target.value})}
+                      placeholder="https://example.com/image.jpg"
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        background: '#111',
+                        border: '1px solid #333',
+                        color: '#fff',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: '12px'
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Accent & Text Colors */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+                  <div>
+                    <div style={{ fontSize: '9px', letterSpacing: '0.1em', color: '#666', marginBottom: '8px', fontFamily: "'IBM Plex Mono', monospace" }}>
+                      ACCENT
+                    </div>
+                    <input
+                      type="color"
+                      value={theme.accentColor}
+                      onChange={(e) => setTheme({...theme, accentColor: e.target.value})}
+                      style={{ width: '100%', height: '40px', border: 'none', cursor: 'pointer' }}
+                    />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '9px', letterSpacing: '0.1em', color: '#666', marginBottom: '8px', fontFamily: "'IBM Plex Mono', monospace" }}>
+                      TEXT
+                    </div>
+                    <input
+                      type="color"
+                      value={theme.textColor}
+                      onChange={(e) => setTheme({...theme, textColor: e.target.value})}
+                      style={{ width: '100%', height: '40px', border: 'none', cursor: 'pointer' }}
+                    />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '9px', letterSpacing: '0.1em', color: '#666', marginBottom: '8px', fontFamily: "'IBM Plex Mono', monospace" }}>
+                      CARDS
+                    </div>
+                    <input
+                      type="color"
+                      value={theme.cardBg}
+                      onChange={(e) => setTheme({...theme, cardBg: e.target.value})}
+                      style={{ width: '100%', height: '40px', border: 'none', cursor: 'pointer' }}
+                    />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '9px', letterSpacing: '0.1em', color: '#666', marginBottom: '8px', fontFamily: "'IBM Plex Mono', monospace" }}>
+                      BORDERS
+                    </div>
+                    <input
+                      type="color"
+                      value={theme.borderColor}
+                      onChange={(e) => setTheme({...theme, borderColor: e.target.value})}
+                      style={{ width: '100%', height: '40px', border: 'none', cursor: 'pointer' }}
+                    />
+                  </div>
+                </div>
+              </div>
 
               {/* Culture Identity Header */}
               <div style={{ marginBottom: '80px', textAlign: 'center' }}>
@@ -2540,6 +2808,7 @@
                     )}
                   </div>
                 </div>
+              </div>
               </div>
             </div>
           );
