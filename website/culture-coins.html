@@ -19,7 +19,7 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <!-- Solana Web3.js for token creation -->
-    <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.87.6/lib/index.iife.min.js"></script>
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
 
     <style>
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -562,59 +562,78 @@
         }
 
         // Sign and send culture token transaction
+        // Follows exact same pattern as main launchpad.html
         async function signAndSendCultureToken(tx, connection, mintKeypair, privyWallet) {
             console.log('[CULTURE-DEPLOY] Signing transaction...');
 
-            // First sign with the mint keypair (the vanity address we mined)
+            // Validate inputs
+            if (!mintKeypair || !mintKeypair.publicKey || !mintKeypair.secretKey) {
+                throw new Error('Invalid mint keypair');
+            }
+            console.log('[CULTURE-DEPLOY] Mint keypair public key:', mintKeypair.publicKey.toBase58());
+            console.log('[CULTURE-DEPLOY] Mint keypair secret key length:', mintKeypair.secretKey.length);
+
+            // Sign with the mint keypair (local signing for the token address)
+            console.log('[CULTURE-DEPLOY] Using local mint keypair signing...');
             tx.sign([mintKeypair]);
             console.log('[CULTURE-DEPLOY] Transaction signed with mint keypair');
 
-            // Pre-simulate transaction
+            // PRE-SIMULATE: Simulate transaction before showing to wallet
+            // This helps Phantom understand the transaction and reduces warnings
             console.log('[CULTURE-DEPLOY] Pre-simulating transaction...');
             try {
                 const simulation = await connection.simulateTransaction(tx, {
-                    sigVerify: false,
+                    sigVerify: false, // Skip signature verification for simulation
                     replaceRecentBlockhash: true
                 });
                 if (simulation.value.err) {
                     console.warn('[CULTURE-DEPLOY] Simulation warning:', simulation.value.err);
+                    // Don't throw - let the user try anyway, just log it
                 } else {
-                    console.log('[CULTURE-DEPLOY] Pre-simulation successful');
+                    console.log('[CULTURE-DEPLOY] Pre-simulation successful, units consumed:', simulation.value.unitsConsumed);
                 }
             } catch (simErr) {
-                console.warn('[CULTURE-DEPLOY] Pre-simulation failed (continuing):', simErr.message);
+                console.warn('[CULTURE-DEPLOY] Pre-simulation failed (continuing anyway):', simErr.message);
             }
 
             let signature;
 
             // Try Phantom wallet first
             if (window.solana?.isPhantom) {
-                console.log('[CULTURE-DEPLOY] Using Phantom wallet...');
-                const signedTx = await window.solana.signTransaction(tx);
-                signature = await connection.sendRawTransaction(signedTx.serialize(), {
-                    skipPreflight: true, // Skip preflight - pump.fun txs sometimes fail sim but work
-                    preflightCommitment: 'confirmed',
-                    maxRetries: 5
-                });
+                console.log('[CULTURE-DEPLOY] Using Phantom wallet for signing...');
+                console.log('[CULTURE-DEPLOY] Transaction message signers:', tx.message.staticAccountKeys?.slice(0, tx.message.header?.numRequiredSignatures || 2).map(k => k.toBase58()));
+                try {
+                    const signedTx = await window.solana.signTransaction(tx);
+                    console.log('[CULTURE-DEPLOY] Phantom signed successfully');
+                    signature = await connection.sendRawTransaction(signedTx.serialize(), {
+                        skipPreflight: false,
+                        preflightCommitment: 'confirmed',
+                        maxRetries: 3
+                    });
+                } catch (phantomErr) {
+                    console.error('[CULTURE-DEPLOY] Phantom signing error:', phantomErr);
+                    console.error('[CULTURE-DEPLOY] Error details:', JSON.stringify(phantomErr, Object.getOwnPropertyNames(phantomErr)));
+                    throw new Error('Wallet signing failed: ' + (phantomErr.message || 'Unknown error'));
+                }
             }
             // Try Solflare
             else if (window.solflare?.isSolflare) {
-                console.log('[CULTURE-DEPLOY] Using Solflare wallet...');
+                console.log('[CULTURE-DEPLOY] Using Solflare wallet for signing...');
                 const signedTx = await window.solflare.signTransaction(tx);
                 signature = await connection.sendRawTransaction(signedTx.serialize(), {
-                    skipPreflight: true,
+                    skipPreflight: false,
                     preflightCommitment: 'confirmed',
-                    maxRetries: 5
+                    maxRetries: 3
                 });
             }
             // Try Privy embedded wallet
             else if (privyWallet?.signTransaction) {
-                console.log('[CULTURE-DEPLOY] Using Privy wallet...');
+                console.log('[CULTURE-DEPLOY] Using Privy wallet for signing...');
                 const signedTx = await privyWallet.signTransaction(tx);
                 signature = await connection.sendRawTransaction(signedTx.serialize(), {
-                    skipPreflight: true,
+                    skipPreflight: false,
                     preflightCommitment: 'confirmed',
-                    maxRetries: 5
+                    maxRetries: 3
                 });
             }
             else {
@@ -2361,7 +2380,7 @@
             // Create inline worker for browser-based mining
             // CASE SENSITIVE - exact match only
             const workerCode = `
-              importScripts('https://cdn.jsdelivr.net/npm/@solana/web3.js@1.87.6/lib/index.iife.min.js');
+              importScripts('https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js');
 
               const suffix = '${vanitySuffix}';  // Keep exact case user typed
               let attempts = 0;
