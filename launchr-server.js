@@ -9,12 +9,29 @@ const tracker = require('./tracker');
 const profiles = require('./profiles');
 const { LaunchrBot } = require('./telegram-bot');
 
-// Culture Coins Security Module - CIA-Level Protection
-const {
-    CultureSecurityController,
-    CULTURE_CSP,
-    CULTURE_SECURITY_CONFIG
-} = require('./culture-security');
+// Culture Coins Security Module - CIA-Level Protection (optional - graceful fallback)
+let CultureSecurityController = null;
+let CULTURE_CSP = null;
+let CULTURE_SECURITY_CONFIG = null;
+try {
+    const cultureSecurity = require('./culture-security');
+    CultureSecurityController = cultureSecurity.CultureSecurityController;
+    CULTURE_CSP = cultureSecurity.CULTURE_CSP;
+    CULTURE_SECURITY_CONFIG = cultureSecurity.CULTURE_SECURITY_CONFIG;
+    console.log('[CULTURE] Security module loaded');
+} catch (e) {
+    console.warn('[CULTURE] Security module not available:', e.message);
+    // Provide minimal fallback
+    CULTURE_CSP = {
+        getSecurityHeaders() {
+            return {
+                'X-Content-Type-Options': 'nosniff',
+                'X-Frame-Options': 'DENY',
+                'Cache-Control': 'no-store'
+            };
+        }
+    };
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // PRODUCTION CONFIGURATION - All Revenue Goes Here
@@ -810,11 +827,15 @@ let sessionCreatedAt = null; // When session was created
 // CULTURE COINS SECURITY - CIA-Level Protection
 // ═══════════════════════════════════════════════════════════════════════════
 let cultureSecurityController = null;
-try {
-    cultureSecurityController = new CultureSecurityController();
-    console.log('[CULTURE] Security controller initialized with CIA-level protection');
-} catch (e) {
-    console.error('[CULTURE] Failed to initialize security controller:', e.message);
+if (CultureSecurityController) {
+    try {
+        cultureSecurityController = new CultureSecurityController();
+        console.log('[CULTURE] Security controller initialized with CIA-level protection');
+    } catch (e) {
+        console.error('[CULTURE] Failed to initialize security controller:', e.message);
+    }
+} else {
+    console.log('[CULTURE] Security controller not available - running in basic mode');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
