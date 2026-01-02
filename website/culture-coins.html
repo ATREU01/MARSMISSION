@@ -592,9 +592,9 @@
                 console.log('[CULTURE-DEPLOY] Using Phantom wallet...');
                 const signedTx = await window.solana.signTransaction(tx);
                 signature = await connection.sendRawTransaction(signedTx.serialize(), {
-                    skipPreflight: false,
+                    skipPreflight: true, // Skip preflight - pump.fun txs sometimes fail sim but work
                     preflightCommitment: 'confirmed',
-                    maxRetries: 3
+                    maxRetries: 5
                 });
             }
             // Try Solflare
@@ -602,9 +602,9 @@
                 console.log('[CULTURE-DEPLOY] Using Solflare wallet...');
                 const signedTx = await window.solflare.signTransaction(tx);
                 signature = await connection.sendRawTransaction(signedTx.serialize(), {
-                    skipPreflight: false,
+                    skipPreflight: true,
                     preflightCommitment: 'confirmed',
-                    maxRetries: 3
+                    maxRetries: 5
                 });
             }
             // Try Privy embedded wallet
@@ -612,9 +612,9 @@
                 console.log('[CULTURE-DEPLOY] Using Privy wallet...');
                 const signedTx = await privyWallet.signTransaction(tx);
                 signature = await connection.sendRawTransaction(signedTx.serialize(), {
-                    skipPreflight: false,
+                    skipPreflight: true,
                     preflightCommitment: 'confirmed',
-                    maxRetries: 3
+                    maxRetries: 5
                 });
             }
             else {
@@ -2445,6 +2445,7 @@
             bgGradient: ['#0a0a0a', '#1a1a2e'],
             bgPattern: 'none', // none, dots, grid, diagonal
             bgImage: '',
+            bgImageFit: 'cover', // cover, contain, tile, stretch
             accentColor: '#ffffff',
             textColor: '#ffffff',
             cardBg: '#0f0f0f',
@@ -2504,8 +2505,22 @@
               }
             } else if (theme.bgType === 'image' && theme.bgImage) {
               bg.backgroundImage = `url(${theme.bgImage})`;
-              bg.backgroundSize = 'cover';
-              bg.backgroundPosition = 'center';
+              // Apply image fit mode
+              if (theme.bgImageFit === 'tile') {
+                bg.backgroundSize = 'auto';
+                bg.backgroundRepeat = 'repeat';
+              } else if (theme.bgImageFit === 'contain') {
+                bg.backgroundSize = 'contain';
+                bg.backgroundRepeat = 'no-repeat';
+                bg.backgroundPosition = 'center';
+              } else if (theme.bgImageFit === 'stretch') {
+                bg.backgroundSize = '100% 100%';
+                bg.backgroundRepeat = 'no-repeat';
+              } else { // cover (default)
+                bg.backgroundSize = 'cover';
+                bg.backgroundPosition = 'center';
+                bg.backgroundRepeat = 'no-repeat';
+              }
             }
             return bg;
           };
@@ -2651,7 +2666,8 @@
             }
 
             // Use custom ticker or generate from culture name
-            const ticker = (tokenTicker.trim() || cultureName).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10) || 'CULTURE';
+            // Use custom ticker or generate from name - pump.fun max is 8 chars
+            const ticker = (tokenTicker.trim() || cultureName).replace(/[^a-zA-Z0-9]/g, '').slice(0, 8) || 'CULTURE';
 
             setIsCreating(true);
             let tokenAddress = null;
@@ -3321,8 +3337,8 @@
                     <input
                       type="text"
                       value={tokenTicker}
-                      onChange={(e) => setTokenTicker(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10))}
-                      placeholder={cultureName ? cultureName.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 6) || 'TICKER' : 'TICKER'}
+                      onChange={(e) => setTokenTicker(e.target.value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8))}
+                      placeholder={cultureName ? cultureName.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8) || 'TICKER' : 'TICKER'}
                       style={{
                         width: '100%',
                         padding: '16px',
@@ -3682,6 +3698,47 @@
                           >
                             REMOVE
                           </button>
+                        </div>
+                      )}
+                      {/* Image Fit Options */}
+                      {theme.bgImage && (
+                        <div style={{ marginTop: '12px' }}>
+                          <div style={{
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            fontSize: '10px',
+                            color: '#666',
+                            marginBottom: '8px',
+                            letterSpacing: '0.1em'
+                          }}>
+                            IMAGE FIT
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            {[
+                              { id: 'cover', label: 'Cover', desc: 'Fill area, crop if needed' },
+                              { id: 'contain', label: 'Fit', desc: 'Show full image' },
+                              { id: 'tile', label: 'Tile', desc: 'Repeat pattern' },
+                              { id: 'stretch', label: 'Stretch', desc: 'Stretch to fill' }
+                            ].map(fit => (
+                              <button
+                                key={fit.id}
+                                onClick={() => setTheme({...theme, bgImageFit: fit.id})}
+                                title={fit.desc}
+                                style={{
+                                  padding: '8px 14px',
+                                  background: theme.bgImageFit === fit.id ? '#FFD966' : '#111',
+                                  color: theme.bgImageFit === fit.id ? '#000' : '#888',
+                                  border: theme.bgImageFit === fit.id ? '1px solid #FFD966' : '1px solid #333',
+                                  fontFamily: "'IBM Plex Mono', monospace",
+                                  fontSize: '11px',
+                                  letterSpacing: '0.05em',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s'
+                                }}
+                              >
+                                {fit.label}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
