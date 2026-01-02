@@ -988,7 +988,7 @@
           const [loading, setLoading] = useState(true);
           const [searchQuery, setSearchQuery] = useState('');
 
-          // Fetch cultures from API on mount
+          // Fetch cultures from API on mount and enrich with live pump.fun data
           useEffect(() => {
             const fetchCultures = async () => {
               try {
@@ -998,7 +998,29 @@
                   // Merge API cultures with base cultures (API cultures take priority)
                   const apiCultureIds = new Set(data.cultures.map(c => c.id));
                   const baseCulturesFiltered = BASE_CULTURES.filter(c => !apiCultureIds.has(c.id));
-                  setCultures([...data.cultures, ...baseCulturesFiltered]);
+                  const allCultures = [...data.cultures, ...baseCulturesFiltered];
+
+                  // Enrich with live pump.fun data for cultures with tokenAddress
+                  const enriched = await Promise.all(allCultures.map(async (culture) => {
+                    if (!culture.tokenAddress) return culture;
+                    try {
+                      const pumpRes = await fetch(`/api/pump/coin/${culture.tokenAddress}`);
+                      if (pumpRes.ok) {
+                        const pumpData = await pumpRes.json();
+                        return {
+                          ...culture,
+                          marketCap: pumpData.usd_market_cap || 0,
+                          holders: pumpData.holder_count || 0,
+                          volume: pumpData.volume_24h || 0
+                        };
+                      }
+                    } catch (e) {
+                      console.error('[DISCOVER] Failed to enrich', culture.name, e);
+                    }
+                    return culture;
+                  }));
+
+                  setCultures(enriched);
                 }
               } catch (e) {
                 console.error('[DISCOVER] Failed to fetch cultures:', e);
@@ -1220,7 +1242,7 @@
                           fontFamily: "'IBM Plex Mono', monospace",
                           marginBottom: '4px'
                         }}>
-                          {culture.avgHoldDays}d
+                          {culture.avgHoldDays || 0}d
                         </div>
                         <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em' }}>
                           AVG HOLD
@@ -1233,7 +1255,7 @@
                           fontFamily: "'IBM Plex Mono', monospace",
                           marginBottom: '4px'
                         }}>
-                          {culture.participationRate}%
+                          {culture.participationRate || 0}%
                         </div>
                         <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em' }}>
                           ACTIVE
@@ -1246,7 +1268,7 @@
                           fontFamily: "'IBM Plex Mono', monospace",
                           marginBottom: '4px'
                         }}>
-                          {culture.holders.toLocaleString()}
+                          {(culture.holders || 0).toLocaleString()}
                         </div>
                         <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em' }}>
                           HOLDERS
@@ -1469,6 +1491,50 @@
           const [agreedToTerms, setAgreedToTerms] = useState(false);
           const wallet = useContext(WalletContext);
 
+          // Real-time token data from pump.fun
+          const [tokenData, setTokenData] = useState({
+            marketCap: 0,
+            holders: 0,
+            volume: 0,
+            loading: true
+          });
+
+          // Fetch real token data from pump.fun API
+          useEffect(() => {
+            const fetchTokenData = async () => {
+              if (!culture.tokenAddress) {
+                setTokenData(prev => ({ ...prev, loading: false }));
+                return;
+              }
+
+              try {
+                // Fetch from pump.fun API via proxy
+                const res = await fetch(`/api/pump/coin/${culture.tokenAddress}`);
+                if (res.ok) {
+                  const data = await res.json();
+                  console.log('[CULTURE] Pump.fun data:', data);
+                  setTokenData({
+                    marketCap: data.usd_market_cap || 0,
+                    holders: data.holder_count || 0,
+                    volume: data.volume_24h || 0,
+                    price: data.price || 0,
+                    loading: false
+                  });
+                } else {
+                  setTokenData(prev => ({ ...prev, loading: false }));
+                }
+              } catch (e) {
+                console.error('[CULTURE] Failed to fetch token data:', e);
+                setTokenData(prev => ({ ...prev, loading: false }));
+              }
+            };
+
+            fetchTokenData();
+            // Refresh every 30 seconds
+            const interval = setInterval(fetchTokenData, 30000);
+            return () => clearInterval(interval);
+          }, [culture.tokenAddress]);
+
           // Check if user already has this culture
           const existingHolding = wallet?.holdings?.find(h => h.cultureId === culture.id);
           const userHolding = existingHolding ? {
@@ -1555,8 +1621,8 @@
                   Created by {culture.creatorName}
                 </div>
 
-                {/* Contract Address / Creator Wallet */}
-                {(culture.creator || culture.creatorWallet) && (
+                {/* Contract Address (Token Address) */}
+                {culture.tokenAddress && (
                   <div style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -1580,11 +1646,11 @@
                       fontFamily: "'IBM Plex Mono', monospace",
                       letterSpacing: '0.02em'
                     }}>
-                      {culture.creatorWallet || culture.creator}
+                      {culture.tokenAddress}
                     </div>
                     <button
                       onClick={() => {
-                        navigator.clipboard.writeText(culture.creatorWallet || culture.creator);
+                        navigator.clipboard.writeText(culture.tokenAddress);
                         alert('Address copied to clipboard!');
                       }}
                       style={{
@@ -1846,51 +1912,60 @@
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                      {/* Market Cap - LIVE from pump.fun */}
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '12px', color: '#666', fontFamily: "'IBM Plex Mono', monospace" }}>Total Supply</span>
-                        <span style={{ fontSize: '14px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>{culture.supply.toLocaleString()}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '12px', color: '#666', fontFamily: "'IBM Plex Mono', monospace" }}>Total Burned</span>
-                        <span style={{ fontSize: '14px', color: '#ef4444', fontFamily: "'IBM Plex Mono', monospace" }}>{culture.burned.toLocaleString()}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '12px', color: '#666', fontFamily: "'IBM Plex Mono', monospace" }}>Circulating</span>
-                        <span style={{ fontSize: '14px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>{(culture.supply - culture.burned).toLocaleString()}</span>
+                        <span style={{ fontSize: '12px', color: '#666', fontFamily: "'IBM Plex Mono', monospace" }}>Market Cap</span>
+                        <span style={{ fontSize: '14px', color: '#22c55e', fontFamily: "'IBM Plex Mono', monospace" }}>
+                          {tokenData.loading ? '...' : `$${tokenData.marketCap.toLocaleString(undefined, {maximumFractionDigits: 0})}`}
+                        </span>
                       </div>
 
-                      <div>
-                        <div style={{ height: '4px', background: '#1a1a1a', marginTop: '8px' }}>
-                          <div style={{
-                            height: '100%',
-                            width: `${(culture.burned / culture.supply) * 100}%`,
-                            background: '#ef4444'
-                          }} />
-                        </div>
-                        <div style={{
-                          fontSize: '10px',
-                          color: '#666',
-                          marginTop: '8px',
-                          fontFamily: "'IBM Plex Mono', monospace"
-                        }}>
-                          {((culture.burned / culture.supply) * 100).toFixed(1)}% burned through auctions
-                        </div>
+                      {/* Holders - LIVE from pump.fun */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '12px', color: '#666', fontFamily: "'IBM Plex Mono', monospace" }}>Holders</span>
+                        <span style={{ fontSize: '14px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
+                          {tokenData.loading ? '...' : tokenData.holders.toLocaleString()}
+                        </span>
                       </div>
 
                       <div style={{ borderTop: '1px solid #1a1a1a', paddingTop: '20px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                          <span style={{ fontSize: '12px', color: '#666', fontFamily: "'IBM Plex Mono', monospace" }}>Holders</span>
-                          <span style={{ fontSize: '14px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>{culture.holders.toLocaleString()}</span>
+                          <span style={{ fontSize: '12px', color: '#666', fontFamily: "'IBM Plex Mono', monospace" }}>Total Supply</span>
+                          <span style={{ fontSize: '14px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>{(culture.supply || 1000000000).toLocaleString()}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                          <span style={{ fontSize: '12px', color: '#666', fontFamily: "'IBM Plex Mono', monospace" }}>Avg Hold Time</span>
-                          <span style={{ fontSize: '14px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>{culture.avgHoldDays} days</span>
+                          <span style={{ fontSize: '12px', color: '#666', fontFamily: "'IBM Plex Mono', monospace" }}>Total Burned</span>
+                          <span style={{ fontSize: '14px', color: '#ef4444', fontFamily: "'IBM Plex Mono', monospace" }}>{(culture.burned || 0).toLocaleString()}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: '12px', color: '#666', fontFamily: "'IBM Plex Mono', monospace" }}>Active Participation</span>
-                          <span style={{ fontSize: '14px', color: '#22c55e', fontFamily: "'IBM Plex Mono', monospace" }}>{culture.participationRate}%</span>
+                          <span style={{ fontSize: '12px', color: '#666', fontFamily: "'IBM Plex Mono', monospace" }}>Circulating</span>
+                          <span style={{ fontSize: '14px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>{((culture.supply || 1000000000) - (culture.burned || 0)).toLocaleString()}</span>
                         </div>
                       </div>
+
+                      {culture.tokenAddress && (
+                        <div style={{ borderTop: '1px solid #1a1a1a', paddingTop: '20px' }}>
+                          <a
+                            href={`https://pump.fun/coin/${culture.tokenAddress}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: 'block',
+                              textAlign: 'center',
+                              padding: '12px',
+                              background: '#22c55e',
+                              color: '#000',
+                              fontSize: '11px',
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              letterSpacing: '0.1em',
+                              textDecoration: 'none',
+                              fontWeight: 600
+                            }}
+                          >
+                            VIEW ON PUMP.FUN
+                          </a>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -2143,7 +2218,7 @@
           const [loading, setLoading] = useState(true);
           const [searchQuery, setSearchQuery] = useState('');
 
-          // Fetch cultures I created from API
+          // Fetch cultures I created from API and enrich with live pump.fun data
           useEffect(() => {
             const fetchMyCultures = async () => {
               if (!wallet?.address) {
@@ -2160,7 +2235,28 @@
                     c.creator === wallet.address
                   );
                   console.log('[DASHBOARD] Found', owned.length, 'cultures owned by', wallet.address);
-                  setMyCultures(owned);
+
+                  // Enrich with live pump.fun data
+                  const enriched = await Promise.all(owned.map(async (culture) => {
+                    if (!culture.tokenAddress) return culture;
+                    try {
+                      const pumpRes = await fetch(`/api/pump/coin/${culture.tokenAddress}`);
+                      if (pumpRes.ok) {
+                        const pumpData = await pumpRes.json();
+                        return {
+                          ...culture,
+                          marketCap: pumpData.usd_market_cap || 0,
+                          holders: pumpData.holder_count || 0,
+                          volume: pumpData.volume_24h || 0
+                        };
+                      }
+                    } catch (e) {
+                      console.error('[DASHBOARD] Failed to enrich', culture.name, e);
+                    }
+                    return culture;
+                  }));
+
+                  setMyCultures(enriched);
                 }
               } catch (e) {
                 console.error('[DASHBOARD] Error fetching cultures:', e);
