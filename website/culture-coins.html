@@ -1058,7 +1058,7 @@
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       {culture.tiers.map((tier, i) => {
-                        const isUserTier = tier.name === userHolding.tier;
+                        const isUserTier = userHolding && tier.name === userHolding.tier;
                         return (
                           <div
                             key={i}
