@@ -1438,6 +1438,7 @@ const server = http.createServer(async (req, res) => {
 
     // API: Create new culture (CIA-level security with wallet verification)
     if (url.pathname === '/api/culture/create' && req.method === 'POST') {
+        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
         try {
             // Rate limit
             const rateCheck = checkRateLimit(clientIP, 'sensitive');
