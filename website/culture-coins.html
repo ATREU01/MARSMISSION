@@ -2217,6 +2217,42 @@
           const [myCultures, setMyCultures] = useState([]);
           const [loading, setLoading] = useState(true);
           const [searchQuery, setSearchQuery] = useState('');
+          const [selectedChartCulture, setSelectedChartCulture] = useState(null);
+          const [chartData, setChartData] = useState(null);
+          const [chartHeight, setChartHeight] = useState(400);
+
+          // Auto-select first culture for chart when cultures load
+          useEffect(() => {
+            if (myCultures.length > 0 && !selectedChartCulture) {
+              const firstWithToken = myCultures.find(c => c.tokenAddress);
+              if (firstWithToken) {
+                setSelectedChartCulture(firstWithToken);
+              }
+            }
+          }, [myCultures]);
+
+          // Fetch chart data when selected culture changes
+          useEffect(() => {
+            const fetchChartData = async () => {
+              if (!selectedChartCulture?.tokenAddress) {
+                setChartData(null);
+                return;
+              }
+              try {
+                const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${selectedChartCulture.tokenAddress}`);
+                if (res.ok) {
+                  const data = await res.json();
+                  const pair = data.pairs?.[0];
+                  if (pair) {
+                    setChartData(pair);
+                  }
+                }
+              } catch (e) {
+                console.error('[DASHBOARD] Failed to fetch chart data:', e);
+              }
+            };
+            fetchChartData();
+          }, [selectedChartCulture?.tokenAddress]);
 
           // Fetch cultures I created from API and enrich with live pump.fun data
           useEffect(() => {
@@ -2447,6 +2483,153 @@
                   </div>
                 ))}
               </div>
+
+              {/* Price Chart - Premium Design */}
+              {selectedChartCulture?.tokenAddress && (
+                <div style={{
+                  marginBottom: '48px',
+                  background: 'linear-gradient(180deg, rgba(34, 197, 94, 0.03) 0%, rgba(0,0,0,0) 100%)',
+                  border: '1px solid rgba(34, 197, 94, 0.3)',
+                  boxShadow: '0 0 30px rgba(34, 197, 94, 0.1), inset 0 0 60px rgba(34, 197, 94, 0.02)',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}>
+                  {/* Top glow line */}
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: '1px',
+                    background: 'linear-gradient(90deg, transparent, rgba(34, 197, 94, 0.5), transparent)'
+                  }} />
+
+                  {/* Chart Header */}
+                  <div style={{
+                    padding: '16px 24px',
+                    borderBottom: '1px solid rgba(34, 197, 94, 0.15)',
+                    background: 'rgba(0, 0, 0, 0.4)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '16px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                      <div style={{
+                        fontSize: '11px',
+                        letterSpacing: '0.15em',
+                        color: '#22c55e',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontWeight: 600
+                      }}>
+                        PRICE CHART
+                      </div>
+
+                      {/* Live Price */}
+                      {chartData && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <span style={{
+                            fontSize: '20px',
+                            fontWeight: 600,
+                            color: '#fff',
+                            fontFamily: "'IBM Plex Mono', monospace"
+                          }}>
+                            ${parseFloat(chartData.priceUsd || 0) < 0.0001
+                              ? parseFloat(chartData.priceUsd || 0).toExponential(2)
+                              : parseFloat(chartData.priceUsd || 0).toFixed(6)}
+                          </span>
+                          <span style={{
+                            fontSize: '13px',
+                            fontWeight: 500,
+                            padding: '4px 10px',
+                            borderRadius: '4px',
+                            background: (chartData.priceChange?.h24 || 0) >= 0 ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                            color: (chartData.priceChange?.h24 || 0) >= 0 ? '#22c55e' : '#ef4444'
+                          }}>
+                            {(chartData.priceChange?.h24 || 0) >= 0 ? '+' : ''}{(chartData.priceChange?.h24 || 0).toFixed(2)}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+                      {/* Quick Stats */}
+                      {chartData && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '24px', paddingRight: '20px', borderRight: '1px solid #222' }}>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginBottom: '2px' }}>MCAP</div>
+                            <div style={{ fontSize: '13px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
+                              ${(chartData.marketCap || chartData.fdv || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginBottom: '2px' }}>24H VOL</div>
+                            <div style={{ fontSize: '13px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
+                              ${(chartData.volume?.h24 || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginBottom: '2px' }}>LIQ</div>
+                            <div style={{ fontSize: '13px', color: '#22c55e', fontFamily: "'IBM Plex Mono', monospace" }}>
+                              ${(chartData.liquidity?.usd || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Size Controls */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {[300, 400, 550, 700].map(h => (
+                          <button
+                            key={h}
+                            onClick={() => setChartHeight(h)}
+                            style={{
+                              padding: '6px 12px',
+                              fontSize: '10px',
+                              borderRadius: '4px',
+                              border: chartHeight === h ? '1px solid #22c55e' : '1px solid #333',
+                              background: chartHeight === h ? 'rgba(34,197,94,0.15)' : 'transparent',
+                              color: chartHeight === h ? '#22c55e' : '#666',
+                              cursor: 'pointer',
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            {h === 300 ? 'S' : h === 400 ? 'M' : h === 550 ? 'L' : 'XL'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Chart Container */}
+                  <div style={{ height: chartHeight, background: '#0a0a0a', transition: 'height 0.3s ease' }}>
+                    {chartData?.pairAddress ? (
+                      <iframe
+                        src={`https://dexscreener.com/solana/${chartData.pairAddress}?embed=1&theme=dark&trades=0&info=0`}
+                        style={{ width: '100%', height: '100%', border: 'none' }}
+                        title="Price Chart"
+                      />
+                    ) : (
+                      <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        height: '100%',
+                        color: '#666',
+                        gap: '12px'
+                      }}>
+                        <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ opacity: 0.3 }}>
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4v16a1 1 0 001 1h14a1 1 0 001-1V4"></path>
+                        </svg>
+                        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px' }}>Loading chart...</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Search */}
               <div style={{ marginBottom: '24px' }}>
