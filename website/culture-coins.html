@@ -150,7 +150,7 @@
                 onkeypress="if(event.key === 'Enter') checkAccess()"
                 autocomplete="off"
             >
-            <button class="access-btn" onclick="checkAccess()">ENTER</button>
+            <button type="button" class="access-btn" id="enterBtn">ENTER</button>
             <div class="access-error" id="accessError"></div>
             <div class="access-hint">Contact team lead for access</div>
         </div>
@@ -160,26 +160,51 @@
     <div id="root"></div>
 
     <script>
-        // Access control
-        const ACCESS_CODE = 'MATRIXNOW100!';
+        // Access control - runs immediately when DOM is ready
+        (function() {
+            const ACCESS_CODE = 'MATRIXNOW100!';
 
-        function checkAccess() {
-            const input = document.getElementById('accessCode').value;
-            if (input === ACCESS_CODE) {
-                sessionStorage.setItem('cc_access', 'granted');
-                document.getElementById('accessGate').style.display = 'none';
-                document.getElementById('previewBanner').style.display = 'block';
-            } else {
-                document.getElementById('accessError').textContent = 'Invalid access code';
-                document.getElementById('accessCode').value = '';
+            function checkAccess() {
+                var input = document.getElementById('accessCode');
+                var gate = document.getElementById('accessGate');
+                var banner = document.getElementById('previewBanner');
+                var error = document.getElementById('accessError');
+
+                if (input && input.value === ACCESS_CODE) {
+                    sessionStorage.setItem('cc_access', 'granted');
+                    if (gate) gate.style.display = 'none';
+                    if (banner) banner.style.display = 'block';
+                } else {
+                    if (error) error.textContent = 'Invalid access code';
+                    if (input) input.value = '';
+                }
             }
-        }
 
-        // Check if already authenticated this session
-        if (sessionStorage.getItem('cc_access') === 'granted') {
-            document.getElementById('accessGate').style.display = 'none';
-            document.getElementById('previewBanner').style.display = 'block';
-        }
+            // Make checkAccess global for onkeypress
+            window.checkAccess = checkAccess;
+
+            // Check if already authenticated this session
+            if (sessionStorage.getItem('cc_access') === 'granted') {
+                var gate = document.getElementById('accessGate');
+                var banner = document.getElementById('previewBanner');
+                if (gate) gate.style.display = 'none';
+                if (banner) banner.style.display = 'block';
+            }
+
+            // Add click handler when DOM is ready
+            document.addEventListener('DOMContentLoaded', function() {
+                var btn = document.getElementById('enterBtn');
+                if (btn) {
+                    btn.addEventListener('click', checkAccess);
+                }
+            });
+
+            // Also try to attach immediately in case DOMContentLoaded already fired
+            var btn = document.getElementById('enterBtn');
+            if (btn) {
+                btn.addEventListener('click', checkAccess);
+            }
+        })();
     </script>
 
     <script type="text/babel">
