@@ -563,7 +563,7 @@
 
         // Sign and send culture token transaction
         // Follows exact same pattern as main launchpad.html
-        async function signAndSendCultureToken(tx, connection, mintKeypair, privyWallet) {
+        async function signAndSendCultureToken(tx, connection, mintKeypair) {
             console.log('[CULTURE-DEPLOY] Signing transaction...');
 
             // Validate inputs
@@ -598,50 +598,15 @@
 
             let signature;
 
-            // Try Phantom wallet first
+            // Try Phantom wallet first (same as main launchpad.html)
             if (window.solana?.isPhantom) {
                 console.log('[CULTURE-DEPLOY] Using Phantom wallet for signing...');
-
-                // Ensure wallet is connected with signing permissions (error 4100 fix)
-                if (!window.solana.isConnected) {
-                    console.log('[CULTURE-DEPLOY] Phantom not connected, connecting...');
-                    await window.solana.connect();
-                }
-
-                console.log('[CULTURE-DEPLOY] Phantom connected:', window.solana.publicKey?.toBase58());
-                console.log('[CULTURE-DEPLOY] Transaction message signers:', tx.message.staticAccountKeys?.slice(0, tx.message.header?.numRequiredSignatures || 2).map(k => k.toBase58()));
-                try {
-                    const signedTx = await window.solana.signTransaction(tx);
-                    console.log('[CULTURE-DEPLOY] Phantom signed successfully');
-                    signature = await connection.sendRawTransaction(signedTx.serialize(), {
-                        skipPreflight: false,
-                        preflightCommitment: 'confirmed',
-                        maxRetries: 3
-                    });
-                } catch (phantomErr) {
-                    console.error('[CULTURE-DEPLOY] Phantom signing error:', phantomErr);
-                    console.error('[CULTURE-DEPLOY] Error details:', JSON.stringify(phantomErr, Object.getOwnPropertyNames(phantomErr)));
-
-                    // If error 4100, try reconnecting
-                    if (phantomErr.code === 4100) {
-                        console.log('[CULTURE-DEPLOY] Trying to reconnect Phantom...');
-                        try {
-                            await window.solana.disconnect();
-                            await window.solana.connect();
-                            const signedTx = await window.solana.signTransaction(tx);
-                            console.log('[CULTURE-DEPLOY] Phantom signed after reconnect');
-                            signature = await connection.sendRawTransaction(signedTx.serialize(), {
-                                skipPreflight: false,
-                                preflightCommitment: 'confirmed',
-                                maxRetries: 3
-                            });
-                        } catch (retryErr) {
-                            throw new Error('Wallet signing failed after reconnect: ' + (retryErr.message || 'Unknown error'));
-                        }
-                    } else {
-                        throw new Error('Wallet signing failed: ' + (phantomErr.message || 'Unknown error'));
-                    }
-                }
+                const signedTx = await window.solana.signTransaction(tx);
+                signature = await connection.sendRawTransaction(signedTx.serialize(), {
+                    skipPreflight: false,
+                    preflightCommitment: 'confirmed',
+                    maxRetries: 3
+                });
             }
             // Try Solflare
             else if (window.solflare?.isSolflare) {
@@ -653,18 +618,8 @@
                     maxRetries: 3
                 });
             }
-            // Try Privy embedded wallet
-            else if (privyWallet?.signTransaction) {
-                console.log('[CULTURE-DEPLOY] Using Privy wallet for signing...');
-                const signedTx = await privyWallet.signTransaction(tx);
-                signature = await connection.sendRawTransaction(signedTx.serialize(), {
-                    skipPreflight: false,
-                    preflightCommitment: 'confirmed',
-                    maxRetries: 3
-                });
-            }
             else {
-                throw new Error('No compatible wallet found. Please connect Phantom, Solflare, or use Privy.');
+                throw new Error('No compatible wallet found. Please install Phantom or Solflare.');
             }
 
             console.log('[CULTURE-DEPLOY] Transaction sent, signature:', signature);
@@ -2754,22 +2709,41 @@
                 tokenIcon // Use the uploaded token icon file
               );
 
-              // Step 1b: Create the token transaction
+              // Step 1b: Get the SIGNING wallet address (must match what we'll use to sign)
+              // Always use Phantom/Solflare address for the transaction, same as main site
+              let signingWalletAddress = wallet.address;
+              if (window.solana?.isPhantom) {
+                if (!window.solana.isConnected) {
+                  console.log('[CREATE CULTURE] Connecting Phantom for signing...');
+                  await window.solana.connect();
+                }
+                signingWalletAddress = window.solana.publicKey.toBase58();
+                console.log('[CREATE CULTURE] Using Phantom address:', signingWalletAddress);
+              } else if (window.solflare?.isSolflare) {
+                if (!window.solflare.isConnected) {
+                  await window.solflare.connect();
+                }
+                signingWalletAddress = window.solflare.publicKey.toBase58();
+                console.log('[CREATE CULTURE] Using Solflare address:', signingWalletAddress);
+              } else {
+                throw new Error('Please install Phantom or Solflare wallet to create tokens.');
+              }
+
+              // Step 1c: Create the token transaction with signing wallet address
               setCreateStatus('Creating token on Pump.fun...');
               const { transaction, connection } = await createCultureTokenTransaction(
-                wallet.address,
+                signingWalletAddress, // Use the wallet that will sign
                 mintKeypair,
                 tokenMetadata,
                 devBuyAmount // Initial dev buy in SOL
               );
 
-              // Step 1c: Sign and send the transaction
+              // Step 1d: Sign and send the transaction
               setCreateStatus('Please sign the transaction in your wallet...');
               txSignature = await signAndSendCultureToken(
                 transaction,
                 connection,
-                mintKeypair,
-                wallet // Pass the Privy wallet for signing
+                mintKeypair
               );
 
               tokenAddress = mintKeypair.publicKey.toBase58();
@@ -4860,7 +4834,7 @@
           const connectPhantom = async () => {
             try {
               const res = await window.solana.connect();
-              onConnect(res.publicKey.toString());
+              onConnect(res.publicKey.toString(), 'phantom');
               onClose();
             } catch (e) { console.error('[PHANTOM]', e); }
           };
@@ -4868,7 +4842,7 @@
           const connectSolflare = async () => {
             try {
               await window.solflare.connect();
-              onConnect(window.solflare.publicKey.toString());
+              onConnect(window.solflare.publicKey.toString(), 'solflare');
               onClose();
             } catch (e) { console.error('[SOLFLARE]', e); }
           };
@@ -5115,6 +5089,7 @@
           // Wallet state
           const [walletAddress, setWalletAddress] = useState(null);
           const [walletBalance, setWalletBalance] = useState(0);
+          const [walletType, setWalletType] = useState(null); // 'phantom', 'solflare', or 'privy'
           const [showWalletSelect, setShowWalletSelect] = useState(false);
           const [showWalletInfo, setShowWalletInfo] = useState(false);
 
@@ -5183,27 +5158,38 @@
             return () => channel.close();
           }, []);
 
-          const handleWalletConnected = async (address) => {
+          const handleWalletConnected = async (address, type = 'privy') => {
+            console.log('[WALLET] Connected:', address, 'type:', type);
             setWalletAddress(address);
+            setWalletType(type);
             setShowWalletSelect(false);
 
             // Fetch balance
             try {
+              console.log('[BALANCE] Fetching for:', address, 'via', SOLANA_RPC);
               const res = await fetch(SOLANA_RPC, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getBalance', params: [address] }),
               });
               const data = await res.json();
+              console.log('[BALANCE] Response:', data);
               if (data.result?.value !== undefined) {
-                setWalletBalance(data.result.value / 1e9);
+                const bal = data.result.value / 1e9;
+                console.log('[BALANCE] Setting:', bal, 'SOL');
+                setWalletBalance(bal);
+              } else if (data.error) {
+                console.error('[BALANCE] RPC error:', data.error);
               }
-            } catch (e) { console.error('[BALANCE]', e); }
+            } catch (e) {
+              console.error('[BALANCE] Fetch failed:', e);
+            }
           };
 
           const disconnectWallet = () => {
             setWalletAddress(null);
             setWalletBalance(0);
+            setWalletType(null);
             setShowWalletInfo(false);
             showNotification('Wallet disconnected');
           };
@@ -5245,6 +5231,7 @@
           const walletContextValue = {
             address: walletAddress,
             balance: walletBalance,
+            type: walletType, // 'phantom', 'solflare', or 'privy'
             holdings: userHoldings,
             connect: () => setShowWalletSelect(true),
             showModal: () => setShowWalletInfo(true),
