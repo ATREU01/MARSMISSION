@@ -397,46 +397,32 @@ RSI: ${engine.rsi.value.toFixed(1)}
         const text = `
 <b>🚀 CREATE NEW TOKEN</b>
 
-Launch your meme coin on Pump.fun with LAUNCHR!
+<b>STEP 1 - GO TO LAUNCHPAD:</b>
+👉 <a href="https://www.launchronsol.xyz/launchpad">TAP HERE TO OPEN</a>
 
-<b>━━━ CREATE YOUR TOKEN ━━━</b>
+<b>STEP 2 - ON THE WEBSITE:</b>
+• Connect your wallet
+• Enter token name & symbol
+• Upload your image
+• Add socials (Twitter, etc)
+• Click LAUNCH
 
-1️⃣ Open the Launchpad:
-👉 <a href="https://www.launchronsol.xyz/launchpad">launchronsol.xyz/launchpad</a>
+<b>STEP 3 - COME BACK HERE!</b>
+After your token launches, come back to this chat.
 
-2️⃣ Connect wallet (Phantom/Solflare)
+<b>STEP 4 - GO TO DASHBOARD:</b>
+👉 <a href="https://www.launchronsol.xyz/dashboard">TAP HERE FOR DASHBOARD</a>
 
-3️⃣ Fill in your token details:
-   • Name & Symbol
-   • Description
-   • Image/Logo
-   • Social links
-
-4️⃣ Set initial dev buy (optional)
-
-5️⃣ Launch! 🚀
-
-<b>━━━ AFTER LAUNCH ━━━</b>
-
-Your token is automatically registered with LAUNCHR.
-
-Go to Dashboard to:
+<b>STEP 5 - ON DASHBOARD:</b>
+• Select your token
 • Set fee allocations
-• Enable ORBIT (24/7 automation)
-• Track performance
+• Enable ORBIT automation
+• Your fees auto-distribute 24/7!
 
-👉 <a href="https://www.launchronsol.xyz/dashboard">Open Dashboard</a>
+<b>━━━━━━━━━━━━━━━━━━━━</b>
 
-<b>━━━ FEATURES ━━━</b>
-
-• Vanity wallet addresses
-• Automated fee claiming
-• RSI-timed market making
-• Buyback & burn
-• Liquidity pool adds
-
-<b>🔒 NON-CUSTODIAL</b>
-We NEVER hold your private keys.
+<b>🔒 100% NON-CUSTODIAL</b>
+We NEVER hold your keys.
 
 <i>⚠️ Meme coins are speculative. DYOR.</i>
         `.trim();
@@ -449,35 +435,34 @@ We NEVER hold your private keys.
         const text = `
 <b>🔗 IMPORT EXISTING TOKEN</b>
 
-Already have a token on Pump.fun? Connect it to LAUNCHR!
+Already launched on Pump.fun? Let's connect it!
 
-<b>━━━ SECURE CONNECTION ━━━</b>
+<b>STEP 1 - GO TO DASHBOARD:</b>
+👉 <a href="https://www.launchronsol.xyz/dashboard">TAP HERE TO OPEN</a>
 
-1️⃣ Open the Dashboard:
-👉 <a href="https://www.launchronsol.xyz/dashboard">launchronsol.xyz/dashboard</a>
+<b>STEP 2 - ON THE WEBSITE:</b>
+• Connect your wallet (same one you launched with)
+• Your tokens appear under "My Launches"
+• Click on your token
 
-2️⃣ Connect wallet (Phantom/Solflare)
+<b>STEP 3 - SET ALLOCATIONS:</b>
+• Market Making % (RSI-timed buys)
+• Buyback & Burn % (deflation)
+• Liquidity Pool % (depth)
+• Creator Revenue % (your wallet)
 
-3️⃣ Select your token from "My Launches"
+<b>STEP 4 - ENABLE ORBIT:</b>
+• Click "Enable 24/7 Automation"
+• Sign with your wallet
+• Done! Fees auto-distribute!
 
-4️⃣ Set your fee allocations:
-   • Market Making %
-   • Buyback & Burn %
-   • Liquidity Pool %
-   • Creator Revenue %
+<b>STEP 5 - COME BACK HERE!</b>
+Once set up, come back to check status anytime.
 
-5️⃣ Enable ORBIT (24/7 automation)
+<b>━━━━━━━━━━━━━━━━━━━━</b>
 
-<b>━━━ WHAT HAPPENS ━━━</b>
-
-• Your creator fees are claimed automatically
-• Distributed based on your allocations
-• RSI-timed market making trades
-• Buyback & burn (deflationary)
-• Liquidity added to your pool
-
-<b>🔒 NON-CUSTODIAL</b>
-We NEVER hold your private keys. All signing happens through Privy's secure MPC system.
+<b>🔒 100% NON-CUSTODIAL</b>
+We NEVER hold your keys. Privy MPC = secure.
 
 <i>⚠️ Meme coins are speculative. DYOR.</i>
         `.trim();
