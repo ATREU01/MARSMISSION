@@ -1,3 +1,4 @@
+// LAUNCHR Bot v2.1 | Build: 2026-01-03T15:00:00Z | Commands: /create /existing /ping
 const https = require('https');
 const tracker = require('./tracker');
 const sessions = require('./tg-sessions');
