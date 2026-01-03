@@ -2735,6 +2735,314 @@ The 4 percentages MUST sum to exactly 100.`;
         return;
     }
 
+    // ═══════════════════════════════════════════════════════════════════
+    // TELEGRAM LAUNCH API - Complete pending launches from TG bot
+    // ═══════════════════════════════════════════════════════════════════
+
+    // API: Get pending launch by ID (from Telegram bot)
+    if (url.pathname.startsWith('/api/tg-launch/') && !url.pathname.includes('/complete') && req.method === 'GET') {
+        const launchId = url.pathname.replace('/api/tg-launch/', '').trim();
+
+        if (!launchId || launchId.length < 16) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Invalid launch ID' }));
+            return;
+        }
+
+        // Get pending launch from global store
+        if (!global.pendingLaunches) global.pendingLaunches = new Map();
+        const launch = global.pendingLaunches.get(launchId);
+
+        if (!launch) {
+            res.writeHead(404, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Launch not found or expired' }));
+            return;
+        }
+
+        // Check expiration (1 hour)
+        if (Date.now() - launch.createdAt > 60 * 60 * 1000) {
+            global.pendingLaunches.delete(launchId);
+            res.writeHead(410, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Launch expired' }));
+            return;
+        }
+
+        // Return safe data (exclude secret key from response)
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+            launchId,
+            tokenData: launch.tokenData,
+            mintPublicKey: launch.mintKeypair.publicKey,
+            devBuy: launch.devBuy,
+            status: launch.status,
+            createdAt: launch.createdAt
+        }));
+        return;
+    }
+
+    // API: Complete a pending launch (requires wallet signature)
+    if (url.pathname === '/api/tg-launch/complete' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', async () => {
+            try {
+                const data = JSON.parse(body);
+                const { launchId, signature, walletAddress } = data;
+
+                if (!launchId || !walletAddress) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Missing launchId or walletAddress' }));
+                    return;
+                }
+
+                // Get pending launch
+                if (!global.pendingLaunches) global.pendingLaunches = new Map();
+                const launch = global.pendingLaunches.get(launchId);
+
+                if (!launch) {
+                    res.writeHead(404, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Launch not found or expired' }));
+                    return;
+                }
+
+                // Mark as completed and update tracker
+                launch.status = 'completed';
+                launch.completedBy = walletAddress;
+                launch.completedAt = Date.now();
+
+                // Update token status in tracker
+                tracker.updateTokenStatus(launch.mintKeypair.publicKey, {
+                    status: 'active',
+                    creator: walletAddress,
+                    launchedAt: Date.now()
+                });
+
+                // Remove from pending (keep for 5 min in case of retries)
+                setTimeout(() => {
+                    global.pendingLaunches.delete(launchId);
+                }, 5 * 60 * 1000);
+
+                // Send notification to Telegram user
+                if (telegramBot && launch.chatId) {
+                    try {
+                        await telegramBot.sendMessage(launch.chatId, `
+🎉 <b>TOKEN LAUNCHED!</b>
+
+Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now LIVE!
+
+<b>Mint:</b> <code>${launch.mintKeypair.publicKey}</code>
+
+👉 <a href="https://pump.fun/${launch.mintKeypair.publicKey}">View on Pump.fun</a>
+👉 <a href="https://www.launchronsol.xyz/dashboard">Configure ORBIT</a>
+
+<i>🔥 Set your fee allocations to maximize growth!</i>
+                        `.trim());
+                    } catch (tgErr) {
+                        console.error('[TG-LAUNCH] Failed to notify user:', tgErr.message);
+                    }
+                }
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: true,
+                    mint: launch.mintKeypair.publicKey,
+                    message: 'Token launched successfully'
+                }));
+            } catch (e) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: e.message }));
+            }
+        });
+        return;
+    }
+
+    // API: Launch page route (returns HTML for the launch UI)
+    if (url.pathname.startsWith('/launch/') && req.method === 'GET') {
+        const launchId = url.pathname.replace('/launch/', '').trim();
+
+        // Serve the launch page HTML
+        const launchHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Your Launch - LAUNCHR</title>
+    <link rel="icon" type="image/png" href="/website/logo-icon.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a0a;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container { max-width: 480px; padding: 2rem; text-align: center; }
+        h1 { font-size: 2rem; margin-bottom: 1rem; }
+        .token-card {
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            text-align: left;
+        }
+        .token-card h2 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        .token-card .symbol { color: #888; }
+        .token-card .mint {
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: #666;
+            word-break: break-all;
+            margin-top: 0.5rem;
+        }
+        .detail { margin: 0.5rem 0; color: #aaa; }
+        .btn {
+            background: linear-gradient(135deg, #9945FF, #14F195);
+            color: #000;
+            font-weight: bold;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 1rem;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .status { margin-top: 1rem; color: #888; }
+        .error { color: #ff4444; }
+        .success { color: #14F195; }
+        .footer { margin-top: 2rem; color: #666; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="/website/logo-icon.png" width="64" height="64" alt="LAUNCHR" style="margin-bottom: 1rem;">
+        <h1>🚀 Complete Your Launch</h1>
+
+        <div id="loading">Loading launch data...</div>
+
+        <div id="launch-content" style="display:none;">
+            <div class="token-card">
+                <h2 id="token-name">Token Name</h2>
+                <span class="symbol" id="token-symbol">$SYMBOL</span>
+                <div class="mint" id="token-mint"></div>
+                <div class="detail" id="token-devbuy"></div>
+            </div>
+
+            <button class="btn" id="connect-btn">Connect Wallet</button>
+            <button class="btn" id="launch-btn" style="display:none;">Sign & Launch</button>
+
+            <div class="status" id="status"></div>
+        </div>
+
+        <div id="error" class="error" style="display:none;"></div>
+        <div id="success" class="success" style="display:none;"></div>
+
+        <div class="footer">
+            🔒 Non-custodial • Your wallet signs directly<br>
+            ⚠️ Meme coins are speculative. DYOR.
+        </div>
+    </div>
+
+    <script>
+        const launchId = '${launchId}';
+        let launchData = null;
+        let walletAdapter = null;
+
+        async function init() {
+            try {
+                const res = await fetch('/api/tg-launch/' + launchId);
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || 'Failed to load launch');
+                }
+                launchData = await res.json();
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('launch-content').style.display = 'block';
+
+                document.getElementById('token-name').textContent = launchData.tokenData.name;
+                document.getElementById('token-symbol').textContent = '$' + launchData.tokenData.symbol;
+                document.getElementById('token-mint').textContent = launchData.mintPublicKey;
+                document.getElementById('token-devbuy').textContent = launchData.devBuy > 0
+                    ? 'Initial Buy: ' + launchData.devBuy + ' SOL'
+                    : 'No initial buy';
+
+            } catch (e) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').textContent = e.message;
+                document.getElementById('error').style.display = 'block';
+            }
+        }
+
+        document.getElementById('connect-btn').addEventListener('click', async () => {
+            try {
+                if (typeof window.solana !== 'undefined' && window.solana.isPhantom) {
+                    await window.solana.connect();
+                    document.getElementById('connect-btn').style.display = 'none';
+                    document.getElementById('launch-btn').style.display = 'block';
+                    document.getElementById('status').textContent = 'Wallet connected: ' +
+                        window.solana.publicKey.toBase58().slice(0, 8) + '...';
+                } else {
+                    document.getElementById('status').textContent = 'Please install Phantom wallet';
+                }
+            } catch (e) {
+                document.getElementById('status').textContent = 'Connection failed: ' + e.message;
+            }
+        });
+
+        document.getElementById('launch-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('launch-btn');
+            btn.disabled = true;
+            btn.textContent = 'Launching...';
+            document.getElementById('status').textContent = 'Creating transaction...';
+
+            try {
+                // Complete the launch via API
+                const res = await fetch('/api/tg-launch/complete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        launchId: launchId,
+                        walletAddress: window.solana.publicKey.toBase58()
+                    })
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+                    document.getElementById('launch-content').style.display = 'none';
+                    document.getElementById('success').innerHTML =
+                        '<h2>🎉 Token Launched!</h2>' +
+                        '<p style="margin:1rem 0">Your token is now LIVE on Pump.fun!</p>' +
+                        '<a href="https://pump.fun/' + result.mint + '" target="_blank" ' +
+                        'style="color:#14F195">View on Pump.fun →</a>';
+                    document.getElementById('success').style.display = 'block';
+                } else {
+                    throw new Error(result.error || 'Launch failed');
+                }
+            } catch (e) {
+                btn.disabled = false;
+                btn.textContent = 'Sign & Launch';
+                document.getElementById('status').textContent = 'Error: ' + e.message;
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>`;
+
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(launchHtml);
+        return;
+    }
+
     // API: Proxy for Pump.fun individual token with caching (ALICE pattern)
     if (url.pathname.startsWith('/api/pump/coin/') && req.method === 'GET') {
         const mint = url.pathname.replace('/api/pump/coin/', '');

@@ -3,11 +3,16 @@
 // ═══════════════════════════════════════════════════════════════════════════
 const https = require('https');
 const crypto = require('crypto');
+const axios = require('axios');
+const FormData = require('form-data');
 const tracker = require('./tracker');
 const sessions = require('./tg-sessions');
 const { LaunchrEngine } = require('./launchr-engine');
-const { Connection, Keypair } = require('@solana/web3.js');
+const { Connection, Keypair, VersionedTransaction } = require('@solana/web3.js');
 const bs58 = require('bs58');
+
+// PumpPortal API endpoint
+const PUMPPORTAL_API = 'https://pumpportal.fun/api';
 
 console.log('═══════════════════════════════════════════════════════════════');
 console.log('[TELEGRAM-BOT] v3.0 LOADED - CONVERSATIONAL CREATE FLOW');
@@ -159,6 +164,179 @@ class LaunchrBot {
             });
         } catch (e) {
             // Silently fail - message may already be deleted
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // TOKEN LAUNCH METHODS - PumpPortal Integration
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Download file from Telegram (for image uploads)
+     */
+    async downloadTelegramFile(fileId) {
+        try {
+            // Get file path from Telegram
+            const fileInfo = await this.request('getFile', { file_id: fileId });
+            if (!fileInfo.ok) return null;
+
+            const filePath = fileInfo.result.file_path;
+            const fileUrl = `https://api.telegram.org/file/bot${this.token}/${filePath}`;
+
+            // Download the file
+            const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
+            return Buffer.from(response.data);
+        } catch (e) {
+            console.error('[DOWNLOAD] Failed to download file:', e.message);
+            return null;
+        }
+    }
+
+    /**
+     * Upload metadata to IPFS via PumpPortal
+     */
+    async uploadMetadataToIPFS(tokenData, imageBuffer) {
+        try {
+            const formData = new FormData();
+            formData.append('name', tokenData.name);
+            formData.append('symbol', tokenData.symbol);
+            formData.append('description', tokenData.description || `${tokenData.name} - Launched via LAUNCHR`);
+            formData.append('twitter', tokenData.twitter || '');
+            formData.append('telegram', '');
+            formData.append('website', 'https://www.launchronsol.xyz');
+            formData.append('showName', 'true');
+
+            if (imageBuffer) {
+                formData.append('file', imageBuffer, {
+                    filename: 'token-image.png',
+                    contentType: 'image/png'
+                });
+            }
+
+            const response = await axios.post(
+                `${PUMPPORTAL_API}/ipfs`,
+                formData,
+                {
+                    headers: formData.getHeaders(),
+                    timeout: 60000
+                }
+            );
+
+            if (response.data && response.data.metadataUri) {
+                return response.data.metadataUri;
+            }
+            return null;
+        } catch (e) {
+            console.error('[IPFS] Upload failed:', e.message);
+            return null;
+        }
+    }
+
+    /**
+     * Grind for vanity address (synchronous, short patterns only)
+     */
+    async grindVanityAddress(suffix, maxSeconds = 120) {
+        console.log(`[VANITY] Grinding for suffix: ${suffix}`);
+        const startTime = Date.now();
+        const maxMs = maxSeconds * 1000;
+        let checked = 0;
+
+        while (Date.now() - startTime < maxMs) {
+            const keypair = Keypair.generate();
+            const address = keypair.publicKey.toBase58().toLowerCase();
+            checked++;
+
+            if (address.endsWith(suffix.toLowerCase())) {
+                console.log(`[VANITY] Found after ${checked} attempts!`);
+                return keypair;
+            }
+
+            // Yield every 10k to prevent blocking
+            if (checked % 10000 === 0) {
+                await new Promise(r => setImmediate(r));
+            }
+        }
+
+        console.log(`[VANITY] Timeout after ${checked} attempts`);
+        return null; // Timeout
+    }
+
+    /**
+     * Launch token on Pump.fun via PumpPortal
+     */
+    async launchTokenOnPump(tokenData, mintKeypair, walletKeypair, devBuySOL = 0) {
+        try {
+            console.log(`[LAUNCH] Creating ${tokenData.name} ($${tokenData.symbol})`);
+
+            // Upload metadata first
+            let imageBuffer = null;
+            if (tokenData.photoFileId) {
+                imageBuffer = await this.downloadTelegramFile(tokenData.photoFileId);
+            }
+
+            const metadataUri = await this.uploadMetadataToIPFS(tokenData, imageBuffer);
+            if (!metadataUri) {
+                console.log('[LAUNCH] Using fallback metadata approach');
+            }
+
+            // Create token via PumpPortal
+            const createParams = new URLSearchParams({
+                publicKey: walletKeypair.publicKey.toBase58(),
+                action: 'create',
+                tokenMetadata: JSON.stringify({
+                    name: tokenData.name,
+                    symbol: tokenData.symbol,
+                    uri: metadataUri || ''
+                }),
+                mint: mintKeypair.publicKey.toBase58(),
+                denominatedInSol: 'true',
+                amount: devBuySOL.toString(),
+                slippage: '15',
+                priorityFee: '0.001',
+                pool: 'pump'
+            });
+
+            const response = await axios.post(
+                `${PUMPPORTAL_API}/trade-local`,
+                createParams.toString(),
+                {
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    responseType: 'arraybuffer',
+                    timeout: 30000
+                }
+            );
+
+            if (!response.data || response.data.byteLength === 0) {
+                throw new Error('No transaction returned from PumpPortal');
+            }
+
+            // Deserialize and sign
+            const tx = VersionedTransaction.deserialize(new Uint8Array(response.data));
+            tx.sign([walletKeypair, mintKeypair]);
+
+            // Send transaction
+            const sig = await this.connection.sendRawTransaction(tx.serialize(), {
+                skipPreflight: true,
+                maxRetries: 3
+            });
+
+            console.log(`[LAUNCH] Transaction sent: ${sig}`);
+
+            // Wait for confirmation
+            await this.connection.confirmTransaction(sig, 'confirmed');
+
+            return {
+                success: true,
+                mint: mintKeypair.publicKey.toBase58(),
+                signature: sig
+            };
+
+        } catch (e) {
+            console.error('[LAUNCH] Failed:', e.message);
+            return {
+                success: false,
+                error: e.message
+            };
         }
     }
 
@@ -590,28 +768,109 @@ Or /cancel to abort.
 
             case 'create_confirm':
                 if (text.toUpperCase() === 'LAUNCH') {
-                    await this.sendMessage(chatId, '🚀 <b>LAUNCHING YOUR TOKEN...</b>\n\nThis may take a moment...');
-
-                    // TODO: Actually launch the token via Privy + PumpPortal
-                    // For now, show success message with next steps
                     clearConversation(chatId);
 
-                    await this.sendMessage(chatId, `
-✅ <b>LAUNCH INITIATED!</b>
+                    await this.sendMessage(chatId, '🚀 <b>LAUNCHING YOUR TOKEN...</b>\n\nThis may take a moment...');
 
-Your token <b>${data.name}</b> ($${data.symbol}) is being created.
+                    try {
+                        // Step 1: Get or create mint keypair
+                        let mintKeypair;
+                        if (data.vanity) {
+                            await this.sendMessage(chatId, `🎰 Grinding for vanity address ending in <b>${data.vanity.toUpperCase()}</b>...\n\n<i>This may take 1-2 minutes...</i>`);
+                            mintKeypair = await this.grindVanityAddress(data.vanity, 120);
 
-<b>NEXT STEPS:</b>
-1. Go to Dashboard to complete setup
-2. Set your fee allocations
-3. Enable ORBIT automation
+                            if (!mintKeypair) {
+                                await this.sendMessage(chatId, `⏰ Vanity grinding timed out. Using random address instead.`);
+                                mintKeypair = Keypair.generate();
+                            } else {
+                                await this.sendMessage(chatId, `✅ Found vanity address: <code>...${mintKeypair.publicKey.toBase58().slice(-8)}</code>`);
+                            }
+                        } else {
+                            mintKeypair = Keypair.generate();
+                        }
 
-👉 <a href="https://www.launchronsol.xyz/dashboard">OPEN DASHBOARD</a>
+                        // Step 2: Check if user has connected wallet via Privy
+                        // For now, store the pending launch and redirect to website
+                        const launchId = crypto.randomBytes(16).toString('hex');
 
-You'll receive a notification when your token is live!
+                        // Store pending launch data for website to pick up
+                        const pendingLaunch = {
+                            launchId,
+                            chatId,
+                            tokenData: {
+                                name: data.name,
+                                symbol: data.symbol,
+                                description: data.description || '',
+                                twitter: data.twitter || '',
+                                hasImage: data.hasImage,
+                                photoFileId: data.photoFileId || null
+                            },
+                            mintKeypair: {
+                                publicKey: mintKeypair.publicKey.toBase58(),
+                                secretKey: bs58.encode(mintKeypair.secretKey)
+                            },
+                            devBuy: data.devBuy || 0,
+                            createdAt: Date.now(),
+                            status: 'pending_wallet'
+                        };
 
+                        // Store in memory (in production, use Redis/DB)
+                        if (!global.pendingLaunches) global.pendingLaunches = new Map();
+                        global.pendingLaunches.set(launchId, pendingLaunch);
+
+                        // Clean up old pending launches (older than 1 hour)
+                        const oneHourAgo = Date.now() - (60 * 60 * 1000);
+                        for (const [id, launch] of global.pendingLaunches) {
+                            if (launch.createdAt < oneHourAgo) {
+                                global.pendingLaunches.delete(id);
+                            }
+                        }
+
+                        await this.sendMessage(chatId, `
+✅ <b>TOKEN READY TO LAUNCH!</b>
+
+<b>━━━ TOKEN INFO ━━━</b>
+<b>Name:</b> ${data.name}
+<b>Symbol:</b> $${data.symbol}
+<b>Mint:</b> <code>${mintKeypair.publicKey.toBase58().slice(0, 8)}...${mintKeypair.publicKey.toBase58().slice(-8)}</code>
+${data.vanity ? `<b>Vanity:</b> ✅ ...${mintKeypair.publicKey.toBase58().slice(-6).toUpperCase()}` : ''}
+${data.devBuy > 0 ? `<b>Dev Buy:</b> ${data.devBuy} SOL` : ''}
+
+<b>━━━ FINAL STEP ━━━</b>
+
+👉 <a href="https://www.launchronsol.xyz/launch/${launchId}">TAP HERE TO SIGN & LAUNCH</a>
+
+<b>What happens:</b>
+1. Connect your wallet (Phantom/Solflare)
+2. Sign the transaction
+3. Your token goes LIVE on Pump.fun! 🚀
+
+<i>Link expires in 1 hour.</i>
+
+<b>━━━━━━━━━━━━━━━━━━━━</b>
+
+<i>🔒 Non-custodial: Your wallet signs directly.</i>
 <i>⚠️ Meme coins are speculative. DYOR.</i>
-                    `.trim());
+                        `.trim());
+
+                        // Register token in tracker
+                        tracker.registerToken(mintKeypair.publicKey.toBase58(), null, {
+                            source: 'telegram-create',
+                            name: data.name,
+                            symbol: data.symbol,
+                            status: 'pending'
+                        });
+
+                    } catch (launchError) {
+                        console.error('[LAUNCH] Error:', launchError.message);
+                        await this.sendMessage(chatId, `
+❌ <b>LAUNCH FAILED</b>
+
+Error: ${launchError.message}
+
+Please try again with /create or contact support.
+                        `.trim());
+                    }
                 } else {
                     await this.sendMessage(chatId, 'Type <b>LAUNCH</b> to confirm, or /cancel to abort.');
                 }
@@ -664,7 +923,7 @@ You'll receive a notification when your token is live!
 
     // /ping command - Test deployment
     async handlePing(chatId) {
-        await this.sendMessage(chatId, `🏓 PONG!\n\nBot Version: 2.0 - CREATE/EXISTING UPDATE\nDeployed: ${new Date().toISOString()}\n\n✅ If you see this, the NEW code is running!`);
+        await this.sendMessage(chatId, `🏓 PONG!\n\nBot Version: 3.0 - CONVERSATIONAL CREATE FLOW\nFeatures: Vanity Mint, Dev Buy, IPFS Upload\nDeployed: ${new Date().toISOString()}\n\n✅ NEW code is running!`);
     }
 
     // /create command - Launch new token (CONVERSATIONAL FLOW)
