@@ -12,6 +12,7 @@ class LaunchrBot {
         this.offset = 0;
         this.commands = {
             '/start': this.handleStart.bind(this),
+            '/ping': this.handlePing.bind(this),
             '/create': this.handleCreate.bind(this),
             '/existing': this.handleExisting.bind(this),
             '/help': this.handleHelp.bind(this),
@@ -359,6 +360,11 @@ The first AI-powered fee allocation engine.
         `.trim();
 
         await this.sendMessage(chatId, text);
+    }
+
+    // /ping command - Test deployment
+    async handlePing(chatId) {
+        await this.sendMessage(chatId, `🏓 PONG!\n\nBot Version: 2.0 - CREATE/EXISTING UPDATE\nDeployed: ${new Date().toISOString()}\n\n✅ If you see this, the NEW code is running!`);
     }
 
     // /create command - Launch new token
