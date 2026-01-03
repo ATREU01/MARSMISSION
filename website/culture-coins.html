@@ -2848,12 +2848,11 @@
               marginBottom: '24px',
               overflow: 'hidden'
             }}>
-              {/* Banner - 1500x300 recommended */}
+              {/* Banner - Full width, 200px height for modern look */}
               <div
                 style={{
-                  height: '300px',
-                  maxWidth: '1500px',
-                  margin: '0 auto',
+                  height: '200px',
+                  width: '100%',
                   background: profile?.banner
                     ? `url(${profile.banner}) center/cover no-repeat`
                     : 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%)',
@@ -2901,12 +2900,12 @@
                 {/* PFP */}
                 <div style={{
                   position: 'relative',
-                  width: '120px',
-                  marginTop: '-60px'
+                  width: '100px',
+                  marginTop: '-50px'
                 }}>
                   <div style={{
-                    width: '120px',
-                    height: '120px',
+                    width: '100px',
+                    height: '100px',
                     borderRadius: '50%',
                     background: profile?.pfp
                       ? `url(${profile.pfp}) center/cover`
@@ -3172,6 +3171,13 @@
 
           const handleComment = (postId, comment) => {
             if (!wallet?.address) return;
+            // Get commenter's display name from profile
+            let commenterName = 'Anonymous';
+            try {
+              const profile = JSON.parse(localStorage.getItem('creator_profile_' + wallet.address) || 'null');
+              if (profile?.displayName) commenterName = profile.displayName;
+              else if (profile?.username) commenterName = profile.username;
+            } catch (e) {}
             const updatedPosts = posts.map(p => {
               if (p.id === postId) {
                 return {
@@ -3179,7 +3185,8 @@
                   comments: [
                     ...(p.comments || []),
                     {
-                      author: wallet.address.slice(0, 6) + '...' + wallet.address.slice(-4),
+                      author: commenterName,
+                      authorWallet: wallet.address,
                       content: comment,
                       createdAt: new Date().toISOString()
                     }
@@ -3421,6 +3428,12 @@
           const [activeTab, setActiveTab] = useState('overview'); // overview, posts, cultures, settings
           const [toolsExpanded, setToolsExpanded] = useState(true); // Collapsible tools section
 
+          // Import Existing Coin Modal State
+          const [showImportModal, setShowImportModal] = useState(false);
+          const [importTokenAddress, setImportTokenAddress] = useState('');
+          const [importLoading, setImportLoading] = useState(false);
+          const [importedTokenData, setImportedTokenData] = useState(null);
+
           // Profile & Social State
           const [profile, setProfile] = useState(() => {
             if (typeof window !== 'undefined') {
@@ -3443,11 +3456,22 @@
                 } else {
                   setProfile({ wallet: wallet.address, displayName: '', bio: '', pfp: null, banner: null });
                 }
-                // Load my posts
+                // Load ALL posts from everyone
                 const allPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
-                const mine = allPosts.filter(p => p.authorWallet === wallet.address);
-                mine.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-                setMyPosts(mine);
+                // Enrich posts with profile display names
+                const enrichedPosts = allPosts.map(post => {
+                  if (post.authorWallet) {
+                    try {
+                      const profile = JSON.parse(localStorage.getItem('creator_profile_' + post.authorWallet) || 'null');
+                      if (profile?.displayName) {
+                        return { ...post, authorName: profile.displayName, authorPfp: profile.pfp || post.authorPfp };
+                      }
+                    } catch (e) {}
+                  }
+                  return post;
+                });
+                enrichedPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                setMyPosts(enrichedPosts);
               } catch (e) {
                 console.error('[DASHBOARD] Error loading profile:', e);
               }
@@ -3631,6 +3655,79 @@
             culturesCreated: myCultures.length,
             totalHolders: myCultures.reduce((sum, c) => sum + (c.holders || 0), 0),
             totalVolume: myCultures.reduce((sum, c) => sum + (c.volume || 0), 0)
+          };
+
+          // Import existing coin from pump.fun
+          const handleImportCoin = async () => {
+            if (!importTokenAddress.trim()) {
+              alert('Please enter a token address');
+              return;
+            }
+
+            setImportLoading(true);
+            try {
+              // Fetch token data from pump.fun
+              const res = await fetch(`/api/pump/coin/${importTokenAddress.trim()}`);
+              if (!res.ok) {
+                throw new Error('Token not found on pump.fun');
+              }
+              const tokenData = await res.json();
+              if (!tokenData || !tokenData.mint) {
+                throw new Error('Invalid token data');
+              }
+              setImportedTokenData(tokenData);
+            } catch (e) {
+              alert('Failed to find token: ' + e.message);
+              setImportedTokenData(null);
+            } finally {
+              setImportLoading(false);
+            }
+          };
+
+          const handleConfirmImport = async () => {
+            if (!importedTokenData) return;
+
+            try {
+              // Create culture entry for this existing token
+              const cultureData = {
+                name: importedTokenData.name || 'Imported Token',
+                ticker: importedTokenData.symbol || 'TOKEN',
+                creatorName: profile?.displayName || wallet.address.slice(0, 8),
+                ethos: [],
+                category: 'other',
+                theme: {},
+                beliefs: [],
+                unlocks: [],
+                tiers: [
+                  { name: 'Observer', holdingPercent: 0.1, access: 'Read-only access', content: [] },
+                  { name: 'Participant', holdingPercent: 0.5, access: 'Join discussions', content: [] }
+                ],
+                tokenAddress: importedTokenData.mint,
+                vanityAddress: importedTokenData.mint,
+                wallet: wallet.address,
+                isImported: true // Mark as imported, not created through our flow
+              };
+
+              const response = await fetch('/api/culture/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(cultureData)
+              });
+
+              const result = await response.json();
+              if (result.success) {
+                // Add to local cultures
+                setMyCultures(prev => [...prev, result.culture]);
+                setShowImportModal(false);
+                setImportTokenAddress('');
+                setImportedTokenData(null);
+                alert('Token imported successfully! You can now edit its culture page.');
+              } else {
+                throw new Error(result.error || 'Failed to import');
+              }
+            } catch (e) {
+              alert('Failed to import token: ' + e.message);
+            }
           };
 
           // Filter by search query (name, ticker, or contract address)
@@ -4322,13 +4419,44 @@
 
               {/* My Cultures */}
               <div style={{
-                fontSize: '10px',
-                letterSpacing: '0.15em',
-                color: '#666',
-                marginBottom: '24px',
-                fontFamily: "'IBM Plex Mono', monospace"
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '24px'
               }}>
-                YOUR CULTURES {searchQuery && `(${filteredCultures.length} of ${myCultures.length})`}
+                <div style={{
+                  fontSize: '10px',
+                  letterSpacing: '0.15em',
+                  color: '#666',
+                  fontFamily: "'IBM Plex Mono', monospace"
+                }}>
+                  YOUR CULTURES {searchQuery && `(${filteredCultures.length} of ${myCultures.length})`}
+                </div>
+                <button
+                  onClick={() => setShowImportModal(true)}
+                  style={{
+                    padding: '8px 16px',
+                    background: 'transparent',
+                    border: '1px solid #333',
+                    color: '#888',
+                    fontSize: '10px',
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    letterSpacing: '0.1em',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                  onMouseOver={(e) => { e.target.style.borderColor = '#22c55e'; e.target.style.color = '#22c55e'; }}
+                  onMouseOut={(e) => { e.target.style.borderColor = '#333'; e.target.style.color = '#888'; }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                  </svg>
+                  IMPORT EXISTING COIN
+                </button>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -4689,6 +4817,199 @@
                   </div>
                 </div>
               )}
+
+              {/* Import Existing Coin Modal */}
+              {showImportModal && (
+                <div style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: 'rgba(0,0,0,0.9)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 1000
+                }}>
+                  <div style={{
+                    background: '#0f0f0f',
+                    border: '1px solid #222',
+                    maxWidth: '500px',
+                    width: '90%',
+                    padding: '32px'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '24px'
+                    }}>
+                      <h3 style={{
+                        fontFamily: "'Playfair Display', serif",
+                        fontSize: '24px',
+                        color: '#fff'
+                      }}>
+                        Import Existing Coin
+                      </h3>
+                      <button
+                        onClick={() => {
+                          setShowImportModal(false);
+                          setImportTokenAddress('');
+                          setImportedTokenData(null);
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#666',
+                          fontSize: '24px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+
+                    <p style={{
+                      fontSize: '13px',
+                      color: '#888',
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      marginBottom: '24px',
+                      lineHeight: 1.6
+                    }}>
+                      Import an existing token you created on pump.fun. You can then add culture customization like beliefs, tiers, and themes.
+                    </p>
+
+                    <div style={{ marginBottom: '20px' }}>
+                      <label style={{
+                        display: 'block',
+                        fontSize: '10px',
+                        letterSpacing: '0.1em',
+                        color: '#666',
+                        marginBottom: '8px',
+                        fontFamily: "'IBM Plex Mono', monospace"
+                      }}>
+                        TOKEN ADDRESS
+                      </label>
+                      <input
+                        type="text"
+                        value={importTokenAddress}
+                        onChange={(e) => setImportTokenAddress(e.target.value)}
+                        placeholder="Enter Solana token address..."
+                        style={{
+                          width: '100%',
+                          padding: '14px 16px',
+                          background: '#0a0a0a',
+                          border: '1px solid #222',
+                          color: '#fff',
+                          fontSize: '14px',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          outline: 'none'
+                        }}
+                      />
+                    </div>
+
+                    {!importedTokenData && (
+                      <button
+                        onClick={handleImportCoin}
+                        disabled={importLoading}
+                        style={{
+                          width: '100%',
+                          padding: '14px',
+                          background: importLoading ? '#333' : '#22c55e',
+                          border: 'none',
+                          color: importLoading ? '#666' : '#000',
+                          fontSize: '12px',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          letterSpacing: '0.1em',
+                          cursor: importLoading ? 'not-allowed' : 'pointer',
+                          fontWeight: 600
+                        }}
+                      >
+                        {importLoading ? 'SEARCHING...' : 'FIND TOKEN'}
+                      </button>
+                    )}
+
+                    {importedTokenData && (
+                      <div style={{
+                        background: '#0a0a0a',
+                        border: '1px solid #22c55e',
+                        padding: '20px',
+                        marginBottom: '20px'
+                      }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '16px',
+                          marginBottom: '16px'
+                        }}>
+                          {importedTokenData.image_uri && (
+                            <img
+                              src={importedTokenData.image_uri}
+                              alt=""
+                              style={{
+                                width: '48px',
+                                height: '48px',
+                                borderRadius: '8px'
+                              }}
+                            />
+                          )}
+                          <div>
+                            <div style={{
+                              fontSize: '18px',
+                              fontFamily: "'Playfair Display', serif",
+                              color: '#fff'
+                            }}>
+                              {importedTokenData.name}
+                            </div>
+                            <div style={{
+                              fontSize: '12px',
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              color: '#22c55e'
+                            }}>
+                              ${importedTokenData.symbol}
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr',
+                          gap: '12px',
+                          fontSize: '11px',
+                          fontFamily: "'IBM Plex Mono', monospace"
+                        }}>
+                          <div>
+                            <span style={{ color: '#666' }}>Market Cap: </span>
+                            <span style={{ color: '#fff' }}>${(importedTokenData.usd_market_cap || 0).toLocaleString()}</span>
+                          </div>
+                          <div>
+                            <span style={{ color: '#666' }}>Holders: </span>
+                            <span style={{ color: '#fff' }}>{(importedTokenData.holder_count || 0).toLocaleString()}</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleConfirmImport}
+                          style={{
+                            width: '100%',
+                            marginTop: '16px',
+                            padding: '14px',
+                            background: '#22c55e',
+                            border: 'none',
+                            color: '#000',
+                            fontSize: '12px',
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            letterSpacing: '0.1em',
+                            cursor: 'pointer',
+                            fontWeight: 600
+                          }}
+                        >
+                          IMPORT & CREATE CULTURE PAGE
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           );
         };
@@ -4916,30 +5237,152 @@
             stars: 'url("data:image/svg+xml,%3Csvg width=\'30\' height=\'30\' viewBox=\'0 0 30 30\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Ctext x=\'10\' y=\'20\' fill=\'%23333\' opacity=\'0.3\'%3E★%3C/text%3E%3C/svg%3E")'
           };
 
-          // Light mode color overrides
+          // ═══════════════════════════════════════════════════════════════════════════
+          // WORLD-CLASS COLOR SYSTEM - Comprehensive Light/Dark Mode
+          // Designed with WCAG 2.1 AA contrast ratios and perceptual color science
+          // ═══════════════════════════════════════════════════════════════════════════
+
           const lightColors = {
-            bg: '#f8f9fa',
+            // Base surfaces - Using warm neutrals for reduced eye strain
+            bg: '#fafaf9',                    // Warm white background
+            bgElevated: '#ffffff',            // Cards, modals, elevated surfaces
+            bgSubtle: '#f5f5f4',              // Secondary backgrounds
+            bgMuted: '#e7e5e4',               // Tertiary surfaces, dividers
+
+            // Card surfaces with elevation
             cardBg: '#ffffff',
-            text: '#1a1a1a',
-            textMuted: '#666666',
-            border: '#e0e0e0',
-            accent: '#1a1a1a',
+            cardBgHover: '#fafaf9',
+            cardShadow: '0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04)',
+            cardShadowHover: '0 4px 12px rgba(0,0,0,0.12), 0 8px 24px rgba(0,0,0,0.08)',
+
+            // Text hierarchy - Proper contrast ratios
+            text: '#171717',                  // Primary text - 15:1 ratio
+            textSecondary: '#404040',         // Secondary text - 10:1 ratio
+            textMuted: '#737373',             // Tertiary text - 4.5:1 ratio
+            textDisabled: '#a3a3a3',          // Disabled text
+            textInverse: '#ffffff',           // Text on dark backgrounds
+
+            // Borders and dividers
+            border: '#e5e5e5',
+            borderStrong: '#d4d4d4',
+            borderSubtle: '#f0f0f0',
+            divider: '#e7e5e4',
+
+            // Interactive elements
+            accent: '#0f172a',                // Primary actions
+            accentHover: '#1e293b',
+            accentActive: '#334155',
+            accentSubtle: '#f1f5f9',
+
+            // Form elements
             inputBg: '#ffffff',
-            inputBorder: '#d0d0d0'
+            inputBgHover: '#fafaf9',
+            inputBgFocus: '#ffffff',
+            inputBorder: '#d4d4d4',
+            inputBorderHover: '#a3a3a3',
+            inputBorderFocus: '#0f172a',
+            inputPlaceholder: '#a3a3a3',
+
+            // Semantic colors - Accessible contrast
+            success: '#15803d',               // Green - passes AA
+            successBg: '#dcfce7',
+            successBorder: '#86efac',
+            warning: '#b45309',               // Amber - passes AA
+            warningBg: '#fef3c7',
+            warningBorder: '#fcd34d',
+            error: '#dc2626',                 // Red - passes AA
+            errorBg: '#fee2e2',
+            errorBorder: '#fca5a5',
+            info: '#0369a1',                  // Blue - passes AA
+            infoBg: '#e0f2fe',
+            infoBorder: '#7dd3fc',
+
+            // Interactive feedback
+            hoverOverlay: 'rgba(0,0,0,0.04)',
+            activeOverlay: 'rgba(0,0,0,0.08)',
+            focusRing: 'rgba(15,23,42,0.4)',
+
+            // Scrollbar
+            scrollThumb: '#d4d4d4',
+            scrollTrack: '#f5f5f4'
           };
 
           const darkColors = {
-            bg: '#0a0a0a',
-            cardBg: '#111111',
-            text: '#ffffff',
-            textMuted: '#888888',
-            border: '#333333',
-            accent: '#FFD966',
-            inputBg: '#111111',
-            inputBorder: '#333333'
+            // Base surfaces - Rich, layered dark palette
+            bg: '#09090b',                    // True dark background
+            bgElevated: '#18181b',            // Cards, elevated surfaces
+            bgSubtle: '#27272a',              // Secondary backgrounds
+            bgMuted: '#3f3f46',               // Tertiary surfaces
+
+            // Card surfaces with elevation
+            cardBg: '#18181b',
+            cardBgHover: '#27272a',
+            cardShadow: '0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2)',
+            cardShadowHover: '0 4px 12px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.3)',
+
+            // Text hierarchy - Optimized for OLED/dark screens
+            text: '#fafafa',                  // Primary text
+            textSecondary: '#d4d4d8',         // Secondary text
+            textMuted: '#a1a1aa',             // Tertiary text
+            textDisabled: '#52525b',          // Disabled text
+            textInverse: '#09090b',           // Text on light backgrounds
+
+            // Borders and dividers
+            border: '#3f3f46',
+            borderStrong: '#52525b',
+            borderSubtle: '#27272a',
+            divider: '#27272a',
+
+            // Interactive elements
+            accent: '#fafafa',                // Primary actions - white for dark mode
+            accentHover: '#e4e4e7',
+            accentActive: '#d4d4d8',
+            accentSubtle: '#27272a',
+
+            // Form elements
+            inputBg: '#18181b',
+            inputBgHover: '#27272a',
+            inputBgFocus: '#18181b',
+            inputBorder: '#3f3f46',
+            inputBorderHover: '#52525b',
+            inputBorderFocus: '#fafafa',
+            inputPlaceholder: '#71717a',
+
+            // Semantic colors - Adjusted for dark mode visibility
+            success: '#22c55e',               // Brighter green for dark
+            successBg: 'rgba(34,197,94,0.15)',
+            successBorder: 'rgba(34,197,94,0.4)',
+            warning: '#fbbf24',               // Bright amber
+            warningBg: 'rgba(251,191,36,0.15)',
+            warningBorder: 'rgba(251,191,36,0.4)',
+            error: '#ef4444',                 // Bright red
+            errorBg: 'rgba(239,68,68,0.15)',
+            errorBorder: 'rgba(239,68,68,0.4)',
+            info: '#38bdf8',                  // Bright blue
+            infoBg: 'rgba(56,189,248,0.15)',
+            infoBorder: 'rgba(56,189,248,0.4)',
+
+            // Interactive feedback
+            hoverOverlay: 'rgba(255,255,255,0.05)',
+            activeOverlay: 'rgba(255,255,255,0.1)',
+            focusRing: 'rgba(250,250,250,0.4)',
+
+            // Scrollbar
+            scrollThumb: '#52525b',
+            scrollTrack: '#18181b'
           };
 
           const colors = lightMode ? lightColors : darkColors;
+
+          // CSS custom properties for global theme access
+          React.useEffect(() => {
+            const root = document.documentElement;
+            Object.entries(colors).forEach(([key, value]) => {
+              root.style.setProperty(`--color-${key}`, value);
+            });
+            // Add transition for smooth mode switching
+            root.style.setProperty('--theme-transition', 'background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease');
+          }, [lightMode]);
 
           const getBackgroundStyle = () => {
             // If light mode, override with light background

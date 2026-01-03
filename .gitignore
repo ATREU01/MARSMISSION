@@ -30,3 +30,9 @@ Thumbs.db
 
 # Build (keep frontend/dist for pre-built assets)
 build/
+
+# Database files
+data/*.db
+data/*.db-shm
+data/*.db-wal
+data/media/
