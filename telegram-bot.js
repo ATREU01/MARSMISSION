@@ -350,8 +350,12 @@ RSI: ${engine.rsi.value.toFixed(1)}
 
     // /start command
     async handleStart(chatId) {
+        console.log('═══════════════════════════════════════════════════════════════');
+        console.log('[TELEGRAM-BOT] handleStart() CALLED - v2.1 - chatId:', chatId);
+        console.log('[TELEGRAM-BOT] THIS IS THE NEW /start - SHOULD SHOW /create /existing');
+        console.log('═══════════════════════════════════════════════════════════════');
         const text = `
-<b>LAUNCHR</b>
+<b>🚀 LAUNCHR v2.1</b>
 <i>Programmable Liquidity for Pump.fun</i>
 
 The first AI-powered fee allocation engine.
