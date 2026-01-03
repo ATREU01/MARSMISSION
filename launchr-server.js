@@ -2887,21 +2887,44 @@ if(window.solana?.isConnected)connect();
 
                 console.log(`[TG-LAUNCH] Building tx for ${launch.tokenData.name} ($${launch.tokenData.symbol})`);
 
-                // Build transaction via PumpPortal
                 const axios = require('axios');
+                const FormData = require('form-data');
                 const { VersionedTransaction } = require('@solana/web3.js');
 
                 // Get the stored mint keypair
                 const mintKeypair = Keypair.fromSecretKey(bs58.decode(launch.mintKeypair.secretKey));
 
-                // Request transaction from PumpPortal
+                // Step 1: Upload metadata to IPFS via PumpPortal
+                console.log('[TG-LAUNCH] Uploading metadata to IPFS...');
+                const formData = new FormData();
+                formData.append('name', launch.tokenData.name);
+                formData.append('symbol', launch.tokenData.symbol);
+                formData.append('description', launch.tokenData.description || `${launch.tokenData.name} - Launched via LAUNCHR`);
+                formData.append('twitter', launch.tokenData.twitter ? `https://twitter.com/${launch.tokenData.twitter}` : '');
+                formData.append('telegram', '');
+                formData.append('website', 'https://www.launchronsol.xyz');
+                formData.append('showName', 'true');
+
+                const ipfsRes = await axios.post('https://pumpportal.fun/api/ipfs', formData, {
+                    headers: formData.getHeaders(),
+                    timeout: 30000
+                });
+
+                if (!ipfsRes.data || !ipfsRes.data.metadataUri) {
+                    throw new Error('Failed to upload metadata to IPFS');
+                }
+
+                const metadataUri = ipfsRes.data.metadataUri;
+                console.log(`[TG-LAUNCH] Metadata uploaded: ${metadataUri}`);
+
+                // Step 2: Request create transaction from PumpPortal
                 const createParams = new URLSearchParams({
                     publicKey: walletAddress,
                     action: 'create',
                     tokenMetadata: JSON.stringify({
                         name: launch.tokenData.name,
                         symbol: launch.tokenData.symbol,
-                        uri: '' // Metadata handled separately
+                        uri: metadataUri
                     }),
                     mint: launch.mintKeypair.publicKey,
                     denominatedInSol: 'true',
