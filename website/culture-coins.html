@@ -2853,33 +2853,29 @@
                       onChange={handleBannerUpload}
                       style={{ display: 'none' }}
                     />
-                    <button
-                      onClick={() => bannerInputRef.current?.click()}
+                    <label
+                      onClick={(e) => {
+                        e.preventDefault();
+                        bannerInputRef.current?.click();
+                      }}
                       style={{
                         position: 'absolute',
                         bottom: '16px',
                         right: '16px',
                         padding: '10px 20px',
-                        background: 'rgba(0,0,0,0.8)',
+                        background: 'rgba(0,0,0,0.9)',
                         border: '1px solid #22c55e',
                         color: '#22c55e',
                         fontSize: '12px',
                         fontFamily: "'IBM Plex Mono', monospace",
                         cursor: 'pointer',
                         letterSpacing: '0.05em',
-                        transition: 'all 0.2s'
-                      }}
-                      onMouseOver={(e) => {
-                        e.target.style.background = '#22c55e';
-                        e.target.style.color = '#000';
-                      }}
-                      onMouseOut={(e) => {
-                        e.target.style.background = 'rgba(0,0,0,0.8)';
-                        e.target.style.color = '#22c55e';
+                        display: 'inline-block',
+                        zIndex: 10
                       }}
                     >
-                      EDIT BANNER (1500×300)
-                    </button>
+                      EDIT BANNER
+                    </label>
                   </>
                 )}
               </div>
@@ -3107,14 +3103,26 @@
           const [loading, setLoading] = useState(true);
           const [filter, setFilter] = useState('all'); // all, following, cultures
 
-          // Load posts from localStorage (would be API in production)
+          // Load posts from localStorage and enrich with profile names
           useEffect(() => {
             const loadPosts = () => {
               try {
                 const storedPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
+                // Enrich posts with profile display names
+                const enrichedPosts = storedPosts.map(post => {
+                  if (post.authorWallet) {
+                    try {
+                      const profile = JSON.parse(localStorage.getItem('creator_profile_' + post.authorWallet) || 'null');
+                      if (profile?.displayName) {
+                        return { ...post, authorName: profile.displayName, authorPfp: profile.pfp || post.authorPfp };
+                      }
+                    } catch (e) {}
+                  }
+                  return post;
+                });
                 // Sort by newest first
-                storedPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-                setPosts(storedPosts);
+                enrichedPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                setPosts(enrichedPosts);
               } catch (e) {
                 console.error('[FEED] Error loading posts:', e);
               } finally {
@@ -3395,6 +3403,7 @@
           const [chartData, setChartData] = useState(null);
           const [chartHeight, setChartHeight] = useState(400);
           const [activeTab, setActiveTab] = useState('overview'); // overview, posts, cultures, settings
+          const [toolsExpanded, setToolsExpanded] = useState(true); // Collapsible tools section
 
           // Profile & Social State
           const [profile, setProfile] = useState(() => {
@@ -3773,6 +3782,242 @@
                 ))}
               </div>
 
+              {/* Collapsible Tools & Data Section */}
+              <div style={{
+                marginBottom: '32px',
+                background: '#0f0f0f',
+                border: '1px solid #1a1a1a'
+              }}>
+                <button
+                  onClick={() => setToolsExpanded(!toolsExpanded)}
+                  style={{
+                    width: '100%',
+                    padding: '16px 20px',
+                    background: 'none',
+                    border: 'none',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    borderBottom: toolsExpanded ? '1px solid #1a1a1a' : 'none'
+                  }}
+                >
+                  <span style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: '11px',
+                    color: '#22c55e',
+                    letterSpacing: '0.15em'
+                  }}>
+                    DASHBOARD TOOLS & INTEGRATIONS
+                  </span>
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#666"
+                    strokeWidth="2"
+                    style={{
+                      transform: toolsExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s'
+                    }}
+                  >
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </button>
+
+                {toolsExpanded && (
+                  <div style={{ padding: '20px' }}>
+                    {/* Stats Grid */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(4, 1fr)',
+                      gap: '16px',
+                      marginBottom: '24px'
+                    }}>
+                      {[
+                        { value: myCultures.length, label: 'CULTURES' },
+                        { value: myPosts.length, label: 'POSTS' },
+                        { value: totalParticipation.totalHolders, label: 'HOLDERS' },
+                        { value: `$${totalParticipation.totalVolume.toLocaleString()}`, label: 'VOLUME' }
+                      ].map((stat, i) => (
+                        <div key={i} style={{
+                          background: '#0a0a0a',
+                          border: '1px solid #1a1a1a',
+                          padding: '20px',
+                          textAlign: 'center'
+                        }}>
+                          <div style={{
+                            fontSize: '24px',
+                            color: '#fff',
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            marginBottom: '4px'
+                          }}>
+                            {stat.value}
+                          </div>
+                          <div style={{
+                            fontSize: '9px',
+                            color: '#666',
+                            letterSpacing: '0.15em',
+                            fontFamily: "'IBM Plex Mono', monospace"
+                          }}>
+                            {stat.label}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Tools Grid */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(3, 1fr)',
+                      gap: '16px'
+                    }}>
+                      {/* TEK Integration */}
+                      <div style={{
+                        background: '#0a0a0a',
+                        border: '1px solid #1a1a1a',
+                        padding: '20px'
+                      }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          marginBottom: '12px'
+                        }}>
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2">
+                            <polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>
+                          </svg>
+                          <span style={{
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            fontSize: '12px',
+                            color: '#fff',
+                            letterSpacing: '0.05em'
+                          }}>
+                            TEK INTEGRATION
+                          </span>
+                        </div>
+                        <p style={{
+                          fontSize: '11px',
+                          color: '#666',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          lineHeight: 1.6,
+                          marginBottom: '12px'
+                        }}>
+                          Connect your culture to TEK ecosystem for enhanced tokenomics and cross-chain features.
+                        </p>
+                        <button style={{
+                          padding: '8px 16px',
+                          background: 'transparent',
+                          border: '1px solid #333',
+                          color: '#888',
+                          fontSize: '10px',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          cursor: 'pointer',
+                          letterSpacing: '0.1em'
+                        }}>
+                          COMING SOON
+                        </button>
+                      </div>
+
+                      {/* AI Integration */}
+                      <div style={{
+                        background: '#0a0a0a',
+                        border: '1px solid #1a1a1a',
+                        padding: '20px'
+                      }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          marginBottom: '12px'
+                        }}>
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2">
+                            <path d="M12 2a10 10 0 1 0 10 10H12V2z"/><path d="M12 2a10 10 0 0 1 10 10"/><circle cx="12" cy="12" r="6"/>
+                          </svg>
+                          <span style={{
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            fontSize: '12px',
+                            color: '#fff',
+                            letterSpacing: '0.05em'
+                          }}>
+                            AI TOOLS
+                          </span>
+                        </div>
+                        <p style={{
+                          fontSize: '11px',
+                          color: '#666',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          lineHeight: 1.6,
+                          marginBottom: '12px'
+                        }}>
+                          AI-powered content generation, community insights, and automated engagement tools.
+                        </p>
+                        <button style={{
+                          padding: '8px 16px',
+                          background: 'transparent',
+                          border: '1px solid #333',
+                          color: '#888',
+                          fontSize: '10px',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          cursor: 'pointer',
+                          letterSpacing: '0.1em'
+                        }}>
+                          COMING SOON
+                        </button>
+                      </div>
+
+                      {/* Analytics */}
+                      <div style={{
+                        background: '#0a0a0a',
+                        border: '1px solid #1a1a1a',
+                        padding: '20px'
+                      }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          marginBottom: '12px'
+                        }}>
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2">
+                            <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+                          </svg>
+                          <span style={{
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            fontSize: '12px',
+                            color: '#fff',
+                            letterSpacing: '0.05em'
+                          }}>
+                            ANALYTICS
+                          </span>
+                        </div>
+                        <p style={{
+                          fontSize: '11px',
+                          color: '#666',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          lineHeight: 1.6,
+                          marginBottom: '12px'
+                        }}>
+                          Deep analytics on your culture's performance, holder distribution, and trading activity.
+                        </p>
+                        <button style={{
+                          padding: '8px 16px',
+                          background: 'transparent',
+                          border: '1px solid #333',
+                          color: '#888',
+                          fontSize: '10px',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          cursor: 'pointer',
+                          letterSpacing: '0.1em'
+                        }}>
+                          COMING SOON
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Tab Content */}
               {activeTab === 'overview' && (
                 <>
@@ -3782,45 +4027,6 @@
                     profile={profile}
                     cultures={myCultures}
                   />
-
-                  {/* Stats */}
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(4, 1fr)',
-                    gap: '16px',
-                    marginBottom: '32px'
-                  }}>
-                    {[
-                      { value: myCultures.length, label: 'CULTURES' },
-                      { value: myPosts.length, label: 'POSTS' },
-                      { value: totalParticipation.totalHolders, label: 'HOLDERS' },
-                      { value: `$${totalParticipation.totalVolume.toLocaleString()}`, label: 'VOLUME' }
-                    ].map((stat, i) => (
-                      <div key={i} style={{
-                        background: '#0f0f0f',
-                        border: '1px solid #1a1a1a',
-                        padding: '24px',
-                        textAlign: 'center'
-                      }}>
-                        <div style={{
-                          fontSize: '28px',
-                          color: '#fff',
-                          fontFamily: "'IBM Plex Mono', monospace",
-                          marginBottom: '6px'
-                        }}>
-                          {stat.value}
-                        </div>
-                        <div style={{
-                          fontSize: '9px',
-                          color: '#666',
-                          letterSpacing: '0.15em',
-                          fontFamily: "'IBM Plex Mono', monospace"
-                        }}>
-                          {stat.label}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
 
                   {/* Recent Activity - My Posts */}
                   <div style={{ marginBottom: '32px' }}>
