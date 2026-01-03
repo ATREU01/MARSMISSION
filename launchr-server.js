@@ -2963,9 +2963,9 @@ if(window.solana?.isConnected)connect();
                 formData.append('website', 'https://www.launchr.xyz');
                 formData.append('showName', 'true');
 
-                console.log(`[TG-LAUNCH] Form data prepared, calling PumpPortal IPFS...`);
+                console.log(`[TG-LAUNCH] Form data prepared, calling Pump.fun IPFS...`);
 
-                const ipfsRes = await axios.post('https://pumpportal.fun/api/ipfs', formData, {
+                const ipfsRes = await axios.post('https://pump.fun/api/ipfs', formData, {
                     headers: formData.getHeaders(),
                     timeout: 30000
                 });
