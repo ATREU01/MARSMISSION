@@ -2736,6 +2736,86 @@ The 4 percentages MUST sum to exactly 100.`;
     }
 
     // ═══════════════════════════════════════════════════════════════════
+    // TELEGRAM WALLET CONNECTION PAGE
+    // ═══════════════════════════════════════════════════════════════════
+
+    if (url.pathname === '/tg-connect' && req.method === 'GET') {
+        const chatId = url.searchParams.get('id') || '';
+        const html = `<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Connect Wallet - LAUNCHR</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#fff;font-family:system-ui,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center}
+.c{max-width:400px;padding:2rem;text-align:center}
+h1{font-size:1.5rem;margin-bottom:.5rem}
+.sub{color:#888;margin-bottom:1.5rem}
+.btn{background:linear-gradient(135deg,#9945FF,#14F195);color:#000;font-weight:bold;padding:1rem;border:none;border-radius:8px;font-size:1rem;cursor:pointer;width:100%}
+.btn:disabled{opacity:.5}
+.done{background:#0a1a0a;border:2px solid #14F195;border-radius:12px;padding:1.5rem;margin:1rem 0}
+.done h2{color:#14F195;margin-bottom:.5rem}
+.back{background:#1a1500;border:1px solid #443300;color:#ffaa00;padding:1rem;border-radius:8px;margin:1rem 0;font-size:1.1rem}
+.addr{font-family:monospace;background:#111;padding:.5rem;border-radius:4px;font-size:.75rem;word-break:break-all;margin:.5rem 0}
+.status{margin-top:1rem;color:#888}
+.hide{display:none}
+</style>
+</head><body>
+<div class="c">
+<h1>🔗 Connect Wallet</h1>
+<p class="sub">Link your wallet to Telegram</p>
+<div id="s1">
+<button class="btn" onclick="connect()">Connect Phantom</button>
+<p class="status" id="st">Click to connect your wallet</p>
+</div>
+<div id="s2" class="hide">
+<div class="done"><h2>✅ Connected!</h2><div class="addr" id="wa"></div></div>
+<div class="back">📱 GO BACK TO TELEGRAM<br><small>Type <b>done</b> to continue</small></div>
+<a href="https://t.me/LAUNCHR_V2_BOT" class="btn" style="display:block;text-decoration:none;background:#222;color:#fff;margin-top:1rem">Open Telegram →</a>
+</div>
+</div>
+<script>
+async function connect(){
+document.getElementById('st').textContent='Connecting...';
+try{
+if(!window.solana||!window.solana.isPhantom){document.getElementById('st').innerHTML='❌ Install <a href="https://phantom.app" style="color:#14F195">Phantom</a>';return}
+await window.solana.connect();
+const w=window.solana.publicKey.toBase58();
+fetch('/api/tg-link',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chatId:'${chatId}',walletAddress:w})});
+document.getElementById('s1').classList.add('hide');
+document.getElementById('s2').classList.remove('hide');
+document.getElementById('wa').textContent=w;
+}catch(e){document.getElementById('st').textContent='❌ '+e.message}
+}
+if(window.solana?.isConnected)connect();
+</script>
+</body></html>`;
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(html);
+        return;
+    }
+
+    // API: Store telegram-wallet link
+    if (url.pathname === '/api/tg-link' && req.method === 'POST') {
+        let body = '';
+        req.on('data', c => body += c);
+        req.on('end', () => {
+            try {
+                const { chatId, walletAddress } = JSON.parse(body);
+                if (!global.tgWalletLinks) global.tgWalletLinks = new Map();
+                global.tgWalletLinks.set(chatId, { walletAddress, linkedAt: Date.now() });
+                console.log('[TG-LINK] Linked ' + chatId + ' -> ' + walletAddress.slice(0,8) + '...');
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end('{"success":true}');
+            } catch (e) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end('{"error":"Invalid request"}');
+            }
+        });
+        return;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
     // TELEGRAM LAUNCH API - Complete pending launches from TG bot
     // ═══════════════════════════════════════════════════════════════════
 
