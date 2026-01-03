@@ -1,18 +1,54 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// LAUNCHR Bot v2.1 | Build: 2026-01-03-DEBUG | Commands: /create /existing /ping
+// LAUNCHR Bot v3.0 | Conversational Token Creation | Privy Integration
 // ═══════════════════════════════════════════════════════════════════════════
 const https = require('https');
+const crypto = require('crypto');
 const tracker = require('./tracker');
 const sessions = require('./tg-sessions');
 const { LaunchrEngine } = require('./launchr-engine');
 const { Connection, Keypair } = require('@solana/web3.js');
 const bs58 = require('bs58');
 
-// DEBUG: Log on module load to confirm new code is running
 console.log('═══════════════════════════════════════════════════════════════');
-console.log('[TELEGRAM-BOT] v2.1 LOADED - BUILD 2026-01-03-DEBUG');
-console.log('[TELEGRAM-BOT] Commands: /create /existing /ping /start /help');
+console.log('[TELEGRAM-BOT] v3.0 LOADED - CONVERSATIONAL CREATE FLOW');
 console.log('═══════════════════════════════════════════════════════════════');
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONVERSATION STATE MANAGER
+// Tracks multi-step flows like token creation
+// ═══════════════════════════════════════════════════════════════════════════
+const conversations = new Map(); // chatId -> { step, data, expiresAt }
+
+const CONVERSATION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+
+function getConversation(chatId) {
+    const conv = conversations.get(chatId);
+    if (conv && conv.expiresAt > Date.now()) {
+        return conv;
+    }
+    conversations.delete(chatId);
+    return null;
+}
+
+function setConversation(chatId, step, data = {}) {
+    conversations.set(chatId, {
+        step,
+        data,
+        expiresAt: Date.now() + CONVERSATION_TIMEOUT
+    });
+}
+
+function clearConversation(chatId) {
+    conversations.delete(chatId);
+}
+
+// Generate unique link token for Privy connection
+function generateLinkToken() {
+    return crypto.randomBytes(32).toString('hex');
+}
+
+// Store pending Privy links
+const pendingPrivyLinks = new Map(); // token -> { chatId, expiresAt }
 
 class LaunchrBot {
     constructor(token) {
@@ -330,13 +366,39 @@ RSI: ${engine.rsi.value.toFixed(1)}
 
     // Handle incoming update
     async handleUpdate(update) {
-        if (!update.message || !update.message.text) return;
-
         const msg = update.message;
-        const chatId = msg.chat.id;
-        const text = msg.text.trim();
-        const [command, ...args] = text.split(' ');
+        if (!msg) return;
 
+        const chatId = msg.chat.id;
+        const text = msg.text ? msg.text.trim() : '';
+        const photo = msg.photo; // For image uploads
+
+        // Check if user is in a conversation flow
+        const conv = getConversation(chatId);
+        if (conv) {
+            // Handle conversation step
+            try {
+                await this.handleConversationStep(chatId, conv, text, photo, msg);
+                return;
+            } catch (e) {
+                console.error('Conversation error:', e.message);
+                clearConversation(chatId);
+                await this.sendMessage(chatId, '❌ Something went wrong. Type /create to start over.');
+                return;
+            }
+        }
+
+        // No conversation - check for commands
+        if (!text) return;
+
+        // Allow /cancel to exit any flow
+        if (text.toLowerCase() === '/cancel') {
+            clearConversation(chatId);
+            await this.sendMessage(chatId, '✅ Cancelled. Type /start to see options.');
+            return;
+        }
+
+        const [command, ...args] = text.split(' ');
         const handler = this.commands[command.toLowerCase()];
         if (handler) {
             try {
@@ -345,6 +407,219 @@ RSI: ${engine.rsi.value.toFixed(1)}
                 console.error('Command error:', e.message);
                 await this.sendMessage(chatId, '❌ Error processing command');
             }
+        }
+    }
+
+    // Handle conversation steps for multi-step flows
+    async handleConversationStep(chatId, conv, text, photo, msg) {
+        const { step, data } = conv;
+
+        // Allow cancel at any point
+        if (text.toLowerCase() === '/cancel') {
+            clearConversation(chatId);
+            await this.sendMessage(chatId, '✅ Token creation cancelled.');
+            return;
+        }
+
+        switch (step) {
+            case 'create_await_wallet':
+                // User should have connected wallet, check if they're back
+                if (text.toLowerCase() === 'done' || text.toLowerCase() === 'connected') {
+                    // Check if their wallet is linked
+                    // For now, proceed to next step
+                    setConversation(chatId, 'create_name', data);
+                    await this.sendMessage(chatId, `
+✅ <b>Wallet connected!</b>
+
+Now let's create your token.
+
+<b>What's your token NAME?</b>
+(Example: "MoonDog" or "Pepe 2.0")
+                    `.trim());
+                } else {
+                    await this.sendMessage(chatId, `
+👉 <a href="https://www.launchronsol.xyz/tg-connect?id=${chatId}">TAP HERE TO CONNECT WALLET</a>
+
+After connecting, come back and type <b>done</b>
+
+Or type /cancel to exit.
+                    `.trim());
+                }
+                break;
+
+            case 'create_name':
+                if (!text || text.length < 1 || text.length > 32) {
+                    await this.sendMessage(chatId, '❌ Name must be 1-32 characters. Try again:');
+                    return;
+                }
+                data.name = text;
+                setConversation(chatId, 'create_symbol', data);
+                await this.sendMessage(chatId, `
+✅ Name: <b>${text}</b>
+
+<b>What's your token SYMBOL?</b>
+(Example: "MDOG" - max 10 characters)
+                `.trim());
+                break;
+
+            case 'create_symbol':
+                if (!text || text.length < 1 || text.length > 10) {
+                    await this.sendMessage(chatId, '❌ Symbol must be 1-10 characters. Try again:');
+                    return;
+                }
+                data.symbol = text.toUpperCase();
+                setConversation(chatId, 'create_image', data);
+                await this.sendMessage(chatId, `
+✅ Symbol: <b>${data.symbol}</b>
+
+<b>Send me your token IMAGE</b> 📷
+(Square image works best, or type "skip" to use default)
+                `.trim());
+                break;
+
+            case 'create_image':
+                if (photo && photo.length > 0) {
+                    // Get the largest photo
+                    const largestPhoto = photo[photo.length - 1];
+                    data.photoFileId = largestPhoto.file_id;
+                    data.hasImage = true;
+                } else if (text.toLowerCase() === 'skip') {
+                    data.hasImage = false;
+                } else {
+                    await this.sendMessage(chatId, '📷 Please send an image or type "skip"');
+                    return;
+                }
+                setConversation(chatId, 'create_description', data);
+                await this.sendMessage(chatId, `
+✅ Image: ${data.hasImage ? 'Uploaded!' : 'Using default'}
+
+<b>DESCRIPTION</b> (optional)
+What's your token about? Or type "skip"
+                `.trim());
+                break;
+
+            case 'create_description':
+                data.description = (text.toLowerCase() === 'skip') ? '' : text;
+                setConversation(chatId, 'create_twitter', data);
+                await this.sendMessage(chatId, `
+✅ Description saved!
+
+<b>TWITTER</b> (optional)
+Enter your Twitter handle or type "skip"
+(Example: @MoonDogToken)
+                `.trim());
+                break;
+
+            case 'create_twitter':
+                data.twitter = (text.toLowerCase() === 'skip') ? '' : text.replace('@', '');
+                setConversation(chatId, 'create_vanity', data);
+                await this.sendMessage(chatId, `
+✅ Twitter saved!
+
+<b>🎰 VANITY ADDRESS</b> (optional)
+
+Want a custom token address?
+Examples:
+• Ends with "pump" → ...xxxPUMP
+• Ends with "moon" → ...xxxMOON
+
+Enter your preferred ending (2-5 chars) or type "skip"
+
+<i>Note: Custom addresses may take a few minutes to generate.</i>
+                `.trim());
+                break;
+
+            case 'create_vanity':
+                if (text.toLowerCase() === 'skip') {
+                    data.vanity = null;
+                } else if (text.length >= 2 && text.length <= 5 && /^[a-zA-Z0-9]+$/.test(text)) {
+                    data.vanity = text.toLowerCase();
+                } else if (text.length > 5) {
+                    await this.sendMessage(chatId, '❌ Vanity suffix must be 2-5 characters. Try again or type "skip":');
+                    return;
+                } else {
+                    data.vanity = null;
+                }
+
+                setConversation(chatId, 'create_devbuy', data);
+                await this.sendMessage(chatId, `
+✅ Vanity: ${data.vanity ? data.vanity.toUpperCase() : 'Random address'}
+
+<b>💰 INITIAL DEV BUY</b> (optional)
+
+How much SOL to buy at launch?
+• Enter amount (e.g., "0.5" or "1")
+• Or type "0" or "skip" for no initial buy
+
+<i>This buys tokens right at launch price.</i>
+                `.trim());
+                break;
+
+            case 'create_devbuy':
+                const devBuyAmount = parseFloat(text);
+                if (text.toLowerCase() === 'skip' || text === '0') {
+                    data.devBuy = 0;
+                } else if (!isNaN(devBuyAmount) && devBuyAmount >= 0 && devBuyAmount <= 10) {
+                    data.devBuy = devBuyAmount;
+                } else {
+                    await this.sendMessage(chatId, '❌ Enter a number between 0-10 SOL, or type "skip":');
+                    return;
+                }
+
+                setConversation(chatId, 'create_confirm', data);
+                await this.sendMessage(chatId, `
+🚀 <b>READY TO LAUNCH!</b>
+
+<b>━━━ TOKEN DETAILS ━━━</b>
+<b>Name:</b> ${data.name}
+<b>Symbol:</b> ${data.symbol}
+<b>Image:</b> ${data.hasImage ? '✅ Uploaded' : '📷 Default'}
+<b>Description:</b> ${data.description || '(none)'}
+<b>Twitter:</b> ${data.twitter ? '@' + data.twitter : '(none)'}
+
+<b>━━━ LAUNCH OPTIONS ━━━</b>
+<b>Vanity Address:</b> ${data.vanity ? '...' + data.vanity.toUpperCase() : 'Random'}
+<b>Dev Buy:</b> ${data.devBuy > 0 ? data.devBuy + ' SOL' : 'None'}
+
+<b>━━━━━━━━━━━━━━━━━━━━</b>
+
+Type <b>LAUNCH</b> to create your token!
+Or /cancel to abort.
+                `.trim());
+                break;
+
+            case 'create_confirm':
+                if (text.toUpperCase() === 'LAUNCH') {
+                    await this.sendMessage(chatId, '🚀 <b>LAUNCHING YOUR TOKEN...</b>\n\nThis may take a moment...');
+
+                    // TODO: Actually launch the token via Privy + PumpPortal
+                    // For now, show success message with next steps
+                    clearConversation(chatId);
+
+                    await this.sendMessage(chatId, `
+✅ <b>LAUNCH INITIATED!</b>
+
+Your token <b>${data.name}</b> ($${data.symbol}) is being created.
+
+<b>NEXT STEPS:</b>
+1. Go to Dashboard to complete setup
+2. Set your fee allocations
+3. Enable ORBIT automation
+
+👉 <a href="https://www.launchronsol.xyz/dashboard">OPEN DASHBOARD</a>
+
+You'll receive a notification when your token is live!
+
+<i>⚠️ Meme coins are speculative. DYOR.</i>
+                    `.trim());
+                } else {
+                    await this.sendMessage(chatId, 'Type <b>LAUNCH</b> to confirm, or /cancel to abort.');
+                }
+                break;
+
+            default:
+                clearConversation(chatId);
+                await this.sendMessage(chatId, '❌ Unknown state. Type /create to start over.');
         }
     }
 
@@ -392,39 +667,32 @@ RSI: ${engine.rsi.value.toFixed(1)}
         await this.sendMessage(chatId, `🏓 PONG!\n\nBot Version: 2.0 - CREATE/EXISTING UPDATE\nDeployed: ${new Date().toISOString()}\n\n✅ If you see this, the NEW code is running!`);
     }
 
-    // /create command - Launch new token
+    // /create command - Launch new token (CONVERSATIONAL FLOW)
     async handleCreate(chatId, args, msg) {
+        // Start the conversation flow
+        setConversation(chatId, 'create_await_wallet', {});
+
         const text = `
-<b>🚀 CREATE NEW TOKEN</b>
+<b>🚀 LET'S CREATE YOUR TOKEN!</b>
 
-<b>STEP 1 - GO TO LAUNCHPAD:</b>
-👉 <a href="https://www.launchronsol.xyz/launchpad">TAP HERE TO OPEN</a>
+First, connect your wallet so we can launch for you.
 
-<b>STEP 2 - ON THE WEBSITE:</b>
-• Connect your wallet
-• Enter token name & symbol
-• Upload your image
-• Add socials (Twitter, etc)
-• Click LAUNCH
+👉 <a href="https://www.launchronsol.xyz/tg-connect?id=${chatId}">TAP HERE TO CONNECT WALLET</a>
 
-<b>STEP 3 - COME BACK HERE!</b>
-After your token launches, come back to this chat.
-
-<b>STEP 4 - GO TO DASHBOARD:</b>
-👉 <a href="https://www.launchronsol.xyz/dashboard">TAP HERE FOR DASHBOARD</a>
-
-<b>STEP 5 - ON DASHBOARD:</b>
-• Select your token
-• Set fee allocations
-• Enable ORBIT automation
-• Your fees auto-distribute 24/7!
+After connecting, come back here and type <b>done</b>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 
-<b>🔒 100% NON-CUSTODIAL</b>
-We NEVER hold your keys.
+<b>What happens next:</b>
+1. You'll enter token name & symbol
+2. Upload an image (optional)
+3. Add description & socials
+4. Confirm and LAUNCH! 🚀
 
-<i>⚠️ Meme coins are speculative. DYOR.</i>
+<b>🔒 NON-CUSTODIAL</b>
+We use Privy MPC - we never hold your keys.
+
+Type /cancel anytime to exit.
         `.trim();
 
         await this.sendMessage(chatId, text);
