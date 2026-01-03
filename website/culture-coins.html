@@ -907,7 +907,7 @@
                 CULTURE COINS
               </a>
               <div style={{ display: 'flex', gap: '24px' }}>
-                {['discover', 'create', 'auctions', 'dashboard'].map(v => (
+                {['discover', 'feed', 'create', 'auctions', 'dashboard'].map(v => (
                   <button
                     key={v}
                     onClick={() => setView(v)}
@@ -2193,6 +2193,1047 @@
           );
         };
 
+        // ═══════════════════════════════════════════════════════════════════════════
+        // WEB3 SOCIAL PLATFORM - CULTURE CREATOR HUB
+        // MySpace for Crypto - Customizable profiles, posts, media, timeline
+        // ═══════════════════════════════════════════════════════════════════════════
+
+        // Post Card Component - Displays individual posts in the feed
+        const PostCard = ({ post, onLike, onComment, onRepost, currentUser }) => {
+          const [showComments, setShowComments] = useState(false);
+          const [newComment, setNewComment] = useState('');
+          const isLiked = post.likes?.includes(currentUser);
+          const timeAgo = (date) => {
+            const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+            if (seconds < 60) return 'just now';
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+            if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+            return `${Math.floor(seconds / 86400)}d ago`;
+          };
+
+          return (
+            <div style={{
+              background: '#0f0f0f',
+              border: '1px solid #1a1a1a',
+              marginBottom: '16px',
+              overflow: 'hidden'
+            }}>
+              {/* Post Header */}
+              <div style={{
+                padding: '16px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                borderBottom: '1px solid #1a1a1a'
+              }}>
+                <div style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  background: post.authorPfp ? `url(${post.authorPfp}) center/cover` : 'linear-gradient(135deg, #22c55e, #16a34a)',
+                  border: '2px solid #22c55e'
+                }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <span style={{
+                      fontFamily: "'Playfair Display', serif",
+                      fontSize: '16px',
+                      color: '#fff'
+                    }}>
+                      {post.authorName || 'Anonymous'}
+                    </span>
+                    {post.cultureName && (
+                      <span style={{
+                        fontSize: '10px',
+                        padding: '2px 8px',
+                        background: 'rgba(34, 197, 94, 0.2)',
+                        color: '#22c55e',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        letterSpacing: '0.05em'
+                      }}>
+                        ${post.cultureTicker}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{
+                    fontSize: '11px',
+                    color: '#666',
+                    fontFamily: "'IBM Plex Mono', monospace"
+                  }}>
+                    {timeAgo(post.createdAt)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Post Content */}
+              <div style={{ padding: '20px' }}>
+                {post.content && (
+                  <p style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: '14px',
+                    color: '#e5e5e5',
+                    lineHeight: 1.7,
+                    marginBottom: post.media ? '16px' : 0,
+                    whiteSpace: 'pre-wrap'
+                  }}>
+                    {post.content}
+                  </p>
+                )}
+
+                {/* Media (Image/Video) */}
+                {post.media && post.mediaType === 'image' && (
+                  <img
+                    src={post.media}
+                    alt="Post media"
+                    style={{
+                      width: '100%',
+                      maxHeight: '500px',
+                      objectFit: 'cover',
+                      borderRadius: '8px'
+                    }}
+                  />
+                )}
+                {post.media && post.mediaType === 'video' && (
+                  <video
+                    src={post.media}
+                    controls
+                    style={{
+                      width: '100%',
+                      maxHeight: '500px',
+                      borderRadius: '8px'
+                    }}
+                  />
+                )}
+                {post.embedUrl && (
+                  <iframe
+                    src={post.embedUrl}
+                    style={{
+                      width: '100%',
+                      height: '315px',
+                      border: 'none',
+                      borderRadius: '8px'
+                    }}
+                    allowFullScreen
+                  />
+                )}
+              </div>
+
+              {/* Post Actions */}
+              <div style={{
+                padding: '12px 20px',
+                borderTop: '1px solid #1a1a1a',
+                display: 'flex',
+                gap: '24px'
+              }}>
+                <button
+                  onClick={() => onLike?.(post.id)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: isLiked ? '#22c55e' : '#666',
+                    fontSize: '12px',
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'color 0.2s'
+                  }}
+                >
+                  <span style={{ fontSize: '16px' }}>{isLiked ? '♥' : '♡'}</span>
+                  {post.likes?.length || 0}
+                </button>
+                <button
+                  onClick={() => setShowComments(!showComments)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#666',
+                    fontSize: '12px',
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <span style={{ fontSize: '14px' }}>💬</span>
+                  {post.comments?.length || 0}
+                </button>
+                <button
+                  onClick={() => onRepost?.(post.id)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#666',
+                    fontSize: '12px',
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <span style={{ fontSize: '14px' }}>↻</span>
+                  {post.reposts || 0}
+                </button>
+              </div>
+
+              {/* Comments Section */}
+              {showComments && (
+                <div style={{
+                  padding: '16px 20px',
+                  borderTop: '1px solid #1a1a1a',
+                  background: '#0a0a0a'
+                }}>
+                  {post.comments?.map((comment, i) => (
+                    <div key={i} style={{
+                      padding: '12px 0',
+                      borderBottom: i < post.comments.length - 1 ? '1px solid #1a1a1a' : 'none'
+                    }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        marginBottom: '6px'
+                      }}>
+                        <span style={{
+                          fontSize: '13px',
+                          color: '#fff',
+                          fontFamily: "'IBM Plex Mono', monospace"
+                        }}>
+                          {comment.author}
+                        </span>
+                        <span style={{ fontSize: '10px', color: '#444' }}>•</span>
+                        <span style={{ fontSize: '10px', color: '#666' }}>
+                          {timeAgo(comment.createdAt)}
+                        </span>
+                      </div>
+                      <p style={{
+                        fontSize: '13px',
+                        color: '#999',
+                        fontFamily: "'IBM Plex Mono', monospace"
+                      }}>
+                        {comment.content}
+                      </p>
+                    </div>
+                  ))}
+
+                  {/* Add Comment */}
+                  <div style={{
+                    display: 'flex',
+                    gap: '12px',
+                    marginTop: '12px'
+                  }}>
+                    <input
+                      type="text"
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Write a comment..."
+                      style={{
+                        flex: 1,
+                        padding: '10px 14px',
+                        background: '#111',
+                        border: '1px solid #222',
+                        color: '#fff',
+                        fontSize: '13px',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        outline: 'none'
+                      }}
+                    />
+                    <button
+                      onClick={() => {
+                        if (newComment.trim()) {
+                          onComment?.(post.id, newComment);
+                          setNewComment('');
+                        }
+                      }}
+                      style={{
+                        padding: '10px 16px',
+                        background: '#22c55e',
+                        border: 'none',
+                        color: '#000',
+                        fontSize: '11px',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      POST
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        };
+
+        // Post Composer Component - Create new posts
+        const PostComposer = ({ onPost, profile, cultures }) => {
+          const [content, setContent] = useState('');
+          const [mediaPreview, setMediaPreview] = useState(null);
+          const [mediaType, setMediaType] = useState(null);
+          const [selectedCulture, setSelectedCulture] = useState(null);
+          const [showCultureSelect, setShowCultureSelect] = useState(false);
+          const fileInputRef = useRef(null);
+          const videoInputRef = useRef(null);
+
+          const handleImageSelect = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                setMediaPreview(e.target.result);
+                setMediaType('image');
+              };
+              reader.readAsDataURL(file);
+            }
+          };
+
+          const handleVideoSelect = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                setMediaPreview(e.target.result);
+                setMediaType('video');
+              };
+              reader.readAsDataURL(file);
+            }
+          };
+
+          const clearMedia = () => {
+            setMediaPreview(null);
+            setMediaType(null);
+          };
+
+          const handlePost = () => {
+            if (content.trim() || mediaPreview) {
+              onPost({
+                content: content.trim(),
+                media: mediaPreview,
+                mediaType,
+                cultureId: selectedCulture?.id,
+                cultureName: selectedCulture?.name,
+                cultureTicker: selectedCulture?.ticker
+              });
+              setContent('');
+              clearMedia();
+              setSelectedCulture(null);
+            }
+          };
+
+          return (
+            <div style={{
+              background: '#0f0f0f',
+              border: '1px solid #1a1a1a',
+              marginBottom: '24px'
+            }}>
+              <div style={{ padding: '20px' }}>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '50%',
+                    background: profile?.pfp ? `url(${profile.pfp}) center/cover` : 'linear-gradient(135deg, #22c55e, #16a34a)',
+                    border: '2px solid #22c55e',
+                    flexShrink: 0
+                  }} />
+                  <div style={{ flex: 1 }}>
+                    <textarea
+                      value={content}
+                      onChange={(e) => setContent(e.target.value)}
+                      placeholder="What's happening in your culture?"
+                      style={{
+                        width: '100%',
+                        minHeight: '80px',
+                        padding: '12px',
+                        background: '#0a0a0a',
+                        border: '1px solid #222',
+                        color: '#fff',
+                        fontSize: '15px',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        resize: 'vertical',
+                        outline: 'none'
+                      }}
+                    />
+
+                    {/* Media Preview */}
+                    {mediaPreview && (
+                      <div style={{ position: 'relative', marginTop: '12px' }}>
+                        {mediaType === 'image' ? (
+                          <img
+                            src={mediaPreview}
+                            alt="Preview"
+                            style={{
+                              maxWidth: '100%',
+                              maxHeight: '300px',
+                              borderRadius: '8px'
+                            }}
+                          />
+                        ) : (
+                          <video
+                            src={mediaPreview}
+                            controls
+                            style={{
+                              maxWidth: '100%',
+                              maxHeight: '300px',
+                              borderRadius: '8px'
+                            }}
+                          />
+                        )}
+                        <button
+                          onClick={clearMedia}
+                          style={{
+                            position: 'absolute',
+                            top: '8px',
+                            right: '8px',
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '50%',
+                            background: 'rgba(0,0,0,0.8)',
+                            border: 'none',
+                            color: '#fff',
+                            cursor: 'pointer',
+                            fontSize: '14px'
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Selected Culture Tag */}
+                    {selectedCulture && (
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '6px 12px',
+                        background: 'rgba(34, 197, 94, 0.15)',
+                        border: '1px solid rgba(34, 197, 94, 0.3)',
+                        marginTop: '12px'
+                      }}>
+                        <span style={{
+                          fontSize: '12px',
+                          color: '#22c55e',
+                          fontFamily: "'IBM Plex Mono', monospace"
+                        }}>
+                          ${selectedCulture.ticker}
+                        </span>
+                        <button
+                          onClick={() => setSelectedCulture(null)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#22c55e',
+                            cursor: 'pointer',
+                            padding: 0,
+                            fontSize: '12px'
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Bar */}
+              <div style={{
+                padding: '12px 20px',
+                borderTop: '1px solid #1a1a1a',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div style={{ display: 'flex', gap: '16px' }}>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept="image/*"
+                    onChange={handleImageSelect}
+                    style={{ display: 'none' }}
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#666',
+                      cursor: 'pointer',
+                      fontSize: '18px',
+                      padding: '4px'
+                    }}
+                    title="Add image"
+                  >
+                    🖼️
+                  </button>
+
+                  <input
+                    type="file"
+                    ref={videoInputRef}
+                    accept="video/*"
+                    onChange={handleVideoSelect}
+                    style={{ display: 'none' }}
+                  />
+                  <button
+                    onClick={() => videoInputRef.current?.click()}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#666',
+                      cursor: 'pointer',
+                      fontSize: '18px',
+                      padding: '4px'
+                    }}
+                    title="Add video"
+                  >
+                    🎬
+                  </button>
+
+                  {cultures?.length > 0 && (
+                    <div style={{ position: 'relative' }}>
+                      <button
+                        onClick={() => setShowCultureSelect(!showCultureSelect)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#666',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          padding: '4px',
+                          fontFamily: "'IBM Plex Mono', monospace"
+                        }}
+                        title="Tag a culture"
+                      >
+                        #culture
+                      </button>
+                      {showCultureSelect && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          background: '#111',
+                          border: '1px solid #222',
+                          minWidth: '200px',
+                          zIndex: 100
+                        }}>
+                          {cultures.map(c => (
+                            <button
+                              key={c.id}
+                              onClick={() => {
+                                setSelectedCulture(c);
+                                setShowCultureSelect(false);
+                              }}
+                              style={{
+                                display: 'block',
+                                width: '100%',
+                                padding: '10px 12px',
+                                background: 'none',
+                                border: 'none',
+                                borderBottom: '1px solid #1a1a1a',
+                                color: '#fff',
+                                textAlign: 'left',
+                                cursor: 'pointer',
+                                fontSize: '13px',
+                                fontFamily: "'IBM Plex Mono', monospace"
+                              }}
+                            >
+                              {c.name} <span style={{ color: '#666' }}>${c.ticker}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  onClick={handlePost}
+                  disabled={!content.trim() && !mediaPreview}
+                  style={{
+                    padding: '10px 24px',
+                    background: (content.trim() || mediaPreview) ? '#22c55e' : '#222',
+                    border: 'none',
+                    color: (content.trim() || mediaPreview) ? '#000' : '#666',
+                    fontSize: '12px',
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontWeight: 600,
+                    letterSpacing: '0.05em',
+                    cursor: (content.trim() || mediaPreview) ? 'pointer' : 'not-allowed'
+                  }}
+                >
+                  POST
+                </button>
+              </div>
+            </div>
+          );
+        };
+
+        // Creator Profile Header - Customizable profile section
+        const CreatorProfileHeader = ({ profile, onEditProfile, isOwner, stats }) => {
+          const [isEditing, setIsEditing] = useState(false);
+          const [editName, setEditName] = useState(profile?.displayName || '');
+          const [editBio, setEditBio] = useState(profile?.bio || '');
+          const pfpInputRef = useRef(null);
+          const bannerInputRef = useRef(null);
+
+          const handlePfpUpload = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                onEditProfile?.({ pfp: e.target.result });
+              };
+              reader.readAsDataURL(file);
+            }
+          };
+
+          const handleBannerUpload = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                onEditProfile?.({ banner: e.target.result });
+              };
+              reader.readAsDataURL(file);
+            }
+          };
+
+          return (
+            <div style={{
+              background: '#0f0f0f',
+              border: '1px solid #1a1a1a',
+              marginBottom: '24px',
+              overflow: 'hidden'
+            }}>
+              {/* Banner */}
+              <div
+                style={{
+                  height: '180px',
+                  background: profile?.banner
+                    ? `url(${profile.banner}) center/cover`
+                    : 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%)',
+                  position: 'relative'
+                }}
+              >
+                {isOwner && (
+                  <>
+                    <input
+                      type="file"
+                      ref={bannerInputRef}
+                      accept="image/*"
+                      onChange={handleBannerUpload}
+                      style={{ display: 'none' }}
+                    />
+                    <button
+                      onClick={() => bannerInputRef.current?.click()}
+                      style={{
+                        position: 'absolute',
+                        bottom: '12px',
+                        right: '12px',
+                        padding: '8px 16px',
+                        background: 'rgba(0,0,0,0.7)',
+                        border: '1px solid #333',
+                        color: '#fff',
+                        fontSize: '11px',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        cursor: 'pointer'
+                      }}
+                    >
+                      EDIT BANNER
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Profile Info */}
+              <div style={{ padding: '0 24px 24px', position: 'relative' }}>
+                {/* PFP */}
+                <div style={{
+                  position: 'relative',
+                  width: '120px',
+                  marginTop: '-60px'
+                }}>
+                  <div style={{
+                    width: '120px',
+                    height: '120px',
+                    borderRadius: '50%',
+                    background: profile?.pfp
+                      ? `url(${profile.pfp}) center/cover`
+                      : 'linear-gradient(135deg, #22c55e, #16a34a)',
+                    border: '4px solid #0f0f0f',
+                    boxShadow: '0 0 20px rgba(34, 197, 94, 0.3)'
+                  }} />
+                  {isOwner && (
+                    <>
+                      <input
+                        type="file"
+                        ref={pfpInputRef}
+                        accept="image/*"
+                        onChange={handlePfpUpload}
+                        style={{ display: 'none' }}
+                      />
+                      <button
+                        onClick={() => pfpInputRef.current?.click()}
+                        style={{
+                          position: 'absolute',
+                          bottom: '4px',
+                          right: '4px',
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          background: '#22c55e',
+                          border: 'none',
+                          color: '#000',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        +
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                {/* Name & Bio */}
+                <div style={{ marginTop: '16px' }}>
+                  {isEditing ? (
+                    <div style={{ marginBottom: '16px' }}>
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        placeholder="Display name"
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          background: '#0a0a0a',
+                          border: '1px solid #222',
+                          color: '#fff',
+                          fontSize: '18px',
+                          fontFamily: "'Playfair Display', serif",
+                          marginBottom: '12px',
+                          outline: 'none'
+                        }}
+                      />
+                      <textarea
+                        value={editBio}
+                        onChange={(e) => setEditBio(e.target.value)}
+                        placeholder="Tell the world about yourself..."
+                        style={{
+                          width: '100%',
+                          minHeight: '80px',
+                          padding: '12px',
+                          background: '#0a0a0a',
+                          border: '1px solid #222',
+                          color: '#fff',
+                          fontSize: '14px',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          resize: 'vertical',
+                          outline: 'none'
+                        }}
+                      />
+                      <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+                        <button
+                          onClick={() => {
+                            onEditProfile?.({ displayName: editName, bio: editBio });
+                            setIsEditing(false);
+                          }}
+                          style={{
+                            padding: '10px 20px',
+                            background: '#22c55e',
+                            border: 'none',
+                            color: '#000',
+                            fontSize: '12px',
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            fontWeight: 600,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          SAVE
+                        </button>
+                        <button
+                          onClick={() => setIsEditing(false)}
+                          style={{
+                            padding: '10px 20px',
+                            background: 'transparent',
+                            border: '1px solid #333',
+                            color: '#888',
+                            fontSize: '12px',
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            cursor: 'pointer'
+                          }}
+                        >
+                          CANCEL
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
+                        <h2 style={{
+                          fontFamily: "'Playfair Display', serif",
+                          fontSize: '28px',
+                          fontWeight: 400,
+                          color: '#fff',
+                          margin: 0
+                        }}>
+                          {profile?.displayName || 'Anonymous Creator'}
+                        </h2>
+                        {isOwner && (
+                          <button
+                            onClick={() => setIsEditing(true)}
+                            style={{
+                              background: 'none',
+                              border: '1px solid #333',
+                              color: '#888',
+                              padding: '6px 12px',
+                              fontSize: '11px',
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              cursor: 'pointer'
+                            }}
+                          >
+                            EDIT
+                          </button>
+                        )}
+                      </div>
+                      {profile?.wallet && (
+                        <div style={{
+                          fontSize: '12px',
+                          color: '#666',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          marginBottom: '12px'
+                        }}>
+                          {profile.wallet.slice(0, 6)}...{profile.wallet.slice(-4)}
+                        </div>
+                      )}
+                      {profile?.bio && (
+                        <p style={{
+                          fontSize: '14px',
+                          color: '#999',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          lineHeight: 1.6,
+                          maxWidth: '600px'
+                        }}>
+                          {profile.bio}
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {/* Stats Row */}
+                <div style={{
+                  display: 'flex',
+                  gap: '32px',
+                  marginTop: '20px',
+                  paddingTop: '20px',
+                  borderTop: '1px solid #1a1a1a'
+                }}>
+                  {[
+                    { value: stats?.cultures || 0, label: 'Cultures' },
+                    { value: stats?.posts || 0, label: 'Posts' },
+                    { value: stats?.followers || 0, label: 'Followers' },
+                    { value: stats?.following || 0, label: 'Following' }
+                  ].map((stat, i) => (
+                    <div key={i}>
+                      <div style={{
+                        fontSize: '20px',
+                        fontWeight: 600,
+                        color: '#fff',
+                        fontFamily: "'IBM Plex Mono', monospace"
+                      }}>
+                        {stat.value}
+                      </div>
+                      <div style={{
+                        fontSize: '11px',
+                        color: '#666',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        letterSpacing: '0.05em'
+                      }}>
+                        {stat.label}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        // Community Feed View - Shows all posts from all creators
+        const FeedView = ({ onSelectCulture }) => {
+          const wallet = useContext(WalletContext);
+          const [posts, setPosts] = useState([]);
+          const [loading, setLoading] = useState(true);
+          const [filter, setFilter] = useState('all'); // all, following, cultures
+
+          // Load posts from localStorage (would be API in production)
+          useEffect(() => {
+            const loadPosts = () => {
+              try {
+                const storedPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
+                // Sort by newest first
+                storedPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                setPosts(storedPosts);
+              } catch (e) {
+                console.error('[FEED] Error loading posts:', e);
+              } finally {
+                setLoading(false);
+              }
+            };
+            loadPosts();
+            // Refresh every 30 seconds
+            const interval = setInterval(loadPosts, 30000);
+            return () => clearInterval(interval);
+          }, []);
+
+          const handleLike = (postId) => {
+            if (!wallet?.address) return;
+            const updatedPosts = posts.map(p => {
+              if (p.id === postId) {
+                const likes = p.likes || [];
+                const isLiked = likes.includes(wallet.address);
+                return {
+                  ...p,
+                  likes: isLiked
+                    ? likes.filter(l => l !== wallet.address)
+                    : [...likes, wallet.address]
+                };
+              }
+              return p;
+            });
+            setPosts(updatedPosts);
+            localStorage.setItem('culture_posts', JSON.stringify(updatedPosts));
+          };
+
+          const handleComment = (postId, comment) => {
+            if (!wallet?.address) return;
+            const updatedPosts = posts.map(p => {
+              if (p.id === postId) {
+                return {
+                  ...p,
+                  comments: [
+                    ...(p.comments || []),
+                    {
+                      author: wallet.address.slice(0, 6) + '...' + wallet.address.slice(-4),
+                      content: comment,
+                      createdAt: new Date().toISOString()
+                    }
+                  ]
+                };
+              }
+              return p;
+            });
+            setPosts(updatedPosts);
+            localStorage.setItem('culture_posts', JSON.stringify(updatedPosts));
+          };
+
+          if (loading) {
+            return (
+              <div style={{ padding: '136px 40px 60px', textAlign: 'center' }}>
+                <p style={{ color: '#888', fontFamily: "'IBM Plex Mono', monospace" }}>
+                  Loading the culture feed...
+                </p>
+              </div>
+            );
+          }
+
+          return (
+            <div style={{ padding: '136px 40px 60px' }}>
+              <div style={{ maxWidth: '700px', margin: '0 auto' }}>
+                {/* Header */}
+                <div style={{ marginBottom: '32px' }}>
+                  <h1 style={{
+                    fontFamily: "'Playfair Display', serif",
+                    fontSize: '48px',
+                    fontWeight: 400,
+                    color: '#fff',
+                    marginBottom: '16px'
+                  }}>
+                    Culture Feed
+                  </h1>
+                  <p style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: '14px',
+                    color: '#888',
+                    lineHeight: 1.7
+                  }}>
+                    See what creators are sharing. Join the conversation.
+                  </p>
+                </div>
+
+                {/* Filter Tabs */}
+                <div style={{
+                  display: 'flex',
+                  gap: '16px',
+                  marginBottom: '24px',
+                  borderBottom: '1px solid #1a1a1a',
+                  paddingBottom: '16px'
+                }}>
+                  {['all', 'following', 'cultures'].map(f => (
+                    <button
+                      key={f}
+                      onClick={() => setFilter(f)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: filter === f ? '#22c55e' : '#666',
+                        fontSize: '12px',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        letterSpacing: '0.1em',
+                        textTransform: 'uppercase',
+                        cursor: 'pointer',
+                        padding: '4px 0',
+                        borderBottom: filter === f ? '2px solid #22c55e' : '2px solid transparent'
+                      }}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Posts */}
+                {posts.length === 0 ? (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '60px 20px',
+                    background: '#0f0f0f',
+                    border: '1px solid #1a1a1a'
+                  }}>
+                    <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.3 }}>📝</div>
+                    <p style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: '14px',
+                      color: '#666'
+                    }}>
+                      No posts yet. Be the first to share something!
+                    </p>
+                  </div>
+                ) : (
+                  posts.map(post => (
+                    <PostCard
+                      key={post.id}
+                      post={post}
+                      currentUser={wallet?.address}
+                      onLike={handleLike}
+                      onComment={handleComment}
+                    />
+                  ))
+                )}
+              </div>
+            </div>
+          );
+        };
+
         // Auctions View
         const AuctionsView = () => {
           const [searchQuery, setSearchQuery] = useState('');
@@ -2290,7 +3331,7 @@
           );
         };
 
-        // Dashboard View - Shows cultures you CREATED (as owner)
+        // Dashboard View - Shows cultures you CREATED (as owner) + Social Hub
         const DashboardView = () => {
           const wallet = useContext(WalletContext);
           const [myCultures, setMyCultures] = useState([]);
@@ -2299,6 +3340,107 @@
           const [selectedChartCulture, setSelectedChartCulture] = useState(null);
           const [chartData, setChartData] = useState(null);
           const [chartHeight, setChartHeight] = useState(400);
+          const [activeTab, setActiveTab] = useState('overview'); // overview, posts, cultures, settings
+
+          // Profile & Social State
+          const [profile, setProfile] = useState(() => {
+            if (typeof window !== 'undefined') {
+              try {
+                const stored = localStorage.getItem('creator_profile_' + wallet?.address);
+                return stored ? JSON.parse(stored) : null;
+              } catch { return null; }
+            }
+            return null;
+          });
+          const [myPosts, setMyPosts] = useState([]);
+
+          // Load profile when wallet changes
+          useEffect(() => {
+            if (wallet?.address) {
+              try {
+                const stored = localStorage.getItem('creator_profile_' + wallet.address);
+                if (stored) {
+                  setProfile(JSON.parse(stored));
+                } else {
+                  setProfile({ wallet: wallet.address, displayName: '', bio: '', pfp: null, banner: null });
+                }
+                // Load my posts
+                const allPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
+                const mine = allPosts.filter(p => p.authorWallet === wallet.address);
+                mine.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                setMyPosts(mine);
+              } catch (e) {
+                console.error('[DASHBOARD] Error loading profile:', e);
+              }
+            }
+          }, [wallet?.address]);
+
+          // Save profile changes
+          const handleEditProfile = (updates) => {
+            const newProfile = { ...profile, ...updates, wallet: wallet?.address };
+            setProfile(newProfile);
+            localStorage.setItem('creator_profile_' + wallet?.address, JSON.stringify(newProfile));
+          };
+
+          // Create a new post
+          const handleCreatePost = (postData) => {
+            const newPost = {
+              id: Date.now().toString(),
+              ...postData,
+              authorWallet: wallet?.address,
+              authorName: profile?.displayName || wallet?.address?.slice(0, 6) + '...' + wallet?.address?.slice(-4),
+              authorPfp: profile?.pfp,
+              createdAt: new Date().toISOString(),
+              likes: [],
+              comments: [],
+              reposts: 0
+            };
+
+            // Save to global posts
+            const allPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
+            allPosts.unshift(newPost);
+            localStorage.setItem('culture_posts', JSON.stringify(allPosts));
+
+            // Update local state
+            setMyPosts(prev => [newPost, ...prev]);
+          };
+
+          // Handle like
+          const handleLike = (postId) => {
+            if (!wallet?.address) return;
+            const allPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
+            const updatedAll = allPosts.map(p => {
+              if (p.id === postId) {
+                const likes = p.likes || [];
+                const isLiked = likes.includes(wallet.address);
+                return { ...p, likes: isLiked ? likes.filter(l => l !== wallet.address) : [...likes, wallet.address] };
+              }
+              return p;
+            });
+            localStorage.setItem('culture_posts', JSON.stringify(updatedAll));
+            setMyPosts(updatedAll.filter(p => p.authorWallet === wallet.address));
+          };
+
+          // Handle comment
+          const handleComment = (postId, comment) => {
+            if (!wallet?.address) return;
+            const allPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
+            const updatedAll = allPosts.map(p => {
+              if (p.id === postId) {
+                return {
+                  ...p,
+                  comments: [...(p.comments || []), {
+                    author: wallet.address.slice(0, 6) + '...' + wallet.address.slice(-4),
+                    content: comment,
+                    createdAt: new Date().toISOString()
+                  }]
+                };
+              }
+              return p;
+            });
+            localStorage.setItem('culture_posts', JSON.stringify(updatedAll));
+            setMyPosts(updatedAll.filter(p => p.authorWallet === wallet.address));
+          };
 
           // Auto-select first culture for chart when cultures load
           useEffect(() => {
@@ -2507,61 +3649,183 @@
 
           return (
             <div style={{ padding: '136px 40px 60px' }}>
-              <div style={{ marginBottom: '48px' }}>
-                <h1 style={{
-                  fontFamily: "'Playfair Display', serif",
-                  fontSize: '48px',
-                  fontWeight: 400,
-                  color: '#fff',
-                  marginBottom: '16px'
-                }}>
-                  My Cultures
-                </h1>
-                <p style={{
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  fontSize: '14px',
-                  color: '#888'
-                }}>
-                  Cultures you've created. Manage settings and view performance.
-                </p>
-              </div>
+              {/* Creator Profile Header */}
+              <CreatorProfileHeader
+                profile={profile}
+                onEditProfile={handleEditProfile}
+                isOwner={true}
+                stats={{
+                  cultures: myCultures.length,
+                  posts: myPosts.length,
+                  followers: 0,
+                  following: 0
+                }}
+              />
 
-              {/* Stats */}
+              {/* Dashboard Tabs */}
               <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
+                display: 'flex',
                 gap: '24px',
-                marginBottom: '48px'
+                marginBottom: '32px',
+                borderBottom: '1px solid #1a1a1a',
+                paddingBottom: '16px'
               }}>
                 {[
-                  { value: myCultures.length, label: 'CULTURES CREATED' },
-                  { value: totalParticipation.totalHolders, label: 'TOTAL HOLDERS' },
-                  { value: `$${totalParticipation.totalVolume.toLocaleString()}`, label: 'TOTAL VOLUME' }
-                ].map((stat, i) => (
-                  <div key={i} style={{
-                    background: '#0f0f0f',
-                    border: '1px solid #1a1a1a',
-                    padding: '32px'
-                  }}>
-                    <div style={{
-                      fontSize: '36px',
-                      color: '#fff',
+                  { id: 'overview', label: 'Overview' },
+                  { id: 'posts', label: 'My Posts' },
+                  { id: 'cultures', label: 'My Cultures' },
+                  { id: 'settings', label: 'Settings' }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: activeTab === tab.id ? '#22c55e' : '#666',
+                      fontSize: '13px',
                       fontFamily: "'IBM Plex Mono', monospace",
-                      marginBottom: '8px'
-                    }}>
-                      {stat.value}
-                    </div>
-                    <div style={{
-                      fontSize: '10px',
-                      color: '#666',
-                      letterSpacing: '0.15em',
-                      fontFamily: "'IBM Plex Mono', monospace"
-                    }}>
-                      {stat.label}
-                    </div>
-                  </div>
+                      letterSpacing: '0.05em',
+                      cursor: 'pointer',
+                      padding: '8px 0',
+                      borderBottom: activeTab === tab.id ? '2px solid #22c55e' : '2px solid transparent',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {tab.label}
+                  </button>
                 ))}
               </div>
+
+              {/* Tab Content */}
+              {activeTab === 'overview' && (
+                <>
+                  {/* Post Composer */}
+                  <PostComposer
+                    onPost={handleCreatePost}
+                    profile={profile}
+                    cultures={myCultures}
+                  />
+
+                  {/* Stats */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(4, 1fr)',
+                    gap: '16px',
+                    marginBottom: '32px'
+                  }}>
+                    {[
+                      { value: myCultures.length, label: 'CULTURES' },
+                      { value: myPosts.length, label: 'POSTS' },
+                      { value: totalParticipation.totalHolders, label: 'HOLDERS' },
+                      { value: `$${totalParticipation.totalVolume.toLocaleString()}`, label: 'VOLUME' }
+                    ].map((stat, i) => (
+                      <div key={i} style={{
+                        background: '#0f0f0f',
+                        border: '1px solid #1a1a1a',
+                        padding: '24px',
+                        textAlign: 'center'
+                      }}>
+                        <div style={{
+                          fontSize: '28px',
+                          color: '#fff',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          marginBottom: '6px'
+                        }}>
+                          {stat.value}
+                        </div>
+                        <div style={{
+                          fontSize: '9px',
+                          color: '#666',
+                          letterSpacing: '0.15em',
+                          fontFamily: "'IBM Plex Mono', monospace"
+                        }}>
+                          {stat.label}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Recent Activity - My Posts */}
+                  <div style={{ marginBottom: '32px' }}>
+                    <h3 style={{
+                      fontSize: '12px',
+                      letterSpacing: '0.15em',
+                      color: '#666',
+                      marginBottom: '16px',
+                      fontFamily: "'IBM Plex Mono', monospace"
+                    }}>
+                      RECENT ACTIVITY
+                    </h3>
+                    {myPosts.length === 0 ? (
+                      <div style={{
+                        padding: '40px',
+                        background: '#0f0f0f',
+                        border: '1px solid #1a1a1a',
+                        textAlign: 'center'
+                      }}>
+                        <p style={{
+                          color: '#666',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: '14px'
+                        }}>
+                          No posts yet. Share something with your community!
+                        </p>
+                      </div>
+                    ) : (
+                      myPosts.slice(0, 3).map(post => (
+                        <PostCard
+                          key={post.id}
+                          post={post}
+                          currentUser={wallet?.address}
+                          onLike={handleLike}
+                          onComment={handleComment}
+                        />
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
+
+              {activeTab === 'posts' && (
+                <div>
+                  <PostComposer
+                    onPost={handleCreatePost}
+                    profile={profile}
+                    cultures={myCultures}
+                  />
+                  {myPosts.length === 0 ? (
+                    <div style={{
+                      padding: '60px 40px',
+                      background: '#0f0f0f',
+                      border: '1px solid #1a1a1a',
+                      textAlign: 'center'
+                    }}>
+                      <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.3 }}>📝</div>
+                      <p style={{
+                        color: '#666',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: '14px'
+                      }}>
+                        No posts yet. Start sharing your journey!
+                      </p>
+                    </div>
+                  ) : (
+                    myPosts.map(post => (
+                      <PostCard
+                        key={post.id}
+                        post={post}
+                        currentUser={wallet?.address}
+                        onLike={handleLike}
+                        onComment={handleComment}
+                      />
+                    ))
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'cultures' && (
+                <>
 
               {/* Price Chart - Premium Design */}
               {selectedChartCulture?.tokenAddress && (
@@ -2987,6 +4251,110 @@
                   + CREATE ANOTHER CULTURE
                 </button>
               </div>
+                </>
+              )}
+
+              {activeTab === 'settings' && (
+                <div style={{
+                  background: '#0f0f0f',
+                  border: '1px solid #1a1a1a',
+                  padding: '32px'
+                }}>
+                  <h3 style={{
+                    fontSize: '12px',
+                    letterSpacing: '0.15em',
+                    color: '#666',
+                    marginBottom: '24px',
+                    fontFamily: "'IBM Plex Mono', monospace"
+                  }}>
+                    PROFILE SETTINGS
+                  </h3>
+
+                  <div style={{ marginBottom: '24px' }}>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '11px',
+                      color: '#888',
+                      marginBottom: '8px',
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      letterSpacing: '0.1em'
+                    }}>
+                      DISPLAY NAME
+                    </label>
+                    <input
+                      type="text"
+                      value={profile?.displayName || ''}
+                      onChange={(e) => handleEditProfile({ displayName: e.target.value })}
+                      placeholder="Your display name"
+                      style={{
+                        width: '100%',
+                        maxWidth: '400px',
+                        padding: '14px',
+                        background: '#0a0a0a',
+                        border: '1px solid #222',
+                        color: '#fff',
+                        fontSize: '15px',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: '24px' }}>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '11px',
+                      color: '#888',
+                      marginBottom: '8px',
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      letterSpacing: '0.1em'
+                    }}>
+                      BIO
+                    </label>
+                    <textarea
+                      value={profile?.bio || ''}
+                      onChange={(e) => handleEditProfile({ bio: e.target.value })}
+                      placeholder="Tell the world about yourself..."
+                      style={{
+                        width: '100%',
+                        maxWidth: '600px',
+                        minHeight: '100px',
+                        padding: '14px',
+                        background: '#0a0a0a',
+                        border: '1px solid #222',
+                        color: '#fff',
+                        fontSize: '14px',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        resize: 'vertical',
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
+
+                  <div style={{
+                    padding: '20px',
+                    background: 'rgba(34, 197, 94, 0.1)',
+                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                    marginTop: '24px'
+                  }}>
+                    <div style={{
+                      fontSize: '12px',
+                      color: '#22c55e',
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      marginBottom: '8px'
+                    }}>
+                      CONNECTED WALLET
+                    </div>
+                    <div style={{
+                      fontSize: '14px',
+                      color: '#fff',
+                      fontFamily: "'IBM Plex Mono', monospace"
+                    }}>
+                      {wallet?.address}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           );
         };
@@ -5976,6 +7344,7 @@
                 <Navigation view={view} setView={(v) => { setView(v); setSelectedCulture(null); }} />
 
                 {view === 'discover' && <DiscoveryView onSelectCulture={handleSelectCulture} />}
+                {view === 'feed' && <FeedView onSelectCulture={handleSelectCulture} />}
                 {view === 'create' && <CreateCulturePage />}
                 {view === 'culture' && selectedCulture && (
                   <CulturePage
