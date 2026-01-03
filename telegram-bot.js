@@ -411,28 +411,31 @@ Use /guide for the complete walkthrough.
     // /help command
     async handleHelp(chatId) {
         const text = `
-<b>LAUNCHR Bot Commands</b>
+<b>LAUNCHR Commands</b>
 
-/track [mint_address]
-Track a token using LAUNCHR. Adds it to our public tracker.
+<b>Main Actions:</b>
+/create - Launch a new token on Pump.fun
+/existing - Import an existing Pump.fun token
 
-/stats
-View total tokens tracked, SOL claimed, and distributed.
+<b>Getting Started:</b>
+/start - Welcome & options
+/connect - Connect your wallet (DM only)
+/guide - Complete walkthrough
 
-/recent
-See the 5 most recently tracked tokens.
+<b>After Connecting:</b>
+/mystatus - Your session status
+/setalloc - Set fee allocations
+/disconnect - Stop & disconnect
 
-/launch
-Learn how to launch your token with LAUNCHR technology.
+<b>Tracking:</b>
+/track [mint] - Track a token
+/stats - Platform statistics
 
-<b>What is LAUNCHR?</b>
-LAUNCHR automatically routes your Pump.fun creator fees into:
-• Market Making (RSI-timed trades)
-• Buyback & Burn (deflationary)
-• Liquidity Pool (locked LP)
-• Creator Revenue (your wallet)
+<b>Links:</b>
+🌐 <a href="https://www.launchronsol.xyz">Website</a>
+📊 <a href="https://www.launchronsol.xyz/dashboard">Dashboard</a>
 
-First of its kind. Programmable liquidity.
+<i>LAUNCHR is non-custodial. Your keys, your control.</i>
         `.trim();
 
         await this.sendMessage(chatId, text);
