@@ -3028,26 +3028,18 @@ if(window.solana?.isConnected)connect();
                     throw new Error('PumpPortal returned empty transaction');
                 }
 
-                // Step 4: Deserialize transaction
-                console.log(`[TG-LAUNCH] Deserializing transaction...`);
-                const tx = VersionedTransaction.deserialize(new Uint8Array(pumpRes.data));
-                console.log(`[TG-LAUNCH] Transaction deserialized, ${tx.message.staticAccountKeys.length} account keys`);
-
-                // Step 5: Sign with mint keypair (server-side) - user will add their signature
-                console.log(`[TG-LAUNCH] Signing with mint keypair...`);
-                tx.sign([mintKeypair]);
-                console.log(`[TG-LAUNCH] Transaction signed by mint`);
-
-                // Return partially signed transaction for user to complete
-                const serializedTx = Buffer.from(tx.serialize()).toString('base64');
-                console.log(`[TG-LAUNCH] ✅ BUILD TX COMPLETE - returning ${serializedTx.length} char base64 tx`);
+                // Return UNSIGNED transaction + mint secret key for frontend signing
+                // Frontend will sign with mint first, then Phantom signs (like dashboard.html)
+                const unsignedTx = Buffer.from(pumpRes.data).toString('base64');
+                console.log(`[TG-LAUNCH] ✅ BUILD TX COMPLETE - returning unsigned tx (${unsignedTx.length} chars) + mint key`);
                 console.log(`[TG-LAUNCH] ========== BUILD TX END ==========`);
 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({
                     success: true,
-                    transaction: serializedTx,
-                    mint: launch.mintKeypair.publicKey
+                    transaction: unsignedTx,
+                    mint: launch.mintKeypair.publicKey,
+                    mintSecretKey: launch.mintKeypair.secretKey  // Frontend needs this to sign
                 }));
 
             } catch (e) {
@@ -3162,6 +3154,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     <title>Complete Your Launch - LAUNCHR</title>
     <link rel="icon" type="image/png" href="/website/logo-icon.png">
     <script src="https://unpkg.com/@solana/web3.js@1.87.6/lib/index.iife.min.js"></script>
+    <script src="https://unpkg.com/bs58@5.0.0/dist/index.umd.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -3339,7 +3332,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                     throw new Error(buildData.error || 'Failed to build transaction');
                 }
 
-                // Step 2: Sign with Phantom
+                // Step 2: Sign with mint keypair first, then Phantom
                 statusEl.innerHTML = '<div class="step step-done">✅ Transaction built</div><div class="step step-active"><span class="spinner"></span> Please approve in Phantom...</div>';
                 btn.textContent = 'Approve in wallet...';
 
@@ -3347,8 +3340,15 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 const txBytes = Uint8Array.from(atob(buildData.transaction), c => c.charCodeAt(0));
                 const transaction = VersionedTransaction.deserialize(txBytes);
 
-                // Sign with Phantom
+                // Create mint keypair from secret key and sign first
+                const mintSecretBytes = bs58.decode(buildData.mintSecretKey);
+                const mintKeypair = solanaWeb3.Keypair.fromSecretKey(mintSecretBytes);
+                transaction.sign([mintKeypair]);
+                console.log('[LAUNCH] Signed with mint keypair');
+
+                // Sign with Phantom (user's wallet)
                 const signedTx = await window.solana.signTransaction(transaction);
+                console.log('[LAUNCH] Signed with Phantom');
 
                 // Step 3: Send to network
                 statusEl.innerHTML = '<div class="step step-done">✅ Transaction built</div><div class="step step-done">✅ Signed by wallet</div><div class="step step-active"><span class="spinner"></span> Sending to Solana...</div>';
