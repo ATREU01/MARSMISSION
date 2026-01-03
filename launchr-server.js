@@ -2980,33 +2980,33 @@ if(window.solana?.isConnected)connect();
                 const metadataUri = ipfsRes.data.metadataUri;
                 console.log(`[TG-LAUNCH] ✅ Metadata uploaded: ${metadataUri}`);
 
-                // Step 3: Request create transaction from PumpPortal
+                // Step 3: Request create transaction from PumpPortal (JSON format like dashboard)
                 console.log(`[TG-LAUNCH] Requesting create transaction from PumpPortal...`);
-                const createParams = new URLSearchParams({
+                const requestBody = {
                     publicKey: walletAddress,
                     action: 'create',
-                    tokenMetadata: JSON.stringify({
+                    tokenMetadata: {
                         name: launch.tokenData.name,
                         symbol: launch.tokenData.symbol,
                         uri: metadataUri
-                    }),
+                    },
                     mint: launch.mintKeypair.publicKey,
                     denominatedInSol: 'true',
-                    amount: (launch.devBuy || 0).toString(),
-                    slippage: '15',
-                    priorityFee: '0.001',
+                    amount: launch.devBuy || 0,
+                    slippage: 10,
+                    priorityFee: 0.0005,
                     pool: 'pump'
-                });
+                };
 
-                console.log(`[TG-LAUNCH] Trade params:`, createParams.toString());
+                console.log(`[TG-LAUNCH] Request body:`, JSON.stringify(requestBody));
 
                 let pumpRes;
                 try {
                     pumpRes = await axios.post(
                         'https://pumpportal.fun/api/trade-local',
-                        createParams.toString(),
+                        requestBody,
                         {
-                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            headers: { 'Content-Type': 'application/json' },
                             responseType: 'arraybuffer',
                             timeout: 30000
                         }
