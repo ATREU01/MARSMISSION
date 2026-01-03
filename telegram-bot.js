@@ -350,32 +350,38 @@ RSI: ${engine.rsi.value.toFixed(1)}
 
     // /start command
     async handleStart(chatId) {
-        console.log('═══════════════════════════════════════════════════════════════');
-        console.log('[TELEGRAM-BOT] handleStart() CALLED - v2.1 - chatId:', chatId);
-        console.log('[TELEGRAM-BOT] THIS IS THE NEW /start - SHOULD SHOW /create /existing');
-        console.log('═══════════════════════════════════════════════════════════════');
+        console.log('[TELEGRAM-BOT] handleStart() CALLED - chatId:', chatId);
         const text = `
-<b>🚀 LAUNCHR v2.1</b>
-<i>Programmable Liquidity for Pump.fun</i>
+<b>🚀 LAUNCHR</b>
+<i>Automated Fee Distribution for Pump.fun</i>
 
-The first AI-powered fee allocation engine.
+<b>━━━ WHAT DO YOU WANT TO DO? ━━━</b>
 
-<b>Commands:</b>
-/create - Launch a new token on Pump.fun
-/existing - Import an existing Pump.fun token
+<b>/create</b> - Launch a NEW meme coin
+<b>/existing</b> - Connect an EXISTING token
 
-<b>What would you like to do?</b>
+<b>━━━ HOW IT WORKS ━━━</b>
 
-<b>/create</b> - Launch a new token on Pump.fun with LAUNCHR's automated fee distribution built-in.
+1️⃣ Create or import your token
+2️⃣ Connect via our secure dashboard
+3️⃣ Set your fee allocations
+4️⃣ ORBIT runs 24/7 automatically
 
-<b>/existing</b> - Connect an existing Pump.fun token to LAUNCHR to automate your creator fee allocations.
+<b>━━━ YOUR FEES GO TO ━━━</b>
 
-<b>Links:</b>
+• Market Making (RSI-timed buys)
+• Buyback & Burn (deflation)
+• Liquidity Pool (depth)
+• Creator Revenue (you)
+
+<b>━━━ LINKS ━━━</b>
+
 🌐 <a href="https://www.launchronsol.xyz">Website</a>
-📊 <a href="https://www.launchronsol.xyz/tracker">Token Tracker</a>
-🐦 <a href="https://x.com/LaunchrTG">Twitter</a>
+🚀 <a href="https://www.launchronsol.xyz/launchpad">Launchpad</a>
+📊 <a href="https://www.launchronsol.xyz/dashboard">Dashboard</a>
 
-<i>All wallet connections are secure and non-custodial.</i>
+<i>🔒 Non-custodial. We NEVER hold your keys.</i>
+<i>⚠️ Meme coins are speculative. DYOR.</i>
         `.trim();
 
         await this.sendMessage(chatId, text);
@@ -387,52 +393,93 @@ The first AI-powered fee allocation engine.
     }
 
     // /create command - Launch new token
-    async handleCreate(chatId) {
+    async handleCreate(chatId, args, msg) {
         const text = `
 <b>🚀 CREATE NEW TOKEN</b>
 
-Launch your meme coin with LAUNCHR's integrated Pump.fun launchpad.
+Launch your meme coin on Pump.fun with LAUNCHR!
 
-<b>Features:</b>
-• One-click token creation
-• Vanity wallet addresses available
-• Automated fee distribution engine
+<b>━━━ CREATE YOUR TOKEN ━━━</b>
+
+1️⃣ Open the Launchpad:
+👉 <a href="https://www.launchronsol.xyz/launchpad">launchronsol.xyz/launchpad</a>
+
+2️⃣ Connect wallet (Phantom/Solflare)
+
+3️⃣ Fill in your token details:
+   • Name & Symbol
+   • Description
+   • Image/Logo
+   • Social links
+
+4️⃣ Set initial dev buy (optional)
+
+5️⃣ Launch! 🚀
+
+<b>━━━ AFTER LAUNCH ━━━</b>
+
+Your token is automatically registered with LAUNCHR.
+
+Go to Dashboard to:
+• Set fee allocations
+• Enable ORBIT (24/7 automation)
+• Track performance
+
+👉 <a href="https://www.launchronsol.xyz/dashboard">Open Dashboard</a>
+
+<b>━━━ FEATURES ━━━</b>
+
+• Vanity wallet addresses
+• Automated fee claiming
 • RSI-timed market making
-• Buyback & burn mechanics
-• 24/7 ORBIT automation
+• Buyback & burn
+• Liquidity pool adds
 
-<b>Launch now:</b>
-👉 <a href="https://www.launchronsol.xyz/launchpad">Open Launchpad</a>
+<b>🔒 NON-CUSTODIAL</b>
+We NEVER hold your private keys.
 
-<i>⚠️ DISCLAIMER: Meme coins are highly speculative and for entertainment purposes only. Not financial advice. DYOR.</i>
+<i>⚠️ Meme coins are speculative. DYOR.</i>
         `.trim();
 
         await this.sendMessage(chatId, text);
     }
 
     // /existing command - Import existing token
-    async handleExisting(chatId) {
+    async handleExisting(chatId, args, msg) {
         const text = `
 <b>🔗 IMPORT EXISTING TOKEN</b>
 
-Already launched on Pump.fun? Connect your token to LAUNCHR's automated fee engine.
+Already have a token on Pump.fun? Connect it to LAUNCHR!
 
-<b>What LAUNCHR does:</b>
-• Claims your creator fees automatically
-• Distributes fees based on your allocations
-• Market making, buyback & burn, LP adds
-• Runs 24/7 with ORBIT server signing
+<b>━━━ SECURE CONNECTION ━━━</b>
 
-<b>How to connect:</b>
-1️⃣ Go to the Dashboard
-2️⃣ Connect your wallet (Phantom/Solflare/Privy)
+1️⃣ Open the Dashboard:
+👉 <a href="https://www.launchronsol.xyz/dashboard">launchronsol.xyz/dashboard</a>
+
+2️⃣ Connect wallet (Phantom/Solflare)
+
 3️⃣ Select your token from "My Launches"
-4️⃣ Set your fee allocations
-5️⃣ Enable 24/7 ORBIT automation
 
-👉 <a href="https://www.launchronsol.xyz/dashboard">Open Dashboard</a>
+4️⃣ Set your fee allocations:
+   • Market Making %
+   • Buyback & Burn %
+   • Liquidity Pool %
+   • Creator Revenue %
 
-<i>Non-custodial. Your wallet, your control.</i>
+5️⃣ Enable ORBIT (24/7 automation)
+
+<b>━━━ WHAT HAPPENS ━━━</b>
+
+• Your creator fees are claimed automatically
+• Distributed based on your allocations
+• RSI-timed market making trades
+• Buyback & burn (deflationary)
+• Liquidity added to your pool
+
+<b>🔒 NON-CUSTODIAL</b>
+We NEVER hold your private keys. All signing happens through Privy's secure MPC system.
+
+<i>⚠️ Meme coins are speculative. DYOR.</i>
         `.trim();
 
         await this.sendMessage(chatId, text);
