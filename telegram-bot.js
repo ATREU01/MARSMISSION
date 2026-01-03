@@ -203,7 +203,7 @@ class LaunchrBot {
             formData.append('description', tokenData.description || `${tokenData.name} - Launched via LAUNCHR`);
             formData.append('twitter', tokenData.twitter || '');
             formData.append('telegram', '');
-            formData.append('website', 'https://www.launchronsol.xyz');
+            formData.append('website', 'https://www.launchr.xyz');
             formData.append('showName', 'true');
 
             if (imageBuffer) {
@@ -616,7 +616,7 @@ Now let's create your token.
                     `.trim());
                 } else {
                     await this.sendMessage(chatId, `
-👉 <a href="https://www.launchronsol.xyz/tg-connect?id=${chatId}">TAP HERE TO CONNECT WALLET</a>
+👉 <a href="https://www.launchr.xyz/tg-connect?id=${chatId}">TAP HERE TO CONNECT WALLET</a>
 
 After connecting, come back and type <b>done</b>
 
@@ -838,7 +838,7 @@ ${data.devBuy > 0 ? `<b>Dev Buy:</b> ${data.devBuy} SOL` : ''}
 
 <b>━━━ FINAL STEP ━━━</b>
 
-👉 <a href="https://www.launchronsol.xyz/launch/${launchId}">TAP HERE TO SIGN & LAUNCH</a>
+👉 <a href="https://www.launchr.xyz/launch/${launchId}">TAP HERE TO SIGN & LAUNCH</a>
 
 <b>What happens:</b>
 1. Connect your wallet (Phantom/Solflare)
@@ -910,9 +910,9 @@ Please try again with /create or contact support.
 
 <b>━━━ LINKS ━━━</b>
 
-🌐 <a href="https://www.launchronsol.xyz">Website</a>
-🚀 <a href="https://www.launchronsol.xyz/launchpad">Launchpad</a>
-📊 <a href="https://www.launchronsol.xyz/dashboard">Dashboard</a>
+🌐 <a href="https://www.launchr.xyz">Website</a>
+🚀 <a href="https://www.launchr.xyz/launchpad">Launchpad</a>
+📊 <a href="https://www.launchr.xyz/dashboard">Dashboard</a>
 
 <i>🔒 Non-custodial. We NEVER hold your keys.</i>
 <i>⚠️ Meme coins are speculative. DYOR.</i>
@@ -936,7 +936,7 @@ Please try again with /create or contact support.
 
 First, connect your wallet so we can launch for you.
 
-👉 <a href="https://www.launchronsol.xyz/tg-connect?id=${chatId}">TAP HERE TO CONNECT WALLET</a>
+👉 <a href="https://www.launchr.xyz/tg-connect?id=${chatId}">TAP HERE TO CONNECT WALLET</a>
 
 After connecting, come back here and type <b>done</b>
 
@@ -965,7 +965,7 @@ Type /cancel anytime to exit.
 Already launched on Pump.fun? Let's connect it!
 
 <b>STEP 1 - GO TO DASHBOARD:</b>
-👉 <a href="https://www.launchronsol.xyz/dashboard">TAP HERE TO OPEN</a>
+👉 <a href="https://www.launchr.xyz/dashboard">TAP HERE TO OPEN</a>
 
 <b>STEP 2 - ON THE WEBSITE:</b>
 • Connect your wallet (same one you launched with)
@@ -1021,8 +1021,8 @@ We NEVER hold your keys. Privy MPC = secure.
 /stats - Platform statistics
 
 <b>Links:</b>
-🌐 <a href="https://www.launchronsol.xyz">Website</a>
-📊 <a href="https://www.launchronsol.xyz/dashboard">Dashboard</a>
+🌐 <a href="https://www.launchr.xyz">Website</a>
+📊 <a href="https://www.launchr.xyz/dashboard">Dashboard</a>
 
 <i>LAUNCHR is non-custodial. Your keys, your control.</i>
         `.trim();
@@ -1058,9 +1058,9 @@ We NEVER hold your keys. Privy MPC = secure.
 <code>${mint}</code>
 
 Your token is now listed on the LAUNCHR tracker.
-View it at: https://www.launchronsol.xyz/tracker
+View it at: https://www.launchr.xyz/tracker
 
-Use the dashboard at https://www.launchronsol.xyz/dashboard to configure fee allocations.
+Use the dashboard at https://www.launchr.xyz/dashboard to configure fee allocations.
             `.trim());
         } else {
             await this.sendMessage(chatId, `
@@ -1071,7 +1071,7 @@ Use the dashboard at https://www.launchronsol.xyz/dashboard to configure fee all
 Sessions: ${result.token.sessions}
 First tracked: ${new Date(result.token.registeredAt).toLocaleDateString()}
 
-View at: https://www.launchronsol.xyz/tracker
+View at: https://www.launchr.xyz/tracker
             `.trim());
         }
     }
@@ -1087,7 +1087,7 @@ View at: https://www.launchronsol.xyz/tracker
 <b>${(stats.totalClaimed / 1e9).toFixed(2)}</b> SOL Claimed
 <b>${(stats.totalDistributed / 1e9).toFixed(2)}</b> SOL Distributed
 
-View live tracker: https://www.launchronsol.xyz/tracker
+View live tracker: https://www.launchr.xyz/tracker
         `.trim();
 
         await this.sendMessage(chatId, text);
@@ -1109,7 +1109,7 @@ View live tracker: https://www.launchronsol.xyz/tracker
             text += `${i + 1}. <code>${t.mint}</code>\n   📅 ${date} • ${t.sessions} sessions\n\n`;
         });
 
-        text += 'View all: https://www.launchronsol.xyz/tracker';
+        text += 'View all: https://www.launchr.xyz/tracker';
 
         await this.sendMessage(chatId, text);
     }
@@ -1195,7 +1195,7 @@ Set it and forget it.
 <b>🚀 HOW TO START</b>
 
 1️⃣ Create token on Pump.fun
-2️⃣ Visit https://www.launchronsol.xyz/dashboard
+2️⃣ Visit https://www.launchr.xyz/dashboard
 3️⃣ Enter your creator wallet key + mint
 4️⃣ Set allocation percentages
 5️⃣ Click START
@@ -1207,7 +1207,7 @@ Your token is now powered by LAUNCHR.
 <b>📊 TRACKING</b>
 
 All LAUNCHR tokens are listed on our public tracker:
-🌐 https://www.launchronsol.xyz/tracker
+🌐 https://www.launchr.xyz/tracker
 
 Track via Telegram:
 /track [mint_address]
@@ -1216,9 +1216,9 @@ Track via Telegram:
 
 <b>🔗 LINKS</b>
 
-🌐 Website: https://www.launchronsol.xyz
-📊 Dashboard: https://www.launchronsol.xyz/dashboard
-📈 Tracker: https://www.launchronsol.xyz/tracker
+🌐 Website: https://www.launchr.xyz
+📊 Dashboard: https://www.launchr.xyz/dashboard
+📈 Tracker: https://www.launchr.xyz/tracker
 🐦 Twitter: @LaunchrTG
 
 ━━━━━━━━━━━━━━━━━━━━━━

@@ -2902,7 +2902,7 @@ if(window.solana?.isConnected)connect();
                 formData.append('description', launch.tokenData.description || `${launch.tokenData.name} - Launched via LAUNCHR`);
                 formData.append('twitter', launch.tokenData.twitter ? `https://twitter.com/${launch.tokenData.twitter}` : '');
                 formData.append('telegram', '');
-                formData.append('website', 'https://www.launchronsol.xyz');
+                formData.append('website', 'https://www.launchr.xyz');
                 formData.append('showName', 'true');
 
                 const ipfsRes = await axios.post('https://pumpportal.fun/api/ipfs', formData, {
@@ -3031,7 +3031,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
 👉 <a href="https://pump.fun/${launch.mintKeypair.publicKey}">View on Pump.fun</a>
 👉 <a href="https://solscan.io/tx/${signature}">View Transaction</a>
-👉 <a href="https://www.launchronsol.xyz/dashboard">Configure ORBIT</a>
+👉 <a href="https://www.launchr.xyz/dashboard">Configure ORBIT</a>
 
 <b>NEXT STEPS:</b>
 1. Share your token link
