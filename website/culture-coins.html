@@ -211,7 +211,7 @@
     </script>
 
     <script type="text/babel">
-        const { useState, useEffect, createContext, useContext } = React;
+        const { useState, useEffect, createContext, useContext, useRef } = React;
 
         // ═══════════════════════════════════════════════════════════════════
         // CIA-LEVEL CLIENT SECURITY - Anti-Tampering & Verification
@@ -1007,12 +1007,14 @@
                       const pumpRes = await fetch(`/api/pump/coin/${culture.tokenAddress}`);
                       if (pumpRes.ok) {
                         const pumpData = await pumpRes.json();
-                        return {
-                          ...culture,
-                          marketCap: pumpData.usd_market_cap || 0,
-                          holders: pumpData.holder_count || 0,
-                          volume: pumpData.volume_24h || 0
-                        };
+                        if (pumpData) {
+                          return {
+                            ...culture,
+                            marketCap: pumpData.usd_market_cap || 0,
+                            holders: pumpData.holder_count || 0,
+                            volume: pumpData.volume_24h || 0
+                          };
+                        }
                       }
                     } catch (e) {
                       console.error('[DISCOVER] Failed to enrich', culture.name, e);
@@ -1580,13 +1582,17 @@
                 if (res.ok) {
                   const data = await res.json();
                   console.log('[CULTURE] Pump.fun data:', data);
-                  setTokenData({
-                    marketCap: data.usd_market_cap || 0,
-                    holders: data.holder_count || 0,
-                    volume: data.volume_24h || 0,
-                    price: data.price || 0,
-                    loading: false
-                  });
+                  if (data) {
+                    setTokenData({
+                      marketCap: data.usd_market_cap || 0,
+                      holders: data.holder_count || 0,
+                      volume: data.volume_24h || 0,
+                      price: data.price || 0,
+                      loading: false
+                    });
+                  } else {
+                    setTokenData(prev => ({ ...prev, loading: false }));
+                  }
                 } else {
                   setTokenData(prev => ({ ...prev, loading: false }));
                 }
@@ -3500,12 +3506,14 @@
                       const pumpRes = await fetch(`/api/pump/coin/${culture.tokenAddress}`);
                       if (pumpRes.ok) {
                         const pumpData = await pumpRes.json();
-                        return {
-                          ...culture,
-                          marketCap: pumpData.usd_market_cap || 0,
-                          holders: pumpData.holder_count || 0,
-                          volume: pumpData.volume_24h || 0
-                        };
+                        if (pumpData) {
+                          return {
+                            ...culture,
+                            marketCap: pumpData.usd_market_cap || 0,
+                            holders: pumpData.holder_count || 0,
+                            volume: pumpData.volume_24h || 0
+                          };
+                        }
                       }
                     } catch (e) {
                       console.error('[DASHBOARD] Failed to enrich', culture.name, e);
