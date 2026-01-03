@@ -3495,6 +3495,29 @@
             catch { return false; }
           });
 
+          // Dashboard Colors based on light/dark mode
+          const dashColors = lightMode ? {
+            bg: '#fafafa',
+            cardBg: '#ffffff',
+            border: '#e5e5e5',
+            text: '#171717',
+            textSecondary: '#404040',
+            textMuted: '#737373',
+            accent: '#22c55e',
+            inputBg: '#ffffff',
+            inputBorder: '#d4d4d4'
+          } : {
+            bg: '#0a0a0a',
+            cardBg: '#0f0f0f',
+            border: '#1a1a1a',
+            text: '#ffffff',
+            textSecondary: '#a0a0a0',
+            textMuted: '#666666',
+            accent: '#22c55e',
+            inputBg: '#111111',
+            inputBorder: '#333333'
+          };
+
           // Import Existing Coin Modal State
           const [showImportModal, setShowImportModal] = useState(false);
           const [importTokenAddress, setImportTokenAddress] = useState('');
@@ -3980,7 +4003,13 @@
           }
 
           return (
-            <div style={{ padding: '136px 40px 60px' }}>
+            <div style={{
+              padding: '136px 40px 60px',
+              background: dashColors.bg,
+              minHeight: '100vh',
+              color: dashColors.text,
+              transition: 'all 0.3s ease'
+            }}>
               {/* Creator Profile Header */}
               <CreatorProfileHeader
                 profile={profile}
@@ -4000,7 +4029,7 @@
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 marginBottom: '32px',
-                borderBottom: '1px solid #1a1a1a',
+                borderBottom: `1px solid ${dashColors.border}`,
                 paddingBottom: '16px'
               }}>
                 <div style={{ display: 'flex', gap: '24px' }}>
@@ -4016,13 +4045,13 @@
                       style={{
                         background: 'none',
                         border: 'none',
-                        color: activeTab === tab.id ? '#22c55e' : '#666',
+                        color: activeTab === tab.id ? dashColors.accent : dashColors.textMuted,
                         fontSize: '13px',
                         fontFamily: "'IBM Plex Mono', monospace",
                         letterSpacing: '0.05em',
                         cursor: 'pointer',
                         padding: '8px 0',
-                        borderBottom: activeTab === tab.id ? '2px solid #22c55e' : '2px solid transparent',
+                        borderBottom: activeTab === tab.id ? `2px solid ${dashColors.accent}` : '2px solid transparent',
                         transition: 'all 0.2s'
                       }}
                     >
@@ -4075,8 +4104,8 @@
               {/* Collapsible Tools & Data Section */}
               <div style={{
                 marginBottom: '32px',
-                background: '#0f0f0f',
-                border: '1px solid #1a1a1a'
+                background: dashColors.cardBg,
+                border: `1px solid ${dashColors.border}`
               }}>
                 <button
                   onClick={() => setToolsExpanded(!toolsExpanded)}
@@ -4089,13 +4118,13 @@
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     cursor: 'pointer',
-                    borderBottom: toolsExpanded ? '1px solid #1a1a1a' : 'none'
+                    borderBottom: toolsExpanded ? `1px solid ${dashColors.border}` : 'none'
                   }}
                 >
                   <span style={{
                     fontFamily: "'IBM Plex Mono', monospace",
                     fontSize: '11px',
-                    color: '#22c55e',
+                    color: dashColors.accent,
                     letterSpacing: '0.15em'
                   }}>
                     DASHBOARD TOOLS & INTEGRATIONS
@@ -4105,7 +4134,7 @@
                     height="16"
                     viewBox="0 0 24 24"
                     fill="none"
-                    stroke="#666"
+                    stroke={dashColors.textMuted}
                     strokeWidth="2"
                     style={{
                       transform: toolsExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
@@ -6111,6 +6140,74 @@
             }
           };
 
+          // Handle culture update (edit mode)
+          const handleUpdate = async () => {
+            if (!wallet?.address) {
+              alert('Please connect your wallet to update this culture.');
+              return;
+            }
+
+            if (!editCultureId) {
+              alert('No culture ID found for update.');
+              return;
+            }
+
+            setIsCreating(true);
+            setCreateStatus('Updating culture...');
+
+            try {
+              // Get token address from edit data
+              const editData = JSON.parse(localStorage.getItem('edit_culture_data') || '{}');
+              const tokenAddress = editData.tokenAddress || editData.mint || null;
+
+              const cultureData = {
+                id: editCultureId,
+                tokenAddress: tokenAddress,
+                name: cultureName,
+                ticker: tokenTicker || editData.ticker || editData.symbol,
+                creatorName: creatorName,
+                ethos: cultureEthos.filter(e => e.trim()),
+                category: category || 'other',
+                theme: theme,
+                beliefs: beliefs.filter(b => b.trim()),
+                unlocks: unlocks.filter(u => u.title.trim()),
+                tiers: tiers.filter(t => t.name.trim()),
+                wallet: wallet.address
+              };
+
+              console.log('[UPDATE CULTURE] Sending update:', cultureData);
+
+              const response = await fetch('/api/culture/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(cultureData)
+              });
+
+              const result = await response.json();
+
+              if (result.success) {
+                console.log('[UPDATE CULTURE] Success:', result.culture);
+                setCreateStatus('Culture updated!');
+
+                // Clear edit data
+                localStorage.removeItem('edit_culture_data');
+
+                alert('Culture updated successfully!');
+
+                // Redirect to dashboard
+                window.location.href = '/culture-coins?view=dashboard';
+              } else {
+                throw new Error(result.error || 'Failed to update culture');
+              }
+            } catch (error) {
+              console.error('[UPDATE ERROR]', error);
+              alert('Failed to update culture: ' + error.message);
+            } finally {
+              setIsCreating(false);
+              setCreateStatus('');
+            }
+          };
+
           return (
             <div style={{
               minHeight: '100vh',
@@ -8067,11 +8164,11 @@
 
                 <div>
                   <button
-                    onClick={wallet?.address ? handleCreate : () => wallet?.showModal?.()}
+                    onClick={wallet?.address ? (editMode ? handleUpdate : handleCreate) : () => wallet?.showModal?.()}
                     disabled={isCreating}
                     style={{
                       padding: '20px 60px',
-                      background: isCreating ? '#333' : wallet?.address ? theme.accentColor : '#666',
+                      background: isCreating ? '#333' : wallet?.address ? (editMode ? '#22c55e' : theme.accentColor) : '#666',
                       color: isCreating ? '#666' : wallet?.address ? '#000' : '#999',
                       border: 'none',
                       fontFamily: "'Playfair Display', serif",
@@ -8082,7 +8179,7 @@
                       transition: 'all 0.2s ease'
                     }}
                   >
-                    {isCreating ? (createStatus || 'CREATING...') : wallet?.address ? 'CREATE CULTURE' : 'CONNECT WALLET TO CREATE'}
+                    {isCreating ? (createStatus || (editMode ? 'UPDATING...' : 'CREATING...')) : wallet?.address ? (editMode ? 'SAVE CHANGES' : 'CREATE CULTURE') : 'CONNECT WALLET'}
                   </button>
                 </div>
                 {/* Creation status display */}

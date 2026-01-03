@@ -1587,6 +1587,140 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    // API: Update existing culture (for edit mode)
+    if (url.pathname === '/api/culture/update' && req.method === 'POST') {
+        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        try {
+            // Rate limit
+            const rateCheck = checkRateLimit(clientIP, 'sensitive');
+            if (!rateCheck.allowed) {
+                res.writeHead(429, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: rateCheck.reason }));
+                return;
+            }
+
+            const body = await parseBody(req, 500 * 1024);
+            const { id, tokenAddress, name, creatorName, ethos, beliefs, unlocks, tiers, theme, category, wallet } = body;
+
+            if (!id && !tokenAddress) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Culture ID or token address required' }));
+                return;
+            }
+
+            if (!wallet) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Wallet address required for verification' }));
+                return;
+            }
+
+            const cultures = loadCultures();
+
+            // Find culture by ID or token address
+            const cultureIndex = cultures.findIndex(c =>
+                c.id === id ||
+                c.id?.toString() === id?.toString() ||
+                c.tokenAddress === tokenAddress ||
+                (id && id.startsWith('pump_') && c.tokenAddress === id.replace('pump_', ''))
+            );
+
+            if (cultureIndex === -1) {
+                // If not found, create a new culture entry for imported pump.fun coins
+                if (tokenAddress) {
+                    const newId = cultures.length > 0 ? Math.max(...cultures.map(c => c.id || 0)) + 1 : 1001;
+                    const newCulture = {
+                        id: newId,
+                        name: name?.trim() || 'Unnamed Culture',
+                        ticker: body.ticker || name?.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8) || 'TOKEN',
+                        ethos: Array.isArray(ethos) ? ethos.join(' | ') : (ethos || ''),
+                        category: category || 'other',
+                        creator: wallet,
+                        creatorName: creatorName?.trim() || 'Creator',
+                        creatorWallet: wallet,
+                        supply: 1000000,
+                        burned: 0,
+                        pillars: beliefs || [],
+                        tiers: (tiers || []).map(t => ({
+                            name: t.name,
+                            percent: t.holdingPercent || t.percent || 0.1,
+                            access: t.access || 'Basic access',
+                            content: t.content || []
+                        })),
+                        unlocks: unlocks || [],
+                        theme: theme || {},
+                        avgHoldDays: 0,
+                        participationRate: 0,
+                        holders: 1,
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        isUserCreated: true,
+                        tokenAddress: tokenAddress,
+                        integrityHash: crypto.createHash('sha256').update(JSON.stringify({ name, creatorName, beliefs })).digest('hex')
+                    };
+                    cultures.push(newCulture);
+
+                    if (saveCultures(cultures)) {
+                        console.log(`[CULTURES] Created from pump.fun import: ${newCulture.name} (Token: ${tokenAddress})`);
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ success: true, culture: newCulture, created: true }));
+                    } else {
+                        res.writeHead(500, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ success: false, error: 'Failed to save culture' }));
+                    }
+                    return;
+                }
+
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Culture not found' }));
+                return;
+            }
+
+            const culture = cultures[cultureIndex];
+
+            // Verify wallet ownership
+            if (culture.wallet !== wallet && culture.creatorWallet !== wallet && culture.creator !== wallet) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Not authorized to update this culture' }));
+                return;
+            }
+
+            // Update culture fields
+            if (name) culture.name = name.trim();
+            if (creatorName) culture.creatorName = creatorName.trim();
+            if (ethos !== undefined) culture.ethos = Array.isArray(ethos) ? ethos.join(' | ') : ethos;
+            if (beliefs) culture.pillars = beliefs;
+            if (unlocks) culture.unlocks = unlocks;
+            if (tiers) culture.tiers = tiers.map(t => ({
+                name: t.name,
+                percent: t.holdingPercent || t.percent || 0.1,
+                access: t.access || 'Basic access',
+                content: t.content || []
+            }));
+            if (theme) culture.theme = theme;
+            if (category) culture.category = category;
+            culture.updatedAt = new Date().toISOString();
+
+            // Recalculate integrity hash
+            culture.integrityHash = crypto.createHash('sha256')
+                .update(JSON.stringify({ name: culture.name, creatorName: culture.creatorName, beliefs: culture.pillars }))
+                .digest('hex');
+
+            if (saveCultures(cultures)) {
+                console.log(`[CULTURES] Updated: ${culture.name} (ID: ${culture.id})`);
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true, culture }));
+            } else {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Failed to save culture' }));
+            }
+        } catch (e) {
+            console.error('[CULTURES] Update error:', e);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
     // API: Get authentication challenge for wallet signing
     if (url.pathname === '/api/culture/auth-challenge' && req.method === 'POST') {
         try {
