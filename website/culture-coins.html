@@ -2209,6 +2209,7 @@
           const [showComments, setShowComments] = useState(false);
           const [newComment, setNewComment] = useState('');
           const isLiked = post.likes?.includes(currentUser);
+          const isReposted = post.repostedBy?.includes(currentUser);
           const timeAgo = (date) => {
             const seconds = Math.floor((new Date() - new Date(date)) / 1000);
             if (seconds < 60) return 'just now';
@@ -2375,16 +2376,17 @@
                   style={{
                     background: 'none',
                     border: 'none',
-                    color: '#666',
+                    color: isReposted ? '#22c55e' : '#666',
                     fontSize: '12px',
                     fontFamily: "'IBM Plex Mono', monospace",
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '6px'
+                    gap: '6px',
+                    transition: 'color 0.2s'
                   }}
                 >
-                  <span style={{ fontSize: '14px' }}>↻</span>
+                  <span style={{ fontSize: '14px' }}>{isReposted ? '✓↻' : '↻'}</span>
                   {post.reposts || 0}
                 </button>
               </div>
@@ -2819,12 +2821,14 @@
               marginBottom: '24px',
               overflow: 'hidden'
             }}>
-              {/* Banner */}
+              {/* Banner - 1500x300 recommended */}
               <div
                 style={{
-                  height: '180px',
+                  height: '300px',
+                  maxWidth: '1500px',
+                  margin: '0 auto',
                   background: profile?.banner
-                    ? `url(${profile.banner}) center/cover`
+                    ? `url(${profile.banner}) center/cover no-repeat`
                     : 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%)',
                   position: 'relative'
                 }}
@@ -2842,18 +2846,28 @@
                       onClick={() => bannerInputRef.current?.click()}
                       style={{
                         position: 'absolute',
-                        bottom: '12px',
-                        right: '12px',
-                        padding: '8px 16px',
-                        background: 'rgba(0,0,0,0.7)',
-                        border: '1px solid #333',
-                        color: '#fff',
-                        fontSize: '11px',
+                        bottom: '16px',
+                        right: '16px',
+                        padding: '10px 20px',
+                        background: 'rgba(0,0,0,0.8)',
+                        border: '1px solid #22c55e',
+                        color: '#22c55e',
+                        fontSize: '12px',
                         fontFamily: "'IBM Plex Mono', monospace",
-                        cursor: 'pointer'
+                        cursor: 'pointer',
+                        letterSpacing: '0.05em',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseOver={(e) => {
+                        e.target.style.background = '#22c55e';
+                        e.target.style.color = '#000';
+                      }}
+                      onMouseOut={(e) => {
+                        e.target.style.background = 'rgba(0,0,0,0.8)';
+                        e.target.style.color = '#22c55e';
                       }}
                     >
-                      EDIT BANNER
+                      EDIT BANNER (1500×300)
                     </button>
                   </>
                 )}
@@ -3143,6 +3157,26 @@
             localStorage.setItem('culture_posts', JSON.stringify(updatedPosts));
           };
 
+          const handleRepost = (postId) => {
+            if (!wallet?.address) return;
+            const updatedPosts = posts.map(p => {
+              if (p.id === postId) {
+                const reposts = p.repostedBy || [];
+                const hasReposted = reposts.includes(wallet.address);
+                return {
+                  ...p,
+                  reposts: hasReposted ? (p.reposts || 1) - 1 : (p.reposts || 0) + 1,
+                  repostedBy: hasReposted
+                    ? reposts.filter(r => r !== wallet.address)
+                    : [...reposts, wallet.address]
+                };
+              }
+              return p;
+            });
+            setPosts(updatedPosts);
+            localStorage.setItem('culture_posts', JSON.stringify(updatedPosts));
+          };
+
           if (loading) {
             return (
               <div style={{ padding: '136px 40px 60px', textAlign: 'center' }}>
@@ -3232,6 +3266,7 @@
                       currentUser={wallet?.address}
                       onLike={handleLike}
                       onComment={handleComment}
+                      onRepost={handleRepost}
                     />
                   ))
                 )}
@@ -3440,6 +3475,28 @@
                     content: comment,
                     createdAt: new Date().toISOString()
                   }]
+                };
+              }
+              return p;
+            });
+            localStorage.setItem('culture_posts', JSON.stringify(updatedAll));
+            setMyPosts(updatedAll.filter(p => p.authorWallet === wallet.address));
+          };
+
+          // Handle repost
+          const handleRepost = (postId) => {
+            if (!wallet?.address) return;
+            const allPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
+            const updatedAll = allPosts.map(p => {
+              if (p.id === postId) {
+                const reposts = p.repostedBy || [];
+                const hasReposted = reposts.includes(wallet.address);
+                return {
+                  ...p,
+                  reposts: hasReposted ? (p.reposts || 1) - 1 : (p.reposts || 0) + 1,
+                  repostedBy: hasReposted
+                    ? reposts.filter(r => r !== wallet.address)
+                    : [...reposts, wallet.address]
                 };
               }
               return p;
@@ -3788,6 +3845,7 @@
                           currentUser={wallet?.address}
                           onLike={handleLike}
                           onComment={handleComment}
+                          onRepost={handleRepost}
                         />
                       ))
                     )}
@@ -3826,6 +3884,7 @@
                         currentUser={wallet?.address}
                         onLike={handleLike}
                         onComment={handleComment}
+                        onRepost={handleRepost}
                       />
                     ))
                   )}
