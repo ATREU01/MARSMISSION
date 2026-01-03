@@ -330,6 +330,21 @@ function getTokensByCreator(creatorWallet) {
     return data.tokens.filter(t => t.creator === creatorWallet);
 }
 
+// Update token status (for launch completion, etc.)
+function updateTokenStatus(tokenMint, updates = {}) {
+    const data = loadTokens();
+    const token = data.tokens.find(t => t.mint === tokenMint);
+
+    if (token) {
+        // Apply updates
+        Object.assign(token, updates);
+        token.lastSeen = Date.now();
+        saveTokens(data);
+        return { updated: true, token };
+    }
+    return { updated: false, token: null };
+}
+
 // Update token stats
 function updateTokenStats(tokenMint, claimed, distributed) {
     const data = loadTokens();
@@ -835,6 +850,7 @@ function removeToken(mint) {
 module.exports = {
     registerToken,
     updateTokenStats,
+    updateTokenStatus,
     getTokens,
     getTokensByCreator,
     keepOnlyTokens,

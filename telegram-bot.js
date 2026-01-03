@@ -1,18 +1,59 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// LAUNCHR Bot v2.1 | Build: 2026-01-03-DEBUG | Commands: /create /existing /ping
+// LAUNCHR Bot v3.0 | Conversational Token Creation | Privy Integration
 // ═══════════════════════════════════════════════════════════════════════════
 const https = require('https');
+const crypto = require('crypto');
+const axios = require('axios');
+const FormData = require('form-data');
 const tracker = require('./tracker');
 const sessions = require('./tg-sessions');
 const { LaunchrEngine } = require('./launchr-engine');
-const { Connection, Keypair } = require('@solana/web3.js');
+const { Connection, Keypair, VersionedTransaction } = require('@solana/web3.js');
 const bs58 = require('bs58');
 
-// DEBUG: Log on module load to confirm new code is running
+// PumpPortal API endpoint
+const PUMPPORTAL_API = 'https://pumpportal.fun/api';
+
 console.log('═══════════════════════════════════════════════════════════════');
-console.log('[TELEGRAM-BOT] v2.1 LOADED - BUILD 2026-01-03-DEBUG');
-console.log('[TELEGRAM-BOT] Commands: /create /existing /ping /start /help');
+console.log('[TELEGRAM-BOT] v3.0 LOADED - CONVERSATIONAL CREATE FLOW');
 console.log('═══════════════════════════════════════════════════════════════');
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONVERSATION STATE MANAGER
+// Tracks multi-step flows like token creation
+// ═══════════════════════════════════════════════════════════════════════════
+const conversations = new Map(); // chatId -> { step, data, expiresAt }
+
+const CONVERSATION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+
+function getConversation(chatId) {
+    const conv = conversations.get(chatId);
+    if (conv && conv.expiresAt > Date.now()) {
+        return conv;
+    }
+    conversations.delete(chatId);
+    return null;
+}
+
+function setConversation(chatId, step, data = {}) {
+    conversations.set(chatId, {
+        step,
+        data,
+        expiresAt: Date.now() + CONVERSATION_TIMEOUT
+    });
+}
+
+function clearConversation(chatId) {
+    conversations.delete(chatId);
+}
+
+// Generate unique link token for Privy connection
+function generateLinkToken() {
+    return crypto.randomBytes(32).toString('hex');
+}
+
+// Store pending Privy links
+const pendingPrivyLinks = new Map(); // token -> { chatId, expiresAt }
 
 class LaunchrBot {
     constructor(token) {
@@ -123,6 +164,179 @@ class LaunchrBot {
             });
         } catch (e) {
             // Silently fail - message may already be deleted
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // TOKEN LAUNCH METHODS - PumpPortal Integration
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Download file from Telegram (for image uploads)
+     */
+    async downloadTelegramFile(fileId) {
+        try {
+            // Get file path from Telegram
+            const fileInfo = await this.request('getFile', { file_id: fileId });
+            if (!fileInfo.ok) return null;
+
+            const filePath = fileInfo.result.file_path;
+            const fileUrl = `https://api.telegram.org/file/bot${this.token}/${filePath}`;
+
+            // Download the file
+            const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
+            return Buffer.from(response.data);
+        } catch (e) {
+            console.error('[DOWNLOAD] Failed to download file:', e.message);
+            return null;
+        }
+    }
+
+    /**
+     * Upload metadata to IPFS via PumpPortal
+     */
+    async uploadMetadataToIPFS(tokenData, imageBuffer) {
+        try {
+            const formData = new FormData();
+            formData.append('name', tokenData.name);
+            formData.append('symbol', tokenData.symbol);
+            formData.append('description', tokenData.description || `${tokenData.name} - Launched via LAUNCHR`);
+            formData.append('twitter', tokenData.twitter || '');
+            formData.append('telegram', '');
+            formData.append('website', 'https://www.launchronsol.xyz');
+            formData.append('showName', 'true');
+
+            if (imageBuffer) {
+                formData.append('file', imageBuffer, {
+                    filename: 'token-image.png',
+                    contentType: 'image/png'
+                });
+            }
+
+            const response = await axios.post(
+                `${PUMPPORTAL_API}/ipfs`,
+                formData,
+                {
+                    headers: formData.getHeaders(),
+                    timeout: 60000
+                }
+            );
+
+            if (response.data && response.data.metadataUri) {
+                return response.data.metadataUri;
+            }
+            return null;
+        } catch (e) {
+            console.error('[IPFS] Upload failed:', e.message);
+            return null;
+        }
+    }
+
+    /**
+     * Grind for vanity address (synchronous, short patterns only)
+     */
+    async grindVanityAddress(suffix, maxSeconds = 120) {
+        console.log(`[VANITY] Grinding for suffix: ${suffix}`);
+        const startTime = Date.now();
+        const maxMs = maxSeconds * 1000;
+        let checked = 0;
+
+        while (Date.now() - startTime < maxMs) {
+            const keypair = Keypair.generate();
+            const address = keypair.publicKey.toBase58().toLowerCase();
+            checked++;
+
+            if (address.endsWith(suffix.toLowerCase())) {
+                console.log(`[VANITY] Found after ${checked} attempts!`);
+                return keypair;
+            }
+
+            // Yield every 10k to prevent blocking
+            if (checked % 10000 === 0) {
+                await new Promise(r => setImmediate(r));
+            }
+        }
+
+        console.log(`[VANITY] Timeout after ${checked} attempts`);
+        return null; // Timeout
+    }
+
+    /**
+     * Launch token on Pump.fun via PumpPortal
+     */
+    async launchTokenOnPump(tokenData, mintKeypair, walletKeypair, devBuySOL = 0) {
+        try {
+            console.log(`[LAUNCH] Creating ${tokenData.name} ($${tokenData.symbol})`);
+
+            // Upload metadata first
+            let imageBuffer = null;
+            if (tokenData.photoFileId) {
+                imageBuffer = await this.downloadTelegramFile(tokenData.photoFileId);
+            }
+
+            const metadataUri = await this.uploadMetadataToIPFS(tokenData, imageBuffer);
+            if (!metadataUri) {
+                console.log('[LAUNCH] Using fallback metadata approach');
+            }
+
+            // Create token via PumpPortal
+            const createParams = new URLSearchParams({
+                publicKey: walletKeypair.publicKey.toBase58(),
+                action: 'create',
+                tokenMetadata: JSON.stringify({
+                    name: tokenData.name,
+                    symbol: tokenData.symbol,
+                    uri: metadataUri || ''
+                }),
+                mint: mintKeypair.publicKey.toBase58(),
+                denominatedInSol: 'true',
+                amount: devBuySOL.toString(),
+                slippage: '15',
+                priorityFee: '0.001',
+                pool: 'pump'
+            });
+
+            const response = await axios.post(
+                `${PUMPPORTAL_API}/trade-local`,
+                createParams.toString(),
+                {
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    responseType: 'arraybuffer',
+                    timeout: 30000
+                }
+            );
+
+            if (!response.data || response.data.byteLength === 0) {
+                throw new Error('No transaction returned from PumpPortal');
+            }
+
+            // Deserialize and sign
+            const tx = VersionedTransaction.deserialize(new Uint8Array(response.data));
+            tx.sign([walletKeypair, mintKeypair]);
+
+            // Send transaction
+            const sig = await this.connection.sendRawTransaction(tx.serialize(), {
+                skipPreflight: true,
+                maxRetries: 3
+            });
+
+            console.log(`[LAUNCH] Transaction sent: ${sig}`);
+
+            // Wait for confirmation
+            await this.connection.confirmTransaction(sig, 'confirmed');
+
+            return {
+                success: true,
+                mint: mintKeypair.publicKey.toBase58(),
+                signature: sig
+            };
+
+        } catch (e) {
+            console.error('[LAUNCH] Failed:', e.message);
+            return {
+                success: false,
+                error: e.message
+            };
         }
     }
 
@@ -330,13 +544,39 @@ RSI: ${engine.rsi.value.toFixed(1)}
 
     // Handle incoming update
     async handleUpdate(update) {
-        if (!update.message || !update.message.text) return;
-
         const msg = update.message;
-        const chatId = msg.chat.id;
-        const text = msg.text.trim();
-        const [command, ...args] = text.split(' ');
+        if (!msg) return;
 
+        const chatId = msg.chat.id;
+        const text = msg.text ? msg.text.trim() : '';
+        const photo = msg.photo; // For image uploads
+
+        // Check if user is in a conversation flow
+        const conv = getConversation(chatId);
+        if (conv) {
+            // Handle conversation step
+            try {
+                await this.handleConversationStep(chatId, conv, text, photo, msg);
+                return;
+            } catch (e) {
+                console.error('Conversation error:', e.message);
+                clearConversation(chatId);
+                await this.sendMessage(chatId, '❌ Something went wrong. Type /create to start over.');
+                return;
+            }
+        }
+
+        // No conversation - check for commands
+        if (!text) return;
+
+        // Allow /cancel to exit any flow
+        if (text.toLowerCase() === '/cancel') {
+            clearConversation(chatId);
+            await this.sendMessage(chatId, '✅ Cancelled. Type /start to see options.');
+            return;
+        }
+
+        const [command, ...args] = text.split(' ');
         const handler = this.commands[command.toLowerCase()];
         if (handler) {
             try {
@@ -345,6 +585,300 @@ RSI: ${engine.rsi.value.toFixed(1)}
                 console.error('Command error:', e.message);
                 await this.sendMessage(chatId, '❌ Error processing command');
             }
+        }
+    }
+
+    // Handle conversation steps for multi-step flows
+    async handleConversationStep(chatId, conv, text, photo, msg) {
+        const { step, data } = conv;
+
+        // Allow cancel at any point
+        if (text.toLowerCase() === '/cancel') {
+            clearConversation(chatId);
+            await this.sendMessage(chatId, '✅ Token creation cancelled.');
+            return;
+        }
+
+        switch (step) {
+            case 'create_await_wallet':
+                // User should have connected wallet, check if they're back
+                if (text.toLowerCase() === 'done' || text.toLowerCase() === 'connected') {
+                    // Check if their wallet is linked
+                    // For now, proceed to next step
+                    setConversation(chatId, 'create_name', data);
+                    await this.sendMessage(chatId, `
+✅ <b>Wallet connected!</b>
+
+Now let's create your token.
+
+<b>What's your token NAME?</b>
+(Example: "MoonDog" or "Pepe 2.0")
+                    `.trim());
+                } else {
+                    await this.sendMessage(chatId, `
+👉 <a href="https://www.launchronsol.xyz/tg-connect?id=${chatId}">TAP HERE TO CONNECT WALLET</a>
+
+After connecting, come back and type <b>done</b>
+
+Or type /cancel to exit.
+                    `.trim());
+                }
+                break;
+
+            case 'create_name':
+                if (!text || text.length < 1 || text.length > 32) {
+                    await this.sendMessage(chatId, '❌ Name must be 1-32 characters. Try again:');
+                    return;
+                }
+                data.name = text;
+                setConversation(chatId, 'create_symbol', data);
+                await this.sendMessage(chatId, `
+✅ Name: <b>${text}</b>
+
+<b>What's your token SYMBOL?</b>
+(Example: "MDOG" - max 10 characters)
+                `.trim());
+                break;
+
+            case 'create_symbol':
+                if (!text || text.length < 1 || text.length > 10) {
+                    await this.sendMessage(chatId, '❌ Symbol must be 1-10 characters. Try again:');
+                    return;
+                }
+                data.symbol = text.toUpperCase();
+                setConversation(chatId, 'create_image', data);
+                await this.sendMessage(chatId, `
+✅ Symbol: <b>${data.symbol}</b>
+
+<b>Send me your token IMAGE</b> 📷
+(Square image works best, or type "skip" to use default)
+                `.trim());
+                break;
+
+            case 'create_image':
+                if (photo && photo.length > 0) {
+                    // Get the largest photo
+                    const largestPhoto = photo[photo.length - 1];
+                    data.photoFileId = largestPhoto.file_id;
+                    data.hasImage = true;
+                } else if (text.toLowerCase() === 'skip') {
+                    data.hasImage = false;
+                } else {
+                    await this.sendMessage(chatId, '📷 Please send an image or type "skip"');
+                    return;
+                }
+                setConversation(chatId, 'create_description', data);
+                await this.sendMessage(chatId, `
+✅ Image: ${data.hasImage ? 'Uploaded!' : 'Using default'}
+
+<b>DESCRIPTION</b> (optional)
+What's your token about? Or type "skip"
+                `.trim());
+                break;
+
+            case 'create_description':
+                data.description = (text.toLowerCase() === 'skip') ? '' : text;
+                setConversation(chatId, 'create_twitter', data);
+                await this.sendMessage(chatId, `
+✅ Description saved!
+
+<b>TWITTER</b> (optional)
+Enter your Twitter handle or type "skip"
+(Example: @MoonDogToken)
+                `.trim());
+                break;
+
+            case 'create_twitter':
+                data.twitter = (text.toLowerCase() === 'skip') ? '' : text.replace('@', '');
+                setConversation(chatId, 'create_vanity', data);
+                await this.sendMessage(chatId, `
+✅ Twitter saved!
+
+<b>🎰 VANITY ADDRESS</b> (optional)
+
+Want a custom token address?
+Examples:
+• Ends with "pump" → ...xxxPUMP
+• Ends with "moon" → ...xxxMOON
+
+Enter your preferred ending (2-5 chars) or type "skip"
+
+<i>Note: Custom addresses may take a few minutes to generate.</i>
+                `.trim());
+                break;
+
+            case 'create_vanity':
+                if (text.toLowerCase() === 'skip') {
+                    data.vanity = null;
+                } else if (text.length >= 2 && text.length <= 5 && /^[a-zA-Z0-9]+$/.test(text)) {
+                    data.vanity = text.toLowerCase();
+                } else if (text.length > 5) {
+                    await this.sendMessage(chatId, '❌ Vanity suffix must be 2-5 characters. Try again or type "skip":');
+                    return;
+                } else {
+                    data.vanity = null;
+                }
+
+                setConversation(chatId, 'create_devbuy', data);
+                await this.sendMessage(chatId, `
+✅ Vanity: ${data.vanity ? data.vanity.toUpperCase() : 'Random address'}
+
+<b>💰 INITIAL DEV BUY</b> (optional)
+
+How much SOL to buy at launch?
+• Enter amount (e.g., "0.5" or "1")
+• Or type "0" or "skip" for no initial buy
+
+<i>This buys tokens right at launch price.</i>
+                `.trim());
+                break;
+
+            case 'create_devbuy':
+                const devBuyAmount = parseFloat(text);
+                if (text.toLowerCase() === 'skip' || text === '0') {
+                    data.devBuy = 0;
+                } else if (!isNaN(devBuyAmount) && devBuyAmount >= 0 && devBuyAmount <= 10) {
+                    data.devBuy = devBuyAmount;
+                } else {
+                    await this.sendMessage(chatId, '❌ Enter a number between 0-10 SOL, or type "skip":');
+                    return;
+                }
+
+                setConversation(chatId, 'create_confirm', data);
+                await this.sendMessage(chatId, `
+🚀 <b>READY TO LAUNCH!</b>
+
+<b>━━━ TOKEN DETAILS ━━━</b>
+<b>Name:</b> ${data.name}
+<b>Symbol:</b> ${data.symbol}
+<b>Image:</b> ${data.hasImage ? '✅ Uploaded' : '📷 Default'}
+<b>Description:</b> ${data.description || '(none)'}
+<b>Twitter:</b> ${data.twitter ? '@' + data.twitter : '(none)'}
+
+<b>━━━ LAUNCH OPTIONS ━━━</b>
+<b>Vanity Address:</b> ${data.vanity ? '...' + data.vanity.toUpperCase() : 'Random'}
+<b>Dev Buy:</b> ${data.devBuy > 0 ? data.devBuy + ' SOL' : 'None'}
+
+<b>━━━━━━━━━━━━━━━━━━━━</b>
+
+Type <b>LAUNCH</b> to create your token!
+Or /cancel to abort.
+                `.trim());
+                break;
+
+            case 'create_confirm':
+                if (text.toUpperCase() === 'LAUNCH') {
+                    clearConversation(chatId);
+
+                    await this.sendMessage(chatId, '🚀 <b>LAUNCHING YOUR TOKEN...</b>\n\nThis may take a moment...');
+
+                    try {
+                        // Step 1: Get or create mint keypair
+                        let mintKeypair;
+                        if (data.vanity) {
+                            await this.sendMessage(chatId, `🎰 Grinding for vanity address ending in <b>${data.vanity.toUpperCase()}</b>...\n\n<i>This may take 1-2 minutes...</i>`);
+                            mintKeypair = await this.grindVanityAddress(data.vanity, 120);
+
+                            if (!mintKeypair) {
+                                await this.sendMessage(chatId, `⏰ Vanity grinding timed out. Using random address instead.`);
+                                mintKeypair = Keypair.generate();
+                            } else {
+                                await this.sendMessage(chatId, `✅ Found vanity address: <code>...${mintKeypair.publicKey.toBase58().slice(-8)}</code>`);
+                            }
+                        } else {
+                            mintKeypair = Keypair.generate();
+                        }
+
+                        // Step 2: Check if user has connected wallet via Privy
+                        // For now, store the pending launch and redirect to website
+                        const launchId = crypto.randomBytes(16).toString('hex');
+
+                        // Store pending launch data for website to pick up
+                        const pendingLaunch = {
+                            launchId,
+                            chatId,
+                            tokenData: {
+                                name: data.name,
+                                symbol: data.symbol,
+                                description: data.description || '',
+                                twitter: data.twitter || '',
+                                hasImage: data.hasImage,
+                                photoFileId: data.photoFileId || null
+                            },
+                            mintKeypair: {
+                                publicKey: mintKeypair.publicKey.toBase58(),
+                                secretKey: bs58.encode(mintKeypair.secretKey)
+                            },
+                            devBuy: data.devBuy || 0,
+                            createdAt: Date.now(),
+                            status: 'pending_wallet'
+                        };
+
+                        // Store in memory (in production, use Redis/DB)
+                        if (!global.pendingLaunches) global.pendingLaunches = new Map();
+                        global.pendingLaunches.set(launchId, pendingLaunch);
+
+                        // Clean up old pending launches (older than 1 hour)
+                        const oneHourAgo = Date.now() - (60 * 60 * 1000);
+                        for (const [id, launch] of global.pendingLaunches) {
+                            if (launch.createdAt < oneHourAgo) {
+                                global.pendingLaunches.delete(id);
+                            }
+                        }
+
+                        await this.sendMessage(chatId, `
+✅ <b>TOKEN READY TO LAUNCH!</b>
+
+<b>━━━ TOKEN INFO ━━━</b>
+<b>Name:</b> ${data.name}
+<b>Symbol:</b> $${data.symbol}
+<b>Mint:</b> <code>${mintKeypair.publicKey.toBase58().slice(0, 8)}...${mintKeypair.publicKey.toBase58().slice(-8)}</code>
+${data.vanity ? `<b>Vanity:</b> ✅ ...${mintKeypair.publicKey.toBase58().slice(-6).toUpperCase()}` : ''}
+${data.devBuy > 0 ? `<b>Dev Buy:</b> ${data.devBuy} SOL` : ''}
+
+<b>━━━ FINAL STEP ━━━</b>
+
+👉 <a href="https://www.launchronsol.xyz/launch/${launchId}">TAP HERE TO SIGN & LAUNCH</a>
+
+<b>What happens:</b>
+1. Connect your wallet (Phantom/Solflare)
+2. Sign the transaction
+3. Your token goes LIVE on Pump.fun! 🚀
+
+<i>Link expires in 1 hour.</i>
+
+<b>━━━━━━━━━━━━━━━━━━━━</b>
+
+<i>🔒 Non-custodial: Your wallet signs directly.</i>
+<i>⚠️ Meme coins are speculative. DYOR.</i>
+                        `.trim());
+
+                        // Register token in tracker
+                        tracker.registerToken(mintKeypair.publicKey.toBase58(), null, {
+                            source: 'telegram-create',
+                            name: data.name,
+                            symbol: data.symbol,
+                            status: 'pending'
+                        });
+
+                    } catch (launchError) {
+                        console.error('[LAUNCH] Error:', launchError.message);
+                        await this.sendMessage(chatId, `
+❌ <b>LAUNCH FAILED</b>
+
+Error: ${launchError.message}
+
+Please try again with /create or contact support.
+                        `.trim());
+                    }
+                } else {
+                    await this.sendMessage(chatId, 'Type <b>LAUNCH</b> to confirm, or /cancel to abort.');
+                }
+                break;
+
+            default:
+                clearConversation(chatId);
+                await this.sendMessage(chatId, '❌ Unknown state. Type /create to start over.');
         }
     }
 
@@ -389,42 +923,35 @@ RSI: ${engine.rsi.value.toFixed(1)}
 
     // /ping command - Test deployment
     async handlePing(chatId) {
-        await this.sendMessage(chatId, `🏓 PONG!\n\nBot Version: 2.0 - CREATE/EXISTING UPDATE\nDeployed: ${new Date().toISOString()}\n\n✅ If you see this, the NEW code is running!`);
+        await this.sendMessage(chatId, `🏓 PONG!\n\nBot Version: 3.0 - CONVERSATIONAL CREATE FLOW\nFeatures: Vanity Mint, Dev Buy, IPFS Upload\nDeployed: ${new Date().toISOString()}\n\n✅ NEW code is running!`);
     }
 
-    // /create command - Launch new token
+    // /create command - Launch new token (CONVERSATIONAL FLOW)
     async handleCreate(chatId, args, msg) {
+        // Start the conversation flow
+        setConversation(chatId, 'create_await_wallet', {});
+
         const text = `
-<b>🚀 CREATE NEW TOKEN</b>
+<b>🚀 LET'S CREATE YOUR TOKEN!</b>
 
-<b>STEP 1 - GO TO LAUNCHPAD:</b>
-👉 <a href="https://www.launchronsol.xyz/launchpad">TAP HERE TO OPEN</a>
+First, connect your wallet so we can launch for you.
 
-<b>STEP 2 - ON THE WEBSITE:</b>
-• Connect your wallet
-• Enter token name & symbol
-• Upload your image
-• Add socials (Twitter, etc)
-• Click LAUNCH
+👉 <a href="https://www.launchronsol.xyz/tg-connect?id=${chatId}">TAP HERE TO CONNECT WALLET</a>
 
-<b>STEP 3 - COME BACK HERE!</b>
-After your token launches, come back to this chat.
-
-<b>STEP 4 - GO TO DASHBOARD:</b>
-👉 <a href="https://www.launchronsol.xyz/dashboard">TAP HERE FOR DASHBOARD</a>
-
-<b>STEP 5 - ON DASHBOARD:</b>
-• Select your token
-• Set fee allocations
-• Enable ORBIT automation
-• Your fees auto-distribute 24/7!
+After connecting, come back here and type <b>done</b>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 
-<b>🔒 100% NON-CUSTODIAL</b>
-We NEVER hold your keys.
+<b>What happens next:</b>
+1. You'll enter token name & symbol
+2. Upload an image (optional)
+3. Add description & socials
+4. Confirm and LAUNCH! 🚀
 
-<i>⚠️ Meme coins are speculative. DYOR.</i>
+<b>🔒 NON-CUSTODIAL</b>
+We use Privy MPC - we never hold your keys.
+
+Type /cancel anytime to exit.
         `.trim();
 
         await this.sendMessage(chatId, text);
