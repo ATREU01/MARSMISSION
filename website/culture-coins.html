@@ -1876,6 +1876,51 @@
                     </div>
                   </div>
 
+                  {/* Unlocks - What Participation Unlocks */}
+                  {culture.unlocks && culture.unlocks.length > 0 && (
+                    <div style={{ marginBottom: '48px' }}>
+                      <div style={{
+                        fontSize: '10px',
+                        letterSpacing: '0.15em',
+                        color: '#666',
+                        marginBottom: '24px',
+                        fontFamily: "'IBM Plex Mono', monospace"
+                      }}>
+                        WHAT PARTICIPATION UNLOCKS
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        {culture.unlocks.map((unlock, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              padding: '24px',
+                              background: cardBg,
+                              border: `1px solid ${borderColor}`
+                            }}
+                          >
+                            <div style={{
+                              fontFamily: "'Playfair Display', serif",
+                              fontSize: '18px',
+                              color: textColor,
+                              marginBottom: '12px'
+                            }}>
+                              {unlock.title}
+                            </div>
+                            <div style={{
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontSize: '12px',
+                              color: textColor,
+                              opacity: 0.7,
+                              lineHeight: 1.6
+                            }}>
+                              {unlock.description}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Auctions */}
                   {cultureAuctions.length > 0 && (
                     <div>
@@ -8383,11 +8428,25 @@
             sessionStorage.setItem('cc_holdings', JSON.stringify(userHoldings));
           }, [userHoldings]);
 
-          // Check for just-created culture on page load
+          // Check for URL parameters on page load (view, show, id)
           useEffect(() => {
             const params = new URLSearchParams(window.location.search);
+            const viewParam = params.get('view');
             const showId = params.get('show');
 
+            // Handle view parameter (edit, dashboard, create, etc.)
+            if (viewParam) {
+              console.log('[APP] View param:', viewParam);
+              if (['edit', 'create', 'dashboard', 'discover', 'feed', 'auctions'].includes(viewParam)) {
+                setView(viewParam);
+                // Don't clear URL for edit (need to keep params)
+                if (viewParam !== 'edit') {
+                  window.history.replaceState({}, '', '/culture-coins');
+                }
+              }
+            }
+
+            // Handle show parameter (show just-created culture)
             if (showId) {
               // Try to load just-created culture from localStorage
               const justCreated = localStorage.getItem('just_created_culture');
