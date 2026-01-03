@@ -3607,45 +3607,94 @@
             );
           });
 
-          // Not connected state
+          // Not connected state - Login Screen
           if (!wallet?.address) {
             return (
-              <div style={{ padding: '136px 40px 60px', textAlign: 'center' }}>
-                <div style={{ maxWidth: '500px', margin: '0 auto' }}>
+              <div style={{
+                padding: '136px 40px 60px',
+                minHeight: '100vh',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'linear-gradient(180deg, #0a0a0a 0%, #0f0f0f 50%, #0a0a0a 100%)'
+              }}>
+                <div style={{
+                  maxWidth: '450px',
+                  textAlign: 'center',
+                  padding: '60px 40px',
+                  background: 'rgba(15, 15, 15, 0.8)',
+                  border: '1px solid #1a1a1a',
+                  boxShadow: '0 0 60px rgba(34, 197, 94, 0.05)'
+                }}>
+                  <div style={{
+                    width: '80px',
+                    height: '80px',
+                    margin: '0 auto 32px',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '36px',
+                    boxShadow: '0 0 40px rgba(34, 197, 94, 0.3)'
+                  }}>
+                    ⚡
+                  </div>
                   <h1 style={{
                     fontFamily: "'Playfair Display', serif",
-                    fontSize: '48px',
+                    fontSize: '36px',
                     fontWeight: 400,
                     color: '#fff',
-                    marginBottom: '24px'
+                    marginBottom: '16px'
                   }}>
-                    Your Cultures
+                    Welcome to Culture Coins
                   </h1>
                   <p style={{
                     fontFamily: "'IBM Plex Mono', monospace",
-                    fontSize: '14px',
-                    color: '#666',
+                    fontSize: '13px',
+                    color: '#888',
+                    marginBottom: '12px',
+                    lineHeight: 1.8
+                  }}>
+                    Your Web3 social space for crypto creators.
+                  </p>
+                  <p style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: '12px',
+                    color: '#555',
                     marginBottom: '40px',
                     lineHeight: 1.7
                   }}>
-                    Connect your wallet to view your culture holdings and participation standing.
+                    Connect your wallet to access your personal dashboard, create cultures, post content, and connect with the community.
                   </p>
                   <button
                     onClick={wallet?.connect}
                     style={{
-                      padding: '16px 40px',
-                      background: '#fff',
+                      padding: '18px 50px',
+                      background: 'linear-gradient(135deg, #22c55e, #16a34a)',
                       border: 'none',
                       color: '#000',
-                      fontSize: '12px',
+                      fontSize: '13px',
                       fontFamily: "'IBM Plex Mono', monospace",
                       letterSpacing: '0.1em',
                       cursor: 'pointer',
-                      fontWeight: 600
+                      fontWeight: 700,
+                      transition: 'all 0.3s',
+                      boxShadow: '0 0 20px rgba(34, 197, 94, 0.3)'
                     }}
+                    onMouseOver={(e) => e.target.style.boxShadow = '0 0 30px rgba(34, 197, 94, 0.5)'}
+                    onMouseOut={(e) => e.target.style.boxShadow = '0 0 20px rgba(34, 197, 94, 0.3)'}
                   >
-                    CONNECT WALLET
+                    CONNECT WALLET TO ENTER
                   </button>
+                  <p style={{
+                    marginTop: '24px',
+                    fontSize: '10px',
+                    color: '#444',
+                    fontFamily: "'IBM Plex Mono', monospace"
+                  }}>
+                    Supports Phantom, Solflare, and other Solana wallets
+                  </p>
                 </div>
               </div>
             );
@@ -3656,58 +3705,6 @@
             return (
               <div style={{ padding: '136px 40px 60px', textAlign: 'center' }}>
                 <p style={{ color: '#888', fontFamily: "'IBM Plex Mono', monospace" }}>Loading your cultures...</p>
-              </div>
-            );
-          }
-
-          // No cultures created yet
-          if (myCultures.length === 0) {
-            return (
-              <div style={{ padding: '136px 40px 60px', textAlign: 'center' }}>
-                <div style={{ maxWidth: '500px', margin: '0 auto' }}>
-                  <h1 style={{
-                    fontFamily: "'Playfair Display', serif",
-                    fontSize: '48px',
-                    fontWeight: 400,
-                    color: '#fff',
-                    marginBottom: '24px'
-                  }}>
-                    No Cultures Created
-                  </h1>
-                  <p style={{
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    fontSize: '14px',
-                    color: '#666',
-                    marginBottom: '16px',
-                    lineHeight: 1.7
-                  }}>
-                    You haven't created any cultures yet. Create your first culture coin and build your community.
-                  </p>
-                  <p style={{
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    fontSize: '12px',
-                    color: '#444',
-                    marginBottom: '40px'
-                  }}>
-                    Connected: {wallet.address.slice(0,6)}...{wallet.address.slice(-4)}
-                  </p>
-                  <button
-                    onClick={() => window.location.href = '/culture-coins?view=create'}
-                    style={{
-                      padding: '16px 40px',
-                      background: '#fff',
-                      border: 'none',
-                      color: '#000',
-                      fontSize: '12px',
-                      fontFamily: "'IBM Plex Mono', monospace",
-                      letterSpacing: '0.1em',
-                      cursor: 'pointer',
-                      fontWeight: 600
-                    }}
-                  >
-                    CREATE CULTURE
-                  </button>
-                </div>
               </div>
             );
           }
