@@ -2650,6 +2650,69 @@ The 4 percentages MUST sum to exactly 100.`;
         return;
     }
 
+    // API: Get coins created by a specific wallet from pump.fun
+    if (url.pathname === '/api/pump/coins-by-creator' && req.method === 'GET') {
+        const wallet = url.searchParams.get('wallet');
+        if (!wallet) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Wallet address required' }));
+            return;
+        }
+
+        const cacheKey = `pump_creator_${wallet}`;
+        const CACHE_TTL = 60000; // 1 minute cache
+
+        // Initialize cache
+        if (!global.pumpCreatorCache) global.pumpCreatorCache = new Map();
+
+        // Check cache first
+        const cached = global.pumpCreatorCache.get(cacheKey);
+        if (cached && Date.now() - cached.ts < CACHE_TTL) {
+            res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'HIT' });
+            res.end(JSON.stringify(cached.data));
+            return;
+        }
+
+        try {
+            // Pump.fun API for coins created by wallet
+            const pumpUrl = `https://frontend-api.pump.fun/coins/user-created-coins/${wallet}`;
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 8000);
+
+            console.log(`[PUMP] Fetching coins by creator: ${wallet}`);
+
+            const pumpRes = await fetch(pumpUrl, {
+                headers: {
+                    'Accept': 'application/json',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                },
+                signal: controller.signal
+            });
+            clearTimeout(timeout);
+
+            if (!pumpRes.ok) {
+                console.warn(`[PUMP] API returned ${pumpRes.status} for creator ${wallet}`);
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify([]));
+                return;
+            }
+
+            const coins = await pumpRes.json();
+            console.log(`[PUMP] Found ${coins?.length || 0} coins created by ${wallet.slice(0, 8)}...`);
+
+            // Cache result
+            global.pumpCreatorCache.set(cacheKey, { data: coins || [], ts: Date.now() });
+
+            res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'MISS' });
+            res.end(JSON.stringify(coins || []));
+        } catch (e) {
+            console.error('[PUMP] Creator coins error:', e.message);
+            res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'ERROR' });
+            res.end(JSON.stringify(cached?.data || []));
+        }
+        return;
+    }
+
     // API: Proxy for Pump.fun API with caching + rate limiting (ALICE pattern)
     if (url.pathname === '/api/pump/coins' && req.method === 'GET') {
         const CACHE_TTL = 30000; // 30 seconds cache
