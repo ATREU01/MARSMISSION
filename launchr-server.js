@@ -9,6 +9,9 @@ const tracker = require('./tracker');
 const profiles = require('./profiles');
 const { LaunchrBot } = require('./telegram-bot');
 
+// Production Database Module
+const { cultureDB, profileDB, postDB, mediaDB, rateLimiter, MEDIA_DIR } = require('./database');
+
 // Culture Coins Security Module - CIA-Level Protection (optional - graceful fallback)
 let CultureSecurityController = null;
 let CULTURE_CSP = null;
@@ -1408,6 +1411,33 @@ const server = http.createServer(async (req, res) => {
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: true, cultures }));
         } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Get cultures created by a specific wallet
+    if (url.pathname === '/api/cultures/by-wallet' && req.method === 'GET') {
+        try {
+            const wallet = url.searchParams.get('wallet');
+            if (!wallet) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Wallet address required' }));
+                return;
+            }
+
+            const allCultures = loadCultures();
+            // Filter cultures where creatorWallet or creator matches the wallet
+            const userCultures = allCultures.filter(c =>
+                c.creatorWallet === wallet ||
+                c.creator === wallet
+            );
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, cultures: userCultures }));
+        } catch (e) {
+            console.error('[API] cultures by wallet error:', e);
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: false, error: e.message }));
         }
@@ -3015,6 +3045,373 @@ The 4 percentages MUST sum to exactly 100.`;
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ isFollowing }));
         } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Internal server error' }));
+        }
+        return;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // POSTS API - Database-backed social feed
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // API: Create a new post
+    if (url.pathname === '/api/posts' && req.method === 'POST') {
+        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        try {
+            // Rate limit check
+            if (!rateLimiter.checkLimit(clientIP, 'post')) {
+                res.writeHead(429, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Rate limit exceeded. Please wait before posting again.' }));
+                return;
+            }
+
+            const body = await parseBody(req, 100 * 1024); // 100KB max for post data
+            const { authorWallet, cultureId, content, mediaUrls } = body;
+
+            if (!authorWallet || !content) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Author wallet and content are required' }));
+                return;
+            }
+
+            const post = postDB.create({
+                authorWallet,
+                cultureId: cultureId || null,
+                content: content.trim().slice(0, 5000), // Max 5000 chars
+                mediaUrls: mediaUrls || []
+            });
+
+            console.log(`[POSTS] Created post ${post.id} by ${authorWallet.slice(0, 8)}...`);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, post }));
+        } catch (e) {
+            console.error('[POSTS] Create error:', e);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Get posts (with optional filters)
+    if (url.pathname === '/api/posts' && req.method === 'GET') {
+        try {
+            const cultureId = url.searchParams.get('cultureId');
+            const authorWallet = url.searchParams.get('author');
+            const limit = parseInt(url.searchParams.get('limit')) || 50;
+            const offset = parseInt(url.searchParams.get('offset')) || 0;
+
+            let posts;
+            if (cultureId) {
+                posts = postDB.getByCulture(parseInt(cultureId), limit, offset);
+            } else if (authorWallet) {
+                posts = postDB.getByAuthor(authorWallet, limit, offset);
+            } else {
+                posts = postDB.getAll(limit, offset);
+            }
+
+            // Enrich with profile data
+            const enrichedPosts = posts.map(post => {
+                const profile = profileDB.getByWallet(post.author_wallet);
+                return {
+                    ...post,
+                    authorName: profile?.display_name || profile?.username || post.author_wallet.slice(0, 8) + '...',
+                    authorAvatar: profile?.avatar || null
+                };
+            });
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, posts: enrichedPosts }));
+        } catch (e) {
+            console.error('[POSTS] Get error:', e);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Get single post by ID
+    if (url.pathname.match(/^\/api\/posts\/\d+$/) && req.method === 'GET') {
+        try {
+            const postId = parseInt(url.pathname.split('/').pop());
+            const post = postDB.getById(postId);
+
+            if (!post) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Post not found' }));
+                return;
+            }
+
+            const profile = profileDB.getByWallet(post.author_wallet);
+            const enrichedPost = {
+                ...post,
+                authorName: profile?.display_name || profile?.username || post.author_wallet.slice(0, 8) + '...',
+                authorAvatar: profile?.avatar || null
+            };
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, post: enrichedPost }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Like a post
+    if (url.pathname.match(/^\/api\/posts\/\d+\/like$/) && req.method === 'POST') {
+        try {
+            const postId = parseInt(url.pathname.split('/')[3]);
+            const body = await parseBody(req);
+            const { wallet } = body;
+
+            if (!wallet) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Wallet required' }));
+                return;
+            }
+
+            const result = postDB.like(postId, wallet);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, likes: result.likes }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Repost
+    if (url.pathname.match(/^\/api\/posts\/\d+\/repost$/) && req.method === 'POST') {
+        try {
+            const postId = parseInt(url.pathname.split('/')[3]);
+            const body = await parseBody(req);
+            const { wallet } = body;
+
+            if (!wallet) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Wallet required' }));
+                return;
+            }
+
+            const result = postDB.repost(postId, wallet);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, reposts: result.reposts }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Add comment to post
+    if (url.pathname.match(/^\/api\/posts\/\d+\/comment$/) && req.method === 'POST') {
+        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        try {
+            if (!rateLimiter.checkLimit(clientIP, 'post')) {
+                res.writeHead(429, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Rate limit exceeded' }));
+                return;
+            }
+
+            const postId = parseInt(url.pathname.split('/')[3]);
+            const body = await parseBody(req);
+            const { authorWallet, content } = body;
+
+            if (!authorWallet || !content) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Author and content required' }));
+                return;
+            }
+
+            const comment = postDB.addComment(postId, authorWallet, content.trim().slice(0, 2000));
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, comment }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Get comments for a post
+    if (url.pathname.match(/^\/api\/posts\/\d+\/comments$/) && req.method === 'GET') {
+        try {
+            const postId = parseInt(url.pathname.split('/')[3]);
+            const comments = postDB.getComments(postId);
+
+            // Enrich with profile data
+            const enrichedComments = comments.map(comment => {
+                const profile = profileDB.getByWallet(comment.author_wallet);
+                return {
+                    ...comment,
+                    authorName: profile?.display_name || profile?.username || comment.author_wallet.slice(0, 8) + '...',
+                    authorAvatar: profile?.avatar || null
+                };
+            });
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, comments: enrichedComments }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Delete post (owner only)
+    if (url.pathname.match(/^\/api\/posts\/\d+$/) && req.method === 'DELETE') {
+        try {
+            const postId = parseInt(url.pathname.split('/').pop());
+            const body = await parseBody(req);
+            const { wallet } = body;
+
+            if (!wallet) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Wallet required' }));
+                return;
+            }
+
+            const post = postDB.getById(postId);
+            if (!post) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Post not found' }));
+                return;
+            }
+
+            if (post.author_wallet !== wallet) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Not authorized to delete this post' }));
+                return;
+            }
+
+            postDB.delete(postId);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // MEDIA UPLOAD API - File storage for images/videos
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // API: Upload media file
+    if (url.pathname === '/api/media/upload' && req.method === 'POST') {
+        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        try {
+            if (!rateLimiter.checkLimit(clientIP, 'upload')) {
+                res.writeHead(429, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Upload rate limit exceeded. Please wait.' }));
+                return;
+            }
+
+            const contentType = req.headers['content-type'] || '';
+            const contentLength = parseInt(req.headers['content-length'] || '0');
+
+            // Size limits
+            const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
+            const MAX_IMAGE_SIZE = 5 * 1024 * 1024;  // 5MB
+
+            const isVideo = contentType.includes('video');
+            const maxSize = isVideo ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE;
+
+            if (contentLength > maxSize) {
+                res.writeHead(413, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    error: `File too large. Max size: ${isVideo ? '50MB for videos' : '5MB for images'}`
+                }));
+                return;
+            }
+
+            // Read the file data
+            const chunks = [];
+            for await (const chunk of req) {
+                chunks.push(chunk);
+                // Double-check size during upload
+                const currentSize = chunks.reduce((acc, c) => acc + c.length, 0);
+                if (currentSize > maxSize) {
+                    res.writeHead(413, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'File too large' }));
+                    return;
+                }
+            }
+
+            const fileBuffer = Buffer.concat(chunks);
+
+            // Determine file type from content-type header
+            let fileType = 'bin';
+            if (contentType.includes('image/jpeg') || contentType.includes('image/jpg')) fileType = 'jpg';
+            else if (contentType.includes('image/png')) fileType = 'png';
+            else if (contentType.includes('image/gif')) fileType = 'gif';
+            else if (contentType.includes('image/webp')) fileType = 'webp';
+            else if (contentType.includes('video/mp4')) fileType = 'mp4';
+            else if (contentType.includes('video/webm')) fileType = 'webm';
+            else if (contentType.includes('video/quicktime')) fileType = 'mov';
+
+            // Save to disk
+            const result = mediaDB.save(fileBuffer, fileType, url.searchParams.get('wallet') || 'anonymous');
+
+            console.log(`[MEDIA] Uploaded ${result.filename} (${(fileBuffer.length / 1024).toFixed(1)}KB)`);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                url: `/media/${result.filename}`,
+                filename: result.filename,
+                size: fileBuffer.length
+            }));
+        } catch (e) {
+            console.error('[MEDIA] Upload error:', e);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Serve media files
+    if (url.pathname.startsWith('/media/') && req.method === 'GET') {
+        try {
+            const filename = url.pathname.replace('/media/', '');
+            const filePath = path.join(MEDIA_DIR, filename);
+
+            if (!fs.existsSync(filePath)) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'File not found' }));
+                return;
+            }
+
+            // Determine content type
+            const ext = path.extname(filename).toLowerCase();
+            const contentTypes = {
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.png': 'image/png',
+                '.gif': 'image/gif',
+                '.webp': 'image/webp',
+                '.mp4': 'video/mp4',
+                '.webm': 'video/webm',
+                '.mov': 'video/quicktime'
+            };
+
+            const contentType = contentTypes[ext] || 'application/octet-stream';
+
+            // Stream the file
+            const stat = fs.statSync(filePath);
+            res.writeHead(200, {
+                'Content-Type': contentType,
+                'Content-Length': stat.size,
+                'Cache-Control': 'public, max-age=31536000' // Cache for 1 year
+            });
+
+            const readStream = fs.createReadStream(filePath);
+            readStream.pipe(res);
+        } catch (e) {
+            console.error('[MEDIA] Serve error:', e);
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'Internal server error' }));
         }

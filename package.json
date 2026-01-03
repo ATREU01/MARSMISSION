@@ -22,7 +22,10 @@
     "@solana/spl-token": "^0.3.8",
     "@solana/web3.js": "^1.87.6",
     "axios": "^1.6.0",
+    "better-sqlite3": "^12.5.0",
     "bs58": "^5.0.0",
+    "express-rate-limit": "^8.2.1",
+    "multer": "^2.0.2",
     "tweetnacl": "^1.0.3"
   },
   "keywords": [
