@@ -389,20 +389,22 @@ The first AI-powered fee allocation engine.
     // /create command - Launch new token
     async handleCreate(chatId) {
         const text = `
-<b>CREATE NEW TOKEN</b>
+<b>🚀 CREATE NEW TOKEN</b>
 
-Launch a new token on Pump.fun with LAUNCHR's automated fee distribution built-in.
+Launch your meme coin with LAUNCHR's integrated Pump.fun launchpad.
 
-<b>What you'll get:</b>
-• Automated fee claiming
-• Smart distribution engine
+<b>Features:</b>
+• One-click token creation
+• Vanity wallet addresses available
+• Automated fee distribution engine
 • RSI-timed market making
 • Buyback & burn mechanics
+• 24/7 ORBIT automation
 
-<b>Start here:</b>
-🌐 <a href="https://www.launchronsol.xyz/create">Create on Website</a>
+<b>Launch now:</b>
+👉 <a href="https://www.launchronsol.xyz/launchpad">Open Launchpad</a>
 
-Or use /guide for the complete walkthrough.
+<i>⚠️ DISCLAIMER: Meme coins are highly speculative and for entertainment purposes only. Not financial advice. DYOR.</i>
         `.trim();
 
         await this.sendMessage(chatId, text);
@@ -411,23 +413,26 @@ Or use /guide for the complete walkthrough.
     // /existing command - Import existing token
     async handleExisting(chatId) {
         const text = `
-<b>IMPORT EXISTING TOKEN</b>
+<b>🔗 IMPORT EXISTING TOKEN</b>
 
-Connect an existing Pump.fun token to LAUNCHR to automate your creator fee allocations.
+Already launched on Pump.fun? Connect your token to LAUNCHR's automated fee engine.
 
-<b>How it works:</b>
-1. Connect your wallet via /connect
-2. Provide your token mint address
-3. Set your fee allocations
-4. Engine runs automatically
+<b>What LAUNCHR does:</b>
+• Claims your creator fees automatically
+• Distributes fees based on your allocations
+• Market making, buyback & burn, LP adds
+• Runs 24/7 with ORBIT server signing
 
-<b>Quick Start:</b>
-<code>/connect [private_key] [mint_address]</code>
+<b>How to connect:</b>
+1️⃣ Go to the Dashboard
+2️⃣ Connect your wallet (Phantom/Solflare/Privy)
+3️⃣ Select your token from "My Launches"
+4️⃣ Set your fee allocations
+5️⃣ Enable 24/7 ORBIT automation
 
-Or use the web dashboard:
-🌐 <a href="https://www.launchronsol.xyz/dashboard">Open Dashboard</a>
+👉 <a href="https://www.launchronsol.xyz/dashboard">Open Dashboard</a>
 
-Use /guide for the complete walkthrough.
+<i>Non-custodial. Your wallet, your control.</i>
         `.trim();
 
         await this.sendMessage(chatId, text);
@@ -496,7 +501,7 @@ Use /guide for the complete walkthrough.
 Your token is now listed on the LAUNCHR tracker.
 View it at: https://www.launchronsol.xyz/tracker
 
-Use the dashboard at https://www.launchronsol.xyz/app to configure fee allocations.
+Use the dashboard at https://www.launchronsol.xyz/dashboard to configure fee allocations.
             `.trim());
         } else {
             await this.sendMessage(chatId, `
@@ -631,7 +636,7 @@ Set it and forget it.
 <b>🚀 HOW TO START</b>
 
 1️⃣ Create token on Pump.fun
-2️⃣ Visit https://www.launchronsol.xyz/app
+2️⃣ Visit https://www.launchronsol.xyz/dashboard
 3️⃣ Enter your creator wallet key + mint
 4️⃣ Set allocation percentages
 5️⃣ Click START
@@ -653,7 +658,7 @@ Track via Telegram:
 <b>🔗 LINKS</b>
 
 🌐 Website: https://www.launchronsol.xyz
-📊 Dashboard: https://www.launchronsol.xyz/app
+📊 Dashboard: https://www.launchronsol.xyz/dashboard
 📈 Tracker: https://www.launchronsol.xyz/tracker
 🐦 Twitter: @LaunchrTG
 
