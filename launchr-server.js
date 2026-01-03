@@ -2780,14 +2780,14 @@ The 4 percentages MUST sum to exactly 100.`;
         return;
     }
 
-    // API: Complete a pending launch (requires wallet signature)
-    if (url.pathname === '/api/tg-launch/complete' && req.method === 'POST') {
+    // API: Get unsigned transaction for launch (user will sign with Phantom)
+    if (url.pathname === '/api/tg-launch/build-tx' && req.method === 'POST') {
         let body = '';
         req.on('data', chunk => body += chunk);
         req.on('end', async () => {
             try {
                 const data = JSON.parse(body);
-                const { launchId, signature, walletAddress } = data;
+                const { launchId, walletAddress } = data;
 
                 if (!launchId || !walletAddress) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -2805,16 +2805,110 @@ The 4 percentages MUST sum to exactly 100.`;
                     return;
                 }
 
+                console.log(`[TG-LAUNCH] Building tx for ${launch.tokenData.name} ($${launch.tokenData.symbol})`);
+
+                // Build transaction via PumpPortal
+                const axios = require('axios');
+                const { VersionedTransaction } = require('@solana/web3.js');
+
+                // Get the stored mint keypair
+                const mintKeypair = Keypair.fromSecretKey(bs58.decode(launch.mintKeypair.secretKey));
+
+                // Request transaction from PumpPortal
+                const createParams = new URLSearchParams({
+                    publicKey: walletAddress,
+                    action: 'create',
+                    tokenMetadata: JSON.stringify({
+                        name: launch.tokenData.name,
+                        symbol: launch.tokenData.symbol,
+                        uri: '' // Metadata handled separately
+                    }),
+                    mint: launch.mintKeypair.publicKey,
+                    denominatedInSol: 'true',
+                    amount: (launch.devBuy || 0).toString(),
+                    slippage: '15',
+                    priorityFee: '0.001',
+                    pool: 'pump'
+                });
+
+                const pumpRes = await axios.post(
+                    'https://pumpportal.fun/api/trade-local',
+                    createParams.toString(),
+                    {
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        responseType: 'arraybuffer',
+                        timeout: 30000
+                    }
+                );
+
+                if (!pumpRes.data || pumpRes.data.byteLength === 0) {
+                    throw new Error('PumpPortal returned empty transaction');
+                }
+
+                // Deserialize transaction
+                const tx = VersionedTransaction.deserialize(new Uint8Array(pumpRes.data));
+
+                // Sign with mint keypair (server-side) - user will add their signature
+                tx.sign([mintKeypair]);
+
+                // Return partially signed transaction for user to complete
+                const serializedTx = Buffer.from(tx.serialize()).toString('base64');
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: true,
+                    transaction: serializedTx,
+                    mint: launch.mintKeypair.publicKey
+                }));
+
+            } catch (e) {
+                console.error('[TG-LAUNCH] Build tx error:', e.message);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: e.message }));
+            }
+        });
+        return;
+    }
+
+    // API: Complete a pending launch (after user signed and sent tx)
+    if (url.pathname === '/api/tg-launch/complete' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', async () => {
+            try {
+                const data = JSON.parse(body);
+                const { launchId, signature, walletAddress } = data;
+
+                if (!launchId || !walletAddress || !signature) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Missing launchId, walletAddress, or signature' }));
+                    return;
+                }
+
+                // Get pending launch
+                if (!global.pendingLaunches) global.pendingLaunches = new Map();
+                const launch = global.pendingLaunches.get(launchId);
+
+                if (!launch) {
+                    res.writeHead(404, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Launch not found or expired' }));
+                    return;
+                }
+
+                console.log(`[TG-LAUNCH] Launch completed: ${launch.tokenData.name} - TX: ${signature}`);
+
                 // Mark as completed and update tracker
                 launch.status = 'completed';
                 launch.completedBy = walletAddress;
                 launch.completedAt = Date.now();
+                launch.txSignature = signature;
 
                 // Update token status in tracker
                 tracker.updateTokenStatus(launch.mintKeypair.publicKey, {
                     status: 'active',
                     creator: walletAddress,
-                    launchedAt: Date.now()
+                    launchedAt: Date.now(),
+                    txSignature: signature
                 });
 
                 // Remove from pending (keep for 5 min in case of retries)
@@ -2828,14 +2922,20 @@ The 4 percentages MUST sum to exactly 100.`;
                         await telegramBot.sendMessage(launch.chatId, `
 🎉 <b>TOKEN LAUNCHED!</b>
 
-Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now LIVE!
+Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now LIVE on Pump.fun!
 
 <b>Mint:</b> <code>${launch.mintKeypair.publicKey}</code>
 
 👉 <a href="https://pump.fun/${launch.mintKeypair.publicKey}">View on Pump.fun</a>
+👉 <a href="https://solscan.io/tx/${signature}">View Transaction</a>
 👉 <a href="https://www.launchronsol.xyz/dashboard">Configure ORBIT</a>
 
-<i>🔥 Set your fee allocations to maximize growth!</i>
+<b>NEXT STEPS:</b>
+1. Share your token link
+2. Set fee allocations in Dashboard
+3. Enable ORBIT for 24/7 automation
+
+<i>🔥 Your token is live! LFG! 🚀</i>
                         `.trim());
                     } catch (tgErr) {
                         console.error('[TG-LAUNCH] Failed to notify user:', tgErr.message);
@@ -2846,9 +2946,11 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 res.end(JSON.stringify({
                     success: true,
                     mint: launch.mintKeypair.publicKey,
-                    message: 'Token launched successfully'
+                    signature: signature,
+                    message: 'Token launched successfully!'
                 }));
             } catch (e) {
+                console.error('[TG-LAUNCH] Complete error:', e.message);
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: e.message }));
             }
@@ -2860,7 +2962,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     if (url.pathname.startsWith('/launch/') && req.method === 'GET') {
         const launchId = url.pathname.replace('/launch/', '').trim();
 
-        // Serve the launch page HTML
+        // Serve the launch page HTML with proper Solana web3.js integration
         const launchHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2868,6 +2970,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Complete Your Launch - LAUNCHR</title>
     <link rel="icon" type="image/png" href="/website/logo-icon.png">
+    <script src="https://unpkg.com/@solana/web3.js@1.87.6/lib/index.iife.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -2880,7 +2983,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             justify-content: center;
         }
         .container { max-width: 480px; padding: 2rem; text-align: center; }
-        h1 { font-size: 2rem; margin-bottom: 1rem; }
+        h1 { font-size: 1.8rem; margin-bottom: 1rem; }
         .token-card {
             background: #111;
             border: 1px solid #333;
@@ -2889,16 +2992,19 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             margin: 1.5rem 0;
             text-align: left;
         }
-        .token-card h2 { font-size: 1.5rem; margin-bottom: 0.5rem; }
-        .token-card .symbol { color: #888; }
+        .token-card h2 { font-size: 1.4rem; margin-bottom: 0.5rem; }
+        .token-card .symbol { color: #14F195; font-weight: bold; }
         .token-card .mint {
             font-family: monospace;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: #666;
             word-break: break-all;
-            margin-top: 0.5rem;
+            margin-top: 0.75rem;
+            padding: 0.5rem;
+            background: #0a0a0a;
+            border-radius: 4px;
         }
-        .detail { margin: 0.5rem 0; color: #aaa; }
+        .detail { margin: 0.5rem 0; color: #aaa; font-size: 0.9rem; }
         .btn {
             background: linear-gradient(135deg, #9945FF, #14F195);
             color: #000;
@@ -2913,15 +3019,22 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
         }
         .btn:hover { opacity: 0.9; }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .status { margin-top: 1rem; color: #888; }
-        .error { color: #ff4444; }
-        .success { color: #14F195; }
-        .footer { margin-top: 2rem; color: #666; font-size: 0.8rem; }
+        .status { margin-top: 1rem; color: #888; font-size: 0.9rem; line-height: 1.5; }
+        .error { color: #ff4444; padding: 1rem; }
+        .success { color: #14F195; padding: 1rem; }
+        .footer { margin-top: 2rem; color: #666; font-size: 0.75rem; line-height: 1.6; }
+        .step { display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0; }
+        .step-done { color: #14F195; }
+        .step-active { color: #fff; }
+        .step-pending { color: #444; }
+        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #333; border-top-color: #14F195; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .warning { background: #1a1500; border: 1px solid #443300; color: #ffaa00; padding: 0.75rem; border-radius: 8px; font-size: 0.8rem; margin: 1rem 0; }
     </style>
 </head>
 <body>
     <div class="container">
-        <img src="/website/logo-icon.png" width="64" height="64" alt="LAUNCHR" style="margin-bottom: 1rem;">
+        <img src="/website/logo-icon.png" width="60" height="60" alt="LAUNCHR" style="margin-bottom: 1rem;" onerror="this.style.display='none'">
         <h1>🚀 Complete Your Launch</h1>
 
         <div id="loading">Loading launch data...</div>
@@ -2930,12 +3043,16 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             <div class="token-card">
                 <h2 id="token-name">Token Name</h2>
                 <span class="symbol" id="token-symbol">$SYMBOL</span>
-                <div class="mint" id="token-mint"></div>
                 <div class="detail" id="token-devbuy"></div>
+                <div class="mint" id="token-mint"></div>
             </div>
 
-            <button class="btn" id="connect-btn">Connect Wallet</button>
-            <button class="btn" id="launch-btn" style="display:none;">Sign & Launch</button>
+            <div class="warning" id="sol-warning">
+                ⚠️ You need ~0.02 SOL for transaction fees
+            </div>
+
+            <button class="btn" id="connect-btn">Connect Phantom Wallet</button>
+            <button class="btn" id="launch-btn" style="display:none;">🚀 Sign & Launch Token</button>
 
             <div class="status" id="status"></div>
         </div>
@@ -2945,6 +3062,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
         <div class="footer">
             🔒 Non-custodial • Your wallet signs directly<br>
+            We never see your private keys<br><br>
             ⚠️ Meme coins are speculative. DYOR.
         </div>
     </div>
@@ -2952,7 +3070,8 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     <script>
         const launchId = '${launchId}';
         let launchData = null;
-        let walletAdapter = null;
+        const { Connection, VersionedTransaction } = solanaWeb3;
+        const connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
 
         async function init() {
             try {
@@ -2968,70 +3087,135 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
                 document.getElementById('token-name').textContent = launchData.tokenData.name;
                 document.getElementById('token-symbol').textContent = '$' + launchData.tokenData.symbol;
-                document.getElementById('token-mint').textContent = launchData.mintPublicKey;
+                document.getElementById('token-mint').textContent = 'Mint: ' + launchData.mintPublicKey;
                 document.getElementById('token-devbuy').textContent = launchData.devBuy > 0
-                    ? 'Initial Buy: ' + launchData.devBuy + ' SOL'
-                    : 'No initial buy';
+                    ? '💰 Initial Buy: ' + launchData.devBuy + ' SOL'
+                    : '💰 No initial buy';
+
+                // Update SOL warning with dev buy amount
+                if (launchData.devBuy > 0) {
+                    document.getElementById('sol-warning').textContent =
+                        '⚠️ You need ~0.02 SOL for fees + ' + launchData.devBuy + ' SOL for initial buy';
+                }
 
             } catch (e) {
                 document.getElementById('loading').style.display = 'none';
-                document.getElementById('error').textContent = e.message;
+                document.getElementById('error').innerHTML = '<h3>❌ ' + e.message + '</h3><p style="margin-top:0.5rem;color:#888">This link may have expired. Go back to Telegram and try /create again.</p>';
                 document.getElementById('error').style.display = 'block';
             }
         }
 
         document.getElementById('connect-btn').addEventListener('click', async () => {
+            const statusEl = document.getElementById('status');
             try {
-                if (typeof window.solana !== 'undefined' && window.solana.isPhantom) {
-                    await window.solana.connect();
-                    document.getElementById('connect-btn').style.display = 'none';
-                    document.getElementById('launch-btn').style.display = 'block';
-                    document.getElementById('status').textContent = 'Wallet connected: ' +
-                        window.solana.publicKey.toBase58().slice(0, 8) + '...';
-                } else {
-                    document.getElementById('status').textContent = 'Please install Phantom wallet';
+                if (typeof window.solana === 'undefined' || !window.solana.isPhantom) {
+                    statusEl.innerHTML = '❌ Phantom wallet not found.<br><a href="https://phantom.app/" target="_blank" style="color:#14F195">Install Phantom →</a>';
+                    return;
                 }
+
+                statusEl.textContent = 'Connecting...';
+                await window.solana.connect();
+                document.getElementById('connect-btn').style.display = 'none';
+                document.getElementById('launch-btn').style.display = 'block';
+                statusEl.innerHTML = '✅ Connected: <code style="color:#14F195">' +
+                    window.solana.publicKey.toBase58().slice(0, 6) + '...' +
+                    window.solana.publicKey.toBase58().slice(-4) + '</code>';
             } catch (e) {
-                document.getElementById('status').textContent = 'Connection failed: ' + e.message;
+                statusEl.innerHTML = '❌ Connection failed: ' + e.message;
             }
         });
 
         document.getElementById('launch-btn').addEventListener('click', async () => {
             const btn = document.getElementById('launch-btn');
+            const statusEl = document.getElementById('status');
             btn.disabled = true;
-            btn.textContent = 'Launching...';
-            document.getElementById('status').textContent = 'Creating transaction...';
 
             try {
-                // Complete the launch via API
-                const res = await fetch('/api/tg-launch/complete', {
+                const walletAddress = window.solana.publicKey.toBase58();
+
+                // Step 1: Build transaction
+                statusEl.innerHTML = '<div class="step step-active"><span class="spinner"></span> Building transaction...</div>';
+                btn.textContent = 'Building...';
+
+                const buildRes = await fetch('/api/tg-launch/build-tx', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        launchId: launchId,
-                        walletAddress: window.solana.publicKey.toBase58()
-                    })
+                    body: JSON.stringify({ launchId, walletAddress })
                 });
 
-                const result = await res.json();
-
-                if (result.success) {
-                    document.getElementById('launch-content').style.display = 'none';
-                    document.getElementById('success').innerHTML =
-                        '<h2>🎉 Token Launched!</h2>' +
-                        '<p style="margin:1rem 0">Your token is now LIVE on Pump.fun!</p>' +
-                        '<a href="https://pump.fun/' + result.mint + '" target="_blank" ' +
-                        'style="color:#14F195">View on Pump.fun →</a>';
-                    document.getElementById('success').style.display = 'block';
-                } else {
-                    throw new Error(result.error || 'Launch failed');
+                const buildData = await buildRes.json();
+                if (!buildData.success) {
+                    throw new Error(buildData.error || 'Failed to build transaction');
                 }
+
+                // Step 2: Sign with Phantom
+                statusEl.innerHTML = '<div class="step step-done">✅ Transaction built</div><div class="step step-active"><span class="spinner"></span> Please approve in Phantom...</div>';
+                btn.textContent = 'Approve in wallet...';
+
+                // Decode base64 transaction
+                const txBytes = Uint8Array.from(atob(buildData.transaction), c => c.charCodeAt(0));
+                const transaction = VersionedTransaction.deserialize(txBytes);
+
+                // Sign with Phantom
+                const signedTx = await window.solana.signTransaction(transaction);
+
+                // Step 3: Send to network
+                statusEl.innerHTML = '<div class="step step-done">✅ Transaction built</div><div class="step step-done">✅ Signed by wallet</div><div class="step step-active"><span class="spinner"></span> Sending to Solana...</div>';
+                btn.textContent = 'Sending...';
+
+                const signature = await connection.sendRawTransaction(signedTx.serialize(), {
+                    skipPreflight: true,
+                    maxRetries: 3
+                });
+
+                // Step 4: Wait for confirmation
+                statusEl.innerHTML = '<div class="step step-done">✅ Transaction built</div><div class="step step-done">✅ Signed by wallet</div><div class="step step-done">✅ Sent to Solana</div><div class="step step-active"><span class="spinner"></span> Confirming (may take 30s)...</div>';
+                btn.textContent = 'Confirming...';
+
+                await connection.confirmTransaction(signature, 'confirmed');
+
+                // Step 5: Report completion
+                const completeRes = await fetch('/api/tg-launch/complete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ launchId, walletAddress, signature })
+                });
+
+                const result = await completeRes.json();
+
+                // SUCCESS!
+                document.getElementById('launch-content').style.display = 'none';
+                document.getElementById('success').innerHTML =
+                    '<h2 style="font-size:2rem;margin-bottom:1rem">🎉 TOKEN LAUNCHED!</h2>' +
+                    '<p style="margin:1rem 0;font-size:1.1rem"><b>' + launchData.tokenData.name + '</b> ($' + launchData.tokenData.symbol + ') is LIVE!</p>' +
+                    '<p style="margin:0.5rem 0;font-size:0.8rem;color:#888">TX: ' + signature.slice(0,20) + '...</p>' +
+                    '<a href="https://pump.fun/' + buildData.mint + '" target="_blank" ' +
+                    'style="display:inline-block;background:#14F195;color:#000;padding:0.75rem 1.5rem;border-radius:8px;text-decoration:none;font-weight:bold;margin:1rem 0">View on Pump.fun →</a><br>' +
+                    '<a href="https://solscan.io/tx/' + signature + '" target="_blank" ' +
+                    'style="color:#888;font-size:0.85rem">View Transaction on Solscan</a>' +
+                    '<p style="margin-top:1.5rem;padding:1rem;background:#111;border-radius:8px;font-size:0.9rem">📱 Check Telegram for next steps!<br><span style="color:#888">Set up ORBIT for automated fee distribution</span></p>';
+                document.getElementById('success').style.display = 'block';
+
             } catch (e) {
+                console.error('Launch error:', e);
                 btn.disabled = false;
-                btn.textContent = 'Sign & Launch';
-                document.getElementById('status').textContent = 'Error: ' + e.message;
+                btn.textContent = '🚀 Sign & Launch Token';
+
+                let errorMsg = e.message || 'Transaction failed';
+                if (errorMsg.includes('User rejected')) {
+                    errorMsg = 'You cancelled the transaction';
+                } else if (errorMsg.includes('insufficient')) {
+                    errorMsg = 'Insufficient SOL balance for fees';
+                }
+
+                statusEl.innerHTML = '<div style="color:#ff4444">❌ ' + errorMsg + '</div><div style="color:#888;font-size:0.85rem;margin-top:0.5rem">Click the button to try again</div>';
             }
         });
+
+        // Auto-connect if Phantom is already connected
+        if (window.solana?.isConnected) {
+            document.getElementById('connect-btn').click();
+        }
 
         init();
     </script>
