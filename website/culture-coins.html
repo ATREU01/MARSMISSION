@@ -822,12 +822,29 @@
         const CULTURES = [...BASE_CULTURES, ...getUserCultures()];
 
         const CATEGORIES = [
-          { name: "Operator", description: "Builders, founders, tacticians", count: 47 },
-          { name: "Taste & Curation", description: "Fashion, art, music, aesthetics", count: 32 },
-          { name: "Mindset & Philosophy", description: "Long-term thinkers, writers, strategists", count: 28 },
-          { name: "Fitness & Performance", description: "Health, discipline, routine-based", count: 41 },
-          { name: "Trading & Markets", description: "Signal-first, thesis-driven", count: 23 },
-          { name: "Local & IRL", description: "City-based, event-driven communities", count: 19 }
+          { id: 'all', name: 'All Cultures', description: 'Browse all cultures' },
+          { id: 'meme', name: 'Meme', description: 'Meme coins and communities' },
+          { id: 'ai', name: 'AI', description: 'Artificial intelligence projects' },
+          { id: 'utility', name: 'Utility', description: 'Utility-focused tokens' },
+          { id: 'finance', name: 'Finance', description: 'DeFi and financial projects' },
+          { id: 'accounting', name: 'Accounting', description: 'Accounting and bookkeeping' },
+          { id: 'tech', name: 'Tech', description: 'Technology and software' },
+          { id: 'fitness', name: 'Fitness', description: 'Fitness and training' },
+          { id: 'wellness', name: 'Health & Wellness', description: 'Health and wellness' },
+          { id: 'data', name: 'Data', description: 'Data and analytics' },
+          { id: 'fashion', name: 'Fashion', description: 'Fashion and style' },
+          { id: 'music', name: 'Music', description: 'Music and audio' },
+          { id: 'art', name: 'Art', description: 'Art and creativity' },
+          { id: 'travel', name: 'Travel', description: 'Travel and exploration' },
+          { id: 'gaming', name: 'Gaming', description: 'Gaming communities' },
+          { id: 'social', name: 'Social', description: 'Social platforms' },
+          { id: 'law', name: 'Law', description: 'Legal and compliance' },
+          { id: 'environmental', name: 'Environmental', description: 'Environmental causes' },
+          { id: 'education', name: 'Education', description: 'Learning and education' },
+          { id: 'political', name: 'Political', description: 'Political movements' },
+          { id: 'sports', name: 'Sports', description: 'Sports and athletics' },
+          { id: 'food', name: 'Food & Drink', description: 'Food and beverage' },
+          { id: 'other', name: 'Other', description: 'Other categories' }
         ];
 
         const AUCTIONS = [
@@ -1130,33 +1147,16 @@
                   CATEGORIES
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  <button
-                    onClick={() => setSelectedCategory(null)}
-                    style={{
-                      padding: '10px 16px',
-                      background: !selectedCategory ? '#fff' : 'transparent',
-                      color: !selectedCategory ? '#000' : '#888',
-                      border: '1px solid',
-                      borderColor: !selectedCategory ? '#fff' : '#333',
-                      fontSize: '11px',
-                      fontFamily: "'IBM Plex Mono', monospace",
-                      letterSpacing: '0.05em',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    All Cultures
-                  </button>
                   {CATEGORIES.map(cat => (
                     <button
-                      key={cat.name}
-                      onClick={() => setSelectedCategory(cat.name)}
+                      key={cat.id}
+                      onClick={() => setSelectedCategory(cat.id === 'all' ? null : cat.id)}
                       style={{
                         padding: '10px 16px',
-                        background: selectedCategory === cat.name ? '#fff' : 'transparent',
-                        color: selectedCategory === cat.name ? '#000' : '#888',
+                        background: (cat.id === 'all' && !selectedCategory) || selectedCategory === cat.id ? '#fff' : 'transparent',
+                        color: (cat.id === 'all' && !selectedCategory) || selectedCategory === cat.id ? '#000' : '#888',
                         border: '1px solid',
-                        borderColor: selectedCategory === cat.name ? '#fff' : '#333',
+                        borderColor: (cat.id === 'all' && !selectedCategory) || selectedCategory === cat.id ? '#fff' : '#333',
                         fontSize: '11px',
                         fontFamily: "'IBM Plex Mono', monospace",
                         letterSpacing: '0.05em',
@@ -1164,7 +1164,7 @@
                         transition: 'all 0.2s'
                       }}
                     >
-                      {cat.name} <span style={{ opacity: 0.5 }}>({cat.count})</span>
+                      {cat.name}
                     </button>
                   ))}
                 </div>
