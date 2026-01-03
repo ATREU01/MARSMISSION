@@ -1,4 +1,6 @@
-// LAUNCHR Bot v2.1 | Build: 2026-01-03T15:00:00Z | Commands: /create /existing /ping
+// ═══════════════════════════════════════════════════════════════════════════
+// LAUNCHR Bot v2.1 | Build: 2026-01-03-DEBUG | Commands: /create /existing /ping
+// ═══════════════════════════════════════════════════════════════════════════
 const https = require('https');
 const tracker = require('./tracker');
 const sessions = require('./tg-sessions');
@@ -6,11 +8,18 @@ const { LaunchrEngine } = require('./launchr-engine');
 const { Connection, Keypair } = require('@solana/web3.js');
 const bs58 = require('bs58');
 
+// DEBUG: Log on module load to confirm new code is running
+console.log('═══════════════════════════════════════════════════════════════');
+console.log('[TELEGRAM-BOT] v2.1 LOADED - BUILD 2026-01-03-DEBUG');
+console.log('[TELEGRAM-BOT] Commands: /create /existing /ping /start /help');
+console.log('═══════════════════════════════════════════════════════════════');
+
 class LaunchrBot {
     constructor(token) {
         this.token = token;
         this.baseUrl = `https://api.telegram.org/bot${token}`;
         this.offset = 0;
+        console.log('[TELEGRAM-BOT] LaunchrBot constructor called - v2.1');
         this.commands = {
             '/start': this.handleStart.bind(this),
             '/ping': this.handlePing.bind(this),
@@ -286,10 +295,15 @@ RSI: ${engine.rsi.value.toFixed(1)}
 
     // Start polling for updates
     async startPolling() {
+        console.log('═══════════════════════════════════════════════════════════════');
+        console.log('[TELEGRAM-BOT] startPolling() called - v2.1 DEBUG BUILD');
+        console.log('[TELEGRAM-BOT] Available commands:', Object.keys(this.commands).join(', '));
+        console.log('═══════════════════════════════════════════════════════════════');
         console.log('LAUNCHR Bot started polling...');
 
         // Register commands so they show when user types /
         await this.registerCommands();
+        console.log('[TELEGRAM-BOT] Commands registered with Telegram API');
 
         // Start the engine loop for fee distribution
         this.startEngineLoop();
