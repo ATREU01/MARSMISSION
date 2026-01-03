@@ -833,7 +833,7 @@ Or /cancel to abort.
 <b>Name:</b> ${data.name}
 <b>Symbol:</b> $${data.symbol}
 <b>Mint:</b> <code>${mintKeypair.publicKey.toBase58().slice(0, 8)}...${mintKeypair.publicKey.toBase58().slice(-8)}</code>
-${data.vanity ? `<b>Vanity:</b> ✅ ...${mintKeypair.publicKey.toBase58().slice(-6).toUpperCase()}` : ''}
+${data.vanity ? `<b>Vanity:</b> ✅ ...${mintKeypair.publicKey.toBase58().slice(-6)}` : ''}
 ${data.devBuy > 0 ? `<b>Dev Buy:</b> ${data.devBuy} SOL` : ''}
 
 <b>━━━ FINAL STEP ━━━</b>
