@@ -1499,6 +1499,65 @@
           const [agreedToTerms, setAgreedToTerms] = useState(false);
           const wallet = useContext(WalletContext);
 
+          // Theme with fallback defaults
+          const theme = culture.theme || {};
+          const accentColor = theme.accentColor || '#22c55e';
+          const textColor = theme.textColor || '#ffffff';
+          const cardBg = theme.cardBg || '#0f0f0f';
+          const borderColor = theme.borderColor || '#1a1a1a';
+
+          // Pattern definitions for themed backgrounds
+          const patterns = {
+            none: 'none',
+            dots: 'radial-gradient(circle, #333 1px, transparent 1px)',
+            grid: 'linear-gradient(#222 1px, transparent 1px), linear-gradient(90deg, #222 1px, transparent 1px)',
+            diagonal: 'repeating-linear-gradient(45deg, #1a1a1a, #1a1a1a 10px, #0f0f0f 10px, #0f0f0f 20px)',
+            hearts: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' viewBox=\'0 0 40 40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M20 30l-7-7c-4-4-4-10 0-14s10-4 14 0l-7 7 7 7c4 4 4 10 0 14s-10 4-14 0l7-7z\' fill=\'%23333\' fill-opacity=\'0.3\'/%3E%3C/svg%3E")',
+            stars: 'url("data:image/svg+xml,%3Csvg width=\'30\' height=\'30\' viewBox=\'0 0 30 30\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Ctext x=\'10\' y=\'20\' fill=\'%23333\' opacity=\'0.3\'%3E★%3C/text%3E%3C/svg%3E")'
+          };
+
+          // Get background style based on theme settings
+          const getBackgroundStyle = () => {
+            if (!theme.bgType) {
+              return { background: '#0a0a0a' };
+            }
+
+            let bg = {};
+            if (theme.bgType === 'solid') {
+              bg.background = theme.bgColor || '#0a0a0a';
+            } else if (theme.bgType === 'gradient') {
+              const gradColors = theme.bgGradient || ['#0a0a0a', '#1a1a2e'];
+              bg.background = `linear-gradient(135deg, ${gradColors[0]}, ${gradColors[1]})`;
+            } else if (theme.bgType === 'pattern') {
+              bg.background = theme.bgColor || '#0a0a0a';
+              if (theme.bgPattern && theme.bgPattern !== 'none') {
+                bg.backgroundImage = patterns[theme.bgPattern];
+                bg.backgroundSize = theme.bgPattern === 'dots' ? '20px 20px' : theme.bgPattern === 'grid' ? '20px 20px' : 'auto';
+              }
+            } else if (theme.bgType === 'image' && theme.bgImage) {
+              bg.backgroundImage = `url(${theme.bgImage})`;
+              const fit = theme.bgImageFit || 'cover';
+              if (fit === 'tile') {
+                bg.backgroundSize = 'auto';
+                bg.backgroundRepeat = 'repeat';
+              } else if (fit === 'contain') {
+                bg.backgroundSize = 'contain';
+                bg.backgroundRepeat = 'no-repeat';
+                bg.backgroundPosition = 'center';
+              } else if (fit === 'stretch') {
+                bg.backgroundSize = '100% 100%';
+                bg.backgroundRepeat = 'no-repeat';
+              } else { // cover
+                bg.backgroundSize = 'cover';
+                bg.backgroundPosition = 'center';
+                bg.backgroundRepeat = 'no-repeat';
+              }
+            }
+            return bg;
+          };
+
+          const backgroundStyle = getBackgroundStyle();
+
           // Real-time token data from pump.fun
           const [tokenData, setTokenData] = useState({
             marketCap: 0,
@@ -1566,8 +1625,17 @@
             }
           };
 
+          // Helper to create accent rgba
+          const accentRgba = (opacity) => {
+            const hex = accentColor.replace('#', '');
+            const r = parseInt(hex.substr(0, 2), 16);
+            const g = parseInt(hex.substr(2, 2), 16);
+            const b = parseInt(hex.substr(4, 2), 16);
+            return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+          };
+
           return (
-            <div style={{ padding: '136px 40px 60px' }}>
+            <div style={{ padding: '136px 40px 60px', minHeight: '100vh', ...backgroundStyle }}>
               <button
                 onClick={onBack}
                 style={{
@@ -1602,7 +1670,7 @@
                   fontFamily: "'Playfair Display', serif",
                   fontSize: '56px',
                   fontWeight: 400,
-                  color: '#fff',
+                  color: textColor,
                   marginBottom: '20px',
                   letterSpacing: '-0.02em'
                 }}>
@@ -1613,7 +1681,8 @@
                   fontFamily: "'Playfair Display', serif",
                   fontSize: '24px',
                   fontStyle: 'italic',
-                  color: '#ccc',
+                  color: textColor,
+                  opacity: 0.8,
                   lineHeight: 1.5,
                   marginBottom: '24px'
                 }}>
@@ -1636,21 +1705,21 @@
                     alignItems: 'center',
                     gap: '12px',
                     padding: '12px 16px',
-                    background: 'rgba(34, 197, 94, 0.1)',
-                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                    background: accentRgba(0.1),
+                    border: `1px solid ${accentRgba(0.3)}`,
                     marginBottom: '8px'
                   }}>
                     <div style={{
                       fontSize: '9px',
                       letterSpacing: '0.15em',
-                      color: '#22c55e',
+                      color: accentColor,
                       fontFamily: "'IBM Plex Mono', monospace"
                     }}>
                       CA
                     </div>
                     <div style={{
                       fontSize: '13px',
-                      color: '#fff',
+                      color: textColor,
                       fontFamily: "'IBM Plex Mono', monospace",
                       letterSpacing: '0.02em'
                     }}>
@@ -1663,8 +1732,8 @@
                       }}
                       style={{
                         background: 'none',
-                        border: '1px solid rgba(34, 197, 94, 0.5)',
-                        color: '#22c55e',
+                        border: `1px solid ${accentRgba(0.5)}`,
+                        color: accentColor,
                         padding: '4px 8px',
                         fontSize: '9px',
                         fontFamily: "'IBM Plex Mono', monospace",
@@ -1681,7 +1750,7 @@
                   <div style={{
                     display: 'block',
                     fontSize: '10px',
-                    color: '#22c55e',
+                    color: accentColor,
                     fontFamily: "'IBM Plex Mono', monospace",
                     letterSpacing: '0.1em'
                   }}>
@@ -1709,11 +1778,11 @@
                           key={i}
                           style={{
                             padding: '20px 24px',
-                            background: '#0f0f0f',
-                            border: '1px solid #1a1a1a',
+                            background: cardBg,
+                            border: `1px solid ${borderColor}`,
                             fontFamily: "'IBM Plex Mono', monospace",
                             fontSize: '14px',
-                            color: '#fff',
+                            color: textColor,
                             lineHeight: 1.5
                           }}
                         >
@@ -1742,9 +1811,9 @@
                             key={i}
                             style={{
                               padding: '24px',
-                              background: isUserTier ? '#111' : '#0a0a0a',
+                              background: isUserTier ? cardBg : (theme.bgColor || '#0a0a0a'),
                               border: '1px solid',
-                              borderColor: isUserTier ? '#333' : '#1a1a1a',
+                              borderColor: isUserTier ? accentRgba(0.5) : borderColor,
                               position: 'relative'
                             }}
                           >
@@ -1753,7 +1822,7 @@
                                 position: 'absolute',
                                 top: '-1px',
                                 right: '24px',
-                                background: '#22c55e',
+                                background: accentColor,
                                 color: '#000',
                                 fontSize: '9px',
                                 fontFamily: "'IBM Plex Mono', monospace",
@@ -1767,7 +1836,7 @@
                               <span style={{
                                 fontFamily: "'Playfair Display', serif",
                                 fontSize: '20px',
-                                color: '#fff'
+                                color: textColor
                               }}>
                                 {tier.name}
                               </span>
@@ -1782,7 +1851,8 @@
                             <div style={{
                               fontFamily: "'IBM Plex Mono', monospace",
                               fontSize: '12px',
-                              color: '#999',
+                              color: textColor,
+                              opacity: 0.7,
                               marginBottom: '8px'
                             }}>
                               Access: {tier.access}
@@ -1824,8 +1894,8 @@
                 {/* Right Column */}
                 <div>
                   <div style={{
-                    background: '#0f0f0f',
-                    border: '1px solid #1a1a1a',
+                    background: cardBg,
+                    border: `1px solid ${borderColor}`,
                     padding: '32px',
                     marginBottom: '24px'
                   }}>
@@ -1842,15 +1912,15 @@
                     {userHolding ? (
                       <div style={{
                         padding: '16px',
-                        background: 'rgba(34,197,94,0.15)',
-                        border: '1px solid rgba(34,197,94,0.3)',
+                        background: accentRgba(0.15),
+                        border: `1px solid ${accentRgba(0.3)}`,
                         marginBottom: '16px',
                         textAlign: 'center'
                       }}>
                         <div style={{
                           fontSize: '10px',
                           letterSpacing: '0.1em',
-                          color: '#22c55e',
+                          color: accentColor,
                           fontFamily: "'IBM Plex Mono', monospace",
                           marginBottom: '8px'
                         }}>
@@ -1859,7 +1929,7 @@
                         <div style={{
                           fontFamily: "'Playfair Display', serif",
                           fontSize: '18px',
-                          color: '#fff'
+                          color: textColor
                         }}>
                           {userHolding.tier}
                         </div>
@@ -1878,7 +1948,7 @@
                         style={{
                           width: '100%',
                           padding: '16px',
-                          background: '#fff',
+                          background: accentColor,
                           color: '#000',
                           border: 'none',
                           fontSize: '12px',
@@ -1905,8 +1975,8 @@
 
                   {/* Economics */}
                   <div style={{
-                    background: '#0a0a0a',
-                    border: '1px solid #1a1a1a',
+                    background: theme.bgColor || '#0a0a0a',
+                    border: `1px solid ${borderColor}`,
                     padding: '32px'
                   }}>
                     <div style={{
@@ -1923,7 +1993,7 @@
                       {/* Market Cap - LIVE from pump.fun */}
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ fontSize: '12px', color: '#666', fontFamily: "'IBM Plex Mono', monospace" }}>Market Cap</span>
-                        <span style={{ fontSize: '14px', color: '#22c55e', fontFamily: "'IBM Plex Mono', monospace" }}>
+                        <span style={{ fontSize: '14px', color: accentColor, fontFamily: "'IBM Plex Mono', monospace" }}>
                           {tokenData.loading ? '...' : `$${tokenData.marketCap.toLocaleString(undefined, {maximumFractionDigits: 0})}`}
                         </span>
                       </div>
@@ -1931,15 +2001,15 @@
                       {/* Holders - LIVE from pump.fun */}
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ fontSize: '12px', color: '#666', fontFamily: "'IBM Plex Mono', monospace" }}>Holders</span>
-                        <span style={{ fontSize: '14px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
+                        <span style={{ fontSize: '14px', color: textColor, fontFamily: "'IBM Plex Mono', monospace" }}>
                           {tokenData.loading ? '...' : tokenData.holders.toLocaleString()}
                         </span>
                       </div>
 
-                      <div style={{ borderTop: '1px solid #1a1a1a', paddingTop: '20px' }}>
+                      <div style={{ borderTop: `1px solid ${borderColor}`, paddingTop: '20px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
                           <span style={{ fontSize: '12px', color: '#666', fontFamily: "'IBM Plex Mono', monospace" }}>Total Supply</span>
-                          <span style={{ fontSize: '14px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>{(culture.supply || 1000000000).toLocaleString()}</span>
+                          <span style={{ fontSize: '14px', color: textColor, fontFamily: "'IBM Plex Mono', monospace" }}>{(culture.supply || 1000000000).toLocaleString()}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
                           <span style={{ fontSize: '12px', color: '#666', fontFamily: "'IBM Plex Mono', monospace" }}>Total Burned</span>
@@ -1947,12 +2017,12 @@
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                           <span style={{ fontSize: '12px', color: '#666', fontFamily: "'IBM Plex Mono', monospace" }}>Circulating</span>
-                          <span style={{ fontSize: '14px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>{((culture.supply || 1000000000) - (culture.burned || 0)).toLocaleString()}</span>
+                          <span style={{ fontSize: '14px', color: textColor, fontFamily: "'IBM Plex Mono', monospace" }}>{((culture.supply || 1000000000) - (culture.burned || 0)).toLocaleString()}</span>
                         </div>
                       </div>
 
                       {culture.tokenAddress && (
-                        <div style={{ borderTop: '1px solid #1a1a1a', paddingTop: '20px' }}>
+                        <div style={{ borderTop: `1px solid ${borderColor}`, paddingTop: '20px' }}>
                           <a
                             href={`https://pump.fun/coin/${culture.tokenAddress}`}
                             target="_blank"
@@ -1961,7 +2031,7 @@
                               display: 'block',
                               textAlign: 'center',
                               padding: '12px',
-                              background: '#22c55e',
+                              background: accentColor,
                               color: '#000',
                               fontSize: '11px',
                               fontFamily: "'IBM Plex Mono', monospace",
@@ -1991,8 +2061,8 @@
                   zIndex: 2000
                 }}>
                   <div style={{
-                    background: '#0a0a0a',
-                    border: '1px solid #1a1a1a',
+                    background: theme.bgColor || '#0a0a0a',
+                    border: `1px solid ${borderColor}`,
                     padding: '48px',
                     maxWidth: '500px',
                     width: '100%'
@@ -2000,22 +2070,23 @@
                     <h2 style={{
                       fontFamily: "'Playfair Display', serif",
                       fontSize: '28px',
-                      color: '#fff',
+                      color: textColor,
                       marginBottom: '24px'
                     }}>
                       Join {culture.name}
                     </h2>
 
                     <div style={{
-                      background: '#111',
-                      border: '1px solid #222',
+                      background: cardBg,
+                      border: `1px solid ${borderColor}`,
                       padding: '20px',
                       marginBottom: '24px'
                     }}>
                       <p style={{
                         fontFamily: "'IBM Plex Mono', monospace",
                         fontSize: '13px',
-                        color: '#999',
+                        color: textColor,
+                        opacity: 0.7,
                         lineHeight: 1.7
                       }}>
                         "{culture.ethos}"
@@ -2040,10 +2111,10 @@
                             onClick={() => setSelectedTier(tier)}
                             style={{
                               padding: '14px 16px',
-                              background: selectedTier?.name === tier.name ? '#222' : '#0a0a0a',
+                              background: selectedTier?.name === tier.name ? cardBg : (theme.bgColor || '#0a0a0a'),
                               border: '1px solid',
-                              borderColor: selectedTier?.name === tier.name ? '#fff' : '#222',
-                              color: '#fff',
+                              borderColor: selectedTier?.name === tier.name ? accentColor : borderColor,
+                              color: textColor,
                               textAlign: 'left',
                               cursor: 'pointer',
                               display: 'flex',
@@ -2068,7 +2139,7 @@
                         id="understand"
                         checked={agreedToTerms}
                         onChange={(e) => setAgreedToTerms(e.target.checked)}
-                        style={{ width: '18px', height: '18px', accentColor: '#fff' }}
+                        style={{ width: '18px', height: '18px', accentColor: accentColor }}
                       />
                       <label htmlFor="understand" style={{
                         fontFamily: "'IBM Plex Mono', monospace",
@@ -2088,7 +2159,7 @@
                           padding: '14px',
                           background: 'transparent',
                           color: '#888',
-                          border: '1px solid #333',
+                          border: `1px solid ${borderColor}`,
                           fontSize: '12px',
                           fontFamily: "'IBM Plex Mono', monospace",
                           letterSpacing: '0.1em',
@@ -2103,7 +2174,7 @@
                         style={{
                           flex: 1,
                           padding: '14px',
-                          background: (selectedTier && agreedToTerms) ? '#fff' : '#333',
+                          background: (selectedTier && agreedToTerms) ? accentColor : '#333',
                           color: (selectedTier && agreedToTerms) ? '#000' : '#666',
                           border: 'none',
                           fontSize: '12px',
