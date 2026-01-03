@@ -12,6 +12,8 @@ class LaunchrBot {
         this.offset = 0;
         this.commands = {
             '/start': this.handleStart.bind(this),
+            '/create': this.handleCreate.bind(this),
+            '/existing': this.handleExisting.bind(this),
             '/help': this.handleHelp.bind(this),
             '/track': this.handleTrack.bind(this),
             '/stats': this.handleStats.bind(this),
@@ -42,14 +44,12 @@ class LaunchrBot {
     // Register commands with Telegram (shows menu when typing /)
     async registerCommands() {
         const commands = [
+            { command: 'create', description: 'Launch a new token on Pump.fun' },
+            { command: 'existing', description: 'Import an existing Pump.fun token' },
             { command: 'start', description: 'Welcome message' },
             { command: 'connect', description: '🔐 Connect wallet (DM only)' },
-            { command: 'disconnect', description: '🔌 Disconnect and stop engine' },
             { command: 'mystatus', description: '📊 Your session status' },
-            { command: 'setalloc', description: '⚙️ Set allocations' },
-            { command: 'autofund', description: '💰 Auto-fund launcher wallet' },
             { command: 'guide', description: 'Complete guide to LAUNCHR' },
-            { command: 'track', description: 'Track a token' },
             { command: 'stats', description: 'Platform statistics' },
             { command: 'help', description: 'Show all commands' }
         ];
@@ -335,22 +335,74 @@ RSI: ${engine.rsi.value.toFixed(1)}
     // /start command
     async handleStart(chatId) {
         const text = `
-<b>🚀 LAUNCHR</b>
+<b>LAUNCHR</b>
 <i>Programmable Liquidity for Pump.fun</i>
 
 The first AI-powered fee allocation engine.
 
 <b>Commands:</b>
-/track [mint] - Track a token
-/stats - View platform stats
-/recent - Recent tracked tokens
-/launch - How to launch with LAUNCHR
-/help - Show help
+/create - Launch a new token on Pump.fun
+/existing - Import an existing Pump.fun token
+
+<b>What would you like to do?</b>
+
+<b>/create</b> - Launch a new token on Pump.fun with LAUNCHR's automated fee distribution built-in.
+
+<b>/existing</b> - Connect an existing Pump.fun token to LAUNCHR to automate your creator fee allocations.
 
 <b>Links:</b>
 🌐 <a href="https://www.launchronsol.xyz">Website</a>
 📊 <a href="https://www.launchronsol.xyz/tracker">Token Tracker</a>
 🐦 <a href="https://x.com/LaunchrTG">Twitter</a>
+
+<i>All wallet connections are secure and non-custodial.</i>
+        `.trim();
+
+        await this.sendMessage(chatId, text);
+    }
+
+    // /create command - Launch new token
+    async handleCreate(chatId) {
+        const text = `
+<b>CREATE NEW TOKEN</b>
+
+Launch a new token on Pump.fun with LAUNCHR's automated fee distribution built-in.
+
+<b>What you'll get:</b>
+• Automated fee claiming
+• Smart distribution engine
+• RSI-timed market making
+• Buyback & burn mechanics
+
+<b>Start here:</b>
+🌐 <a href="https://www.launchronsol.xyz/create">Create on Website</a>
+
+Or use /guide for the complete walkthrough.
+        `.trim();
+
+        await this.sendMessage(chatId, text);
+    }
+
+    // /existing command - Import existing token
+    async handleExisting(chatId) {
+        const text = `
+<b>IMPORT EXISTING TOKEN</b>
+
+Connect an existing Pump.fun token to LAUNCHR to automate your creator fee allocations.
+
+<b>How it works:</b>
+1. Connect your wallet via /connect
+2. Provide your token mint address
+3. Set your fee allocations
+4. Engine runs automatically
+
+<b>Quick Start:</b>
+<code>/connect [private_key] [mint_address]</code>
+
+Or use the web dashboard:
+🌐 <a href="https://www.launchronsol.xyz/dashboard">Open Dashboard</a>
+
+Use /guide for the complete walkthrough.
         `.trim();
 
         await this.sendMessage(chatId, text);
@@ -359,28 +411,31 @@ The first AI-powered fee allocation engine.
     // /help command
     async handleHelp(chatId) {
         const text = `
-<b>LAUNCHR Bot Commands</b>
+<b>LAUNCHR Commands</b>
 
-/track [mint_address]
-Track a token using LAUNCHR. Adds it to our public tracker.
+<b>Main Actions:</b>
+/create - Launch a new token on Pump.fun
+/existing - Import an existing Pump.fun token
 
-/stats
-View total tokens tracked, SOL claimed, and distributed.
+<b>Getting Started:</b>
+/start - Welcome & options
+/connect - Connect your wallet (DM only)
+/guide - Complete walkthrough
 
-/recent
-See the 5 most recently tracked tokens.
+<b>After Connecting:</b>
+/mystatus - Your session status
+/setalloc - Set fee allocations
+/disconnect - Stop & disconnect
 
-/launch
-Learn how to launch your token with LAUNCHR technology.
+<b>Tracking:</b>
+/track [mint] - Track a token
+/stats - Platform statistics
 
-<b>What is LAUNCHR?</b>
-LAUNCHR automatically routes your Pump.fun creator fees into:
-• Market Making (RSI-timed trades)
-• Buyback & Burn (deflationary)
-• Liquidity Pool (locked LP)
-• Creator Revenue (your wallet)
+<b>Links:</b>
+🌐 <a href="https://www.launchronsol.xyz">Website</a>
+📊 <a href="https://www.launchronsol.xyz/dashboard">Dashboard</a>
 
-First of its kind. Programmable liquidity.
+<i>LAUNCHR is non-custodial. Your keys, your control.</i>
         `.trim();
 
         await this.sendMessage(chatId, text);
