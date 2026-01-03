@@ -1876,6 +1876,51 @@
                     </div>
                   </div>
 
+                  {/* Unlocks - What Participation Unlocks */}
+                  {culture.unlocks && culture.unlocks.length > 0 && (
+                    <div style={{ marginBottom: '48px' }}>
+                      <div style={{
+                        fontSize: '10px',
+                        letterSpacing: '0.15em',
+                        color: '#666',
+                        marginBottom: '24px',
+                        fontFamily: "'IBM Plex Mono', monospace"
+                      }}>
+                        WHAT PARTICIPATION UNLOCKS
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        {culture.unlocks.map((unlock, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              padding: '24px',
+                              background: cardBg,
+                              border: `1px solid ${borderColor}`
+                            }}
+                          >
+                            <div style={{
+                              fontFamily: "'Playfair Display', serif",
+                              fontSize: '18px',
+                              color: textColor,
+                              marginBottom: '12px'
+                            }}>
+                              {unlock.title}
+                            </div>
+                            <div style={{
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontSize: '12px',
+                              color: textColor,
+                              opacity: 0.7,
+                              lineHeight: 1.6
+                            }}>
+                              {unlock.description}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Auctions */}
                   {cultureAuctions.length > 0 && (
                     <div>
@@ -4636,15 +4681,23 @@
                   color: '#666',
                   fontFamily: "'IBM Plex Mono', monospace"
                 }}>
-                  YOUR CULTURES {searchQuery && `(${filteredCultures.length} of ${myCultures.length})`}
+                  YOUR CULTURES {myCultures.length > 0 && `(${myCultures.length})`}
                 </div>
+                {/* Refresh button to re-fetch coins */}
                 <button
-                  onClick={() => setShowImportModal(true)}
+                  onClick={() => {
+                    setLoading(true);
+                    setMyCultures([]);
+                    // Trigger re-fetch by toggling a state
+                    setTimeout(() => {
+                      window.location.reload();
+                    }, 100);
+                  }}
                   style={{
                     padding: '8px 16px',
                     background: 'transparent',
-                    border: '1px solid #333',
-                    color: '#888',
+                    border: `1px solid ${dashColors.border}`,
+                    color: dashColors.textMuted,
                     fontSize: '10px',
                     fontFamily: "'IBM Plex Mono', monospace",
                     letterSpacing: '0.1em',
@@ -4653,32 +4706,62 @@
                     alignItems: 'center',
                     gap: '8px'
                   }}
-                  onMouseOver={(e) => { e.target.style.borderColor = '#22c55e'; e.target.style.color = '#22c55e'; }}
-                  onMouseOut={(e) => { e.target.style.borderColor = '#333'; e.target.style.color = '#888'; }}
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                    <polyline points="17 8 12 3 7 8"></polyline>
-                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                    <path d="M23 4v6h-6"></path>
+                    <path d="M1 20v-6h6"></path>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
                   </svg>
-                  IMPORT EXISTING COIN
+                  REFRESH
                 </button>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                {filteredCultures.length === 0 && (
+                {loading && (
                   <div style={{
                     textAlign: 'center',
                     padding: '60px 40px',
-                    background: '#0f0f0f',
-                    border: '1px solid #1a1a1a'
+                    background: dashColors.cardBg,
+                    border: `1px solid ${dashColors.border}`
                   }}>
-                    <div style={{ fontSize: '14px', color: '#666', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '16px' }}>
-                      No cultures found for this wallet
+                    <div style={{ fontSize: '14px', color: dashColors.accent, fontFamily: "'IBM Plex Mono', monospace", marginBottom: '16px' }}>
+                      Loading your cultures...
                     </div>
-                    <p style={{ fontSize: '12px', color: '#555', marginBottom: '24px' }}>
-                      Create a new culture or import an existing token from pump.fun
+                    <p style={{ fontSize: '12px', color: dashColors.textMuted }}>
+                      Fetching all tokens you've created from pump.fun
                     </p>
+                  </div>
+                )}
+                {!loading && filteredCultures.length === 0 && (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '60px 40px',
+                    background: dashColors.cardBg,
+                    border: `1px solid ${dashColors.border}`
+                  }}>
+                    <div style={{ fontSize: '14px', color: dashColors.textMuted, fontFamily: "'IBM Plex Mono', monospace", marginBottom: '16px' }}>
+                      No tokens found for this wallet
+                    </div>
+                    <p style={{ fontSize: '12px', color: dashColors.textMuted, marginBottom: '24px' }}>
+                      Tokens you create on pump.fun will automatically appear here.<br/>
+                      You can then add culture info like beliefs, tiers, and themes.
+                    </p>
+                    <a
+                      href="/culture-coins?view=create"
+                      style={{
+                        display: 'inline-block',
+                        padding: '12px 24px',
+                        background: dashColors.accent,
+                        color: '#000',
+                        textDecoration: 'none',
+                        fontSize: '11px',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        letterSpacing: '0.1em',
+                        fontWeight: 600
+                      }}
+                    >
+                      CREATE NEW CULTURE
+                    </a>
                   </div>
                 )}
 
@@ -5217,198 +5300,7 @@
                 </div>
               )}
 
-              {/* Import Existing Coin Modal */}
-              {showImportModal && (
-                <div style={{
-                  position: 'fixed',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  background: 'rgba(0,0,0,0.9)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  zIndex: 1000
-                }}>
-                  <div style={{
-                    background: '#0f0f0f',
-                    border: '1px solid #222',
-                    maxWidth: '500px',
-                    width: '90%',
-                    padding: '32px'
-                  }}>
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: '24px'
-                    }}>
-                      <h3 style={{
-                        fontFamily: "'Playfair Display', serif",
-                        fontSize: '24px',
-                        color: '#fff'
-                      }}>
-                        Import Existing Coin
-                      </h3>
-                      <button
-                        onClick={() => {
-                          setShowImportModal(false);
-                          setImportTokenAddress('');
-                          setImportedTokenData(null);
-                        }}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#666',
-                          fontSize: '24px',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        ×
-                      </button>
-                    </div>
-
-                    <p style={{
-                      fontSize: '13px',
-                      color: '#888',
-                      fontFamily: "'IBM Plex Mono', monospace",
-                      marginBottom: '24px',
-                      lineHeight: 1.6
-                    }}>
-                      Import an existing token you created on pump.fun. You can then add culture customization like beliefs, tiers, and themes.
-                    </p>
-
-                    <div style={{ marginBottom: '20px' }}>
-                      <label style={{
-                        display: 'block',
-                        fontSize: '10px',
-                        letterSpacing: '0.1em',
-                        color: '#666',
-                        marginBottom: '8px',
-                        fontFamily: "'IBM Plex Mono', monospace"
-                      }}>
-                        TOKEN ADDRESS
-                      </label>
-                      <input
-                        type="text"
-                        value={importTokenAddress}
-                        onChange={(e) => setImportTokenAddress(e.target.value)}
-                        placeholder="Enter Solana token address..."
-                        style={{
-                          width: '100%',
-                          padding: '14px 16px',
-                          background: '#0a0a0a',
-                          border: '1px solid #222',
-                          color: '#fff',
-                          fontSize: '14px',
-                          fontFamily: "'IBM Plex Mono', monospace",
-                          outline: 'none'
-                        }}
-                      />
-                    </div>
-
-                    {!importedTokenData && (
-                      <button
-                        onClick={handleImportCoin}
-                        disabled={importLoading}
-                        style={{
-                          width: '100%',
-                          padding: '14px',
-                          background: importLoading ? '#333' : '#22c55e',
-                          border: 'none',
-                          color: importLoading ? '#666' : '#000',
-                          fontSize: '12px',
-                          fontFamily: "'IBM Plex Mono', monospace",
-                          letterSpacing: '0.1em',
-                          cursor: importLoading ? 'not-allowed' : 'pointer',
-                          fontWeight: 600
-                        }}
-                      >
-                        {importLoading ? 'SEARCHING...' : 'FIND TOKEN'}
-                      </button>
-                    )}
-
-                    {importedTokenData && (
-                      <div style={{
-                        background: '#0a0a0a',
-                        border: '1px solid #22c55e',
-                        padding: '20px',
-                        marginBottom: '20px'
-                      }}>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '16px',
-                          marginBottom: '16px'
-                        }}>
-                          {importedTokenData.image_uri && (
-                            <img
-                              src={importedTokenData.image_uri}
-                              alt=""
-                              style={{
-                                width: '48px',
-                                height: '48px',
-                                borderRadius: '8px'
-                              }}
-                            />
-                          )}
-                          <div>
-                            <div style={{
-                              fontSize: '18px',
-                              fontFamily: "'Playfair Display', serif",
-                              color: '#fff'
-                            }}>
-                              {importedTokenData.name}
-                            </div>
-                            <div style={{
-                              fontSize: '12px',
-                              fontFamily: "'IBM Plex Mono', monospace",
-                              color: '#22c55e'
-                            }}>
-                              ${importedTokenData.symbol}
-                            </div>
-                          </div>
-                        </div>
-                        <div style={{
-                          display: 'grid',
-                          gridTemplateColumns: '1fr 1fr',
-                          gap: '12px',
-                          fontSize: '11px',
-                          fontFamily: "'IBM Plex Mono', monospace"
-                        }}>
-                          <div>
-                            <span style={{ color: '#666' }}>Market Cap: </span>
-                            <span style={{ color: '#fff' }}>${(importedTokenData.usd_market_cap || 0).toLocaleString()}</span>
-                          </div>
-                          <div>
-                            <span style={{ color: '#666' }}>Holders: </span>
-                            <span style={{ color: '#fff' }}>{(importedTokenData.holder_count || 0).toLocaleString()}</span>
-                          </div>
-                        </div>
-                        <button
-                          onClick={handleConfirmImport}
-                          style={{
-                            width: '100%',
-                            marginTop: '16px',
-                            padding: '14px',
-                            background: '#22c55e',
-                            border: 'none',
-                            color: '#000',
-                            fontSize: '12px',
-                            fontFamily: "'IBM Plex Mono', monospace",
-                            letterSpacing: '0.1em',
-                            cursor: 'pointer',
-                            fontWeight: 600
-                          }}
-                        >
-                          IMPORT & CREATE CULTURE PAGE
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+              {/* Import modal removed - coins auto-load from pump.fun */}
             </div>
           );
         };
@@ -5433,25 +5325,60 @@
             if (editMode) {
               try {
                 const editData = JSON.parse(localStorage.getItem('edit_culture_data') || 'null');
+                console.log('[EDIT] Loading culture data:', editData);
                 if (editData) {
-                  setEditCultureId(editData.id);
+                  setEditCultureId(editData.id || editData.tokenAddress);
                   setCultureName(editData.name || '');
-                  setCreatorName(editData.creatorName || '');
-                  setCultureEthos(editData.ethos?.length ? editData.ethos : ['', '', '']);
+                  setCreatorName(editData.creatorName || editData.creator_username || '');
+
+                  // Handle ethos - could be string or array
+                  if (editData.ethos) {
+                    if (Array.isArray(editData.ethos)) {
+                      setCultureEthos(editData.ethos.length ? editData.ethos : ['', '', '']);
+                    } else if (typeof editData.ethos === 'string') {
+                      // Split by | or newlines
+                      const ethosArray = editData.ethos.split(/\s*\|\s*|\n/).filter(e => e.trim());
+                      setCultureEthos(ethosArray.length ? ethosArray : ['', '', '']);
+                    }
+                  }
+
                   setTokenTicker(editData.ticker || editData.symbol || '');
                   setCategory(editData.category || '');
-                  if (editData.theme) {
-                    setTheme(editData.theme);
+
+                  // Load token icon preview if available
+                  if (editData.imageUri || editData.image_uri) {
+                    setTokenIconPreview(editData.imageUri || editData.image_uri);
                   }
-                  if (editData.beliefs) {
-                    setBeliefs(editData.beliefs);
+
+                  // Load theme
+                  if (editData.theme && Object.keys(editData.theme).length > 0) {
+                    setTheme(prev => ({ ...prev, ...editData.theme }));
                   }
-                  if (editData.tiers) {
-                    setTiers(editData.tiers);
+
+                  // Load beliefs - might be in pillars field (from server)
+                  const beliefsData = editData.beliefs || editData.pillars || [];
+                  if (beliefsData.length > 0) {
+                    setBeliefs(beliefsData);
                   }
-                  if (editData.unlocks) {
+
+                  // Load tiers - convert percent to holdingPercent if needed
+                  const tiersData = editData.tiers || [];
+                  if (tiersData.length > 0) {
+                    const normalizedTiers = tiersData.map(t => ({
+                      name: t.name || '',
+                      holdingPercent: t.holdingPercent || t.percent || 0.1,
+                      access: t.access || t.expectation || '',
+                      content: t.content || []
+                    }));
+                    setTiers(normalizedTiers);
+                  }
+
+                  // Load unlocks
+                  if (editData.unlocks && editData.unlocks.length > 0) {
                     setUnlocks(editData.unlocks);
                   }
+
+                  console.log('[EDIT] Data loaded successfully');
                 }
               } catch (e) {
                 console.error('[EDIT] Error loading culture data:', e);
@@ -8501,11 +8428,25 @@
             sessionStorage.setItem('cc_holdings', JSON.stringify(userHoldings));
           }, [userHoldings]);
 
-          // Check for just-created culture on page load
+          // Check for URL parameters on page load (view, show, id)
           useEffect(() => {
             const params = new URLSearchParams(window.location.search);
+            const viewParam = params.get('view');
             const showId = params.get('show');
 
+            // Handle view parameter (edit, dashboard, create, etc.)
+            if (viewParam) {
+              console.log('[APP] View param:', viewParam);
+              if (['edit', 'create', 'dashboard', 'discover', 'feed', 'auctions'].includes(viewParam)) {
+                setView(viewParam);
+                // Don't clear URL for edit (need to keep params)
+                if (viewParam !== 'edit') {
+                  window.history.replaceState({}, '', '/culture-coins');
+                }
+              }
+            }
+
+            // Handle show parameter (show just-created culture)
             if (showId) {
               // Try to load just-created culture from localStorage
               const justCreated = localStorage.getItem('just_created_culture');
