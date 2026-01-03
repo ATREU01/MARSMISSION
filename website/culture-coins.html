@@ -2497,9 +2497,19 @@
           const fileInputRef = useRef(null);
           const videoInputRef = useRef(null);
 
+          // Upload limits for production stability
+          const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB max for videos
+          const MAX_IMAGE_SIZE = 5 * 1024 * 1024;  // 5MB max for images
+
           const handleImageSelect = (e) => {
             const file = e.target.files[0];
             if (file) {
+              // Check file size limit
+              if (file.size > MAX_IMAGE_SIZE) {
+                alert(`Image too large. Maximum size: 5MB\nYour file: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
+                e.target.value = '';
+                return;
+              }
               const reader = new FileReader();
               reader.onload = (e) => {
                 setMediaPreview(e.target.result);
@@ -2512,6 +2522,12 @@
           const handleVideoSelect = (e) => {
             const file = e.target.files[0];
             if (file) {
+              // Check file size limit
+              if (file.size > MAX_VIDEO_SIZE) {
+                alert(`Video too large. Maximum size: 50MB\nYour file: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
+                e.target.value = '';
+                return;
+              }
               const reader = new FileReader();
               reader.onload = (e) => {
                 setMediaPreview(e.target.result);
@@ -4315,59 +4331,47 @@
                 YOUR CULTURES {searchQuery && `(${filteredCultures.length} of ${myCultures.length})`}
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {filteredCultures.map(culture => (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                {filteredCultures.map(culture => {
+                  // Get theme colors with fallbacks
+                  const cTheme = culture.theme || {};
+                  const cAccent = cTheme.accentColor || '#22c55e';
+                  const cCardBg = cTheme.cardBg || '#0f0f0f';
+                  const cBorder = cTheme.borderColor || '#1a1a1a';
+
+                  // Get banner background
+                  const getBannerStyle = () => {
+                    if (cTheme.bgType === 'image' && cTheme.bgImage) {
+                      return { backgroundImage: `url(${cTheme.bgImage})`, backgroundSize: 'cover', backgroundPosition: 'center' };
+                    } else if (cTheme.bgType === 'gradient' && cTheme.bgGradient) {
+                      return { background: `linear-gradient(135deg, ${cTheme.bgGradient[0]}, ${cTheme.bgGradient[1]})` };
+                    } else if (cTheme.bgColor) {
+                      return { background: cTheme.bgColor };
+                    }
+                    return { background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%)' };
+                  };
+
+                  return (
                   <div
                     key={culture.id || culture.tokenAddress}
                     style={{
-                      background: '#0f0f0f',
-                      border: '1px solid #1a1a1a',
-                      padding: '32px'
+                      background: cCardBg,
+                      border: `1px solid ${cBorder}`,
+                      overflow: 'hidden'
                     }}
                   >
-                    {/* Header row */}
+                    {/* Culture Banner */}
                     <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'flex-start',
-                      marginBottom: '24px'
+                      height: '120px',
+                      ...getBannerStyle(),
+                      position: 'relative'
                     }}>
-                      <div>
-                        <div style={{
-                          fontSize: '9px',
-                          letterSpacing: '0.15em',
-                          color: '#666',
-                          marginBottom: '8px',
-                          fontFamily: "'IBM Plex Mono', monospace"
-                        }}>
-                          {(culture.category || 'CULTURE').toUpperCase()}
-                        </div>
-                        <h3 style={{
-                          fontFamily: "'Playfair Display', serif",
-                          fontSize: '28px',
-                          color: '#fff',
-                          marginBottom: '8px'
-                        }}>
-                          {culture.name}
-                        </h3>
-                        <div style={{
-                          display: 'inline-block',
-                          background: '#22c55e',
-                          color: '#000',
-                          fontSize: '11px',
-                          fontFamily: "'IBM Plex Mono', monospace",
-                          letterSpacing: '0.1em',
-                          padding: '4px 12px',
-                          fontWeight: 600
-                        }}>
-                          ${culture.ticker || culture.symbol || 'TOKEN'}
-                        </div>
-                      </div>
-
                       <div style={{
-                        display: 'inline-block',
-                        background: '#1a1a1a',
-                        color: '#22c55e',
+                        position: 'absolute',
+                        top: '12px',
+                        right: '12px',
+                        background: 'rgba(0,0,0,0.8)',
+                        color: cAccent,
                         fontSize: '10px',
                         fontFamily: "'IBM Plex Mono', monospace",
                         letterSpacing: '0.1em',
@@ -4376,6 +4380,47 @@
                         OWNER
                       </div>
                     </div>
+
+                    <div style={{ padding: '24px 32px 32px' }}>
+                      {/* Header row */}
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        marginBottom: '24px'
+                      }}>
+                        <div>
+                          <div style={{
+                            fontSize: '9px',
+                            letterSpacing: '0.15em',
+                            color: '#666',
+                            marginBottom: '8px',
+                            fontFamily: "'IBM Plex Mono', monospace"
+                          }}>
+                            {(culture.category || 'CULTURE').toUpperCase()}
+                          </div>
+                          <h3 style={{
+                            fontFamily: "'Playfair Display', serif",
+                            fontSize: '28px',
+                            color: cTheme.textColor || '#fff',
+                            marginBottom: '8px'
+                          }}>
+                            {culture.name}
+                          </h3>
+                          <div style={{
+                            display: 'inline-block',
+                            background: cAccent,
+                            color: '#000',
+                            fontSize: '11px',
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            letterSpacing: '0.1em',
+                            padding: '4px 12px',
+                            fontWeight: 600
+                          }}>
+                            ${culture.ticker || culture.symbol || 'TOKEN'}
+                          </div>
+                        </div>
+                      </div>
 
                     {/* Token address */}
                     {culture.tokenAddress && (
@@ -4498,25 +4543,28 @@
                       </a>
                       <button
                         onClick={() => {
-                          // TODO: Open settings modal
-                          alert('Settings coming soon! For now, contact support to update your culture page.');
+                          // Store culture data for editing
+                          localStorage.setItem('edit_culture_data', JSON.stringify(culture));
+                          window.location.href = `/culture-coins?view=edit&id=${culture.id}`;
                         }}
                         style={{
                           padding: '12px 24px',
                           background: 'transparent',
-                          border: '1px solid #333',
-                          color: '#888',
+                          border: `1px solid ${cAccent}`,
+                          color: cAccent,
                           fontSize: '11px',
                           fontFamily: "'IBM Plex Mono', monospace",
                           letterSpacing: '0.1em',
                           cursor: 'pointer'
                         }}
                       >
-                        SETTINGS
+                        EDIT CULTURE
                       </button>
                     </div>
+                    </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Create another culture button */}
@@ -4645,9 +4693,10 @@
           );
         };
 
-        // Create Culture Page - Manifesto Style
-        const CreateCulturePage = () => {
+        // Create Culture Page - Manifesto Style (also handles Edit mode)
+        const CreateCulturePage = ({ editMode = false }) => {
           const wallet = useContext(WalletContext);
+          const [editCultureId, setEditCultureId] = useState(null);
           const [cultureName, setCultureName] = useState('');
           const [creatorName, setCreatorName] = useState('');
           const [cultureEthos, setCultureEthos] = useState(['', '', '']); // Empty - user fills in
@@ -4658,6 +4707,37 @@
           const [tokenIconPreview, setTokenIconPreview] = useState(''); // Data URL for preview
           const [tokenTicker, setTokenTicker] = useState(''); // Custom ticker
           const [devBuyAmount, setDevBuyAmount] = useState(0); // Initial dev buy in SOL (0-5)
+
+          // Load culture data when in edit mode
+          useEffect(() => {
+            if (editMode) {
+              try {
+                const editData = JSON.parse(localStorage.getItem('edit_culture_data') || 'null');
+                if (editData) {
+                  setEditCultureId(editData.id);
+                  setCultureName(editData.name || '');
+                  setCreatorName(editData.creatorName || '');
+                  setCultureEthos(editData.ethos?.length ? editData.ethos : ['', '', '']);
+                  setTokenTicker(editData.ticker || editData.symbol || '');
+                  setCategory(editData.category || '');
+                  if (editData.theme) {
+                    setTheme(editData.theme);
+                  }
+                  if (editData.beliefs) {
+                    setBeliefs(editData.beliefs);
+                  }
+                  if (editData.tiers) {
+                    setTiers(editData.tiers);
+                  }
+                  if (editData.unlocks) {
+                    setUnlocks(editData.unlocks);
+                  }
+                }
+              } catch (e) {
+                console.error('[EDIT] Error loading culture data:', e);
+              }
+            }
+          }, [editMode]);
           const [category, setCategory] = useState(''); // Token category
 
           // Available categories
@@ -7643,6 +7723,7 @@
                 {view === 'discover' && <DiscoveryView onSelectCulture={handleSelectCulture} />}
                 {view === 'feed' && <FeedView onSelectCulture={handleSelectCulture} />}
                 {view === 'create' && <CreateCulturePage />}
+                {view === 'edit' && <CreateCulturePage editMode={true} />}
                 {view === 'culture' && selectedCulture && (
                   <CulturePage
                     culture={selectedCulture}
