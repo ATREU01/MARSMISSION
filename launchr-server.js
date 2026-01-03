@@ -2885,7 +2885,12 @@ if(window.solana?.isConnected)connect();
                     return;
                 }
 
-                console.log(`[TG-LAUNCH] Building tx for ${launch.tokenData.name} ($${launch.tokenData.symbol})`);
+                console.log(`[TG-LAUNCH] ========== BUILD TX START ==========`);
+                console.log(`[TG-LAUNCH] Token: ${launch.tokenData.name} ($${launch.tokenData.symbol})`);
+                console.log(`[TG-LAUNCH] Wallet: ${walletAddress}`);
+                console.log(`[TG-LAUNCH] Mint: ${launch.mintKeypair.publicKey}`);
+                console.log(`[TG-LAUNCH] DevBuy: ${launch.devBuy} SOL`);
+                console.log(`[TG-LAUNCH] PhotoFileId: ${launch.tokenData.photoFileId || 'NONE'}`);
 
                 const axios = require('axios');
                 const FormData = require('form-data');
@@ -2893,10 +2898,63 @@ if(window.solana?.isConnected)connect();
 
                 // Get the stored mint keypair
                 const mintKeypair = Keypair.fromSecretKey(bs58.decode(launch.mintKeypair.secretKey));
+                console.log(`[TG-LAUNCH] Mint keypair restored: ${mintKeypair.publicKey.toBase58()}`);
 
-                // Step 1: Upload metadata to IPFS via PumpPortal
+                // Step 1: Download image from Telegram if available
+                let imageBuffer = null;
+                if (launch.tokenData.photoFileId) {
+                    console.log(`[TG-LAUNCH] Downloading image from Telegram...`);
+                    try {
+                        const TG_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+                        if (!TG_BOT_TOKEN) {
+                            throw new Error('TELEGRAM_BOT_TOKEN not configured');
+                        }
+
+                        // Get file path from Telegram
+                        const fileInfoRes = await axios.get(`https://api.telegram.org/bot${TG_BOT_TOKEN}/getFile?file_id=${launch.tokenData.photoFileId}`);
+                        console.log(`[TG-LAUNCH] Telegram getFile response:`, JSON.stringify(fileInfoRes.data));
+
+                        if (!fileInfoRes.data.ok || !fileInfoRes.data.result.file_path) {
+                            throw new Error('Failed to get file path from Telegram');
+                        }
+
+                        const filePath = fileInfoRes.data.result.file_path;
+                        console.log(`[TG-LAUNCH] File path: ${filePath}`);
+
+                        // Download the actual file
+                        const fileRes = await axios.get(`https://api.telegram.org/file/bot${TG_BOT_TOKEN}/${filePath}`, {
+                            responseType: 'arraybuffer'
+                        });
+                        imageBuffer = Buffer.from(fileRes.data);
+                        console.log(`[TG-LAUNCH] Image downloaded: ${imageBuffer.length} bytes`);
+                    } catch (imgErr) {
+                        console.error(`[TG-LAUNCH] Image download failed:`, imgErr.message);
+                        // Continue without image - will use default
+                    }
+                }
+
+                // Step 2: Upload metadata to IPFS via PumpPortal
                 console.log('[TG-LAUNCH] Uploading metadata to IPFS...');
                 const formData = new FormData();
+
+                // Add image file if we have one
+                if (imageBuffer) {
+                    formData.append('file', imageBuffer, {
+                        filename: 'token.png',
+                        contentType: 'image/png'
+                    });
+                    console.log(`[TG-LAUNCH] Added image to form (${imageBuffer.length} bytes)`);
+                } else {
+                    // Create a simple placeholder image (1x1 transparent PNG)
+                    console.log(`[TG-LAUNCH] No image - creating placeholder...`);
+                    const placeholderPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+                    formData.append('file', placeholderPng, {
+                        filename: 'token.png',
+                        contentType: 'image/png'
+                    });
+                    console.log(`[TG-LAUNCH] Added placeholder image`);
+                }
+
                 formData.append('name', launch.tokenData.name);
                 formData.append('symbol', launch.tokenData.symbol);
                 formData.append('description', launch.tokenData.description || `${launch.tokenData.name} - Launched via LAUNCHR`);
@@ -2905,19 +2963,25 @@ if(window.solana?.isConnected)connect();
                 formData.append('website', 'https://www.launchr.xyz');
                 formData.append('showName', 'true');
 
+                console.log(`[TG-LAUNCH] Form data prepared, calling PumpPortal IPFS...`);
+
                 const ipfsRes = await axios.post('https://pumpportal.fun/api/ipfs', formData, {
                     headers: formData.getHeaders(),
                     timeout: 30000
                 });
 
+                console.log(`[TG-LAUNCH] IPFS response status: ${ipfsRes.status}`);
+                console.log(`[TG-LAUNCH] IPFS response data:`, JSON.stringify(ipfsRes.data));
+
                 if (!ipfsRes.data || !ipfsRes.data.metadataUri) {
-                    throw new Error('Failed to upload metadata to IPFS');
+                    throw new Error(`Failed to upload metadata to IPFS: ${JSON.stringify(ipfsRes.data)}`);
                 }
 
                 const metadataUri = ipfsRes.data.metadataUri;
-                console.log(`[TG-LAUNCH] Metadata uploaded: ${metadataUri}`);
+                console.log(`[TG-LAUNCH] ✅ Metadata uploaded: ${metadataUri}`);
 
-                // Step 2: Request create transaction from PumpPortal
+                // Step 3: Request create transaction from PumpPortal
+                console.log(`[TG-LAUNCH] Requesting create transaction from PumpPortal...`);
                 const createParams = new URLSearchParams({
                     publicKey: walletAddress,
                     action: 'create',
@@ -2934,28 +2998,50 @@ if(window.solana?.isConnected)connect();
                     pool: 'pump'
                 });
 
-                const pumpRes = await axios.post(
-                    'https://pumpportal.fun/api/trade-local',
-                    createParams.toString(),
-                    {
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        responseType: 'arraybuffer',
-                        timeout: 30000
+                console.log(`[TG-LAUNCH] Trade params:`, createParams.toString());
+
+                let pumpRes;
+                try {
+                    pumpRes = await axios.post(
+                        'https://pumpportal.fun/api/trade-local',
+                        createParams.toString(),
+                        {
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            responseType: 'arraybuffer',
+                            timeout: 30000
+                        }
+                    );
+                    console.log(`[TG-LAUNCH] PumpPortal response status: ${pumpRes.status}`);
+                    console.log(`[TG-LAUNCH] PumpPortal response size: ${pumpRes.data?.byteLength || 0} bytes`);
+                } catch (pumpErr) {
+                    console.error(`[TG-LAUNCH] PumpPortal error:`, pumpErr.message);
+                    if (pumpErr.response) {
+                        console.error(`[TG-LAUNCH] PumpPortal status: ${pumpErr.response.status}`);
+                        const errText = Buffer.from(pumpErr.response.data).toString();
+                        console.error(`[TG-LAUNCH] PumpPortal body: ${errText}`);
+                        throw new Error(`PumpPortal error ${pumpErr.response.status}: ${errText}`);
                     }
-                );
+                    throw pumpErr;
+                }
 
                 if (!pumpRes.data || pumpRes.data.byteLength === 0) {
                     throw new Error('PumpPortal returned empty transaction');
                 }
 
-                // Deserialize transaction
+                // Step 4: Deserialize transaction
+                console.log(`[TG-LAUNCH] Deserializing transaction...`);
                 const tx = VersionedTransaction.deserialize(new Uint8Array(pumpRes.data));
+                console.log(`[TG-LAUNCH] Transaction deserialized, ${tx.message.staticAccountKeys.length} account keys`);
 
-                // Sign with mint keypair (server-side) - user will add their signature
+                // Step 5: Sign with mint keypair (server-side) - user will add their signature
+                console.log(`[TG-LAUNCH] Signing with mint keypair...`);
                 tx.sign([mintKeypair]);
+                console.log(`[TG-LAUNCH] Transaction signed by mint`);
 
                 // Return partially signed transaction for user to complete
                 const serializedTx = Buffer.from(tx.serialize()).toString('base64');
+                console.log(`[TG-LAUNCH] ✅ BUILD TX COMPLETE - returning ${serializedTx.length} char base64 tx`);
+                console.log(`[TG-LAUNCH] ========== BUILD TX END ==========`);
 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({
@@ -2965,7 +3051,9 @@ if(window.solana?.isConnected)connect();
                 }));
 
             } catch (e) {
-                console.error('[TG-LAUNCH] Build tx error:', e.message);
+                console.error(`[TG-LAUNCH] ========== BUILD TX FAILED ==========`);
+                console.error('[TG-LAUNCH] Error:', e.message);
+                console.error('[TG-LAUNCH] Stack:', e.stack);
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: e.message }));
             }
