@@ -2785,6 +2785,7 @@ The 4 percentages MUST sum to exactly 100.`;
     }
 
     // API: Get coins created by a specific wallet from pump.fun
+    // Falls back to our local database cultures when pump.fun is unavailable
     if (url.pathname === '/api/pump/coins-by-creator' && req.method === 'GET') {
         const wallet = url.searchParams.get('wallet');
         if (!wallet) {
@@ -2794,12 +2795,12 @@ The 4 percentages MUST sum to exactly 100.`;
         }
 
         const cacheKey = `pump_creator_${wallet}`;
-        const CACHE_TTL = 60000; // 1 minute cache
+        const CACHE_TTL = 300000; // 5 minute cache (longer due to API issues)
 
         // Initialize cache
         if (!global.pumpCreatorCache) global.pumpCreatorCache = new Map();
 
-        // Check cache first
+        // Check cache first (use even stale cache if API is having issues)
         const cached = global.pumpCreatorCache.get(cacheKey);
         if (cached && Date.now() - cached.ts < CACHE_TTL) {
             res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'HIT' });
@@ -2807,27 +2808,56 @@ The 4 percentages MUST sum to exactly 100.`;
             return;
         }
 
+        // Helper to get local cultures for this wallet as fallback
+        const getLocalCultures = () => {
+            try {
+                const cultures = loadCultures();
+                return cultures
+                    .filter(c => c.wallet === wallet || c.creatorWallet === wallet || c.creator === wallet)
+                    .map(c => ({
+                        mint: c.tokenAddress || c.id,
+                        name: c.name,
+                        symbol: c.ticker,
+                        description: c.ethos || '',
+                        image_uri: c.imageUri || '',
+                        creator: wallet,
+                        created_timestamp: c.createdAt,
+                        usd_market_cap: c.marketCap || 0,
+                        holder_count: c.holders || 0,
+                        // Mark as from local DB
+                        _source: 'local'
+                    }));
+            } catch (e) {
+                return [];
+            }
+        };
+
         try {
             // Pump.fun API for coins created by wallet
             const pumpUrl = `https://frontend-api.pump.fun/coins/user-created-coins/${wallet}`;
             const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 8000);
+            const timeout = setTimeout(() => controller.abort(), 5000);
 
-            console.log(`[PUMP] Fetching coins by creator: ${wallet}`);
+            console.log(`[PUMP] Fetching coins by creator: ${wallet.slice(0, 8)}...`);
 
             const pumpRes = await fetch(pumpUrl, {
                 headers: {
-                    'Accept': 'application/json',
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    'Accept': 'application/json, text/plain, */*',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Origin': 'https://pump.fun',
+                    'Referer': 'https://pump.fun/'
                 },
                 signal: controller.signal
             });
             clearTimeout(timeout);
 
             if (!pumpRes.ok) {
-                console.warn(`[PUMP] API returned ${pumpRes.status} for creator ${wallet}`);
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify([]));
+                console.warn(`[PUMP] API returned ${pumpRes.status} for creator ${wallet.slice(0, 8)}... - using local fallback`);
+                // Return stale cache or local cultures as fallback
+                const fallbackData = cached?.data || getLocalCultures();
+                res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'FALLBACK' });
+                res.end(JSON.stringify(fallbackData));
                 return;
             }
 
@@ -2840,9 +2870,11 @@ The 4 percentages MUST sum to exactly 100.`;
             res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'MISS' });
             res.end(JSON.stringify(coins || []));
         } catch (e) {
-            console.error('[PUMP] Creator coins error:', e.message);
+            console.error('[PUMP] Creator coins error:', e.message, '- using local fallback');
+            // Return stale cache or local cultures as fallback
+            const fallbackData = cached?.data || getLocalCultures();
             res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'ERROR' });
-            res.end(JSON.stringify(cached?.data || []));
+            res.end(JSON.stringify(fallbackData));
         }
         return;
     }

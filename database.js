@@ -581,7 +581,12 @@ const migrateFromJSON = () => {
           // Check if already exists
           const existing = cultureDB.getById(culture.id);
           if (!existing) {
-            cultureDB.create(culture);
+            // Normalize wallet field - could be wallet, creatorWallet, or creator
+            const normalizedCulture = {
+              ...culture,
+              wallet: culture.wallet || culture.creatorWallet || culture.creator || 'unknown'
+            };
+            cultureDB.create(normalizedCulture);
             migrated++;
           }
         } catch (e) {
