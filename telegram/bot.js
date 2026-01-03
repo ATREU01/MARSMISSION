@@ -81,6 +81,8 @@ class SecureLaunchrBot {
         // Command handlers
         this.commands = {
             '/start': this.handleStart.bind(this),
+            '/create': this.handleCreate.bind(this),
+            '/existing': this.handleExisting.bind(this),
             '/help': this.handleHelp.bind(this),
             '/link': this.handleLink.bind(this),
             '/unlink': this.handleUnlink.bind(this),
@@ -89,7 +91,6 @@ class SecureLaunchrBot {
             '/privacy': this.handlePrivacy.bind(this),
             '/guide': this.handleGuide.bind(this),
             '/alerts': this.handleAlerts.bind(this),
-            '/create': this.handleCreate.bind(this),
             '/dashboard': this.handleDashboard.bind(this),
         };
 
@@ -99,6 +100,7 @@ class SecureLaunchrBot {
             'legal_cancel': this.handleLegalCancel.bind(this),
             'action_create': this.handleActionCreate.bind(this),
             'action_import': this.handleActionImport.bind(this),
+            'action_unlink': this.handleActionUnlink.bind(this),
             'alerts_toggle': this.handleAlertsToggle.bind(this),
         };
 
@@ -193,7 +195,7 @@ class SecureLaunchrBot {
                     { text: 'Import Existing', callback_data: 'action_import' },
                 ],
                 [
-                    { text: 'View Guide', callback_data: 'action_guide' },
+                    { text: 'View Guide', url: `${BOT_CONFIG.WEB_BASE_URL}/guide` },
                     { text: 'Dashboard', url: `${BOT_CONFIG.WEB_BASE_URL}/dashboard` },
                 ],
             ],
@@ -205,11 +207,15 @@ class SecureLaunchrBot {
 
 The first AI-powered fee allocation engine.
 
+<b>Commands:</b>
+/create - Launch a new token on Pump.fun
+/existing - Import an existing Pump.fun token
+
 <b>What would you like to do?</b>
 
-<b>Create Token</b> - Launch a new token on Pump.fun with LAUNCHR's automated fee distribution built-in.
+<b>/create</b> - Launch a new token on Pump.fun with LAUNCHR's automated fee distribution built-in.
 
-<b>Import Existing</b> - Connect an existing Pump.fun token to LAUNCHR to automate your creator fee allocations.
+<b>/existing</b> - Connect an existing Pump.fun token to LAUNCHR to automate your creator fee allocations.
 
 <i>All wallet connections are secure and non-custodial.</i>
 `.trim();
@@ -224,10 +230,13 @@ The first AI-powered fee allocation engine.
         const text = `
 <b>LAUNCHR Commands</b>
 
+<b>Main Actions:</b>
+/create - Launch a new token on Pump.fun
+/existing - Import an existing Pump.fun token
+
 <b>Getting Started:</b>
 /start - Welcome & options
 /link - Connect your wallet
-/unlink - Disconnect wallet
 /guide - Complete walkthrough
 
 <b>After Linking:</b>
@@ -235,7 +244,8 @@ The first AI-powered fee allocation engine.
 /dashboard - Open web dashboard
 /alerts - Notification settings
 
-<b>Information:</b>
+<b>Account:</b>
+/unlink - Disconnect wallet
 /legal - Terms & disclaimers
 /privacy - Privacy policy
 /help - This message
@@ -554,11 +564,107 @@ Tap to toggle notifications:
         };
 
         await this.sendMessage(chatId, `
-<b>CREATE TOKEN</b>
+<b>CREATE NEW TOKEN</b>
+
+Launch a new token on Pump.fun with LAUNCHR's automated fee distribution built-in.
 
 Token creation happens on our secure website with Privy authentication.
 
+<b>What you'll get:</b>
+• Automated fee claiming
+• Smart distribution engine
+• RSI-timed market making
+• Buyback & burn mechanics
+
 Click below to start:
+`.trim(), { reply_markup: keyboard });
+    }
+
+    /**
+     * /existing - Import an existing Pump.fun token
+     */
+    async handleExisting(chatId, args, msg) {
+        // Check if already linked
+        if (sessionBridge.isLinked(chatId)) {
+            const session = sessionBridge.getSession(chatId);
+            const keyboard = {
+                inline_keyboard: [
+                    [
+                        { text: 'Open Dashboard', url: `${BOT_CONFIG.WEB_BASE_URL}/dashboard` },
+                    ],
+                    [
+                        { text: 'Disconnect Wallet', callback_data: 'action_unlink' },
+                    ],
+                ],
+            };
+
+            await this.sendMessage(chatId, `
+<b>WALLET ALREADY CONNECTED</b>
+
+Wallet: <code>${session.walletPreview}</code>
+${session.mint ? `Token: <code>${session.mintPreview}</code>` : 'Token: <i>Not configured</i>'}
+Status: ${session.engine?.active ? 'Engine Running' : 'Engine Paused'}
+
+Open the dashboard to import your existing Pump.fun tokens.
+`.trim(), { reply_markup: keyboard });
+            return;
+        }
+
+        // Check if terms accepted
+        if (!legal.hasAcceptedTerms(chatId)) {
+            await this.sendMessage(chatId, legal.getDisclaimer('SHORT') + '\n\n' + legal.getDisclaimer('WALLET_CONNECT'), {
+                reply_markup: legal.ACCEPT_KEYBOARD,
+            });
+            return;
+        }
+
+        // Create pending session
+        const sessionResult = sessionBridge.createPendingSession(chatId, {
+            username: msg.from?.username,
+        });
+
+        if (!sessionResult.success) {
+            await this.sendMessage(chatId, `Error: ${sessionResult.error}`);
+            return;
+        }
+
+        // Generate secure link token
+        const tokenResult = linkTokens.generateToken(chatId, { action: 'import' });
+
+        if (!tokenResult.success) {
+            await this.sendMessage(chatId, `Error: ${tokenResult.error}`);
+            return;
+        }
+
+        const keyboard = {
+            inline_keyboard: [
+                [
+                    { text: 'Connect Wallet & Import', url: tokenResult.linkUrl },
+                ],
+                [
+                    { text: 'Why is this secure?', callback_data: 'info_security' },
+                ],
+            ],
+        };
+
+        await this.sendMessage(chatId, `
+<b>IMPORT EXISTING TOKEN</b>
+
+Connect your wallet to import your existing Pump.fun tokens into LAUNCHR.
+
+<b>What happens:</b>
+1. Click "Connect Wallet & Import"
+2. Authenticate with your preferred method
+3. Select your Pump.fun token
+4. Configure fee allocations
+5. Activate the engine
+
+<b>Security:</b>
+• Your private key NEVER leaves your device
+• We CANNOT access your funds without approval
+• This link expires in 5 minutes
+
+<i>Link expires: ${new Date(tokenResult.expiresAt).toLocaleTimeString()}</i>
 `.trim(), { reply_markup: keyboard });
     }
 
@@ -628,7 +734,12 @@ You can now use /link to connect your wallet.
             return;
         }
 
-        await this.handleLink(chatId, [], msg);
+        await this.handleExisting(chatId, [], msg);
+    }
+
+    async handleActionUnlink(chatId, callbackId) {
+        await this.answerCallback(callbackId);
+        await this.handleUnlink(chatId);
     }
 
     async handleAlertsToggle(chatId, callbackId, msg, data) {
@@ -657,14 +768,15 @@ You can now use /link to connect your wallet.
 
     async registerCommands() {
         const commands = [
+            { command: 'create', description: 'Launch a new token on Pump.fun' },
+            { command: 'existing', description: 'Import an existing Pump.fun token' },
             { command: 'start', description: 'Welcome & get started' },
-            { command: 'link', description: 'Connect your wallet' },
             { command: 'status', description: 'Your session status' },
             { command: 'dashboard', description: 'Open web dashboard' },
-            { command: 'alerts', description: 'Notification settings' },
             { command: 'guide', description: 'Complete walkthrough' },
+            { command: 'alerts', description: 'Notification settings' },
+            { command: 'link', description: 'Connect your wallet' },
             { command: 'unlink', description: 'Disconnect wallet' },
-            { command: 'legal', description: 'Terms & disclaimers' },
             { command: 'help', description: 'Show all commands' },
         ];
 
