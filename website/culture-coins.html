@@ -3004,7 +3004,7 @@
               {/* Banner - 1500x500 recommended (3:1 ratio like Twitter/X) */}
               <div
                 style={{
-                  height: '250px',
+                  height: '500px',
                   width: '100%',
                   backgroundImage: profile?.banner ? `url(${profile.banner})` : 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%)',
                   backgroundSize: 'cover',
@@ -3367,8 +3367,9 @@
             return () => clearInterval(interval);
           }, []);
 
-          const handleLike = (postId) => {
+          const handleLike = async (postId) => {
             if (!wallet?.address) return;
+            // Optimistic UI update
             const updatedPosts = posts.map(p => {
               if (p.id === postId) {
                 const likes = p.likes || [];
@@ -3383,10 +3384,20 @@
               return p;
             });
             setPosts(updatedPosts);
-            localStorage.setItem('culture_posts', JSON.stringify(updatedPosts));
+
+            // Sync to server
+            try {
+              await fetch(`/api/posts/${postId}/like`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ wallet: wallet.address })
+              });
+            } catch (e) {
+              console.error('[FEED] Like sync failed:', e);
+            }
           };
 
-          const handleComment = (postId, comment) => {
+          const handleComment = async (postId, comment) => {
             if (!wallet?.address) return;
             // Get commenter's display name from profile
             let commenterName = 'Anonymous';
@@ -3395,6 +3406,8 @@
               if (profile?.displayName) commenterName = profile.displayName;
               else if (profile?.username) commenterName = profile.username;
             } catch (e) {}
+
+            // Optimistic UI update
             const updatedPosts = posts.map(p => {
               if (p.id === postId) {
                 return {
@@ -3413,11 +3426,22 @@
               return p;
             });
             setPosts(updatedPosts);
-            localStorage.setItem('culture_posts', JSON.stringify(updatedPosts));
+
+            // Sync to server
+            try {
+              await fetch(`/api/posts/${postId}/comment`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ authorWallet: wallet.address, content: comment })
+              });
+            } catch (e) {
+              console.error('[FEED] Comment sync failed:', e);
+            }
           };
 
-          const handleRepost = (postId) => {
+          const handleRepost = async (postId) => {
             if (!wallet?.address) return;
+            // Optimistic UI update
             const updatedPosts = posts.map(p => {
               if (p.id === postId) {
                 const reposts = p.repostedBy || [];
@@ -3433,7 +3457,17 @@
               return p;
             });
             setPosts(updatedPosts);
-            localStorage.setItem('culture_posts', JSON.stringify(updatedPosts));
+
+            // Sync to server
+            try {
+              await fetch(`/api/posts/${postId}/repost`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ wallet: wallet.address })
+              });
+            } catch (e) {
+              console.error('[FEED] Repost sync failed:', e);
+            }
           };
 
           if (loading) {
@@ -3745,40 +3779,122 @@
           // Load profile when wallet changes
           useEffect(() => {
             if (wallet?.address) {
-              try {
-                const stored = localStorage.getItem('creator_profile_' + wallet.address);
-                if (stored) {
-                  setProfile(JSON.parse(stored));
-                } else {
-                  setProfile({ wallet: wallet.address, displayName: '', bio: '', pfp: null, banner: null });
-                }
-                // Load ALL posts from everyone
-                const allPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
-                // Enrich posts with profile display names
-                const enrichedPosts = allPosts.map(post => {
-                  if (post.authorWallet) {
-                    try {
-                      const profile = JSON.parse(localStorage.getItem('creator_profile_' + post.authorWallet) || 'null');
-                      if (profile?.displayName) {
-                        return { ...post, authorName: profile.displayName, authorPfp: profile.pfp || post.authorPfp };
-                      }
-                    } catch (e) {}
+              // Load profile from server first, fallback to localStorage
+              const loadProfile = async () => {
+                try {
+                  const res = await fetch(`/api/profile/${wallet.address}`);
+                  const data = await res.json();
+                  if (data.success && data.profile) {
+                    const serverProfile = {
+                      wallet: wallet.address,
+                      displayName: data.profile.display_name || '',
+                      username: data.profile.username || '',
+                      bio: data.profile.bio || '',
+                      pfp: data.profile.avatar || null,
+                      banner: data.profile.banner || null
+                    };
+                    setProfile(serverProfile);
+                    localStorage.setItem('creator_profile_' + wallet.address, JSON.stringify(serverProfile));
+                  } else {
+                    // Fallback to localStorage
+                    const stored = localStorage.getItem('creator_profile_' + wallet.address);
+                    if (stored) {
+                      setProfile(JSON.parse(stored));
+                    } else {
+                      setProfile({ wallet: wallet.address, displayName: '', bio: '', pfp: null, banner: null });
+                    }
                   }
-                  return post;
-                });
-                enrichedPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-                setMyPosts(enrichedPosts);
-              } catch (e) {
-                console.error('[DASHBOARD] Error loading profile:', e);
-              }
+                } catch (e) {
+                  console.error('[DASHBOARD] Server profile fetch failed:', e);
+                  // Fallback to localStorage
+                  const stored = localStorage.getItem('creator_profile_' + wallet.address);
+                  if (stored) {
+                    setProfile(JSON.parse(stored));
+                  } else {
+                    setProfile({ wallet: wallet.address, displayName: '', bio: '', pfp: null, banner: null });
+                  }
+                }
+              };
+              loadProfile();
+
+              // Load posts from server API
+              const loadPosts = async () => {
+                try {
+                  let serverPosts = [];
+                  try {
+                    const apiRes = await fetch('/api/posts?limit=100');
+                    const apiData = await apiRes.json();
+                    if (apiData.success && apiData.posts) {
+                      serverPosts = apiData.posts.map(p => ({
+                        id: p.id,
+                        authorWallet: p.author_wallet,
+                        authorName: p.authorName || p.author_wallet?.slice(0, 8) + '...',
+                        authorPfp: p.authorAvatar,
+                        content: p.content,
+                        media: p.media_urls ? JSON.parse(p.media_urls) : [],
+                        likes: p.liked_by ? JSON.parse(p.liked_by) : [],
+                        reposts: p.reposted_by ? JSON.parse(p.reposted_by) : [],
+                        comments: [],
+                        createdAt: p.created_at,
+                        cultureId: p.culture_id
+                      }));
+                    }
+                  } catch (e) {
+                    console.error('[DASHBOARD] API fetch failed:', e);
+                  }
+
+                  // Merge with localStorage for backward compat
+                  const storedPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
+                  const serverIds = new Set(serverPosts.map(p => p.id));
+                  const localOnly = storedPosts.filter(p => !serverIds.has(p.id));
+                  const allPosts = [...serverPosts, ...localOnly];
+
+                  // Enrich posts with profile display names
+                  const enrichedPosts = allPosts.map(post => {
+                    if (post.authorWallet) {
+                      try {
+                        const profile = JSON.parse(localStorage.getItem('creator_profile_' + post.authorWallet) || 'null');
+                        if (profile?.displayName) {
+                          return { ...post, authorName: profile.displayName, authorPfp: profile.pfp || post.authorPfp };
+                        }
+                      } catch (e) {}
+                    }
+                    return post;
+                  });
+                  enrichedPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                  console.log('[DASHBOARD] Loaded', enrichedPosts.length, 'posts (server:', serverPosts.length, ')');
+                  setMyPosts(enrichedPosts);
+                } catch (e) {
+                  console.error('[DASHBOARD] Error loading posts:', e);
+                }
+              };
+              loadPosts();
             }
           }, [wallet?.address]);
 
-          // Save profile changes
-          const handleEditProfile = (updates) => {
+          // Save profile changes - sync to server
+          const handleEditProfile = async (updates) => {
             const newProfile = { ...profile, ...updates, wallet: wallet?.address };
             setProfile(newProfile);
             localStorage.setItem('creator_profile_' + wallet?.address, JSON.stringify(newProfile));
+
+            // Sync to server so other users can see our profile
+            try {
+              await fetch('/api/profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  wallet: wallet?.address,
+                  displayName: newProfile.displayName,
+                  username: newProfile.username,
+                  bio: newProfile.bio,
+                  avatar: newProfile.pfp,
+                  banner: newProfile.banner
+                })
+              });
+            } catch (e) {
+              console.error('[PROFILE] Sync failed:', e);
+            }
           };
 
           // Create a new post
@@ -3825,48 +3941,70 @@
             setMyPosts(prev => [newPost, ...prev]);
           };
 
-          // Handle like
-          const handleLike = (postId) => {
+          // Handle like - sync to server
+          const handleLike = async (postId) => {
             if (!wallet?.address) return;
-            const allPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
-            const updatedAll = allPosts.map(p => {
+            // Optimistic update
+            setMyPosts(prev => prev.map(p => {
               if (p.id === postId) {
                 const likes = p.likes || [];
                 const isLiked = likes.includes(wallet.address);
                 return { ...p, likes: isLiked ? likes.filter(l => l !== wallet.address) : [...likes, wallet.address] };
               }
               return p;
-            });
-            localStorage.setItem('culture_posts', JSON.stringify(updatedAll));
-            setMyPosts(updatedAll.filter(p => p.authorWallet === wallet.address));
+            }));
+
+            // Sync to server
+            try {
+              await fetch(`/api/posts/${postId}/like`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ wallet: wallet.address })
+              });
+            } catch (e) {
+              console.error('[POST] Like sync failed:', e);
+            }
           };
 
-          // Handle comment
-          const handleComment = (postId, comment) => {
+          // Handle comment - sync to server
+          const handleComment = async (postId, comment) => {
             if (!wallet?.address) return;
-            const allPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
-            const updatedAll = allPosts.map(p => {
+            const authorName = wallet.address.slice(0, 6) + '...' + wallet.address.slice(-4);
+
+            // Optimistic update
+            setMyPosts(prev => prev.map(p => {
               if (p.id === postId) {
                 return {
                   ...p,
                   comments: [...(p.comments || []), {
-                    author: wallet.address.slice(0, 6) + '...' + wallet.address.slice(-4),
+                    author: authorName,
+                    authorWallet: wallet.address,
                     content: comment,
                     createdAt: new Date().toISOString()
                   }]
                 };
               }
               return p;
-            });
-            localStorage.setItem('culture_posts', JSON.stringify(updatedAll));
-            setMyPosts(updatedAll.filter(p => p.authorWallet === wallet.address));
+            }));
+
+            // Sync to server
+            try {
+              await fetch(`/api/posts/${postId}/comment`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ authorWallet: wallet.address, content: comment })
+              });
+            } catch (e) {
+              console.error('[POST] Comment sync failed:', e);
+            }
           };
 
-          // Handle repost
-          const handleRepost = (postId) => {
+          // Handle repost - sync to server
+          const handleRepost = async (postId) => {
             if (!wallet?.address) return;
-            const allPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
-            const updatedAll = allPosts.map(p => {
+
+            // Optimistic update
+            setMyPosts(prev => prev.map(p => {
               if (p.id === postId) {
                 const reposts = p.repostedBy || [];
                 const hasReposted = reposts.includes(wallet.address);
@@ -3879,9 +4017,18 @@
                 };
               }
               return p;
-            });
-            localStorage.setItem('culture_posts', JSON.stringify(updatedAll));
-            setMyPosts(updatedAll.filter(p => p.authorWallet === wallet.address));
+            }));
+
+            // Sync to server
+            try {
+              await fetch(`/api/posts/${postId}/repost`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ wallet: wallet.address })
+              });
+            } catch (e) {
+              console.error('[POST] Repost sync failed:', e);
+            }
           };
 
           // Auto-select first culture for chart when cultures load
