@@ -1005,6 +1005,35 @@
           const [loading, setLoading] = useState(true);
           const [searchQuery, setSearchQuery] = useState('');
 
+          // Light/Dark Mode State (synced with localStorage)
+          const [lightMode, setLightMode] = useState(() => {
+            try { return JSON.parse(localStorage.getItem('lightMode') || 'false'); }
+            catch { return false; }
+          });
+
+          // Colors based on light/dark mode
+          const colors = lightMode ? {
+            bg: '#fafafa',
+            cardBg: '#ffffff',
+            border: '#e5e5e5',
+            text: '#171717',
+            textSecondary: '#404040',
+            textMuted: '#737373',
+            accent: '#22c55e',
+            inputBg: '#ffffff',
+            inputBorder: '#d4d4d4'
+          } : {
+            bg: '#0a0a0a',
+            cardBg: '#0f0f0f',
+            border: '#1a1a1a',
+            text: '#ffffff',
+            textSecondary: '#a0a0a0',
+            textMuted: '#666666',
+            accent: '#22c55e',
+            inputBg: '#111111',
+            inputBorder: '#333333'
+          };
+
           // Fetch cultures from API on mount and enrich with live pump.fun data
           useEffect(() => {
             const fetchCultures = async () => {
@@ -1066,14 +1095,64 @@
           });
 
           return (
-            <div style={{ padding: '136px 40px 60px' }}>
+            <div style={{
+              padding: '136px 40px 60px',
+              background: colors.bg,
+              minHeight: '100vh',
+              transition: 'all 0.3s ease'
+            }}>
+              {/* Light/Dark Mode Toggle - Fixed Position */}
+              <button
+                onClick={() => {
+                  const newMode = !lightMode;
+                  setLightMode(newMode);
+                  localStorage.setItem('lightMode', JSON.stringify(newMode));
+                }}
+                style={{
+                  position: 'fixed',
+                  top: '100px',
+                  right: '40px',
+                  zIndex: 100,
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  background: lightMode ? '#1a1a1a' : '#ffffff',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
+                  transition: 'all 0.3s'
+                }}
+                title={lightMode ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+              >
+                {lightMode ? (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff" stroke="none">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2">
+                    <circle cx="12" cy="12" r="5"/>
+                    <line x1="12" y1="1" x2="12" y2="3"/>
+                    <line x1="12" y1="21" x2="12" y2="23"/>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                    <line x1="1" y1="12" x2="3" y2="12"/>
+                    <line x1="21" y1="12" x2="23" y2="12"/>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                  </svg>
+                )}
+              </button>
+
               {/* Header */}
               <div style={{ marginBottom: '60px' }}>
                 <h1 style={{
                   fontFamily: "'Playfair Display', serif",
                   fontSize: '48px',
                   fontWeight: 400,
-                  color: '#fff',
+                  color: colors.text,
                   marginBottom: '16px',
                   letterSpacing: '-0.02em'
                 }}>
@@ -1082,7 +1161,7 @@
                 <p style={{
                   fontFamily: "'IBM Plex Mono', monospace",
                   fontSize: '14px',
-                  color: '#888',
+                  color: colors.textMuted,
                   maxWidth: '600px',
                   lineHeight: 1.7
                 }}>
@@ -1096,11 +1175,11 @@
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
-                  background: '#0f0f0f',
-                  border: '1px solid #222',
+                  background: colors.cardBg,
+                  border: `1px solid ${colors.border}`,
                   padding: '0 16px'
                 }}>
-                  <span style={{ color: '#666', marginRight: '12px', fontSize: '14px' }}>⌕</span>
+                  <span style={{ color: colors.textMuted, marginRight: '12px', fontSize: '14px' }}>⌕</span>
                   <input
                     type="text"
                     placeholder="Search by name, ticker, or contract address..."
@@ -1112,7 +1191,7 @@
                       background: 'transparent',
                       border: 'none',
                       outline: 'none',
-                      color: '#fff',
+                      color: colors.text,
                       fontSize: '13px',
                       fontFamily: "'IBM Plex Mono', monospace"
                     }}
@@ -1123,7 +1202,7 @@
                       style={{
                         background: 'transparent',
                         border: 'none',
-                        color: '#666',
+                        color: colors.textMuted,
                         cursor: 'pointer',
                         fontSize: '16px',
                         padding: '4px 8px'
@@ -1140,33 +1219,36 @@
                 <div style={{
                   fontSize: '10px',
                   letterSpacing: '0.15em',
-                  color: '#666',
+                  color: colors.textMuted,
                   marginBottom: '16px',
                   fontFamily: "'IBM Plex Mono', monospace"
                 }}>
                   CATEGORIES
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {CATEGORIES.map(cat => (
-                    <button
-                      key={cat.id}
-                      onClick={() => setSelectedCategory(cat.id === 'all' ? null : cat.id)}
-                      style={{
-                        padding: '10px 16px',
-                        background: (cat.id === 'all' && !selectedCategory) || selectedCategory === cat.id ? '#fff' : 'transparent',
-                        color: (cat.id === 'all' && !selectedCategory) || selectedCategory === cat.id ? '#000' : '#888',
-                        border: '1px solid',
-                        borderColor: (cat.id === 'all' && !selectedCategory) || selectedCategory === cat.id ? '#fff' : '#333',
-                        fontSize: '11px',
-                        fontFamily: "'IBM Plex Mono', monospace",
-                        letterSpacing: '0.05em',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      {cat.name}
-                    </button>
-                  ))}
+                  {CATEGORIES.map(cat => {
+                    const isActive = (cat.id === 'all' && !selectedCategory) || selectedCategory === cat.id;
+                    return (
+                      <button
+                        key={cat.id}
+                        onClick={() => setSelectedCategory(cat.id === 'all' ? null : cat.id)}
+                        style={{
+                          padding: '10px 16px',
+                          background: isActive ? colors.accent : 'transparent',
+                          color: isActive ? '#000' : colors.textSecondary,
+                          border: '1px solid',
+                          borderColor: isActive ? colors.accent : colors.border,
+                          fontSize: '11px',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          letterSpacing: '0.05em',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {cat.name}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1181,8 +1263,8 @@
                     key={culture.id}
                     onClick={() => onSelectCulture(culture)}
                     style={{
-                      background: '#0f0f0f',
-                      border: '1px solid #1a1a1a',
+                      background: colors.cardBg,
+                      border: `1px solid ${colors.border}`,
                       padding: '32px',
                       cursor: 'pointer',
                       transition: 'all 0.3s',
@@ -1190,11 +1272,11 @@
                       overflow: 'hidden'
                     }}
                     onMouseEnter={e => {
-                      e.currentTarget.style.borderColor = '#333';
+                      e.currentTarget.style.borderColor = colors.accent;
                       e.currentTarget.style.transform = 'translateY(-2px)';
                     }}
                     onMouseLeave={e => {
-                      e.currentTarget.style.borderColor = '#1a1a1a';
+                      e.currentTarget.style.borderColor = colors.border;
                       e.currentTarget.style.transform = 'translateY(0)';
                     }}
                   >
@@ -1202,7 +1284,7 @@
                     <div style={{
                       fontSize: '9px',
                       letterSpacing: '0.15em',
-                      color: '#666',
+                      color: colors.textMuted,
                       marginBottom: '16px',
                       fontFamily: "'IBM Plex Mono', monospace"
                     }}>
@@ -1214,7 +1296,7 @@
                       fontFamily: "'Playfair Display', serif",
                       fontSize: '28px',
                       fontWeight: 400,
-                      color: '#fff',
+                      color: colors.text,
                       marginBottom: '12px'
                     }}>
                       {culture.name}
@@ -1222,7 +1304,7 @@
                     <p style={{
                       fontFamily: "'IBM Plex Mono', monospace",
                       fontSize: '13px',
-                      color: '#999',
+                      color: colors.textSecondary,
                       lineHeight: 1.6,
                       marginBottom: '24px'
                     }}>
@@ -1234,13 +1316,13 @@
                       display: 'grid',
                       gridTemplateColumns: 'repeat(3, 1fr)',
                       gap: '16px',
-                      borderTop: '1px solid #1a1a1a',
+                      borderTop: `1px solid ${colors.border}`,
                       paddingTop: '20px'
                     }}>
                       <div>
                         <div style={{
                           fontSize: '18px',
-                          color: '#22c55e',
+                          color: colors.accent,
                           fontFamily: "'IBM Plex Mono', monospace",
                           marginBottom: '4px'
                         }}>
@@ -1250,14 +1332,14 @@
                                 : `$${(culture.marketCap / 1000).toFixed(1)}K`)
                             : '-'}
                         </div>
-                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em' }}>
+                        <div style={{ fontSize: '9px', color: colors.textMuted, letterSpacing: '0.1em' }}>
                           MCAP
                         </div>
                       </div>
                       <div>
                         <div style={{
                           fontSize: '18px',
-                          color: '#fff',
+                          color: colors.text,
                           fontFamily: "'IBM Plex Mono', monospace",
                           marginBottom: '4px'
                         }}>
@@ -1267,20 +1349,20 @@
                                 : `$${(culture.volume / 1000).toFixed(1)}K`)
                             : '-'}
                         </div>
-                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em' }}>
+                        <div style={{ fontSize: '9px', color: colors.textMuted, letterSpacing: '0.1em' }}>
                           VOLUME
                         </div>
                       </div>
                       <div>
                         <div style={{
                           fontSize: '18px',
-                          color: '#fff',
+                          color: colors.text,
                           fontFamily: "'IBM Plex Mono', monospace",
                           marginBottom: '4px'
                         }}>
                           {(culture.holders || 0).toLocaleString()}
                         </div>
-                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em' }}>
+                        <div style={{ fontSize: '9px', color: colors.textMuted, letterSpacing: '0.1em' }}>
                           HOLDERS
                         </div>
                       </div>
@@ -1300,12 +1382,12 @@
                           width: '6px',
                           height: '6px',
                           borderRadius: '50%',
-                          background: '#22c55e',
+                          background: colors.accent,
                           animation: 'pulse 2s infinite'
                         }} />
                         <span style={{
                           fontSize: '10px',
-                          color: '#22c55e',
+                          color: colors.accent,
                           fontFamily: "'IBM Plex Mono', monospace"
                         }}>
                           {culture.activeAuctions} LIVE
@@ -3190,6 +3272,35 @@
           const [loading, setLoading] = useState(true);
           const [filter, setFilter] = useState('all'); // all, following, cultures
 
+          // Light/Dark Mode State (synced with localStorage)
+          const [lightMode, setLightMode] = useState(() => {
+            try { return JSON.parse(localStorage.getItem('lightMode') || 'false'); }
+            catch { return false; }
+          });
+
+          // Colors based on light/dark mode
+          const colors = lightMode ? {
+            bg: '#fafafa',
+            cardBg: '#ffffff',
+            border: '#e5e5e5',
+            text: '#171717',
+            textSecondary: '#404040',
+            textMuted: '#737373',
+            accent: '#22c55e',
+            inputBg: '#ffffff',
+            inputBorder: '#d4d4d4'
+          } : {
+            bg: '#0a0a0a',
+            cardBg: '#0f0f0f',
+            border: '#1a1a1a',
+            text: '#ffffff',
+            textSecondary: '#a0a0a0',
+            textMuted: '#666666',
+            accent: '#22c55e',
+            inputBg: '#111111',
+            inputBorder: '#333333'
+          };
+
           // Load posts from server API AND localStorage (merge both sources)
           useEffect(() => {
             const loadPosts = async () => {
@@ -3336,7 +3447,57 @@
           }
 
           return (
-            <div style={{ padding: '136px 40px 60px' }}>
+            <div style={{
+              padding: '136px 40px 60px',
+              background: colors.bg,
+              minHeight: '100vh',
+              transition: 'all 0.3s ease'
+            }}>
+              {/* Light/Dark Mode Toggle */}
+              <button
+                onClick={() => {
+                  const newMode = !lightMode;
+                  setLightMode(newMode);
+                  localStorage.setItem('lightMode', JSON.stringify(newMode));
+                }}
+                style={{
+                  position: 'fixed',
+                  top: '100px',
+                  right: '40px',
+                  zIndex: 100,
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  background: lightMode ? '#1a1a1a' : '#ffffff',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
+                  transition: 'all 0.3s'
+                }}
+                title={lightMode ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+              >
+                {lightMode ? (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff" stroke="none">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2">
+                    <circle cx="12" cy="12" r="5"/>
+                    <line x1="12" y1="1" x2="12" y2="3"/>
+                    <line x1="12" y1="21" x2="12" y2="23"/>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                    <line x1="1" y1="12" x2="3" y2="12"/>
+                    <line x1="21" y1="12" x2="23" y2="12"/>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                  </svg>
+                )}
+              </button>
+
               <div style={{ maxWidth: '700px', margin: '0 auto' }}>
                 {/* Header */}
                 <div style={{ marginBottom: '32px' }}>
@@ -3344,7 +3505,7 @@
                     fontFamily: "'Playfair Display', serif",
                     fontSize: '48px',
                     fontWeight: 400,
-                    color: '#fff',
+                    color: colors.text,
                     marginBottom: '16px'
                   }}>
                     Culture Feed
@@ -3352,7 +3513,7 @@
                   <p style={{
                     fontFamily: "'IBM Plex Mono', monospace",
                     fontSize: '14px',
-                    color: '#888',
+                    color: colors.textMuted,
                     lineHeight: 1.7
                   }}>
                     See what creators are sharing. Join the conversation.
@@ -3364,7 +3525,7 @@
                   display: 'flex',
                   gap: '16px',
                   marginBottom: '24px',
-                  borderBottom: '1px solid #1a1a1a',
+                  borderBottom: `1px solid ${colors.border}`,
                   paddingBottom: '16px'
                 }}>
                   {['all', 'following', 'cultures'].map(f => (
@@ -3374,14 +3535,14 @@
                       style={{
                         background: 'none',
                         border: 'none',
-                        color: filter === f ? '#22c55e' : '#666',
+                        color: filter === f ? colors.accent : colors.textMuted,
                         fontSize: '12px',
                         fontFamily: "'IBM Plex Mono', monospace",
                         letterSpacing: '0.1em',
                         textTransform: 'uppercase',
                         cursor: 'pointer',
                         padding: '4px 0',
-                        borderBottom: filter === f ? '2px solid #22c55e' : '2px solid transparent'
+                        borderBottom: filter === f ? `2px solid ${colors.accent}` : '2px solid transparent'
                       }}
                     >
                       {f}
@@ -3394,8 +3555,8 @@
                   <div style={{
                     textAlign: 'center',
                     padding: '60px 20px',
-                    background: '#0f0f0f',
-                    border: '1px solid #1a1a1a'
+                    background: colors.cardBg,
+                    border: `1px solid ${colors.border}`
                   }}>
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="1" style={{ marginBottom: '16px', opacity: 0.3 }}>
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
