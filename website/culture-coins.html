@@ -8736,14 +8736,18 @@
             const navItems = [
               { id: 'home', label: 'Home', icon: '⌂', action: () => window.location.href = '/' },
               { id: 'leaderboard', label: 'Leaderboard', icon: '◎', action: () => window.location.href = '/launchpad' },
+              { id: 'dashboard', label: 'Dashboard', icon: '◈', action: () => window.location.href = '/dashboard' },
               { id: 'guide', label: 'Guide', icon: '◉', action: () => window.location.href = '/guide' },
               { id: 'roadmap', label: 'Roadmap', icon: '◇', action: () => window.location.href = '/roadmap' },
             ];
             const cultureItems = [
-              { id: 'discover', label: 'Discover', icon: '◎', action: () => setView('discover') },
+              { id: 'discover', label: 'Discover', icon: '◎', action: () => setView('discover'), active: true },
+              { id: 'feed', label: 'Feed', icon: '◈', disabled: true, soon: true },
+              { id: 'auctions', label: 'Auctions', icon: '◇', disabled: true, soon: true },
             ];
             const creatorItems = [
-              { id: 'dashboard', label: 'Dashboard', icon: '◈', action: () => window.location.href = '/dashboard' },
+              { id: 'create', label: 'Create', icon: '◈', disabled: true, soon: true },
+              { id: 'mycultures', label: 'My Cultures', icon: '◉', disabled: true, soon: true },
             ];
             const socialItems = [
               { id: 'twitter', label: 'Twitter', icon: '𝕏', href: 'https://twitter.com/laaboratory' },
@@ -8751,44 +8755,52 @@
               { id: 'bot', label: 'Telegram Bot', icon: '◇', href: 'https://t.me/LAUNCHR_V2_BOT' },
             ];
 
-            const renderNavButton = (item, isActive) => (
-              <button
-                key={item.id}
-                onClick={item.action}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  width: '100%',
-                  padding: '10px 12px',
-                  background: isActive ? 'rgba(255, 217, 102, 0.1)' : 'transparent',
-                  border: 'none',
-                  borderRadius: '6px',
-                  color: isActive ? '#FFD966' : 'rgba(255, 217, 102, 0.6)',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  marginBottom: '4px',
-                  transition: 'all 0.2s',
-                  textShadow: isActive ? '0 0 10px rgba(255, 217, 102, 0.4)' : 'none'
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive) {
-                    e.target.style.color = '#FFD966';
-                    e.target.style.textShadow = '0 0 10px rgba(255, 217, 102, 0.3)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) {
-                    e.target.style.color = 'rgba(255, 217, 102, 0.6)';
-                    e.target.style.textShadow = 'none';
-                  }
-                }}
-              >
-                <span style={{ fontSize: '14px' }}>{item.icon}</span>
-                {item.label}
-              </button>
-            );
+            const renderNavButton = (item, isActive) => {
+              const isDisabled = item.disabled;
+              const showSoon = item.soon;
+
+              return (
+                <button
+                  key={item.id}
+                  onClick={isDisabled ? undefined : item.action}
+                  disabled={isDisabled}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: isActive && !isDisabled ? 'rgba(255, 217, 102, 0.1)' : 'transparent',
+                    border: 'none',
+                    borderRadius: '6px',
+                    color: isDisabled ? 'rgba(255, 217, 102, 0.3)' : (isActive ? '#FFD966' : 'rgba(255, 217, 102, 0.6)'),
+                    fontSize: '13px',
+                    cursor: isDisabled ? 'default' : 'pointer',
+                    textAlign: 'left',
+                    marginBottom: '4px',
+                    transition: 'all 0.2s',
+                    textShadow: isActive && !isDisabled ? '0 0 10px rgba(255, 217, 102, 0.4)' : 'none',
+                    pointerEvents: isDisabled ? 'none' : 'auto'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive && !isDisabled) {
+                      e.target.style.color = '#FFD966';
+                      e.target.style.textShadow = '0 0 10px rgba(255, 217, 102, 0.3)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive && !isDisabled) {
+                      e.target.style.color = 'rgba(255, 217, 102, 0.6)';
+                      e.target.style.textShadow = 'none';
+                    }
+                  }}
+                >
+                  <span style={{ fontSize: '14px' }}>{item.icon}</span>
+                  {item.label}
+                  {showSoon && <span style={{ fontSize: '10px', color: 'rgba(255, 217, 102, 0.4)', marginLeft: 'auto' }}>(soon)</span>}
+                </button>
+              );
+            };
 
             return (
               <div style={{
@@ -8814,7 +8826,7 @@
                 {/* Culture Coins */}
                 <div style={{ padding: '0 16px', marginBottom: '24px' }}>
                   <div style={{ fontSize: '10px', color: '#444', letterSpacing: '0.1em', marginBottom: '12px' }}>CULTURE COINS</div>
-                  {cultureItems.map(item => renderNavButton(item, view === 'discover'))}
+                  {cultureItems.map(item => renderNavButton(item, item.id === 'discover' && view === 'discover'))}
                 </div>
 
                 {/* Creator Central */}

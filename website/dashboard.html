@@ -240,6 +240,16 @@
             color: var(--gold);
             text-shadow: 0 0 10px rgba(255, 217, 102, 0.4);
         }
+        .sidebar-link.disabled {
+            color: rgba(255, 217, 102, 0.3);
+            cursor: default;
+            pointer-events: none;
+        }
+        .soon-tag {
+            font-size: 10px;
+            color: rgba(255, 217, 102, 0.4);
+            margin-left: auto;
+        }
         .sidebar-link svg {
             width: 18px;
             height: 18px;
@@ -1900,6 +1910,10 @@
                     <span class="sidebar-icon">◎</span>
                     Leaderboard
                 </a>
+                <a href="/dashboard" class="sidebar-link active">
+                    <span class="sidebar-icon">◈</span>
+                    Dashboard
+                </a>
                 <a href="/guide" class="sidebar-link">
                     <span class="sidebar-icon">◉</span>
                     Guide
@@ -1916,14 +1930,30 @@
                     <span class="sidebar-icon">◎</span>
                     Discover
                 </a>
+                <span class="sidebar-link disabled">
+                    <span class="sidebar-icon">◈</span>
+                    Feed
+                    <span class="soon-tag">(soon)</span>
+                </span>
+                <span class="sidebar-link disabled">
+                    <span class="sidebar-icon">◇</span>
+                    Auctions
+                    <span class="soon-tag">(soon)</span>
+                </span>
             </div>
 
             <div class="sidebar-section">
                 <div class="sidebar-section-title">CREATOR CENTRAL</div>
-                <a href="/dashboard" class="sidebar-link active">
+                <span class="sidebar-link disabled">
                     <span class="sidebar-icon">◈</span>
-                    Dashboard
-                </a>
+                    Create
+                    <span class="soon-tag">(soon)</span>
+                </span>
+                <span class="sidebar-link disabled">
+                    <span class="sidebar-icon">◉</span>
+                    My Cultures
+                    <span class="soon-tag">(soon)</span>
+                </span>
             </div>
 
             <div class="sidebar-section" style="margin-top:auto;">
