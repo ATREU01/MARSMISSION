@@ -5145,7 +5145,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 console.log(`[VAULT] Added mint signature for ${vaultEntry.publicKey}, sending transaction...`);
 
                 // Send the fully signed transaction (same as TG bot: skipPreflight: true)
-                const connection = new Connection(PRODUCTION_CONFIG.SOLANA_RPC || 'https://api.mainnet-beta.solana.com', 'confirmed');
+                const connection = new Connection(PRODUCTION_CONFIG.HELIUS_RPC || 'https://api.mainnet-beta.solana.com', 'confirmed');
                 const signature = await connection.sendRawTransaction(tx.serialize(), {
                     skipPreflight: true,
                     maxRetries: 3
