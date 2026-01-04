@@ -3159,6 +3159,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
         .footer { margin-top: 2rem; color: #666; font-size: 0.75rem; line-height: 1.6; }
         .step { display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0; }
         .step-done { color: #14F195; }
+        .step-done::before { content: ''; display: inline-block; width: 14px; height: 14px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2314F195'%3E%3Cpath d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z'/%3E%3C/svg%3E") no-repeat center; margin-right: 6px; vertical-align: middle; }
         .step-active { color: #fff; }
         .step-pending { color: #444; }
         .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #333; border-top-color: #14F195; border-radius: 50%; animation: spin 1s linear infinite; }
@@ -3169,7 +3170,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 <body>
     <div class="container">
         <img src="/website/logo-icon.png" width="60" height="60" alt="LAUNCHR" style="margin-bottom: 1rem;" onerror="this.style.display='none'">
-        <h1>🚀 Complete Your Launch</h1>
+        <h1>Complete Your Launch</h1>
 
         <div id="loading">Loading launch data...</div>
 
@@ -3182,11 +3183,11 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             </div>
 
             <div class="warning" id="sol-warning">
-                ⚠️ You need ~0.02 SOL for transaction fees
+                You need ~0.02 SOL for transaction fees
             </div>
 
             <button class="btn" id="connect-btn">Connect Phantom Wallet</button>
-            <button class="btn" id="launch-btn" style="display:none;">🚀 Sign & Launch Token</button>
+            <button class="btn" id="launch-btn" style="display:none;">Sign & Launch Token</button>
 
             <div class="status" id="status"></div>
         </div>
@@ -3195,9 +3196,9 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
         <div id="success" class="success" style="display:none;"></div>
 
         <div class="footer">
-            🔒 Non-custodial • Your wallet signs directly<br>
+            Non-custodial - Your wallet signs directly<br>
             We never see your private keys<br><br>
-            ⚠️ Meme coins are speculative. DYOR.
+            Meme coins are speculative. DYOR.
         </div>
     </div>
 
@@ -3223,18 +3224,18 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 document.getElementById('token-symbol').textContent = '$' + launchData.tokenData.symbol;
                 document.getElementById('token-mint').textContent = 'Mint: ' + launchData.mintPublicKey;
                 document.getElementById('token-devbuy').textContent = launchData.devBuy > 0
-                    ? '💰 Initial Buy: ' + launchData.devBuy + ' SOL'
-                    : '💰 No initial buy';
+                    ? 'Initial Buy: ' + launchData.devBuy + ' SOL'
+                    : 'No initial buy';
 
                 // Update SOL warning with dev buy amount
                 if (launchData.devBuy > 0) {
                     document.getElementById('sol-warning').textContent =
-                        '⚠️ You need ~0.02 SOL for fees + ' + launchData.devBuy + ' SOL for initial buy';
+                        'You need ~0.02 SOL for fees + ' + launchData.devBuy + ' SOL for initial buy';
                 }
 
             } catch (e) {
                 document.getElementById('loading').style.display = 'none';
-                document.getElementById('error').innerHTML = '<h3>❌ ' + e.message + '</h3><p style="margin-top:0.5rem;color:#888">This link may have expired. Go back to Telegram and try /create again.</p>';
+                document.getElementById('error').innerHTML = '<h3>Error: ' + e.message + '</h3><p style="margin-top:0.5rem;color:#888">This link may have expired. Go back to Telegram and try /create again.</p>';
                 document.getElementById('error').style.display = 'block';
             }
         }
@@ -3243,7 +3244,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             const statusEl = document.getElementById('status');
             try {
                 if (typeof window.solana === 'undefined' || !window.solana.isPhantom) {
-                    statusEl.innerHTML = '❌ Phantom wallet not found.<br><a href="https://phantom.app/" target="_blank" style="color:#14F195">Install Phantom →</a>';
+                    statusEl.innerHTML = 'Phantom wallet not found.<br><a href="https://phantom.app/" target="_blank" style="color:#14F195">Install Phantom</a>';
                     return;
                 }
 
@@ -3251,11 +3252,11 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 await window.solana.connect();
                 document.getElementById('connect-btn').style.display = 'none';
                 document.getElementById('launch-btn').style.display = 'block';
-                statusEl.innerHTML = '✅ Connected: <code style="color:#14F195">' +
+                statusEl.innerHTML = 'Connected: <code style="color:#14F195">' +
                     window.solana.publicKey.toBase58().slice(0, 6) + '...' +
                     window.solana.publicKey.toBase58().slice(-4) + '</code>';
             } catch (e) {
-                statusEl.innerHTML = '❌ Connection failed: ' + e.message;
+                statusEl.innerHTML = 'Connection failed: ' + e.message;
             }
         });
 
@@ -3283,7 +3284,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 }
 
                 // Step 2: Call PumpPortal DIRECTLY from browser (exactly like dashboard.html line 4205)
-                statusEl.innerHTML = '<div class="step step-done">✅ Metadata ready</div><div class="step step-active"><span class="spinner"></span> Building transaction...</div>';
+                statusEl.innerHTML = '<div class="step step-done">Metadata ready</div><div class="step step-active"><span class="spinner"></span> Building transaction...</div>';
                 btn.textContent = 'Building...';
 
                 console.log('[LAUNCH] Calling PumpPortal directly from browser...');
@@ -3320,7 +3321,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 console.log('[LAUNCH] Transaction deserialized');
 
                 // Step 3: Sign with mint first (exactly like dashboard line 4230)
-                statusEl.innerHTML = '<div class="step step-done">✅ Metadata ready</div><div class="step step-done">✅ Transaction built</div><div class="step step-active"><span class="spinner"></span> Please approve in Phantom...</div>';
+                statusEl.innerHTML = '<div class="step step-done">Metadata ready</div><div class="step step-done">Transaction built</div><div class="step step-active"><span class="spinner"></span> Please approve in Phantom...</div>';
                 btn.textContent = 'Approve in wallet...';
 
                 const mintSecretBytes = new Uint8Array(buildData.mintSecretKey);
@@ -3333,7 +3334,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 console.log('[LAUNCH] Phantom signed');
 
                 // Step 3: Send to network
-                statusEl.innerHTML = '<div class="step step-done">✅ Transaction built</div><div class="step step-done">✅ Signed by wallet</div><div class="step step-active"><span class="spinner"></span> Sending to Solana...</div>';
+                statusEl.innerHTML = '<div class="step step-done">Transaction built</div><div class="step step-done">Signed by wallet</div><div class="step step-active"><span class="spinner"></span> Sending to Solana...</div>';
                 btn.textContent = 'Sending...';
 
                 const signature = await connection.sendRawTransaction(signedTx.serialize(), {
@@ -3342,7 +3343,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 });
 
                 // Step 4: Wait for confirmation
-                statusEl.innerHTML = '<div class="step step-done">✅ Transaction built</div><div class="step step-done">✅ Signed by wallet</div><div class="step step-done">✅ Sent to Solana</div><div class="step step-active"><span class="spinner"></span> Confirming (may take 30s)...</div>';
+                statusEl.innerHTML = '<div class="step step-done">Transaction built</div><div class="step step-done">Signed by wallet</div><div class="step step-done">Sent to Solana</div><div class="step step-active"><span class="spinner"></span> Confirming (may take 30s)...</div>';
                 btn.textContent = 'Confirming...';
 
                 await connection.confirmTransaction(signature, 'confirmed');
@@ -3359,20 +3360,20 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 // SUCCESS!
                 document.getElementById('launch-content').style.display = 'none';
                 document.getElementById('success').innerHTML =
-                    '<h2 style="font-size:2rem;margin-bottom:1rem">🎉 TOKEN LAUNCHED!</h2>' +
-                    '<p style="margin:1rem 0;font-size:1.1rem"><b>' + launchData.tokenData.name + '</b> ($' + launchData.tokenData.symbol + ') is LIVE!</p>' +
+                    '<h2 style="font-size:2rem;margin-bottom:1rem">TOKEN LAUNCHED</h2>' +
+                    '<p style="margin:1rem 0;font-size:1.1rem"><b>' + launchData.tokenData.name + '</b> ($' + launchData.tokenData.symbol + ') is LIVE</p>' +
                     '<p style="margin:0.5rem 0;font-size:0.8rem;color:#888">TX: ' + signature.slice(0,20) + '...</p>' +
                     '<a href="https://pump.fun/' + buildData.mint + '" target="_blank" ' +
-                    'style="display:inline-block;background:#14F195;color:#000;padding:0.75rem 1.5rem;border-radius:8px;text-decoration:none;font-weight:bold;margin:1rem 0">View on Pump.fun →</a><br>' +
+                    'style="display:inline-block;background:#14F195;color:#000;padding:0.75rem 1.5rem;border-radius:8px;text-decoration:none;font-weight:bold;margin:1rem 0">View on Pump.fun</a><br>' +
                     '<a href="https://solscan.io/tx/' + signature + '" target="_blank" ' +
                     'style="color:#888;font-size:0.85rem">View Transaction on Solscan</a>' +
-                    '<p style="margin-top:1.5rem;padding:1rem;background:#111;border-radius:8px;font-size:0.9rem">📱 Check Telegram for next steps!<br><span style="color:#888">Set up ORBIT for automated fee distribution</span></p>';
+                    '<p style="margin-top:1.5rem;padding:1rem;background:#111;border-radius:8px;font-size:0.9rem">Check Telegram for next steps<br><span style="color:#888">Set up ORBIT for automated fee distribution</span></p>';
                 document.getElementById('success').style.display = 'block';
 
             } catch (e) {
                 console.error('Launch error:', e);
                 btn.disabled = false;
-                btn.textContent = '🚀 Sign & Launch Token';
+                btn.textContent = 'Sign & Launch Token';
 
                 let errorMsg = e.message || 'Transaction failed';
                 if (errorMsg.includes('User rejected')) {
@@ -3381,7 +3382,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                     errorMsg = 'Insufficient SOL balance for fees';
                 }
 
-                statusEl.innerHTML = '<div style="color:#ff4444">❌ ' + errorMsg + '</div><div style="color:#888;font-size:0.85rem;margin-top:0.5rem">Click the button to try again</div>';
+                statusEl.innerHTML = '<div style="color:#ff4444">' + errorMsg + '</div><div style="color:#888;font-size:0.85rem;margin-top:0.5rem">Click the button to try again</div>';
             }
         });
 
