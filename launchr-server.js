@@ -68,7 +68,19 @@ const PRODUCTION_CONFIG = {
 // ═══════════════════════════════════════════════════════════════════════════
 const BLOCKED_MINTS = [
     'Apfi3UpBUbunhfSBhgvE7gQzRo8eg5YfWECwcqFJpimp', // Pimpball - competitor
+    'Fp1FAHv6wWt8gSeu2w1VHsudX1igvnnCZ33u9PzU1Gtt', // Test token
+    '6eB6mRm2vwjU57H3hDXXU8tQk53TPvpYhnEmhRZtuHmn', // Test token
+    '3mFC9NGK64uKDYYE6kokiQd2dQJPuJvW1tAxY29Tpump', // Test token
 ];
+
+// Filter out test tokens from leaderboard
+const isTestToken = (token) => {
+    const name = (token.name || '').toLowerCase();
+    const symbol = (token.symbol || '').toLowerCase();
+    return name === 'test' || name === 'tetst' || name === 'test1' ||
+           symbol === 'test' || symbol === '$test' ||
+           name.startsWith('test') && name.length <= 6;
+};
 
 // Get fee wallet public key if private key is set
 let FEE_WALLET_PUBLIC_KEY = '';
@@ -2648,7 +2660,7 @@ The 4 percentages MUST sum to exactly 100.`;
         try {
             const data = tracker.getTokens();
             const tokens = (data.tokens || [])
-                .filter(t => !BLOCKED_MINTS.includes(t.mint)) // Block competitor tokens
+                .filter(t => !BLOCKED_MINTS.includes(t.mint) && !isTestToken(t)) // Block competitor/test tokens
                 .sort((a, b) => b.lastSeen - a.lastSeen)
                 .slice(0, 50)
                 .map(t => ({
@@ -3685,7 +3697,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
         try {
             const data = tracker.getTokens();
             const leaderboard = (data.tokens || [])
-                .filter(t => !BLOCKED_MINTS.includes(t.mint)) // Block competitor tokens
+                .filter(t => !BLOCKED_MINTS.includes(t.mint) && !isTestToken(t)) // Block competitor/test tokens
                 .sort((a, b) => (b.mcap || 0) - (a.mcap || 0))
                 .slice(0, 10)
                 .map((t, index) => ({
