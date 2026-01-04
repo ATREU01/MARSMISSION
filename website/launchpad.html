@@ -3097,27 +3097,44 @@
             if (mintInfo.isVanity && mintInfo.vaultId) {
                 console.log('[DEPLOY] Vanity path: wallet signs first, then server adds mint sig and sends');
 
-                // Step 1: Wallet signs the UNSIGNED transaction
-                let walletSignedTx;
+                // Ensure wallet is still connected
                 if (window.solana?.isPhantom) {
-                    console.log('[DEPLOY] Using Phantom wallet for signing...');
-                    walletSignedTx = await window.solana.signTransaction(tx);
-                } else if (window.solflare?.isSolflare) {
-                    console.log('[DEPLOY] Using Solflare wallet for signing...');
-                    walletSignedTx = await window.solflare.signTransaction(tx);
-                } else if (privyClient) {
-                    console.log('[DEPLOY] Using Privy wallet for signing...');
-                    const user = await privyClient.getUser();
-                    if (user?.wallet?.address) {
-                        walletSignedTx = await privyClient.signTransaction(tx);
-                    } else {
-                        throw new Error('No Privy wallet connected');
+                    if (!window.solana.isConnected) {
+                        console.log('[DEPLOY] Reconnecting Phantom wallet...');
+                        await window.solana.connect();
                     }
-                } else {
-                    throw new Error('No compatible wallet found');
+                    console.log('[DEPLOY] Phantom connected, publicKey:', window.solana.publicKey?.toString());
                 }
 
-                console.log('[DEPLOY] Wallet signed, sending to vault for mint signature...');
+                // Step 1: Wallet signs the UNSIGNED transaction
+                let walletSignedTx;
+                try {
+                    if (window.solana?.isPhantom) {
+                        console.log('[DEPLOY] Requesting Phantom signature...');
+                        walletSignedTx = await window.solana.signTransaction(tx);
+                    } else if (window.solflare?.isSolflare) {
+                        console.log('[DEPLOY] Requesting Solflare signature...');
+                        walletSignedTx = await window.solflare.signTransaction(tx);
+                    } else if (privyClient) {
+                        console.log('[DEPLOY] Requesting Privy signature...');
+                        const user = await privyClient.getUser();
+                        if (user?.wallet?.address) {
+                            walletSignedTx = await privyClient.signTransaction(tx);
+                        } else {
+                            throw new Error('No Privy wallet connected');
+                        }
+                    } else {
+                        throw new Error('No compatible wallet found');
+                    }
+                } catch (walletErr) {
+                    console.error('[DEPLOY] Wallet signing error:', walletErr);
+                    if (walletErr.message?.includes('User rejected')) {
+                        throw new Error('Transaction cancelled by user');
+                    }
+                    throw new Error('Wallet signing failed: ' + walletErr.message);
+                }
+
+                console.log('[DEPLOY] Wallet signed successfully, sending to vault for mint signature...');
 
                 // Step 2: Send wallet-signed tx to server, server adds mint sig and sends
                 const txBytes = walletSignedTx.serialize();
