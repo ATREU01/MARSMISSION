@@ -2347,7 +2347,7 @@
                     <div onclick="handleSort('score')" style="${sortableStyle}${sortColumn === 'score' ? activeStyle : ''}" title="Sort by score">Score${getSortIndicator('score')}</div>
                     <div>Signal</div>
                     <div style="text-align:center;">Action</div>
-                    <div style="text-align:center;color:#f5a623;" title="Burn %">🔥</div>
+                    <div style="text-align:center;color:#f5a623;" title="Burn %"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 23c-3.866 0-7-3.134-7-7 0-2.577 1.409-4.83 3.5-6.03C8.5 9.97 8.5 10 8.5 10c0-3.038 2.462-5.5 5.5-5.5 0 0-.5 2.5 1 4.5s3 2.5 3 5.5c0 3.866-3.134 7-7 7z"/></svg></div>
                     <div style="text-align:center;color:#00d4aa;" title="AI-Driven AMM %">AMM</div>
                     <div style="text-align:center;color:#a855f7;" title="Creator Fees %">Fees</div>
                     <div style="text-align:center;color:#ec4899;" title="Liquidity %">LP</div>
@@ -2387,8 +2387,9 @@
                 // Socials
                 const hasSocials = t.twitter || t.telegram || t.website;
 
-                // Get allocation percentages (default to 25/25/25/25 if not set)
-                const alloc = t.allocations || { burn: 25, amm: 25, creatorFees: 25, liquidity: 25 };
+                // Get allocation percentages - only show if TEK/ORBIT is active
+                // If no ORBIT, 100% goes to creator
+                const alloc = t.hasOrbit ? (t.allocations || { burn: 25, amm: 25, creatorFees: 25, liquidity: 25 }) : null;
 
                 return `
                 <div onclick="openPumpToken('${escapeHtml(t.mint)}')" style="display:grid;grid-template-columns:50px 180px 70px 95px 80px 65px 75px 85px 70px 70px 90px 50px 50px 50px 50px;gap:8px;padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer;align-items:center;font-size:13px;" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
@@ -2455,16 +2456,16 @@
                     </div>
 
                     <!-- BURN % -->
-                    <div style="text-align:center;color:#f5a623;font-size:11px;font-weight:600;">${alloc.burn}%</div>
+                    <div style="text-align:center;color:#f5a623;font-size:11px;font-weight:600;">${alloc ? alloc.burn + '%' : '-'}</div>
 
                     <!-- AMM % -->
-                    <div style="text-align:center;color:#00d4aa;font-size:11px;font-weight:600;">${alloc.amm}%</div>
+                    <div style="text-align:center;color:#00d4aa;font-size:11px;font-weight:600;">${alloc ? alloc.amm + '%' : '-'}</div>
 
                     <!-- CREATOR FEES % -->
-                    <div style="text-align:center;color:#a855f7;font-size:11px;font-weight:600;">${alloc.creatorFees}%</div>
+                    <div style="text-align:center;color:#a855f7;font-size:11px;font-weight:600;">${alloc ? alloc.creatorFees + '%' : '100%'}</div>
 
                     <!-- LIQUIDITY % -->
-                    <div style="text-align:center;color:#ec4899;font-size:11px;font-weight:600;">${alloc.liquidity}%</div>
+                    <div style="text-align:center;color:#ec4899;font-size:11px;font-weight:600;">${alloc ? alloc.liquidity + '%' : '-'}</div>
                 </div>
                 `;
             }).join('');
