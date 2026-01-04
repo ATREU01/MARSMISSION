@@ -894,7 +894,7 @@
         }
         .sidebar-label {
             font-size: 10px;
-            color: #444;
+            color: rgba(255, 217, 102, 0.5);
             letter-spacing: 0.1em;
             margin-bottom: 12px;
         }
@@ -907,7 +907,7 @@
             background: transparent;
             border: none;
             border-radius: 6px;
-            color: #888;
+            color: rgba(255, 217, 102, 0.6);
             font-size: 13px;
             font-family: 'IBM Plex Mono', monospace;
             cursor: pointer;
@@ -917,11 +917,13 @@
             transition: all 0.2s;
         }
         .sidebar-link:hover {
-            color: #fff;
+            color: var(--gold);
+            text-shadow: 0 0 10px rgba(255, 217, 102, 0.3);
         }
         .sidebar-link.active {
-            background: rgba(34, 197, 94, 0.1);
-            color: #22c55e;
+            background: rgba(255, 217, 102, 0.1);
+            color: var(--gold);
+            text-shadow: 0 0 10px rgba(255, 217, 102, 0.4);
         }
         .sidebar-icon {
             font-size: 14px;
@@ -1027,10 +1029,6 @@
             5-layer security. 1% of creator fees go to the distribution pool.
         </p>
 
-        <div class="hero-actions">
-            <a href="/launchpad?launch=true" class="btn btn-primary">Launch Token</a>
-        </div>
-
         <div class="contract-box">
             <div class="contract-label">Contract Address</div>
             <div class="contract-value">
@@ -1095,7 +1093,6 @@
                 <p class="competition-desc">
                     Launch your token on our platform. 1% of all creator fees go to the LAUNCHR distribution pool.
                 </p>
-                <a href="/launchpad" class="btn btn-primary">Launch Token</a>
             </div>
         </div>
     </section>
@@ -1132,16 +1129,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-    </section>
-
-    <!-- CTA -->
-    <section class="cta-section">
-        <h2 class="cta-title">Ready for Launch?</h2>
-        <p class="cta-subtitle">1% fee pool. Launch on Pump.fun.</p>
-        <div class="cta-actions">
-            <a href="/launchpad" class="btn btn-primary">Launch Token</a>
-            <a href="/dashboard" class="btn btn-secondary">Dashboard</a>
         </div>
     </section>
 
