@@ -8731,23 +8731,116 @@
             showNotification
           };
 
+          // Sidebar component
+          const Sidebar = ({ view, setView }) => {
+            const navItems = [
+              { id: 'home', label: 'Home', icon: '⌂', action: () => window.location.href = '/' },
+              { id: 'discover', label: 'Leaderboard', icon: '◎', action: () => setView('discover') },
+              { id: 'guide', label: 'Guide', icon: '◈', action: () => window.open('/guide', '_blank') },
+              { id: 'roadmap', label: 'Roadmap', icon: '◉', action: () => window.open('/roadmap', '_blank') },
+            ];
+            const socialItems = [
+              { id: 'twitter', label: 'Twitter', icon: '𝕏', href: 'https://twitter.com/laaboratory' },
+              { id: 'telegram', label: 'Telegram Community', icon: '◆', href: 'https://t.me/laaboratory' },
+              { id: 'bot', label: 'Telegram Bot', icon: '◇', href: 'https://t.me/laaboratory_bot' },
+            ];
+
+            return (
+              <div style={{
+                position: 'fixed',
+                left: 0,
+                top: '76px',
+                bottom: 0,
+                width: '200px',
+                background: '#0a0a0a',
+                borderRight: '1px solid #1a1a1a',
+                padding: '24px 0',
+                display: 'flex',
+                flexDirection: 'column',
+                zIndex: 100,
+                fontFamily: "'IBM Plex Mono', monospace"
+              }}>
+                {/* Navigation */}
+                <div style={{ padding: '0 16px', marginBottom: '24px' }}>
+                  <div style={{ fontSize: '10px', color: '#444', letterSpacing: '0.1em', marginBottom: '12px' }}>NAVIGATION</div>
+                  {navItems.map(item => (
+                    <button
+                      key={item.id}
+                      onClick={item.action}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        width: '100%',
+                        padding: '10px 12px',
+                        background: view === item.id ? 'rgba(34,197,94,0.1)' : 'transparent',
+                        border: 'none',
+                        borderRadius: '6px',
+                        color: view === item.id ? '#22c55e' : '#888',
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        marginBottom: '4px',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <span style={{ fontSize: '14px' }}>{item.icon}</span>
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Socials */}
+                <div style={{ padding: '0 16px', marginTop: 'auto' }}>
+                  <div style={{ fontSize: '10px', color: '#444', letterSpacing: '0.1em', marginBottom: '12px' }}>RESOURCES</div>
+                  {socialItems.map(item => (
+                    <a
+                      key={item.id}
+                      href={item.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        padding: '10px 12px',
+                        color: '#666',
+                        fontSize: '12px',
+                        textDecoration: 'none',
+                        marginBottom: '4px',
+                        borderRadius: '6px',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <span style={{ fontSize: '14px' }}>{item.icon}</span>
+                      {item.label}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            );
+          };
+
           return (
             <WalletContext.Provider value={walletContextValue}>
               <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#fff' }}>
                 <Navigation view={view} setView={(v) => { setView(v); setSelectedCulture(null); }} />
+                <Sidebar view={view} setView={(v) => { setView(v); setSelectedCulture(null); }} />
 
-                {view === 'discover' && <DiscoveryView onSelectCulture={handleSelectCulture} />}
-                {view === 'feed' && <FeedView onSelectCulture={handleSelectCulture} />}
-                {view === 'create' && <CreateCulturePage />}
-                {view === 'edit' && <CreateCulturePage editMode={true} />}
-                {view === 'culture' && selectedCulture && (
-                  <CulturePage
-                    culture={selectedCulture}
-                    onBack={() => { setView('discover'); setSelectedCulture(null); }}
-                  />
-                )}
-                {view === 'auctions' && <AuctionsView />}
-                {view === 'dashboard' && <DashboardView />}
+                <div style={{ marginLeft: '200px' }}>
+                  {view === 'discover' && <DiscoveryView onSelectCulture={handleSelectCulture} />}
+                  {view === 'feed' && <FeedView onSelectCulture={handleSelectCulture} />}
+                  {view === 'create' && <CreateCulturePage />}
+                  {view === 'edit' && <CreateCulturePage editMode={true} />}
+                  {view === 'culture' && selectedCulture && (
+                    <CulturePage
+                      culture={selectedCulture}
+                      onBack={() => { setView('discover'); setSelectedCulture(null); }}
+                    />
+                  )}
+                  {view === 'auctions' && <AuctionsView />}
+                  {view === 'dashboard' && <DashboardView />}
+                </div>
 
                 {/* Modals */}
                 {showWalletSelect && (
