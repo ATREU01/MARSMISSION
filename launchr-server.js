@@ -3028,10 +3028,11 @@ if(window.solana?.isConnected)connect();
                     throw new Error('PumpPortal returned empty transaction');
                 }
 
-                // Return UNSIGNED transaction + mint secret key for frontend signing
-                // Frontend will sign with mint first, then Phantom signs (like dashboard.html)
+                // Return UNSIGNED transaction + mint secret key as array (no bs58 needed on frontend)
                 const unsignedTx = Buffer.from(pumpRes.data).toString('base64');
-                console.log(`[TG-LAUNCH] ✅ BUILD TX COMPLETE - returning unsigned tx (${unsignedTx.length} chars) + mint key`);
+                // Decode bs58 on server, send as array so frontend doesn't need bs58
+                const mintSecretArray = Array.from(bs58.decode(launch.mintKeypair.secretKey));
+                console.log(`[TG-LAUNCH] ✅ BUILD TX COMPLETE - returning unsigned tx (${unsignedTx.length} chars) + mint key array`);
                 console.log(`[TG-LAUNCH] ========== BUILD TX END ==========`);
 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -3039,7 +3040,7 @@ if(window.solana?.isConnected)connect();
                     success: true,
                     transaction: unsignedTx,
                     mint: launch.mintKeypair.publicKey,
-                    mintSecretKey: launch.mintKeypair.secretKey  // Frontend needs this to sign
+                    mintSecretKey: mintSecretArray  // Already decoded, just need Uint8Array on frontend
                 }));
 
             } catch (e) {
@@ -3154,7 +3155,6 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     <title>Complete Your Launch - LAUNCHR</title>
     <link rel="icon" type="image/png" href="/website/logo-icon.png">
     <script src="https://unpkg.com/@solana/web3.js@1.87.6/lib/index.iife.min.js"></script>
-    <script src="https://unpkg.com/bs58@5.0.0/dist/index.umd.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -3340,8 +3340,8 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 const txBytes = Uint8Array.from(atob(buildData.transaction), c => c.charCodeAt(0));
                 const transaction = VersionedTransaction.deserialize(txBytes);
 
-                // Create mint keypair from secret key and sign first
-                const mintSecretBytes = bs58.decode(buildData.mintSecretKey);
+                // Create mint keypair from secret key array (server already decoded bs58)
+                const mintSecretBytes = new Uint8Array(buildData.mintSecretKey);
                 const mintKeypair = solanaWeb3.Keypair.fromSecretKey(mintSecretBytes);
                 transaction.sign([mintKeypair]);
                 console.log('[LAUNCH] Signed with mint keypair');
