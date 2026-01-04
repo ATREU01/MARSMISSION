@@ -2946,45 +2946,6 @@
             };
         }
 
-        // Generate vanity keypair with custom suffix (browser-based)
-        async function generateVanityKeypair(suffix) {
-            const { Keypair } = solanaWeb3;
-            const targetSuffix = suffix.toLowerCase();
-            let attempts = 0;
-            const maxAttempts = 1000000; // Safety limit
-            const batchSize = 100; // Generate in batches to not block UI
-
-            return new Promise((resolve, reject) => {
-                function searchBatch() {
-                    for (let i = 0; i < batchSize; i++) {
-                        attempts++;
-                        const keypair = Keypair.generate();
-                        const address = keypair.publicKey.toString();
-
-                        if (address.toLowerCase().endsWith(targetSuffix)) {
-                            console.log(`[VANITY] Found match after ${attempts} attempts:`, address);
-                            resolve(keypair);
-                            return;
-                        }
-
-                        if (attempts >= maxAttempts) {
-                            reject(new Error(`Could not find vanity address after ${maxAttempts} attempts. Try a shorter suffix.`));
-                            return;
-                        }
-                    }
-
-                    // Update UI with progress
-                    const btn = document.getElementById('deployBtn');
-                    if (btn) btn.textContent = `Mining vanity... (${attempts.toLocaleString()} attempts)`;
-
-                    // Continue searching in next frame
-                    setTimeout(searchBatch, 0);
-                }
-
-                searchBatch();
-            });
-        }
-
         // Generate mint keypair based on selected path
         // VAULT: Returns { publicKey, vaultId } for vanity, or { keypair } for random/custom
         async function generateMintKeypair() {
@@ -3017,7 +2978,7 @@
                 }
             }
 
-            // Custom Vanity path - generate vanity address with user's suffix
+            // Custom Vanity path - use server API with vault (same as Mars vanity)
             if (selectedPath === 'custom') {
                 const suffixInput = document.getElementById('customVanitySuffix');
                 const suffix = suffixInput?.value?.trim();
@@ -3035,15 +2996,34 @@
                     }
                 }
 
-                console.log('[DEPLOY] Generating custom vanity with suffix:', suffix);
-                const mintKeypair = await generateVanityKeypair(suffix);
-                console.log('[DEPLOY] Generated custom vanity mint:', mintKeypair.publicKey.toString());
-                return {
-                    publicKey: mintKeypair.publicKey,
-                    keypair: mintKeypair,
-                    isVanity: false,
-                    isCustom: true
-                };
+                console.log('[DEPLOY] Requesting custom vanity from server with suffix:', suffix);
+
+                // Update button to show mining status
+                const btn = document.getElementById('deployBtn');
+                if (btn) btn.textContent = 'Mining custom vanity...';
+
+                try {
+                    const res = await fetch('/api/custom-vanity', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ suffix })
+                    });
+
+                    const data = await res.json();
+
+                    if (!res.ok || !data.success) {
+                        throw new Error(data.error || 'Failed to generate custom vanity');
+                    }
+
+                    console.log(`[DEPLOY] Got custom vanity mint: ${data.publicKey} (vault secured, ${data.attempts.toLocaleString()} attempts in ${data.duration}s)`);
+                    return {
+                        publicKey: new PublicKey(data.publicKey),
+                        vaultId: data.vaultId,
+                        isVanity: true
+                    };
+                } catch (e) {
+                    throw new Error(e.message || 'Custom vanity generation failed');
+                }
             }
 
             // Standard Pump.fun path - use random keypair (local signing)

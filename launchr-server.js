@@ -4858,6 +4858,132 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
         return;
     }
 
+    // API: Custom vanity - generate on-demand with user's suffix (VAULT SECURED)
+    if (url.pathname === '/api/custom-vanity' && req.method === 'POST') {
+        let body = [];
+        req.on('data', chunk => body.push(chunk));
+        req.on('end', async () => {
+            try {
+                const data = JSON.parse(Buffer.concat(body).toString());
+                const { suffix } = data;
+
+                // Validate suffix
+                if (!suffix || typeof suffix !== 'string') {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Missing suffix parameter' }));
+                    return;
+                }
+
+                if (suffix.length < 1 || suffix.length > 4) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Suffix must be 1-4 characters' }));
+                    return;
+                }
+
+                // Validate base58 characters only
+                const validChars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+                for (const char of suffix) {
+                    if (!validChars.includes(char)) {
+                        res.writeHead(400, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ success: false, error: `Invalid character "${char}" - use only base58 chars (no 0, O, I, l)` }));
+                        return;
+                    }
+                }
+
+                // Rate limit by IP
+                const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+                const lastRequest = vanityRateLimits[clientIP] || 0;
+                const now = Date.now();
+
+                if (now - lastRequest < VANITY_RATE_LIMIT_MS) {
+                    const waitSeconds = Math.ceil((VANITY_RATE_LIMIT_MS - (now - lastRequest)) / 1000);
+                    res.writeHead(429, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({
+                        success: false,
+                        error: `Rate limited. Please wait ${waitSeconds} seconds.`,
+                        retryAfter: waitSeconds
+                    }));
+                    return;
+                }
+
+                vanityRateLimits[clientIP] = now;
+
+                console.log(`[CUSTOM-VANITY] Generating keypair with suffix "${suffix}" for ${clientIP}`);
+
+                // Generate keypair on-demand (server-side)
+                const targetSuffix = suffix.toLowerCase();
+                const maxAttempts = 2000000; // Higher limit for server
+                let attempts = 0;
+                let foundKeypair = null;
+
+                const startTime = Date.now();
+                while (attempts < maxAttempts) {
+                    attempts++;
+                    const keypair = Keypair.generate();
+                    const address = keypair.publicKey.toBase58();
+
+                    if (address.toLowerCase().endsWith(targetSuffix)) {
+                        foundKeypair = {
+                            publicKey: address,
+                            secretKey: bs58.encode(keypair.secretKey)
+                        };
+                        break;
+                    }
+
+                    // Log progress every 100k attempts
+                    if (attempts % 100000 === 0) {
+                        console.log(`[CUSTOM-VANITY] ${attempts.toLocaleString()} attempts for suffix "${suffix}"...`);
+                    }
+                }
+
+                const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+
+                if (!foundKeypair) {
+                    console.log(`[CUSTOM-VANITY] Failed to find "${suffix}" after ${attempts.toLocaleString()} attempts (${duration}s)`);
+                    res.writeHead(408, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({
+                        success: false,
+                        error: `Could not find address ending in "${suffix}" after ${attempts.toLocaleString()} attempts. Try a shorter suffix.`,
+                        attempts
+                    }));
+                    return;
+                }
+
+                console.log(`[CUSTOM-VANITY] Found ${foundKeypair.publicKey} after ${attempts.toLocaleString()} attempts (${duration}s)`);
+
+                // Store in vault (same as Mars vanity)
+                const vaultId = generateVaultId();
+                const vaultNow = Date.now();
+                vanityVault.set(vaultId, {
+                    secretKey: foundKeypair.secretKey,
+                    publicKey: foundKeypair.publicKey,
+                    dispensedAt: vaultNow,
+                    expiresAt: vaultNow + VAULT_EXPIRY_MS,
+                    used: false,
+                    customSuffix: suffix
+                });
+
+                console.log(`[VAULT] Stored custom vanity ${foundKeypair.publicKey} with vaultId (${vanityVault.size} active)`);
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: true,
+                    publicKey: foundKeypair.publicKey,
+                    vaultId: vaultId,
+                    expiresIn: VAULT_EXPIRY_MS / 1000,
+                    attempts,
+                    duration: parseFloat(duration)
+                }));
+
+            } catch (e) {
+                console.error('[CUSTOM-VANITY] Error:', e.message);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: e.message }));
+            }
+        });
+        return;
+    }
+
     // API: Vanity pool status (for monitoring)
     if (url.pathname === '/api/vanity-status' && req.method === 'GET') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
