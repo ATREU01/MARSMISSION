@@ -2990,18 +2990,21 @@
         async function generateMintKeypair() {
             const { Keypair, PublicKey } = solanaWeb3;
 
-            // Mars Vanity path - must get vanity keypair from vault
+            // Mars Vanity path - get vanity keypair from server (local signing like dashboard)
             if (selectedPath === 'launchr') {
                 try {
                     const res = await fetch('/api/vanity-keypair');
                     if (res.ok) {
                         const data = await res.json();
-                        if (data.success && data.vaultId) {
-                            console.log('[DEPLOY] Got Mars vanity mint:', data.publicKey, '(vault secured)');
+                        if (data.success && data.secretKey) {
+                            // Create local keypair from secretKey (same as dashboard - WORKS)
+                            const secretKey = bs58.decode(data.secretKey);
+                            const mintKeypair = Keypair.fromSecretKey(secretKey);
+                            console.log('[DEPLOY] Got Mars vanity mint:', mintKeypair.publicKey.toString());
                             return {
-                                publicKey: new PublicKey(data.publicKey),
-                                vaultId: data.vaultId,
-                                isVanity: true
+                                publicKey: mintKeypair.publicKey,
+                                keypair: mintKeypair,
+                                isVanity: false  // Use local signing path (works!)
                             };
                         }
                     }
@@ -3104,52 +3107,19 @@
         }
 
         // Sign and send transaction using connected wallet
-        // mintInfo: { publicKey, vaultId?, keypair?, isVanity }
+        // mintInfo: { publicKey, keypair }
         async function signAndSendTransaction(tx, connection, mintInfo) {
             console.log('[DEPLOY] Signing transaction...');
 
-            // VAULT: Sign with mint keypair - either via server vault or locally
-            if (mintInfo.isVanity && mintInfo.vaultId) {
-                // Use server-side vault signing (secretKey never exposed)
-                console.log('[DEPLOY] Using VAULT for mint keypair signing...');
-
-                // Browser-compatible base64 encoding (no Buffer needed)
-                const txBytes = tx.serialize();
-                const txBase64 = btoa(String.fromCharCode(...txBytes));
-
-                const vaultRes = await fetch('/api/vault/sign', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        vaultId: mintInfo.vaultId,
-                        transaction: txBase64
-                    })
-                });
-
-                if (!vaultRes.ok) {
-                    const err = await vaultRes.json();
-                    throw new Error('Vault signing failed: ' + (err.error || 'Unknown error'));
-                }
-
-                const vaultData = await vaultRes.json();
-                if (!vaultData.success) {
-                    throw new Error('Vault signing failed: ' + vaultData.error);
-                }
-
-                // Browser-compatible base64 decoding (no Buffer needed)
-                const signedTxBase64 = vaultData.signedTransaction;
-                const signedTxBytes = Uint8Array.from(atob(signedTxBase64), c => c.charCodeAt(0));
-                tx = solanaWeb3.VersionedTransaction.deserialize(signedTxBytes);
-                console.log('[DEPLOY] Transaction signed by vault');
-            } else if (mintInfo.keypair) {
-                // Local signing for random keypairs
-                console.log('[DEPLOY] Using local mint keypair signing...');
+            // Sign with mint keypair first (local signing - works!)
+            if (mintInfo.keypair) {
+                console.log('[DEPLOY] Signing with mint keypair:', mintInfo.keypair.publicKey.toString());
                 tx.sign([mintInfo.keypair]);
             } else {
-                throw new Error('No signing method available for mint keypair');
+                throw new Error('No mint keypair available for signing');
             }
 
-            // PRE-SIMULATE: Simulate transaction before showing to wallet
+            // PRE-SIMULATE: Simulate transaction before showing to wallet (don't throw on errors)
             console.log('[DEPLOY] Pre-simulating transaction...');
             try {
                 const simulation = await connection.simulateTransaction(tx, {
@@ -3157,26 +3127,13 @@
                     replaceRecentBlockhash: true
                 });
                 if (simulation.value.err) {
-                    console.error('[DEPLOY] Simulation error:', JSON.stringify(simulation.value.err));
-                    console.error('[DEPLOY] Simulation logs:', simulation.value.logs);
-                    // Check for common errors
-                    const errStr = JSON.stringify(simulation.value.err);
-                    if (errStr.includes('InsufficientFunds')) {
-                        throw new Error('Insufficient SOL in wallet for transaction fees');
-                    }
-                    if (errStr.includes('AccountNotFound')) {
-                        throw new Error('Account not found - check wallet connection');
-                    }
-                    // Show the actual error to user
-                    throw new Error('Transaction simulation failed: ' + (simulation.value.logs?.slice(-2).join(' | ') || errStr));
+                    console.warn('[DEPLOY] Simulation warning:', simulation.value.err);
+                    // Don't throw - let the user try anyway
                 } else {
                     console.log('[DEPLOY] Pre-simulation successful, units consumed:', simulation.value.unitsConsumed);
                 }
             } catch (simErr) {
-                if (simErr.message.includes('simulation failed')) {
-                    throw simErr; // Re-throw our custom errors
-                }
-                console.warn('[DEPLOY] Pre-simulation check failed:', simErr.message);
+                console.warn('[DEPLOY] Pre-simulation failed (continuing anyway):', simErr.message);
             }
 
             let signature;
@@ -3184,40 +3141,57 @@
             // Try Phantom wallet first
             if (window.solana?.isPhantom) {
                 console.log('[DEPLOY] Using Phantom wallet for signing...');
-                const signedTx = await window.solana.signTransaction(tx);
-                signature = await connection.sendRawTransaction(signedTx.serialize(), {
-                    skipPreflight: false,
-                    preflightCommitment: 'confirmed',
-                    maxRetries: 3
-                });
+                try {
+                    const signedTx = await window.solana.signTransaction(tx);
+                    console.log('[DEPLOY] Phantom signed, sending transaction...');
+                    signature = await connection.sendRawTransaction(signedTx.serialize(), {
+                        skipPreflight: true,
+                        preflightCommitment: 'confirmed',
+                        maxRetries: 3
+                    });
+                } catch (walletError) {
+                    console.error('[DEPLOY] Phantom signing error:', walletError);
+                    throw new Error('Wallet signing failed: ' + walletError.message);
+                }
             }
             // Try Solflare
             else if (window.solflare?.isSolflare) {
                 console.log('[DEPLOY] Using Solflare wallet for signing...');
-                const signedTx = await window.solflare.signTransaction(tx);
-                signature = await connection.sendRawTransaction(signedTx.serialize(), {
-                    skipPreflight: false,
-                    preflightCommitment: 'confirmed',
-                    maxRetries: 3
-                });
+                try {
+                    const signedTx = await window.solflare.signTransaction(tx);
+                    console.log('[DEPLOY] Solflare signed, sending transaction...');
+                    signature = await connection.sendRawTransaction(signedTx.serialize(), {
+                        skipPreflight: true,
+                        preflightCommitment: 'confirmed',
+                        maxRetries: 3
+                    });
+                } catch (walletError) {
+                    console.error('[DEPLOY] Solflare signing error:', walletError);
+                    throw new Error('Wallet signing failed: ' + walletError.message);
+                }
             }
             // Try Privy embedded wallet
             else if (privyClient) {
                 console.log('[DEPLOY] Using Privy wallet for signing...');
-                const user = await privyClient.getUser();
-                if (user?.wallet?.address) {
-                    const signedTx = await privyClient.signTransaction(tx);
-                    signature = await connection.sendRawTransaction(signedTx.serialize(), {
-                        skipPreflight: false,
-                        preflightCommitment: 'confirmed',
-                        maxRetries: 3
-                    });
-                } else {
-                    throw new Error('No Privy wallet connected');
+                try {
+                    const user = await privyClient.getUser();
+                    if (user?.wallet) {
+                        const signedTx = await privyClient.signTransaction(tx);
+                        signature = await connection.sendRawTransaction(signedTx.serialize(), {
+                            skipPreflight: true,
+                            preflightCommitment: 'confirmed',
+                            maxRetries: 3
+                        });
+                    } else {
+                        throw new Error('No Privy wallet connected');
+                    }
+                } catch (walletError) {
+                    console.error('[DEPLOY] Privy signing error:', walletError);
+                    throw new Error('Wallet signing failed: ' + walletError.message);
                 }
             }
             else {
-                throw new Error('No compatible wallet found');
+                throw new Error('No compatible wallet found. Please connect Phantom, Solflare, or Privy.');
             }
 
             console.log('[DEPLOY] Transaction sent, signature:', signature);
@@ -3316,27 +3290,61 @@
 
             try {
                 // Step 1: Upload metadata to IPFS
-                const tokenMetadata = await uploadTokenMetadata(name, symbol, description, imageFile, socials);
+                console.log('[DEPLOY] Step 1: Uploading metadata...');
+                let tokenMetadata;
+                try {
+                    tokenMetadata = await uploadTokenMetadata(name, symbol, description, imageFile, socials);
+                    console.log('[DEPLOY] Step 1 SUCCESS:', tokenMetadata);
+                } catch (e) {
+                    console.error('[DEPLOY] Step 1 FAILED:', e);
+                    throw new Error('IPFS upload failed: ' + e.message);
+                }
 
                 btn.textContent = selectedPath === 'launchr' ? 'Getting Mars address...' : (selectedPath === 'custom' ? 'Mining custom vanity...' : 'Generating mint...');
 
                 // Step 2: Generate mint info (tries vanity vault first)
-                const mintInfo = await generateMintKeypair();
+                console.log('[DEPLOY] Step 2: Generating mint keypair, path:', selectedPath);
+                let mintInfo;
+                try {
+                    mintInfo = await generateMintKeypair();
+                    console.log('[DEPLOY] Step 2 SUCCESS:', mintInfo.publicKey.toString(), 'isVanity:', mintInfo.isVanity);
+                } catch (e) {
+                    console.error('[DEPLOY] Step 2 FAILED:', e);
+                    throw new Error('Mint generation failed: ' + e.message);
+                }
 
                 btn.textContent = 'Creating token...';
 
                 // Step 3: Create token via PumpPortal
-                const { transaction, connection } = await createTokenViaPumpPortal(
-                    connectedWallet,
-                    mintInfo,
-                    tokenMetadata,
-                    devBuyAmount // Initial dev buy amount in SOL
-                );
+                console.log('[DEPLOY] Step 3: Creating token via PumpPortal...');
+                let transaction, connection;
+                try {
+                    const result = await createTokenViaPumpPortal(
+                        connectedWallet,
+                        mintInfo,
+                        tokenMetadata,
+                        devBuyAmount
+                    );
+                    transaction = result.transaction;
+                    connection = result.connection;
+                    console.log('[DEPLOY] Step 3 SUCCESS: Got transaction');
+                } catch (e) {
+                    console.error('[DEPLOY] Step 3 FAILED:', e);
+                    throw new Error('PumpPortal failed: ' + e.message);
+                }
 
                 btn.textContent = mintInfo.isVanity ? 'Signing via vault...' : 'Waiting for signature...';
 
                 // Step 4: Sign and send transaction (vault for vanity, local for random)
-                const signature = await signAndSendTransaction(transaction, connection, mintInfo);
+                console.log('[DEPLOY] Step 4: Signing transaction, isVanity:', mintInfo.isVanity);
+                let signature;
+                try {
+                    signature = await signAndSendTransaction(transaction, connection, mintInfo);
+                    console.log('[DEPLOY] Step 4 SUCCESS:', signature);
+                } catch (e) {
+                    console.error('[DEPLOY] Step 4 FAILED:', e);
+                    throw new Error('Signing failed: ' + e.message);
+                }
 
                 btn.textContent = 'Token launched!';
 

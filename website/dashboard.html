@@ -2755,10 +2755,25 @@
                     </div>
                     <div class="path-option" data-path="launchr" onclick="selectPath('launchr')">
                         <div class="path-option-header">
-                            <span class="path-option-name">LCHr Vanity</span>
+                            <span class="path-option-name">Mars Vanity</span>
                             <span class="path-option-badge advanced" style="background:var(--gold-dim);color:var(--gold);">Premium</span>
                         </div>
-                        <p class="path-option-desc">Vanity address ending in <code style="color:var(--gold);">...LCHr</code></p>
+                        <p class="path-option-desc">Vanity address ending in <code style="color:var(--gold);">...Mars</code></p>
+                    </div>
+                    <div class="path-option" data-path="custom" onclick="selectPath('custom')">
+                        <div class="path-option-header">
+                            <span class="path-option-name">Custom Vanity</span>
+                            <span class="path-option-badge" style="background:rgba(139,92,246,0.15);color:#a78bfa;">Pro</span>
+                        </div>
+                        <p class="path-option-desc">Choose your own address suffix</p>
+                    </div>
+                </div>
+
+                <!-- Custom Vanity Suffix Input -->
+                <div id="customVanitySectionDash" style="display:none;margin-bottom:16px;">
+                    <div class="form-group">
+                        <label class="form-label">Custom Suffix <span style="color:var(--text-muted);font-weight:400;">(1-4 characters)</span></label>
+                        <input type="text" class="form-input" id="customVanitySuffixDash" placeholder="e.g. DOGE, moon, etc..." maxlength="4" style="font-family:'JetBrains Mono',monospace;">
                     </div>
                 </div>
 
@@ -4123,6 +4138,11 @@
                     if (path === 'pumpfun') opt.classList.add('purple');
                 }
             });
+            // Show/hide custom vanity input
+            const customSection = document.getElementById('customVanitySectionDash');
+            if (customSection) {
+                customSection.style.display = path === 'custom' ? 'block' : 'none';
+            }
         }
 
         function updateLaunchButton() {
@@ -4173,11 +4193,47 @@
             };
         }
 
+        // Generate vanity keypair with custom suffix (browser-based)
+        async function generateVanityKeypair(suffix) {
+            const { Keypair } = solanaWeb3;
+            const targetSuffix = suffix.toLowerCase();
+            let attempts = 0;
+            const maxAttempts = 1000000;
+            const batchSize = 100;
+
+            return new Promise((resolve, reject) => {
+                function searchBatch() {
+                    for (let i = 0; i < batchSize; i++) {
+                        attempts++;
+                        const keypair = Keypair.generate();
+                        const address = keypair.publicKey.toString();
+
+                        if (address.toLowerCase().endsWith(targetSuffix)) {
+                            console.log(`[VANITY] Found match after ${attempts} attempts:`, address);
+                            resolve(keypair);
+                            return;
+                        }
+
+                        if (attempts >= maxAttempts) {
+                            reject(new Error(`Could not find vanity address after ${maxAttempts} attempts. Try a shorter suffix.`));
+                            return;
+                        }
+                    }
+
+                    const btn = document.getElementById('launchTokenBtn');
+                    if (btn) btn.textContent = `Mining vanity... (${attempts.toLocaleString()} attempts)`;
+
+                    setTimeout(searchBatch, 0);
+                }
+                searchBatch();
+            });
+        }
+
         // Generate a new mint keypair for the token based on selected path
         async function generateMintKeypair() {
             const { Keypair } = solanaWeb3;
 
-            // LCHr Vanity path - must get vanity keypair
+            // Mars Vanity path - get vanity keypair from server
             if (selectedLaunchPath === 'launchr') {
                 try {
                     const res = await fetch('/api/vanity-keypair');
@@ -4186,20 +4242,41 @@
                         if (data.success && data.secretKey) {
                             const secretKey = bs58.decode(data.secretKey);
                             const mintKeypair = Keypair.fromSecretKey(secretKey);
-                            console.log('[DEPLOY] Got LCHr vanity mint address:', mintKeypair.publicKey.toString());
+                            console.log('[DEPLOY] Got Mars vanity mint address:', mintKeypair.publicKey.toString());
                             return mintKeypair;
                         }
                     }
-                    // No vanity available - check status
                     const statusRes = await fetch('/api/vanity-status');
                     const status = statusRes.ok ? await statusRes.json() : {};
                     const msg = status.isGenerating
-                        ? `No LCHr addresses available. Mining in progress (${status.stats?.found || 0} found so far). Try again soon!`
-                        : 'No LCHr addresses available. Please try again later or use Pump.fun path.';
+                        ? `No Mars addresses available. Mining in progress (${status.stats?.found || 0} found so far). Try again soon!`
+                        : 'No Mars addresses available. Please try again later or use Pump.fun path.';
                     throw new Error(msg);
                 } catch (e) {
-                    throw new Error(e.message || 'LCHr vanity keypair unavailable');
+                    throw new Error(e.message || 'Mars vanity keypair unavailable');
                 }
+            }
+
+            // Custom Vanity path - generate in browser
+            if (selectedLaunchPath === 'custom') {
+                const suffixInput = document.getElementById('customVanitySuffixDash');
+                const suffix = suffixInput?.value?.trim();
+                if (!suffix || suffix.length < 1) {
+                    throw new Error('Please enter a custom suffix (1-4 characters)');
+                }
+                if (suffix.length > 4) {
+                    throw new Error('Suffix must be 4 characters or less');
+                }
+                const validChars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+                for (const char of suffix) {
+                    if (!validChars.includes(char)) {
+                        throw new Error(`Invalid character "${char}" in suffix. Use only alphanumeric (no 0, O, I, l)`);
+                    }
+                }
+                console.log('[DEPLOY] Generating custom vanity with suffix:', suffix);
+                const mintKeypair = await generateVanityKeypair(suffix);
+                console.log('[DEPLOY] Generated custom vanity mint:', mintKeypair.publicKey.toString());
+                return mintKeypair;
             }
 
             // Pump.fun path - random keypair
@@ -4507,7 +4584,7 @@
             try {
                 const tokenMetadata = await uploadTokenMetadata(name, symbol, description, imageFile, socials);
 
-                btn.textContent = selectedLaunchPath === 'launchr' ? 'Getting LCHr address...' : 'Generating mint...';
+                btn.textContent = selectedLaunchPath === 'launchr' ? 'Getting Mars address...' : 'Generating mint...';
                 const mintKeypair = await generateMintKeypair();
 
                 btn.textContent = 'Creating token...';
