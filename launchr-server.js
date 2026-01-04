@@ -1898,11 +1898,11 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    // Serve static files from frontend/dist folder (Vite build output)
+    // Serve static files from frontend/dist or website folder
     if ((url.pathname.startsWith('/assets/') || url.pathname.startsWith('/website/')) && req.method === 'GET') {
-        // Map /website/ to frontend/dist for backwards compatibility
+        // /website/ serves from website/ folder, /assets/ from frontend/dist/
         const basePath = url.pathname.startsWith('/website/')
-            ? path.join(__dirname, 'frontend', 'dist', url.pathname.replace('/website/', ''))
+            ? path.join(__dirname, 'website', url.pathname.replace('/website/', ''))
             : path.join(__dirname, 'frontend', 'dist', url.pathname);
         const ext = path.extname(basePath).toLowerCase();
         const mimeTypes = {
