@@ -3130,43 +3130,50 @@
             }
 
             // PRE-SIMULATE: Simulate transaction before showing to wallet
-            console.log('[DEPLOY] Pre-simulating transaction...');
-            try {
-                const simulation = await connection.simulateTransaction(tx, {
-                    sigVerify: false,
-                    replaceRecentBlockhash: true
-                });
-                if (simulation.value.err) {
-                    console.error('[DEPLOY] Simulation error:', JSON.stringify(simulation.value.err));
-                    console.error('[DEPLOY] Simulation logs:', simulation.value.logs);
-                    // Check for common errors
-                    const errStr = JSON.stringify(simulation.value.err);
-                    if (errStr.includes('InsufficientFunds')) {
-                        throw new Error('Insufficient SOL in wallet for transaction fees');
+            // Skip for vault-signed transactions (like TG bot does with skipPreflight)
+            if (!mintInfo.isVanity) {
+                console.log('[DEPLOY] Pre-simulating transaction...');
+                try {
+                    const simulation = await connection.simulateTransaction(tx, {
+                        sigVerify: false,
+                        replaceRecentBlockhash: true
+                    });
+                    if (simulation.value.err) {
+                        console.error('[DEPLOY] Simulation error:', JSON.stringify(simulation.value.err));
+                        console.error('[DEPLOY] Simulation logs:', simulation.value.logs);
+                        // Check for common errors
+                        const errStr = JSON.stringify(simulation.value.err);
+                        if (errStr.includes('InsufficientFunds')) {
+                            throw new Error('Insufficient SOL in wallet for transaction fees');
+                        }
+                        if (errStr.includes('AccountNotFound')) {
+                            throw new Error('Account not found - check wallet connection');
+                        }
+                        // Show the actual error to user
+                        throw new Error('Transaction simulation failed: ' + (simulation.value.logs?.slice(-2).join(' | ') || errStr));
+                    } else {
+                        console.log('[DEPLOY] Pre-simulation successful, units consumed:', simulation.value.unitsConsumed);
                     }
-                    if (errStr.includes('AccountNotFound')) {
-                        throw new Error('Account not found - check wallet connection');
+                } catch (simErr) {
+                    if (simErr.message.includes('simulation failed')) {
+                        throw simErr; // Re-throw our custom errors
                     }
-                    // Show the actual error to user
-                    throw new Error('Transaction simulation failed: ' + (simulation.value.logs?.slice(-2).join(' | ') || errStr));
-                } else {
-                    console.log('[DEPLOY] Pre-simulation successful, units consumed:', simulation.value.unitsConsumed);
+                    console.warn('[DEPLOY] Pre-simulation check failed:', simErr.message);
                 }
-            } catch (simErr) {
-                if (simErr.message.includes('simulation failed')) {
-                    throw simErr; // Re-throw our custom errors
-                }
-                console.warn('[DEPLOY] Pre-simulation check failed:', simErr.message);
+            } else {
+                console.log('[DEPLOY] Skipping pre-simulation for vault-signed transaction (like TG bot)');
             }
 
             let signature;
+            // Use skipPreflight for vault-signed transactions (same as TG bot)
+            const useSkipPreflight = mintInfo.isVanity;
 
             // Try Phantom wallet first
             if (window.solana?.isPhantom) {
                 console.log('[DEPLOY] Using Phantom wallet for signing...');
                 const signedTx = await window.solana.signTransaction(tx);
                 signature = await connection.sendRawTransaction(signedTx.serialize(), {
-                    skipPreflight: false,
+                    skipPreflight: useSkipPreflight,
                     preflightCommitment: 'confirmed',
                     maxRetries: 3
                 });
@@ -3176,7 +3183,7 @@
                 console.log('[DEPLOY] Using Solflare wallet for signing...');
                 const signedTx = await window.solflare.signTransaction(tx);
                 signature = await connection.sendRawTransaction(signedTx.serialize(), {
-                    skipPreflight: false,
+                    skipPreflight: useSkipPreflight,
                     preflightCommitment: 'confirmed',
                     maxRetries: 3
                 });
@@ -3188,7 +3195,7 @@
                 if (user?.wallet?.address) {
                     const signedTx = await privyClient.signTransaction(tx);
                     signature = await connection.sendRawTransaction(signedTx.serialize(), {
-                        skipPreflight: false,
+                        skipPreflight: useSkipPreflight,
                         preflightCommitment: 'confirmed',
                         maxRetries: 3
                     });

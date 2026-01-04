@@ -344,6 +344,10 @@ let vanityGeneratorStats = { attempts: 0, found: 0, lastFoundAt: null };
 const vanityRateLimits = {};
 const VANITY_RATE_LIMIT_MS = 60000; // 1 minute between requests per IP
 
+// Separate rate limit for custom vanity (shorter - 10 seconds)
+const customVanityRateLimits = {};
+const CUSTOM_VANITY_RATE_LIMIT_MS = 10000; // 10 seconds between requests per IP
+
 // VAULT: Secure storage for dispensed keypairs (secretKey never exposed to frontend)
 // Maps vaultId -> { secretKey, publicKey, dispensedAt, expiresAt }
 const vanityVault = new Map();
@@ -4890,13 +4894,13 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                     }
                 }
 
-                // Rate limit by IP
+                // Rate limit by IP (separate from Mars vanity, shorter cooldown)
                 const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
-                const lastRequest = vanityRateLimits[clientIP] || 0;
+                const lastRequest = customVanityRateLimits[clientIP] || 0;
                 const now = Date.now();
 
-                if (now - lastRequest < VANITY_RATE_LIMIT_MS) {
-                    const waitSeconds = Math.ceil((VANITY_RATE_LIMIT_MS - (now - lastRequest)) / 1000);
+                if (now - lastRequest < CUSTOM_VANITY_RATE_LIMIT_MS) {
+                    const waitSeconds = Math.ceil((CUSTOM_VANITY_RATE_LIMIT_MS - (now - lastRequest)) / 1000);
                     res.writeHead(429, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({
                         success: false,
@@ -4906,7 +4910,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                     return;
                 }
 
-                vanityRateLimits[clientIP] = now;
+                customVanityRateLimits[clientIP] = now;
 
                 console.log(`[CUSTOM-VANITY] Generating keypair with suffix "${suffix}" for ${clientIP}`);
 
