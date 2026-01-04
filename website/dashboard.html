@@ -1958,7 +1958,15 @@
 
             <div class="sidebar-section" style="margin-top:auto;">
                 <div class="sidebar-section-title">RESOURCES</div>
-                <a href="https://twitter.com/laaboratory" class="sidebar-link" target="_blank">
+                <a href="/docs" class="sidebar-link">
+                    <span class="sidebar-icon">◎</span>
+                    Docs
+                </a>
+                <a href="/terms" class="sidebar-link">
+                    <span class="sidebar-icon">◉</span>
+                    Terms
+                </a>
+                <a href="https://twitter.com/LaunchrTG" class="sidebar-link" target="_blank">
                     <span class="sidebar-icon">𝕏</span>
                     Twitter
                 </a>
@@ -1966,10 +1974,9 @@
                     <span class="sidebar-icon">◆</span>
                     Telegram
                 </a>
-                <a href="https://t.me/LAUNCHR_V2_BOT" class="sidebar-link" target="_blank">
-                    <span class="sidebar-icon">◇</span>
-                    Telegram Bot
-                </a>
+            </div>
+            <div style="padding: 12px 16px; font-size: 9px; color: var(--text-muted); line-height: 1.4; border-top: 1px solid var(--border); margin-top: 12px;">
+                Experimental meme coin platform. NOT financial advice. <a href="/terms" style="color: var(--gold);">Terms</a>
             </div>
         </aside>
 
@@ -4584,7 +4591,7 @@
             try {
                 const tokenMetadata = await uploadTokenMetadata(name, symbol, description, imageFile, socials);
 
-                btn.textContent = selectedLaunchPath === 'launchr' ? 'Getting Mars address...' : 'Generating mint...';
+                btn.textContent = selectedLaunchPath === 'launchr' ? 'Getting Mars address...' : (selectedLaunchPath === 'custom' ? 'Mining custom vanity...' : 'Generating mint...');
                 const mintKeypair = await generateMintKeypair();
 
                 btn.textContent = 'Creating token...';
@@ -5068,7 +5075,7 @@
                 document.getElementById('tokenAvatar').innerHTML = token.image
                     ? `<img src="${escapeHtml(token.image)}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">`
                     : token.symbol?.slice(0, 2) || '??';
-                document.getElementById('tokenPath').textContent = token.path === 'launchr' ? 'LAUNCHR' : 'PUMP';
+                document.getElementById('tokenPath').textContent = token.path === 'launchr' ? 'MARS' : 'PUMP';
                 document.getElementById('tokenPath').className = `path-badge ${token.path === 'launchr' ? 'launchr' : 'pumpfun'}`;
 
                 // Fetch data from multiple sources in parallel - include Jupiter and GMGN for fresh holders
@@ -5681,7 +5688,7 @@
                 document.getElementById('tokenAvatar').innerHTML = token.image
                     ? `<img src="${escapeHtml(token.image)}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">`
                     : token.symbol?.slice(0, 2) || '??';
-                document.getElementById('tokenPath').textContent = token.path === 'launchr' ? 'LAUNCHR' : 'PUMP';
+                document.getElementById('tokenPath').textContent = token.path === 'launchr' ? 'MARS' : 'PUMP';
                 document.getElementById('tradingTokenLabel').textContent = `${token.symbol} / SOL`;
                 document.getElementById('tradeBalance').textContent = `Balance: ${walletBalance.toFixed(4)} SOL`;
                 document.getElementById('tradeBtn').disabled = false;
