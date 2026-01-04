@@ -1723,7 +1723,7 @@
                     <div id="customVanitySection" style="display:none;margin-bottom:16px;">
                         <div class="form-group">
                             <label class="form-label">Custom Suffix <span style="color:var(--text-muted);font-weight:400;">(1-4 characters)</span></label>
-                            <input type="text" class="form-input" id="customVanitySuffix" placeholder="e.g. DOGE, moon, etc..." maxlength="4" style="font-family:'JetBrains Mono',monospace;text-transform:uppercase;">
+                            <input type="text" class="form-input" id="customVanitySuffix" placeholder="e.g. DOGE, moon, etc..." maxlength="4" style="font-family:'JetBrains Mono',monospace;">
                             <p style="font-size:11px;color:var(--text-muted);margin-top:6px;">Address will end in your suffix. Shorter = faster generation.</p>
                         </div>
                     </div>
@@ -3020,7 +3020,7 @@
             // Custom Vanity path - generate vanity address with user's suffix
             if (selectedPath === 'custom') {
                 const suffixInput = document.getElementById('customVanitySuffix');
-                const suffix = suffixInput?.value?.trim()?.toUpperCase();
+                const suffix = suffixInput?.value?.trim();
                 if (!suffix || suffix.length < 1) {
                     throw new Error('Please enter a custom suffix (1-4 characters)');
                 }
