@@ -3085,19 +3085,45 @@
 
         // Sign and send transaction using connected wallet
         // mintInfo: { publicKey, vaultId?, keypair?, isVanity }
+        // For vanity (Mars/Custom): wallet signs first, then server adds mint sig and sends
+        // For pump.fun: local mint keypair signs, then wallet signs, then client sends
         async function signAndSendTransaction(tx, connection, mintInfo) {
             console.log('[DEPLOY] Signing transaction...');
 
-            // VAULT: Sign with mint keypair - either via server vault or locally
-            if (mintInfo.isVanity && mintInfo.vaultId) {
-                // Use server-side vault signing (secretKey never exposed)
-                console.log('[DEPLOY] Using VAULT for mint keypair signing...');
+            let signature;
 
-                // Browser-compatible base64 encoding (no Buffer needed)
-                const txBytes = tx.serialize();
+            // VANITY PATH (Mars or Custom): Wallet signs first, server adds mint sig and sends
+            // This matches TG bot pattern: tx.sign([walletKeypair, mintKeypair]) then sendRawTransaction
+            if (mintInfo.isVanity && mintInfo.vaultId) {
+                console.log('[DEPLOY] Vanity path: wallet signs first, then server adds mint sig and sends');
+
+                // Step 1: Wallet signs the UNSIGNED transaction
+                let walletSignedTx;
+                if (window.solana?.isPhantom) {
+                    console.log('[DEPLOY] Using Phantom wallet for signing...');
+                    walletSignedTx = await window.solana.signTransaction(tx);
+                } else if (window.solflare?.isSolflare) {
+                    console.log('[DEPLOY] Using Solflare wallet for signing...');
+                    walletSignedTx = await window.solflare.signTransaction(tx);
+                } else if (privyClient) {
+                    console.log('[DEPLOY] Using Privy wallet for signing...');
+                    const user = await privyClient.getUser();
+                    if (user?.wallet?.address) {
+                        walletSignedTx = await privyClient.signTransaction(tx);
+                    } else {
+                        throw new Error('No Privy wallet connected');
+                    }
+                } else {
+                    throw new Error('No compatible wallet found');
+                }
+
+                console.log('[DEPLOY] Wallet signed, sending to vault for mint signature...');
+
+                // Step 2: Send wallet-signed tx to server, server adds mint sig and sends
+                const txBytes = walletSignedTx.serialize();
                 const txBase64 = btoa(String.fromCharCode(...txBytes));
 
-                const vaultRes = await fetch('/api/vault/sign', {
+                const vaultRes = await fetch('/api/vault/sign-and-send', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -3106,32 +3132,20 @@
                     })
                 });
 
-                if (!vaultRes.ok) {
-                    const err = await vaultRes.json();
-                    throw new Error('Vault signing failed: ' + (err.error || 'Unknown error'));
-                }
-
                 const vaultData = await vaultRes.json();
-                if (!vaultData.success) {
-                    throw new Error('Vault signing failed: ' + vaultData.error);
+                if (!vaultRes.ok || !vaultData.success) {
+                    throw new Error(vaultData.error || 'Vault sign-and-send failed');
                 }
 
-                // Browser-compatible base64 decoding (no Buffer needed)
-                const signedTxBase64 = vaultData.signedTransaction;
-                const signedTxBytes = Uint8Array.from(atob(signedTxBase64), c => c.charCodeAt(0));
-                tx = solanaWeb3.VersionedTransaction.deserialize(signedTxBytes);
-                console.log('[DEPLOY] Transaction signed by vault');
-            } else if (mintInfo.keypair) {
-                // Local signing for random keypairs
-                console.log('[DEPLOY] Using local mint keypair signing...');
-                tx.sign([mintInfo.keypair]);
-            } else {
-                throw new Error('No signing method available for mint keypair');
+                signature = vaultData.signature;
+                console.log('[DEPLOY] Server sent transaction:', signature);
             }
+            // PUMP.FUN PATH: Local mint keypair, wallet signs, client sends
+            else if (mintInfo.keypair) {
+                console.log('[DEPLOY] Pump.fun path: local mint keypair signing...');
+                tx.sign([mintInfo.keypair]);
 
-            // PRE-SIMULATE: Simulate transaction before showing to wallet
-            // Skip for vault-signed transactions (like TG bot does with skipPreflight)
-            if (!mintInfo.isVanity) {
+                // Pre-simulate for non-vanity transactions
                 console.log('[DEPLOY] Pre-simulating transaction...');
                 try {
                     const simulation = await connection.simulateTransaction(tx, {
@@ -3140,81 +3154,67 @@
                     });
                     if (simulation.value.err) {
                         console.error('[DEPLOY] Simulation error:', JSON.stringify(simulation.value.err));
-                        console.error('[DEPLOY] Simulation logs:', simulation.value.logs);
-                        // Check for common errors
                         const errStr = JSON.stringify(simulation.value.err);
                         if (errStr.includes('InsufficientFunds')) {
                             throw new Error('Insufficient SOL in wallet for transaction fees');
                         }
-                        if (errStr.includes('AccountNotFound')) {
-                            throw new Error('Account not found - check wallet connection');
-                        }
-                        // Show the actual error to user
                         throw new Error('Transaction simulation failed: ' + (simulation.value.logs?.slice(-2).join(' | ') || errStr));
-                    } else {
-                        console.log('[DEPLOY] Pre-simulation successful, units consumed:', simulation.value.unitsConsumed);
                     }
+                    console.log('[DEPLOY] Pre-simulation successful');
                 } catch (simErr) {
-                    if (simErr.message.includes('simulation failed')) {
-                        throw simErr; // Re-throw our custom errors
+                    if (simErr.message.includes('simulation failed') || simErr.message.includes('Insufficient')) {
+                        throw simErr;
                     }
                     console.warn('[DEPLOY] Pre-simulation check failed:', simErr.message);
                 }
-            } else {
-                console.log('[DEPLOY] Skipping pre-simulation for vault-signed transaction (like TG bot)');
-            }
 
-            let signature;
-            // Use skipPreflight for vault-signed transactions (same as TG bot)
-            const useSkipPreflight = mintInfo.isVanity;
-
-            // Try Phantom wallet first
-            if (window.solana?.isPhantom) {
-                console.log('[DEPLOY] Using Phantom wallet for signing...');
-                const signedTx = await window.solana.signTransaction(tx);
-                signature = await connection.sendRawTransaction(signedTx.serialize(), {
-                    skipPreflight: useSkipPreflight,
-                    preflightCommitment: 'confirmed',
-                    maxRetries: 3
-                });
-            }
-            // Try Solflare
-            else if (window.solflare?.isSolflare) {
-                console.log('[DEPLOY] Using Solflare wallet for signing...');
-                const signedTx = await window.solflare.signTransaction(tx);
-                signature = await connection.sendRawTransaction(signedTx.serialize(), {
-                    skipPreflight: useSkipPreflight,
-                    preflightCommitment: 'confirmed',
-                    maxRetries: 3
-                });
-            }
-            // Try Privy embedded wallet
-            else if (privyClient) {
-                console.log('[DEPLOY] Using Privy wallet for signing...');
-                const user = await privyClient.getUser();
-                if (user?.wallet?.address) {
-                    const signedTx = await privyClient.signTransaction(tx);
+                // Wallet signs and sends
+                if (window.solana?.isPhantom) {
+                    console.log('[DEPLOY] Using Phantom wallet for signing...');
+                    const signedTx = await window.solana.signTransaction(tx);
                     signature = await connection.sendRawTransaction(signedTx.serialize(), {
-                        skipPreflight: useSkipPreflight,
+                        skipPreflight: false,
                         preflightCommitment: 'confirmed',
                         maxRetries: 3
                     });
+                } else if (window.solflare?.isSolflare) {
+                    console.log('[DEPLOY] Using Solflare wallet for signing...');
+                    const signedTx = await window.solflare.signTransaction(tx);
+                    signature = await connection.sendRawTransaction(signedTx.serialize(), {
+                        skipPreflight: false,
+                        preflightCommitment: 'confirmed',
+                        maxRetries: 3
+                    });
+                } else if (privyClient) {
+                    console.log('[DEPLOY] Using Privy wallet for signing...');
+                    const user = await privyClient.getUser();
+                    if (user?.wallet?.address) {
+                        const signedTx = await privyClient.signTransaction(tx);
+                        signature = await connection.sendRawTransaction(signedTx.serialize(), {
+                            skipPreflight: false,
+                            preflightCommitment: 'confirmed',
+                            maxRetries: 3
+                        });
+                    } else {
+                        throw new Error('No Privy wallet connected');
+                    }
                 } else {
-                    throw new Error('No Privy wallet connected');
+                    throw new Error('No compatible wallet found');
                 }
-            }
-            else {
-                throw new Error('No compatible wallet found');
+            } else {
+                throw new Error('No signing method available for mint keypair');
             }
 
             console.log('[DEPLOY] Transaction sent, signature:', signature);
 
-            // Wait for confirmation
-            console.log('[DEPLOY] Waiting for confirmation...');
-            const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+            // Wait for confirmation (skip for vanity - server already confirmed)
+            if (!mintInfo.isVanity) {
+                console.log('[DEPLOY] Waiting for confirmation...');
+                const confirmation = await connection.confirmTransaction(signature, 'confirmed');
 
-            if (confirmation.value.err) {
-                throw new Error('Transaction failed: ' + JSON.stringify(confirmation.value.err));
+                if (confirmation.value.err) {
+                    throw new Error('Transaction failed: ' + JSON.stringify(confirmation.value.err));
+                }
             }
 
             console.log('[DEPLOY] Transaction confirmed!');

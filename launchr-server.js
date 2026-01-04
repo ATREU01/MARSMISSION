@@ -5087,6 +5087,99 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
         return;
     }
 
+    // API: VAULT - Sign with mint keypair AND send transaction (wallet signs first, then server adds mint sig and sends)
+    // This matches the TG bot pattern: tx.sign([walletKeypair, mintKeypair]) then sendRawTransaction
+    if (url.pathname === '/api/vault/sign-and-send' && req.method === 'POST') {
+        let body = [];
+        req.on('data', chunk => body.push(chunk));
+        req.on('end', async () => {
+            try {
+                const data = JSON.parse(Buffer.concat(body).toString());
+                const { vaultId, transaction } = data;
+
+                if (!vaultId || !transaction) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Missing vaultId or transaction' }));
+                    return;
+                }
+
+                // Look up vault entry
+                const vaultEntry = vanityVault.get(vaultId);
+                if (!vaultEntry) {
+                    res.writeHead(404, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Vault entry not found or expired' }));
+                    return;
+                }
+
+                // Check if already used (one-time use)
+                if (vaultEntry.used) {
+                    res.writeHead(403, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Vault entry already used' }));
+                    return;
+                }
+
+                // Check expiry
+                if (Date.now() > vaultEntry.expiresAt) {
+                    vanityVault.delete(vaultId);
+                    res.writeHead(410, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Vault entry expired' }));
+                    return;
+                }
+
+                // Decode transaction (already signed by wallet)
+                const { VersionedTransaction, Connection } = require('@solana/web3.js');
+                const txBuffer = Buffer.from(transaction, 'base64');
+                const tx = VersionedTransaction.deserialize(txBuffer);
+
+                // Recreate mint keypair from stored secretKey
+                const secretKeyBytes = bs58.decode(vaultEntry.secretKey);
+                const mintKeypair = Keypair.fromSecretKey(secretKeyBytes);
+
+                // Add mint keypair signature (wallet already signed)
+                tx.sign([mintKeypair]);
+
+                // Mark vault entry as used
+                vaultEntry.used = true;
+                vaultEntry.usedAt = Date.now();
+
+                console.log(`[VAULT] Added mint signature for ${vaultEntry.publicKey}, sending transaction...`);
+
+                // Send the fully signed transaction (same as TG bot: skipPreflight: true)
+                const connection = new Connection(PRODUCTION_CONFIG.SOLANA_RPC || 'https://api.mainnet-beta.solana.com', 'confirmed');
+                const signature = await connection.sendRawTransaction(tx.serialize(), {
+                    skipPreflight: true,
+                    maxRetries: 3
+                });
+
+                console.log(`[VAULT] Transaction sent: ${signature}`);
+
+                // Wait for confirmation
+                await connection.confirmTransaction(signature, 'confirmed');
+                console.log(`[VAULT] Transaction confirmed: ${signature}`);
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: true,
+                    signature: signature,
+                    publicKey: vaultEntry.publicKey
+                }));
+
+                // Clean up
+                setTimeout(() => {
+                    if (vanityVault.has(vaultId)) {
+                        vanityVault.delete(vaultId);
+                    }
+                }, 60000);
+
+            } catch (e) {
+                console.error('[VAULT] Sign-and-send error:', e);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Failed to sign and send: ' + e.message }));
+            }
+        });
+        return;
+    }
+
     // API: IPFS Proxy for Pump.fun (to avoid CORS)
     if (url.pathname === '/api/ipfs-upload' && req.method === 'POST') {
         let body = [];
