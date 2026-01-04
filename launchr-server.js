@@ -909,12 +909,12 @@ function createOrbitStatus(mint, walletAddress, allocations = null) {
         distributeCount: 0,
         lastError: null,
         uptime: 0, // calculated on read
-        // Fee allocation percentages (must sum to 100)
+        // Fee allocation percentages (must sum to 100) - matches engine field names
         allocations: allocations || {
-            burn: 25,          // Tokens burned (deflationary)
-            amm: 25,           // AI-driven market making
-            creatorFees: 25,   // Revenue to token creator
-            liquidity: 25,     // Add LP + burn LP tokens
+            buybackBurn: 25,      // Tokens burned (deflationary)
+            marketMaking: 25,     // AI-driven market making
+            creatorRevenue: 25,   // Revenue to token creator
+            liquidity: 25,        // Add LP + burn LP tokens
         },
     };
 }
@@ -1007,14 +1007,14 @@ function registerOrbit(mint, walletAddress, allocations = null) {
     saveOrbitRegistry();
 }
 
-// Update allocations for a token
+// Update allocations for a token (uses engine field names)
 function updateOrbitAllocations(mint, allocations) {
     const status = orbitRegistry.get(mint);
     if (status) {
         status.allocations = {
-            burn: allocations.burn ?? status.allocations?.burn ?? 25,
-            amm: allocations.amm ?? status.allocations?.amm ?? 25,
-            creatorFees: allocations.creatorFees ?? status.allocations?.creatorFees ?? 25,
+            buybackBurn: allocations.buybackBurn ?? status.allocations?.buybackBurn ?? 25,
+            marketMaking: allocations.marketMaking ?? status.allocations?.marketMaking ?? 25,
+            creatorRevenue: allocations.creatorRevenue ?? status.allocations?.creatorRevenue ?? 25,
             liquidity: allocations.liquidity ?? status.allocations?.liquidity ?? 25,
         };
         orbitRegistry.set(mint, status);
@@ -2115,6 +2115,12 @@ const server = http.createServer(async (req, res) => {
 
             engine.setAllocations(data);
             log('Allocations updated: ' + JSON.stringify(data));
+
+            // Sync allocations to orbitRegistry for leaderboard display
+            if (engine.tokenMintStr) {
+                updateOrbitAllocations(engine.tokenMintStr, data);
+            }
+
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: true, allocations: engine.getAllocations() }));
         } catch (e) {
@@ -2694,12 +2700,13 @@ The 4 percentages MUST sum to exactly 100.`;
                 .map(t => {
                     const orbitStatus = orbitRegistry.get(t.mint);
                     const hasOrbit = orbitStatus && orbitStatus.status === 'active';
-                    const allocations = orbitStatus?.allocations || {
-                        burn: 25,
-                        amm: 25,
-                        creatorFees: 25,
+                    // Only return allocations if ORBIT is active (uses engine field names)
+                    const allocations = hasOrbit ? (orbitStatus?.allocations || {
+                        buybackBurn: 25,
+                        marketMaking: 25,
+                        creatorRevenue: 25,
                         liquidity: 25,
-                    };
+                    }) : null;
                     return {
                         mint: t.mint,
                         name: t.name || 'Unknown Token',
@@ -2731,13 +2738,8 @@ The 4 percentages MUST sum to exactly 100.`;
                         aiSource: t.aiSource || null,
                         // TEK indicator
                         hasOrbit,
-                        // Fee allocation percentages
-                        allocations: {
-                            burn: allocations.burn,
-                            amm: allocations.amm,
-                            creatorFees: allocations.creatorFees,
-                            liquidity: allocations.liquidity,
-                        },
+                        // Fee allocation percentages (null if no ORBIT = 100% creator)
+                        allocations: allocations,
                     };
                 });
             res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -3748,13 +3750,13 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 .map((t, index) => {
                     const orbitStatus = orbitRegistry.get(t.mint);
                     const hasOrbit = orbitStatus && orbitStatus.status === 'active';
-                    // Get allocations from ORBIT registry (default to 25/25/25/25 if not set)
-                    const allocations = orbitStatus?.allocations || {
-                        burn: 25,
-                        amm: 25,
-                        creatorFees: 25,
+                    // Get allocations from ORBIT registry - uses engine field names
+                    const allocations = hasOrbit ? (orbitStatus?.allocations || {
+                        buybackBurn: 25,
+                        marketMaking: 25,
+                        creatorRevenue: 25,
                         liquidity: 25,
-                    };
+                    }) : null;
                     return {
                         rank: index + 1,
                         mint: t.mint,
@@ -3772,13 +3774,8 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                         aiScore: Math.min(89, t.aiScore || 0),
                         hasOrbit,
                         createdAt: t.registeredAt || null,
-                        // Fee allocation percentages for display
-                        allocations: {
-                            burn: allocations.burn,
-                            amm: allocations.amm,
-                            creatorFees: allocations.creatorFees,
-                            liquidity: allocations.liquidity,
-                        },
+                        // Fee allocation percentages (null if no ORBIT = 100% creator)
+                        allocations: allocations,
                     };
                 });
             res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -4572,6 +4569,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     }
 
     // API: Update allocations for a token (for leaderboard display)
+    // Uses engine field names: buybackBurn, marketMaking, creatorRevenue, liquidity
     if (url.pathname === '/api/orbit/allocations' && req.method === 'POST') {
         try {
             const data = await parseBody(req);
@@ -4590,17 +4588,17 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 return;
             }
 
-            // Validate allocations
-            const { burn, amm, creatorFees, liquidity } = allocations;
-            if (typeof burn !== 'number' || typeof amm !== 'number' ||
-                typeof creatorFees !== 'number' || typeof liquidity !== 'number') {
+            // Validate allocations - uses engine field names
+            const { buybackBurn, marketMaking, creatorRevenue, liquidity } = allocations;
+            if (typeof buybackBurn !== 'number' || typeof marketMaking !== 'number' ||
+                typeof creatorRevenue !== 'number' || typeof liquidity !== 'number') {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: false, error: 'All allocations must be numbers' }));
+                res.end(JSON.stringify({ success: false, error: 'All allocations must be numbers (buybackBurn, marketMaking, creatorRevenue, liquidity)' }));
                 return;
             }
 
             // Validate total is 100%
-            const total = burn + amm + creatorFees + liquidity;
+            const total = buybackBurn + marketMaking + creatorRevenue + liquidity;
             if (Math.abs(total - 100) > 0.01) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: false, error: `Allocations must sum to 100% (currently ${total}%)` }));
@@ -4610,10 +4608,10 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             // Update or create orbit entry with allocations
             const status = orbitRegistry.get(mint);
             if (status) {
-                updateOrbitAllocations(mint, { burn, amm, creatorFees, liquidity });
+                updateOrbitAllocations(mint, { buybackBurn, marketMaking, creatorRevenue, liquidity });
             } else {
                 // Create new orbit entry with allocations (inactive by default)
-                const newStatus = createOrbitStatus(mint, 'unknown', { burn, amm, creatorFees, liquidity });
+                const newStatus = createOrbitStatus(mint, 'unknown', { buybackBurn, marketMaking, creatorRevenue, liquidity });
                 newStatus.status = 'inactive';
                 orbitRegistry.set(mint, newStatus);
                 saveOrbitRegistry();
@@ -4623,7 +4621,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             res.end(JSON.stringify({
                 success: true,
                 mint,
-                allocations: { burn, amm, creatorFees, liquidity }
+                allocations: { buybackBurn, marketMaking, creatorRevenue, liquidity }
             }));
         } catch (e) {
             res.writeHead(400, { 'Content-Type': 'application/json' });

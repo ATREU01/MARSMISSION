@@ -2388,8 +2388,8 @@
                 const hasSocials = t.twitter || t.telegram || t.website;
 
                 // Get allocation percentages - only show if TEK/ORBIT is active
-                // If no ORBIT, 100% goes to creator
-                const alloc = t.hasOrbit ? (t.allocations || { burn: 25, amm: 25, creatorFees: 25, liquidity: 25 }) : null;
+                // If no ORBIT, 100% goes to creator. Uses engine field names.
+                const alloc = t.hasOrbit ? (t.allocations || { buybackBurn: 25, marketMaking: 25, creatorRevenue: 25, liquidity: 25 }) : null;
 
                 return `
                 <div onclick="openPumpToken('${escapeHtml(t.mint)}')" style="display:grid;grid-template-columns:50px 180px 70px 95px 80px 65px 75px 85px 70px 70px 90px 50px 50px 50px 50px;gap:8px;padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer;align-items:center;font-size:13px;" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
@@ -2455,14 +2455,14 @@
                         <button onclick="window.open('https://pump.fun/coin/${escapeHtml(t.mint)}','_blank')" style="padding:6px 12px;background:var(--gold);color:#000;border:none;border-radius:5px;font-size:10px;font-weight:700;cursor:pointer;">VIEW</button>
                     </div>
 
-                    <!-- BURN % -->
-                    <div style="text-align:center;color:#f5a623;font-size:11px;font-weight:600;">${alloc ? alloc.burn + '%' : '-'}</div>
+                    <!-- BURN % (buybackBurn) -->
+                    <div style="text-align:center;color:#f5a623;font-size:11px;font-weight:600;">${alloc ? alloc.buybackBurn + '%' : '-'}</div>
 
-                    <!-- AMM % -->
-                    <div style="text-align:center;color:#00d4aa;font-size:11px;font-weight:600;">${alloc ? alloc.amm + '%' : '-'}</div>
+                    <!-- AMM % (marketMaking) -->
+                    <div style="text-align:center;color:#00d4aa;font-size:11px;font-weight:600;">${alloc ? alloc.marketMaking + '%' : '-'}</div>
 
-                    <!-- CREATOR FEES % -->
-                    <div style="text-align:center;color:#a855f7;font-size:11px;font-weight:600;">${alloc ? alloc.creatorFees + '%' : '100%'}</div>
+                    <!-- CREATOR FEES % (creatorRevenue) -->
+                    <div style="text-align:center;color:#a855f7;font-size:11px;font-weight:600;">${alloc ? alloc.creatorRevenue + '%' : '100%'}</div>
 
                     <!-- LIQUIDITY % -->
                     <div style="text-align:center;color:#ec4899;font-size:11px;font-weight:600;">${alloc ? alloc.liquidity + '%' : '-'}</div>
