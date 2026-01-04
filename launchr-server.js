@@ -68,6 +68,9 @@ const PRODUCTION_CONFIG = {
 // ═══════════════════════════════════════════════════════════════════════════
 const BLOCKED_MINTS = [
     'Apfi3UpBUbunhfSBhgvE7gQzRo8eg5YfWECwcqFJpimp', // Pimpball - competitor
+    'Fp1FAHv6wWt8gSeu2w1VHsudX1igvnnCZ33u9PzU1Gtt', // Test token
+    '6eB6mRm2vwjU57H3hDXXU8tQk53TPvpYhnEmhRZtuHmn', // Test token
+    '3mFC9NGK64uKDYYE6kokiQd2dQJPuJvW1tAxY29Tpump', // Test token
 ];
 
 // Filter out test tokens from leaderboard
