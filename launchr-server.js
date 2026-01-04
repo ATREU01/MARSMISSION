@@ -3041,19 +3041,18 @@ if(window.solana?.isConnected)connect();
                     }
                 }
 
-                // Return UNSIGNED transaction + mint secret key as array (no bs58 needed on frontend)
-                const unsignedTx = txBuffer.toString('base64');
-                // Decode bs58 on server, send as array so frontend doesn't need bs58
+                // Return transaction + mint secret key BOTH as byte arrays (matches dashboard pattern)
+                const txArray = Array.from(txBuffer);  // Raw bytes as array
                 const mintSecretArray = Array.from(bs58.decode(launch.mintKeypair.secretKey));
-                console.log(`[TG-LAUNCH] ✅ BUILD TX COMPLETE - returning unsigned tx (${unsignedTx.length} chars) + mint key array`);
+                console.log(`[TG-LAUNCH] ✅ BUILD TX COMPLETE - returning tx (${txArray.length} bytes) + mint key array`);
                 console.log(`[TG-LAUNCH] ========== BUILD TX END ==========`);
 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({
                     success: true,
-                    transaction: unsignedTx,
+                    transaction: txArray,  // Raw bytes as array, not base64
                     mint: launch.mintKeypair.publicKey,
-                    mintSecretKey: mintSecretArray  // Already decoded, just need Uint8Array on frontend
+                    mintSecretKey: mintSecretArray
                 }));
 
             } catch (e) {
@@ -3345,26 +3344,24 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                     throw new Error(buildData.error || 'Failed to build transaction');
                 }
 
-                // Step 2: Have Phantom sign first, then add mint signature
+                // Step 2: Sign with mint first, then Phantom (matches dashboard.html exactly)
                 statusEl.innerHTML = '<div class="step step-done">✅ Transaction built</div><div class="step step-active"><span class="spinner"></span> Please approve in Phantom...</div>';
                 btn.textContent = 'Approve in wallet...';
 
-                // Decode base64 transaction (UNSIGNED from PumpPortal)
-                const txBytes = Uint8Array.from(atob(buildData.transaction), c => c.charCodeAt(0));
-                const transaction = VersionedTransaction.deserialize(txBytes);
+                // Deserialize transaction from byte array (same as dashboard's arrayBuffer pattern)
+                const txBytes = new Uint8Array(buildData.transaction);
+                const tx = VersionedTransaction.deserialize(txBytes);
+                console.log('[LAUNCH] Transaction deserialized');
 
-                // Phantom signs first (on completely unsigned tx)
-                const phantomSigned = await window.solana.signTransaction(transaction);
-                console.log('[LAUNCH] Signed with Phantom');
-
-                // Now add mint signature to the Phantom-signed tx
+                // CRITICAL: Sign with mint keypair FIRST (same as dashboard line 4230)
                 const mintSecretBytes = new Uint8Array(buildData.mintSecretKey);
                 const mintKeypair = solanaWeb3.Keypair.fromSecretKey(mintSecretBytes);
-                phantomSigned.sign([mintKeypair]);
-                console.log('[LAUNCH] Signed with mint keypair');
+                tx.sign([mintKeypair]);
+                console.log('[LAUNCH] Mint keypair signature added');
 
-                // Use the fully signed transaction
-                const signedTx = phantomSigned;
+                // Now Phantom signs (same as dashboard line 4257)
+                const signedTx = await window.solana.signTransaction(tx);
+                console.log('[LAUNCH] Phantom signed');
 
                 // Step 3: Send to network
                 statusEl.innerHTML = '<div class="step step-done">✅ Transaction built</div><div class="step step-done">✅ Signed by wallet</div><div class="step step-active"><span class="spinner"></span> Sending to Solana...</div>';
