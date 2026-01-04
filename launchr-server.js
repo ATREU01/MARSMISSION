@@ -2980,77 +2980,15 @@ if(window.solana?.isConnected)connect();
                 const metadataUri = ipfsRes.data.metadataUri;
                 console.log(`[TG-LAUNCH] ✅ Metadata uploaded: ${metadataUri}`);
 
-                // Step 3: Request create transaction from PumpPortal (JSON format like dashboard)
-                console.log(`[TG-LAUNCH] Requesting create transaction from PumpPortal...`);
-                const requestBody = {
-                    publicKey: walletAddress,
-                    action: 'create',
-                    tokenMetadata: {
-                        name: launch.tokenData.name,
-                        symbol: launch.tokenData.symbol,
-                        uri: metadataUri
-                    },
-                    mint: launch.mintKeypair.publicKey,
-                    denominatedInSol: 'true',
-                    amount: launch.devBuy || 0,
-                    slippage: 10,
-                    priorityFee: 0.0005,
-                    pool: 'pump'
-                };
-
-                console.log(`[TG-LAUNCH] Request body:`, JSON.stringify(requestBody));
-
-                let pumpRes;
-                try {
-                    pumpRes = await axios.post(
-                        'https://pumpportal.fun/api/trade-local',
-                        requestBody,
-                        {
-                            headers: { 'Content-Type': 'application/json' },
-                            responseType: 'arraybuffer',
-                            timeout: 30000
-                        }
-                    );
-                    console.log(`[TG-LAUNCH] PumpPortal response status: ${pumpRes.status}`);
-                    console.log(`[TG-LAUNCH] PumpPortal response size: ${pumpRes.data?.byteLength || 0} bytes`);
-                } catch (pumpErr) {
-                    console.error(`[TG-LAUNCH] PumpPortal error:`, pumpErr.message);
-                    if (pumpErr.response) {
-                        console.error(`[TG-LAUNCH] PumpPortal status: ${pumpErr.response.status}`);
-                        const errText = Buffer.from(pumpErr.response.data).toString();
-                        console.error(`[TG-LAUNCH] PumpPortal body: ${errText}`);
-                        throw new Error(`PumpPortal error ${pumpErr.response.status}: ${errText}`);
-                    }
-                    throw pumpErr;
-                }
-
-                if (!pumpRes.data || pumpRes.data.byteLength === 0) {
-                    throw new Error('PumpPortal returned empty transaction');
-                }
-
-                // Check if PumpPortal returned JSON error instead of binary tx (ALICE pattern)
-                const txBuffer = Buffer.from(pumpRes.data);
-                const firstByte = txBuffer.slice(0, 1).toString('utf8');
-                if (firstByte === '{' || firstByte === '[') {
-                    try {
-                        const errorData = JSON.parse(txBuffer.toString('utf8'));
-                        console.error('[TG-LAUNCH] PumpPortal returned JSON error:', errorData);
-                        throw new Error(errorData.error || errorData.message || 'PumpPortal API returned error');
-                    } catch (parseErr) {
-                        // Not valid JSON, continue with binary
-                    }
-                }
-
-                // Return transaction + mint secret key BOTH as byte arrays (matches dashboard pattern)
-                const txArray = Array.from(txBuffer);  // Raw bytes as array
+                // Return metadataUri + mintSecretKey - frontend will call PumpPortal directly (like dashboard)
                 const mintSecretArray = Array.from(bs58.decode(launch.mintKeypair.secretKey));
-                console.log(`[TG-LAUNCH] ✅ BUILD TX COMPLETE - returning tx (${txArray.length} bytes) + mint key array`);
+                console.log(`[TG-LAUNCH] ✅ BUILD TX COMPLETE - returning metadataUri + mint key for frontend PumpPortal call`);
                 console.log(`[TG-LAUNCH] ========== BUILD TX END ==========`);
 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({
                     success: true,
-                    transaction: txArray,  // Raw bytes as array, not base64
+                    metadataUri: metadataUri,
                     mint: launch.mintKeypair.publicKey,
                     mintSecretKey: mintSecretArray
                 }));
@@ -3329,9 +3267,9 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             try {
                 const walletAddress = window.solana.publicKey.toBase58();
 
-                // Step 1: Build transaction
-                statusEl.innerHTML = '<div class="step step-active"><span class="spinner"></span> Building transaction...</div>';
-                btn.textContent = 'Building...';
+                // Step 1: Get launch data (metadata URI + mint keypair)
+                statusEl.innerHTML = '<div class="step step-active"><span class="spinner"></span> Preparing launch...</div>';
+                btn.textContent = 'Preparing...';
 
                 const buildRes = await fetch('/api/tg-launch/build-tx', {
                     method: 'POST',
@@ -3341,25 +3279,56 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
                 const buildData = await buildRes.json();
                 if (!buildData.success) {
-                    throw new Error(buildData.error || 'Failed to build transaction');
+                    throw new Error(buildData.error || 'Failed to prepare launch');
                 }
 
-                // Step 2: Sign with mint first, then Phantom (matches dashboard.html exactly)
-                statusEl.innerHTML = '<div class="step step-done">✅ Transaction built</div><div class="step step-active"><span class="spinner"></span> Please approve in Phantom...</div>';
-                btn.textContent = 'Approve in wallet...';
+                // Step 2: Call PumpPortal DIRECTLY from browser (exactly like dashboard.html line 4205)
+                statusEl.innerHTML = '<div class="step step-done">✅ Metadata ready</div><div class="step step-active"><span class="spinner"></span> Building transaction...</div>';
+                btn.textContent = 'Building...';
 
-                // Deserialize transaction from byte array (same as dashboard's arrayBuffer pattern)
-                const txBytes = new Uint8Array(buildData.transaction);
-                const tx = VersionedTransaction.deserialize(txBytes);
+                console.log('[LAUNCH] Calling PumpPortal directly from browser...');
+                const pumpRes = await fetch('https://pumpportal.fun/api/trade-local', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        publicKey: walletAddress,
+                        action: 'create',
+                        tokenMetadata: {
+                            name: launchData.tokenData.name,
+                            symbol: launchData.tokenData.symbol,
+                            uri: buildData.metadataUri
+                        },
+                        mint: buildData.mint,
+                        denominatedInSol: 'true',
+                        amount: launchData.devBuy || 0,
+                        slippage: 10,
+                        priorityFee: 0.0005,
+                        pool: 'pump'
+                    })
+                });
+
+                if (pumpRes.status !== 200) {
+                    const errText = await pumpRes.text();
+                    throw new Error('PumpPortal error: ' + errText);
+                }
+
+                const txBuffer = await pumpRes.arrayBuffer();
+                console.log('[LAUNCH] PumpPortal returned', txBuffer.byteLength, 'bytes');
+
+                // Deserialize (exactly like dashboard line 4219)
+                const tx = VersionedTransaction.deserialize(new Uint8Array(txBuffer));
                 console.log('[LAUNCH] Transaction deserialized');
 
-                // CRITICAL: Sign with mint keypair FIRST (same as dashboard line 4230)
+                // Step 3: Sign with mint first (exactly like dashboard line 4230)
+                statusEl.innerHTML = '<div class="step step-done">✅ Metadata ready</div><div class="step step-done">✅ Transaction built</div><div class="step step-active"><span class="spinner"></span> Please approve in Phantom...</div>';
+                btn.textContent = 'Approve in wallet...';
+
                 const mintSecretBytes = new Uint8Array(buildData.mintSecretKey);
                 const mintKeypair = solanaWeb3.Keypair.fromSecretKey(mintSecretBytes);
                 tx.sign([mintKeypair]);
                 console.log('[LAUNCH] Mint keypair signature added');
 
-                // Now Phantom signs (same as dashboard line 4257)
+                // Sign with Phantom (exactly like dashboard line 4257)
                 const signedTx = await window.solana.signTransaction(tx);
                 console.log('[LAUNCH] Phantom signed');
 
