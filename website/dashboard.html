@@ -2058,51 +2058,51 @@
                         </div>
                         <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,217,102,0.1);">
                             <span style="color:var(--text-muted);font-size:13px;">Total Claimed</span>
-                            <span style="color:var(--cyan);font-weight:600;" id="statTotalClaimed">-- SOL</span>
+                            <span style="color:#6bb3d9;font-weight:600;" id="statTotalClaimed">-- SOL</span>
                         </div>
                         <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,217,102,0.1);">
                             <span style="color:var(--text-muted);font-size:13px;">Total Distributed</span>
-                            <span style="color:var(--success);font-weight:600;" id="statTotalDistributed">-- SOL</span>
+                            <span style="color:#5fa663;font-weight:600;" id="statTotalDistributed">-- SOL</span>
                         </div>
                         <div style="display:flex;justify-content:space-between;padding:8px 0;">
                             <span style="color:var(--text-muted);font-size:13px;">RSI</span>
-                            <span style="color:var(--purple);font-weight:600;" id="statRSI">--</span>
+                            <span style="color:#a78bfa;font-weight:600;" id="statRSI">--</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Automation Panel -->
-                <div class="fee-card" style="margin-bottom:0;background:linear-gradient(135deg,rgba(0,229,255,0.05),rgba(0,229,255,0.02));border:1px solid rgba(0,229,255,0.2);">
+                <div class="fee-card" style="margin-bottom:0;background:linear-gradient(135deg,rgba(255,217,102,0.03),rgba(255,217,102,0.01));border:1px solid rgba(255,217,102,0.15);">
                     <div class="fee-card-header">
-                        <span class="fee-card-title" style="color:var(--cyan);">Automation</span>
+                        <span class="fee-card-title" style="color:var(--gold);">Automation</span>
                     </div>
                     <div class="fee-card-body" style="padding:16px;">
                         <div style="margin-bottom:16px;">
-                            <span class="status-badge" id="autoBadge" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(255,217,102,0.1);color:var(--gold);">
+                            <span class="status-badge" id="autoBadge" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(255,217,102,0.08);color:var(--text-muted);">
                                 <span style="width:8px;height:8px;border-radius:50%;background:currentColor;"></span>
                                 <span id="autoStatusText">Inactive</span>
                             </span>
                         </div>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
-                            <button class="btn" onclick="startAutomation()" id="startAutoBtn" disabled style="background:linear-gradient(135deg,#4ade80,#22c55e);color:#0a0a0f;padding:12px;font-weight:700;">START</button>
-                            <button class="btn" onclick="stopAutomation()" id="stopAutoBtn" disabled style="background:linear-gradient(135deg,#f87171,#ef4444);color:white;padding:12px;font-weight:600;">STOP</button>
+                            <button class="btn" onclick="startAutomation()" id="startAutoBtn" disabled style="background:linear-gradient(135deg,#3d8b40,#2d6a30);color:#fff;padding:12px;font-weight:600;border:1px solid rgba(61,139,64,0.3);">START</button>
+                            <button class="btn" onclick="stopAutomation()" id="stopAutoBtn" disabled style="background:linear-gradient(135deg,#8b3d3d,#6a2d2d);color:#fff;padding:12px;font-weight:600;border:1px solid rgba(139,61,61,0.3);">STOP</button>
                         </div>
-                        <button class="btn" onclick="claimNow()" id="claimNowBtn" disabled style="background:linear-gradient(135deg,var(--gold-light),var(--gold));width:100%;padding:12px;color:#0a0a0f;font-weight:700;">CLAIM NOW</button>
+                        <button class="btn" onclick="claimNow()" id="claimNowBtn" disabled style="background:linear-gradient(135deg,rgba(255,217,102,0.9),rgba(255,193,7,0.9));width:100%;padding:12px;color:#0a0a0f;font-weight:600;">CLAIM NOW</button>
                     </div>
                 </div>
 
                 <!-- Distribute From Wallet -->
-                <div class="fee-card" style="margin-bottom:0;background:linear-gradient(135deg,rgba(168,85,247,0.08),rgba(168,85,247,0.03));border:1px solid rgba(168,85,247,0.3);">
+                <div class="fee-card" style="margin-bottom:0;background:linear-gradient(135deg,rgba(139,92,246,0.04),rgba(139,92,246,0.01));border:1px solid rgba(139,92,246,0.15);">
                     <div class="fee-card-header">
-                        <span class="fee-card-title" style="color:var(--purple);">Distribute From Wallet</span>
+                        <span class="fee-card-title" style="color:#a78bfa;">Distribute From Wallet</span>
                     </div>
                     <div class="fee-card-body" style="padding:16px;">
                         <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Use your wallet SOL directly - runs all mechanisms instantly!</p>
                         <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
-                            <input type="number" id="distributeAmount" value="0.5" step="0.1" min="0.01" style="flex:1;font-size:18px;padding:12px;border-radius:var(--radius);border:1px solid rgba(168,85,247,0.3);background:var(--surface-2);color:var(--text);font-weight:bold;text-align:center;">
-                            <span style="color:var(--purple);font-size:14px;font-weight:bold;">SOL</span>
+                            <input type="number" id="distributeAmount" value="0.5" step="0.1" min="0.01" style="flex:1;font-size:18px;padding:12px;border-radius:var(--radius);border:1px solid rgba(139,92,246,0.2);background:var(--surface-2);color:var(--text);font-weight:bold;text-align:center;">
+                            <span style="color:#a78bfa;font-size:14px;font-weight:bold;">SOL</span>
                         </div>
-                        <button class="btn" onclick="distributeFromWallet()" id="distributeBtn" disabled style="background:linear-gradient(135deg,#a855f7,#9333ea);width:100%;padding:16px;font-size:16px;font-weight:bold;color:white;">
+                        <button class="btn" onclick="distributeFromWallet()" id="distributeBtn" disabled style="background:linear-gradient(135deg,#7c3aed,#6d28d9);width:100%;padding:16px;font-size:15px;font-weight:600;color:white;border:1px solid rgba(124,58,237,0.3);">
                             DISTRIBUTE NOW
                         </button>
                         <div id="distributeResult" style="margin-top:8px;font-size:12px;display:none;"></div>
@@ -3363,12 +3363,12 @@
             const text = document.getElementById('autoStatusText');
             if (badge && text) {
                 if (active) {
-                    badge.style.background = 'rgba(34,197,94,0.1)';
-                    badge.style.color = '#22c55e';
+                    badge.style.background = 'rgba(61,139,64,0.15)';
+                    badge.style.color = '#5fa663';
                     text.textContent = 'Active';
                 } else {
-                    badge.style.background = 'rgba(239,68,68,0.1)';
-                    badge.style.color = '#ef4444';
+                    badge.style.background = 'rgba(255,217,102,0.08)';
+                    badge.style.color = 'var(--text-muted)';
                     text.textContent = 'Inactive';
                 }
             }
