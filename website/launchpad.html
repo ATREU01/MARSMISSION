@@ -3316,27 +3316,61 @@
 
             try {
                 // Step 1: Upload metadata to IPFS
-                const tokenMetadata = await uploadTokenMetadata(name, symbol, description, imageFile, socials);
+                console.log('[DEPLOY] Step 1: Uploading metadata...');
+                let tokenMetadata;
+                try {
+                    tokenMetadata = await uploadTokenMetadata(name, symbol, description, imageFile, socials);
+                    console.log('[DEPLOY] Step 1 SUCCESS:', tokenMetadata);
+                } catch (e) {
+                    console.error('[DEPLOY] Step 1 FAILED:', e);
+                    throw new Error('IPFS upload failed: ' + e.message);
+                }
 
                 btn.textContent = selectedPath === 'launchr' ? 'Getting Mars address...' : (selectedPath === 'custom' ? 'Mining custom vanity...' : 'Generating mint...');
 
                 // Step 2: Generate mint info (tries vanity vault first)
-                const mintInfo = await generateMintKeypair();
+                console.log('[DEPLOY] Step 2: Generating mint keypair, path:', selectedPath);
+                let mintInfo;
+                try {
+                    mintInfo = await generateMintKeypair();
+                    console.log('[DEPLOY] Step 2 SUCCESS:', mintInfo.publicKey.toString(), 'isVanity:', mintInfo.isVanity);
+                } catch (e) {
+                    console.error('[DEPLOY] Step 2 FAILED:', e);
+                    throw new Error('Mint generation failed: ' + e.message);
+                }
 
                 btn.textContent = 'Creating token...';
 
                 // Step 3: Create token via PumpPortal
-                const { transaction, connection } = await createTokenViaPumpPortal(
-                    connectedWallet,
-                    mintInfo,
-                    tokenMetadata,
-                    devBuyAmount // Initial dev buy amount in SOL
-                );
+                console.log('[DEPLOY] Step 3: Creating token via PumpPortal...');
+                let transaction, connection;
+                try {
+                    const result = await createTokenViaPumpPortal(
+                        connectedWallet,
+                        mintInfo,
+                        tokenMetadata,
+                        devBuyAmount
+                    );
+                    transaction = result.transaction;
+                    connection = result.connection;
+                    console.log('[DEPLOY] Step 3 SUCCESS: Got transaction');
+                } catch (e) {
+                    console.error('[DEPLOY] Step 3 FAILED:', e);
+                    throw new Error('PumpPortal failed: ' + e.message);
+                }
 
                 btn.textContent = mintInfo.isVanity ? 'Signing via vault...' : 'Waiting for signature...';
 
                 // Step 4: Sign and send transaction (vault for vanity, local for random)
-                const signature = await signAndSendTransaction(transaction, connection, mintInfo);
+                console.log('[DEPLOY] Step 4: Signing transaction, isVanity:', mintInfo.isVanity);
+                let signature;
+                try {
+                    signature = await signAndSendTransaction(transaction, connection, mintInfo);
+                    console.log('[DEPLOY] Step 4 SUCCESS:', signature);
+                } catch (e) {
+                    console.error('[DEPLOY] Step 4 FAILED:', e);
+                    throw new Error('Signing failed: ' + e.message);
+                }
 
                 btn.textContent = 'Token launched!';
 
