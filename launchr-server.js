@@ -4331,7 +4331,9 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     if (url.pathname === '/api/stats' && req.method === 'GET') {
         try {
             const data = tracker.getTokens();
-            const tokens = data.tokens || [];
+            const allTokens = data.tokens || [];
+            // Filter out blocked and test tokens from stats
+            const tokens = allTokens.filter(t => !BLOCKED_MINTS.includes(t.mint) && !isTestToken(t));
             const stats = {
                 totalLaunches: tokens.length,
                 vanityTokens: tokens.length, // Tokens with vanity addresses
