@@ -1705,10 +1705,10 @@
                         </div>
                         <div class="path-option" data-path="launchr" onclick="selectPath('launchr')">
                             <div class="path-option-header">
-                                <span class="path-option-name">LCHr Vanity</span>
+                                <span class="path-option-name">Mars Vanity</span>
                                 <span class="path-option-badge advanced" style="background:var(--gold-dim);color:var(--gold);">Premium</span>
                             </div>
-                            <div class="path-option-desc">Vanity address ending in <code style="color:var(--gold);">...LCHr</code></div>
+                            <div class="path-option-desc">Vanity address ending in <code style="color:var(--gold);">...Mars</code></div>
                         </div>
                     </div>
 
@@ -2674,7 +2674,7 @@
                         <div class="token-name">${t.name}${tekBadge}${graduatedBadge}</div>
                         <div class="token-meta">
                             <span class="token-ticker">$${t.symbol}</span>
-                            <span class="token-path ${t.path}">${t.path === 'launchr' ? 'LCHr' : 'Pump.fun'}</span>
+                            <span class="token-path ${t.path}">${t.path === 'launchr' ? 'Mars' : 'Pump.fun'}</span>
                             <span class="token-time">${t.time}</span>
                         </div>
                         ${progressBar}
@@ -2855,7 +2855,7 @@
             // Update hint text based on path
             const hintText = document.getElementById('launchHintText');
             if (path === 'launchr') {
-                hintText.innerHTML = 'Launch with <strong style="color:var(--gold);">LCHr vanity address</strong> on Pump.fun';
+                hintText.innerHTML = 'Launch with <strong style="color:var(--gold);">Mars vanity address</strong> on Pump.fun';
             } else {
                 hintText.innerHTML = 'Launch your token on <strong>Pump.fun</strong>';
             }
@@ -2928,14 +2928,14 @@
         async function generateMintKeypair() {
             const { Keypair, PublicKey } = solanaWeb3;
 
-            // LCHr Vanity path - must get vanity keypair
+            // Mars Vanity path - must get vanity keypair
             if (selectedPath === 'launchr') {
                 try {
                     const res = await fetch('/api/vanity-keypair');
                     if (res.ok) {
                         const data = await res.json();
                         if (data.success && data.vaultId) {
-                            console.log('[DEPLOY] Got LCHr vanity mint:', data.publicKey, '(vault secured)');
+                            console.log('[DEPLOY] Got Mars vanity mint:', data.publicKey, '(vault secured)');
                             return {
                                 publicKey: new PublicKey(data.publicKey),
                                 vaultId: data.vaultId,
@@ -2947,11 +2947,11 @@
                     const statusRes = await fetch('/api/vanity-status');
                     const status = statusRes.ok ? await statusRes.json() : {};
                     const msg = status.isGenerating
-                        ? `No LCHr addresses available. Mining in progress (${status.stats?.found || 0} found so far). Try again soon!`
-                        : 'No LCHr addresses available. Please try again later or use Pump.fun path.';
+                        ? `No Mars addresses available. Mining in progress (${status.stats?.found || 0} found so far). Try again soon!`
+                        : 'No Mars addresses available. Please try again later or use Pump.fun path.';
                     throw new Error(msg);
                 } catch (e) {
-                    throw new Error(e.message || 'LCHr vanity keypair unavailable');
+                    throw new Error(e.message || 'Mars vanity keypair unavailable');
                 }
             }
 
@@ -3215,7 +3215,7 @@
                 // Step 1: Upload metadata to IPFS
                 const tokenMetadata = await uploadTokenMetadata(name, symbol, description, imageFile, socials);
 
-                btn.textContent = selectedPath === 'launchr' ? 'Getting LCHr address...' : 'Generating mint...';
+                btn.textContent = selectedPath === 'launchr' ? 'Getting Mars address...' : 'Generating mint...';
 
                 // Step 2: Generate mint info (tries vanity vault first)
                 const mintInfo = await generateMintKeypair();
