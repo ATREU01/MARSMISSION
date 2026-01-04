@@ -4832,8 +4832,9 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             res.end(JSON.stringify({
                 success: true,
                 publicKey: keypair.publicKey,
-                vaultId: vaultId,  // Client uses this to request server-side signing
-                expiresIn: VAULT_EXPIRY_MS / 1000, // Seconds until vault entry expires
+                secretKey: keypair.secretKey,  // For local signing (dashboard uses this)
+                vaultId: vaultId,  // For vault signing (deprecated, doesn't work with wallets)
+                expiresIn: VAULT_EXPIRY_MS / 1000,
                 poolRemaining: vanityPool.length,
                 generatorStats: {
                     totalAttempts: vanityGeneratorStats.attempts,
