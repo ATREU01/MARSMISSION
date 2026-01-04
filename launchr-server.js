@@ -895,7 +895,7 @@ const orbitActivityLog = []; // Global activity log (last 1000 events)
 const ORBIT_ACTIVITY_MAX = 1000;
 
 // ORBIT status structure
-function createOrbitStatus(mint, walletAddress) {
+function createOrbitStatus(mint, walletAddress, allocations = null) {
     return {
         mint,
         wallet: walletAddress,
@@ -909,6 +909,13 @@ function createOrbitStatus(mint, walletAddress) {
         distributeCount: 0,
         lastError: null,
         uptime: 0, // calculated on read
+        // Fee allocation percentages (must sum to 100)
+        allocations: allocations || {
+            burn: 25,          // Tokens burned (deflationary)
+            amm: 25,           // AI-driven market making
+            creatorFees: 25,   // Revenue to token creator
+            liquidity: 25,     // Add LP + burn LP tokens
+        },
     };
 }
 
@@ -980,9 +987,9 @@ function logOrbitActivity(mint, action, details = {}) {
 }
 
 // Register a new ORBIT instance
-function registerOrbit(mint, walletAddress) {
+function registerOrbit(mint, walletAddress, allocations = null) {
     if (!orbitRegistry.has(mint)) {
-        const status = createOrbitStatus(mint, walletAddress);
+        const status = createOrbitStatus(mint, walletAddress, allocations);
         orbitRegistry.set(mint, status);
         logOrbitActivity(mint, 'started', { wallet: walletAddress });
         console.log(`[ORBIT] Registered: ${mint.slice(0, 8)}...`);
@@ -991,9 +998,30 @@ function registerOrbit(mint, walletAddress) {
         const status = orbitRegistry.get(mint);
         status.status = 'active';
         status.lastError = null;
+        // Update allocations if provided
+        if (allocations) {
+            status.allocations = allocations;
+        }
         orbitRegistry.set(mint, status);
     }
     saveOrbitRegistry();
+}
+
+// Update allocations for a token
+function updateOrbitAllocations(mint, allocations) {
+    const status = orbitRegistry.get(mint);
+    if (status) {
+        status.allocations = {
+            burn: allocations.burn ?? status.allocations?.burn ?? 25,
+            amm: allocations.amm ?? status.allocations?.amm ?? 25,
+            creatorFees: allocations.creatorFees ?? status.allocations?.creatorFees ?? 25,
+            liquidity: allocations.liquidity ?? status.allocations?.liquidity ?? 25,
+        };
+        orbitRegistry.set(mint, status);
+        saveOrbitRegistry();
+        return true;
+    }
+    return false;
 }
 
 // Stop an ORBIT instance
@@ -2663,38 +2691,55 @@ The 4 percentages MUST sum to exactly 100.`;
                 .filter(t => !BLOCKED_MINTS.includes(t.mint) && !isTestToken(t)) // Block competitor/test tokens
                 .sort((a, b) => b.lastSeen - a.lastSeen)
                 .slice(0, 50)
-                .map(t => ({
-                    mint: t.mint,
-                    name: t.name || 'Unknown Token',
-                    symbol: t.symbol || 'TOKEN',
-                    image: t.image || null,
-                    path: t.path || 'pump',
-                    mcap: t.mcap || 0,
-                    volume: t.volume || 0,
-                    price: t.price || 0,
-                    change: t.change || 0,
-                    progress: t.progress || 0,
-                    graduated: t.graduated || false,
-                    graduatedAt: t.graduatedAt || null,
-                    time: formatTimeAgo(t.lastSeen || t.registeredAt),
-                    createdAt: t.registeredAt,
-                    lastMetricsUpdate: t.lastMetricsUpdate || null,
-                    // Socials (from tracker.updateTokenMetrics)
-                    twitter: t.twitter || null,
-                    telegram: t.telegram || null,
-                    website: t.website || null,
-                    // Additional market data
-                    liquidity: t.liquidity || 0,
-                    priceChange24h: t.priceChange24h || 0,
-                    holders: t.holders || 0,
-                    txns: t.txns || 0,
-                    buys: t.buys || 0,
-                    sells: t.sells || 0,
-                    aiScore: Math.min(89, t.aiScore || 0),
-                    aiSource: t.aiSource || null,
-                    // TEK indicator
-                    hasOrbit: orbitRegistry.has(t.mint) && orbitRegistry.get(t.mint)?.status === 'active',
-                }));
+                .map(t => {
+                    const orbitStatus = orbitRegistry.get(t.mint);
+                    const hasOrbit = orbitStatus && orbitStatus.status === 'active';
+                    const allocations = orbitStatus?.allocations || {
+                        burn: 25,
+                        amm: 25,
+                        creatorFees: 25,
+                        liquidity: 25,
+                    };
+                    return {
+                        mint: t.mint,
+                        name: t.name || 'Unknown Token',
+                        symbol: t.symbol || 'TOKEN',
+                        image: t.image || null,
+                        path: t.path || 'pump',
+                        mcap: t.mcap || 0,
+                        volume: t.volume || 0,
+                        price: t.price || 0,
+                        change: t.change || 0,
+                        progress: t.progress || 0,
+                        graduated: t.graduated || false,
+                        graduatedAt: t.graduatedAt || null,
+                        time: formatTimeAgo(t.lastSeen || t.registeredAt),
+                        createdAt: t.registeredAt,
+                        lastMetricsUpdate: t.lastMetricsUpdate || null,
+                        // Socials (from tracker.updateTokenMetrics)
+                        twitter: t.twitter || null,
+                        telegram: t.telegram || null,
+                        website: t.website || null,
+                        // Additional market data
+                        liquidity: t.liquidity || 0,
+                        priceChange24h: t.priceChange24h || 0,
+                        holders: t.holders || 0,
+                        txns: t.txns || 0,
+                        buys: t.buys || 0,
+                        sells: t.sells || 0,
+                        aiScore: Math.min(89, t.aiScore || 0),
+                        aiSource: t.aiSource || null,
+                        // TEK indicator
+                        hasOrbit,
+                        // Fee allocation percentages
+                        allocations: {
+                            burn: allocations.burn,
+                            amm: allocations.amm,
+                            creatorFees: allocations.creatorFees,
+                            liquidity: allocations.liquidity,
+                        },
+                    };
+                });
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ tokens }));
         } catch (e) {
@@ -3700,24 +3745,42 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 .filter(t => !BLOCKED_MINTS.includes(t.mint) && !isTestToken(t)) // Block competitor/test tokens
                 .sort((a, b) => (b.mcap || 0) - (a.mcap || 0))
                 .slice(0, 10)
-                .map((t, index) => ({
-                    rank: index + 1,
-                    mint: t.mint,
-                    name: t.name || 'Unknown Token',
-                    symbol: t.symbol || 'TOKEN',
-                    image: t.image || null,
-                    mcap: t.mcap || 0,
-                    volume: t.volume || 0,
-                    progress: t.progress || 0,
-                    graduated: t.graduated || false,
-                    path: t.path === 'launchr' ? 'Launchr' : 'Pump.fun',
-                    reward: index < 3 ? 'Winner' : null,
-                    holders: t.holders || 0,
-                    txns: t.txns || 0,
-                    aiScore: Math.min(89, t.aiScore || 0),
-                    hasOrbit: orbitRegistry.has(t.mint) && orbitRegistry.get(t.mint)?.status === 'active',
-                    createdAt: t.registeredAt || null,
-                }));
+                .map((t, index) => {
+                    const orbitStatus = orbitRegistry.get(t.mint);
+                    const hasOrbit = orbitStatus && orbitStatus.status === 'active';
+                    // Get allocations from ORBIT registry (default to 25/25/25/25 if not set)
+                    const allocations = orbitStatus?.allocations || {
+                        burn: 25,
+                        amm: 25,
+                        creatorFees: 25,
+                        liquidity: 25,
+                    };
+                    return {
+                        rank: index + 1,
+                        mint: t.mint,
+                        name: t.name || 'Unknown Token',
+                        symbol: t.symbol || 'TOKEN',
+                        image: t.image || null,
+                        mcap: t.mcap || 0,
+                        volume: t.volume || 0,
+                        progress: t.progress || 0,
+                        graduated: t.graduated || false,
+                        path: t.path === 'launchr' ? 'Launchr' : 'Pump.fun',
+                        reward: index < 3 ? 'Winner' : null,
+                        holders: t.holders || 0,
+                        txns: t.txns || 0,
+                        aiScore: Math.min(89, t.aiScore || 0),
+                        hasOrbit,
+                        createdAt: t.registeredAt || null,
+                        // Fee allocation percentages for display
+                        allocations: {
+                            burn: allocations.burn,
+                            amm: allocations.amm,
+                            creatorFees: allocations.creatorFees,
+                            liquidity: allocations.liquidity,
+                        },
+                    };
+                });
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ leaderboard }));
         } catch (e) {
@@ -4505,6 +4568,67 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             isActive: status?.status === 'active',
             timestamp: Date.now()
         }));
+        return;
+    }
+
+    // API: Update allocations for a token (for leaderboard display)
+    if (url.pathname === '/api/orbit/allocations' && req.method === 'POST') {
+        try {
+            const data = await parseBody(req);
+            const { mint, allocations } = data;
+
+            if (!mint || !allocations) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'mint and allocations required' }));
+                return;
+            }
+
+            // Validate mint address format
+            if (mint.length < 32 || !/^[1-9A-HJ-NP-Za-km-z]+$/.test(mint)) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Invalid mint address' }));
+                return;
+            }
+
+            // Validate allocations
+            const { burn, amm, creatorFees, liquidity } = allocations;
+            if (typeof burn !== 'number' || typeof amm !== 'number' ||
+                typeof creatorFees !== 'number' || typeof liquidity !== 'number') {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'All allocations must be numbers' }));
+                return;
+            }
+
+            // Validate total is 100%
+            const total = burn + amm + creatorFees + liquidity;
+            if (Math.abs(total - 100) > 0.01) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: `Allocations must sum to 100% (currently ${total}%)` }));
+                return;
+            }
+
+            // Update or create orbit entry with allocations
+            const status = orbitRegistry.get(mint);
+            if (status) {
+                updateOrbitAllocations(mint, { burn, amm, creatorFees, liquidity });
+            } else {
+                // Create new orbit entry with allocations (inactive by default)
+                const newStatus = createOrbitStatus(mint, 'unknown', { burn, amm, creatorFees, liquidity });
+                newStatus.status = 'inactive';
+                orbitRegistry.set(mint, newStatus);
+                saveOrbitRegistry();
+            }
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                mint,
+                allocations: { burn, amm, creatorFees, liquidity }
+            }));
+        } catch (e) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
         return;
     }
 
