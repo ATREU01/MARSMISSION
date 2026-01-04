@@ -1898,11 +1898,11 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    // Serve static files from frontend/dist folder (Vite build output)
+    // Serve static files from frontend/dist or website folder
     if ((url.pathname.startsWith('/assets/') || url.pathname.startsWith('/website/')) && req.method === 'GET') {
-        // Map /website/ to frontend/dist for backwards compatibility
+        // /website/ serves from website/ folder, /assets/ from frontend/dist/
         const basePath = url.pathname.startsWith('/website/')
-            ? path.join(__dirname, 'frontend', 'dist', url.pathname.replace('/website/', ''))
+            ? path.join(__dirname, 'website', url.pathname.replace('/website/', ''))
             : path.join(__dirname, 'frontend', 'dist', url.pathname);
         const ext = path.extname(basePath).toLowerCase();
         const mimeTypes = {
@@ -3103,7 +3103,9 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Complete Your Launch - LAUNCHR</title>
-    <link rel="icon" type="image/png" href="/website/logo-icon.png">
+    <link rel="icon" href="/favicon.ico" type="image/jpeg">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/jpeg">
+    <link rel="apple-touch-icon" href="/website/logo-icon.jpg">
     <script src="https://unpkg.com/@solana/web3.js@1.87.6/lib/index.iife.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -3169,7 +3171,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 </head>
 <body>
     <div class="container">
-        <img src="/website/logo-icon.png" width="60" height="60" alt="LAUNCHR" style="margin-bottom: 1rem;" onerror="this.style.display='none'">
+        <img src="/website/logo-icon.jpg" width="60" height="60" alt="LAUNCHR" style="margin-bottom: 1rem;" onerror="this.style.display='none'">
         <h1>Complete Your Launch</h1>
 
         <div id="loading">Loading launch data...</div>
