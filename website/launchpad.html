@@ -1715,16 +1715,16 @@
                                 <span class="path-option-name">Custom Vanity</span>
                                 <span class="path-option-badge" style="background:rgba(167,139,250,0.15);color:#a78bfa;">Pro</span>
                             </div>
-                            <div class="path-option-desc">Your own suffix via <a href="https://t.me/LAUNCHR_V2_BOT" target="_blank" style="color:#a78bfa;">TG Bot</a></div>
+                            <div class="path-option-desc">Choose your own address suffix</div>
                         </div>
                     </div>
 
                     <!-- Custom Vanity Input (hidden by default) -->
                     <div id="customVanitySection" style="display:none;margin-bottom:16px;">
                         <div class="form-group">
-                            <label class="form-label">Custom Vanity Keypair <span style="color:var(--text-muted);font-weight:400;">(from TG Bot)</span></label>
-                            <input type="password" class="form-input" id="customVanityKey" placeholder="Paste your custom vanity private key..." style="font-family:'JetBrains Mono',monospace;">
-                            <p style="font-size:11px;color:var(--text-muted);margin-top:6px;">Get your custom vanity keypair from <a href="https://t.me/LAUNCHR_V2_BOT" target="_blank" style="color:#a78bfa;">@LAUNCHR_V2_BOT</a></p>
+                            <label class="form-label">Custom Suffix <span style="color:var(--text-muted);font-weight:400;">(1-4 characters)</span></label>
+                            <input type="text" class="form-input" id="customVanitySuffix" placeholder="e.g. DOGE, moon, etc..." maxlength="4" style="font-family:'JetBrains Mono',monospace;text-transform:uppercase;">
+                            <p style="font-size:11px;color:var(--text-muted);margin-top:6px;">Address will end in your suffix. Shorter = faster generation.</p>
                         </div>
                     </div>
 
@@ -2878,7 +2878,7 @@
             if (path === 'launchr') {
                 hintText.innerHTML = 'Launch with <strong style="color:var(--gold);">Mars vanity address</strong> on Pump.fun';
             } else if (path === 'custom') {
-                hintText.innerHTML = 'Launch with <strong style="color:#a78bfa;">your custom vanity address</strong> on Pump.fun';
+                hintText.innerHTML = 'Launch with <strong style="color:#a78bfa;">your custom suffix</strong> (generated in-browser)';
             } else {
                 hintText.innerHTML = 'Launch your token on <strong>Pump.fun</strong>';
             }
@@ -2946,6 +2946,45 @@
             };
         }
 
+        // Generate vanity keypair with custom suffix (browser-based)
+        async function generateVanityKeypair(suffix) {
+            const { Keypair } = solanaWeb3;
+            const targetSuffix = suffix.toLowerCase();
+            let attempts = 0;
+            const maxAttempts = 1000000; // Safety limit
+            const batchSize = 100; // Generate in batches to not block UI
+
+            return new Promise((resolve, reject) => {
+                function searchBatch() {
+                    for (let i = 0; i < batchSize; i++) {
+                        attempts++;
+                        const keypair = Keypair.generate();
+                        const address = keypair.publicKey.toString();
+
+                        if (address.toLowerCase().endsWith(targetSuffix)) {
+                            console.log(`[VANITY] Found match after ${attempts} attempts:`, address);
+                            resolve(keypair);
+                            return;
+                        }
+
+                        if (attempts >= maxAttempts) {
+                            reject(new Error(`Could not find vanity address after ${maxAttempts} attempts. Try a shorter suffix.`));
+                            return;
+                        }
+                    }
+
+                    // Update UI with progress
+                    const btn = document.getElementById('deployBtn');
+                    if (btn) btn.textContent = `Mining vanity... (${attempts.toLocaleString()} attempts)`;
+
+                    // Continue searching in next frame
+                    setTimeout(searchBatch, 0);
+                }
+
+                searchBatch();
+            });
+        }
+
         // Generate mint keypair based on selected path
         // VAULT: Returns { publicKey, vaultId } for vanity, or { keypair } for random/custom
         async function generateMintKeypair() {
@@ -2978,26 +3017,33 @@
                 }
             }
 
-            // Custom Vanity path - user provides their own keypair from TG bot
+            // Custom Vanity path - generate vanity address with user's suffix
             if (selectedPath === 'custom') {
-                const customKeyInput = document.getElementById('customVanityKey');
-                const customKey = customKeyInput?.value?.trim();
-                if (!customKey) {
-                    throw new Error('Please paste your custom vanity private key from the Telegram bot');
+                const suffixInput = document.getElementById('customVanitySuffix');
+                const suffix = suffixInput?.value?.trim()?.toUpperCase();
+                if (!suffix || suffix.length < 1) {
+                    throw new Error('Please enter a custom suffix (1-4 characters)');
                 }
-                try {
-                    const secretKey = bs58.decode(customKey);
-                    const mintKeypair = Keypair.fromSecretKey(secretKey);
-                    console.log('[DEPLOY] Using custom vanity mint:', mintKeypair.publicKey.toString());
-                    return {
-                        publicKey: mintKeypair.publicKey,
-                        keypair: mintKeypair,
-                        isVanity: false,
-                        isCustom: true
-                    };
-                } catch (e) {
-                    throw new Error('Invalid private key format. Please copy the exact key from the Telegram bot.');
+                if (suffix.length > 4) {
+                    throw new Error('Suffix must be 4 characters or less');
                 }
+                // Validate suffix contains only valid base58 characters
+                const validChars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+                for (const char of suffix) {
+                    if (!validChars.includes(char)) {
+                        throw new Error(`Invalid character "${char}" in suffix. Use only alphanumeric (no 0, O, I, l)`);
+                    }
+                }
+
+                console.log('[DEPLOY] Generating custom vanity with suffix:', suffix);
+                const mintKeypair = await generateVanityKeypair(suffix);
+                console.log('[DEPLOY] Generated custom vanity mint:', mintKeypair.publicKey.toString());
+                return {
+                    publicKey: mintKeypair.publicKey,
+                    keypair: mintKeypair,
+                    isVanity: false,
+                    isCustom: true
+                };
             }
 
             // Standard Pump.fun path - use random keypair (local signing)
@@ -3260,7 +3306,7 @@
                 // Step 1: Upload metadata to IPFS
                 const tokenMetadata = await uploadTokenMetadata(name, symbol, description, imageFile, socials);
 
-                btn.textContent = selectedPath === 'launchr' ? 'Getting Mars address...' : (selectedPath === 'custom' ? 'Validating custom key...' : 'Generating mint...');
+                btn.textContent = selectedPath === 'launchr' ? 'Getting Mars address...' : (selectedPath === 'custom' ? 'Mining custom vanity...' : 'Generating mint...');
 
                 // Step 2: Generate mint info (tries vanity vault first)
                 const mintInfo = await generateMintKeypair();
