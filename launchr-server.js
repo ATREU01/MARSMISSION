@@ -3328,8 +3328,8 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 tx.sign([mintKeypair]);
                 console.log('[LAUNCH] Mint keypair signature added');
 
-                // Sign with Phantom (exactly like dashboard line 4257)
-                const signedTx = await window.solana.signTransaction(tx);
+                // Sign with Phantom using signAllTransactions (sometimes works when signTransaction fails)
+                const [signedTx] = await window.solana.signAllTransactions([tx]);
                 console.log('[LAUNCH] Phantom signed');
 
                 // Step 3: Send to network
