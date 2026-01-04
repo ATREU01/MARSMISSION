@@ -290,7 +290,7 @@ initPrivyClient().then(success => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// VANITY KEYPAIR POOL - Pre-generated keypairs ending in "LCHr" (LAUNCHr)
+// VANITY KEYPAIR POOL - Pre-generated keypairs ending in "mars" (MARS MISSION)
 // ═══════════════════════════════════════════════════════════════════════════
 
 // Use /app/data/ for Railway volume persistence, fallback to local for dev
