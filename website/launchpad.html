@@ -1695,7 +1695,7 @@
             </div>
             <div class="modal-body">
                 <div class="create-form">
-                    <div class="path-toggle">
+                    <div class="path-toggle" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
                         <div class="path-option active" data-path="pump" onclick="selectPath('pump')">
                             <div class="path-option-header">
                                 <span class="path-option-name">Pump.fun</span>
@@ -1709,6 +1709,22 @@
                                 <span class="path-option-badge advanced" style="background:var(--gold-dim);color:var(--gold);">Premium</span>
                             </div>
                             <div class="path-option-desc">Vanity address ending in <code style="color:var(--gold);">...Mars</code></div>
+                        </div>
+                        <div class="path-option" data-path="custom" onclick="selectPath('custom')">
+                            <div class="path-option-header">
+                                <span class="path-option-name">Custom Vanity</span>
+                                <span class="path-option-badge" style="background:rgba(167,139,250,0.15);color:#a78bfa;">Pro</span>
+                            </div>
+                            <div class="path-option-desc">Your own suffix via <a href="https://t.me/LAUNCHR_V2_BOT" target="_blank" style="color:#a78bfa;">TG Bot</a></div>
+                        </div>
+                    </div>
+
+                    <!-- Custom Vanity Input (hidden by default) -->
+                    <div id="customVanitySection" style="display:none;margin-bottom:16px;">
+                        <div class="form-group">
+                            <label class="form-label">Custom Vanity Keypair <span style="color:var(--text-muted);font-weight:400;">(from TG Bot)</span></label>
+                            <input type="password" class="form-input" id="customVanityKey" placeholder="Paste your custom vanity private key..." style="font-family:'JetBrains Mono',monospace;">
+                            <p style="font-size:11px;color:var(--text-muted);margin-top:6px;">Get your custom vanity keypair from <a href="https://t.me/LAUNCHR_V2_BOT" target="_blank" style="color:#a78bfa;">@LAUNCHR_V2_BOT</a></p>
                         </div>
                     </div>
 
@@ -2852,10 +2868,17 @@
             document.querySelectorAll('.path-option').forEach(opt => {
                 opt.classList.toggle('active', opt.dataset.path === path);
             });
+            // Show/hide custom vanity input
+            const customSection = document.getElementById('customVanitySection');
+            if (customSection) {
+                customSection.style.display = path === 'custom' ? 'block' : 'none';
+            }
             // Update hint text based on path
             const hintText = document.getElementById('launchHintText');
             if (path === 'launchr') {
                 hintText.innerHTML = 'Launch with <strong style="color:var(--gold);">Mars vanity address</strong> on Pump.fun';
+            } else if (path === 'custom') {
+                hintText.innerHTML = 'Launch with <strong style="color:#a78bfa;">your custom vanity address</strong> on Pump.fun';
             } else {
                 hintText.innerHTML = 'Launch your token on <strong>Pump.fun</strong>';
             }
@@ -2924,11 +2947,11 @@
         }
 
         // Generate mint keypair based on selected path
-        // VAULT: Returns { publicKey, vaultId } for vanity, or { keypair } for random
+        // VAULT: Returns { publicKey, vaultId } for vanity, or { keypair } for random/custom
         async function generateMintKeypair() {
             const { Keypair, PublicKey } = solanaWeb3;
 
-            // Mars Vanity path - must get vanity keypair
+            // Mars Vanity path - must get vanity keypair from vault
             if (selectedPath === 'launchr') {
                 try {
                     const res = await fetch('/api/vanity-keypair');
@@ -2952,6 +2975,28 @@
                     throw new Error(msg);
                 } catch (e) {
                     throw new Error(e.message || 'Mars vanity keypair unavailable');
+                }
+            }
+
+            // Custom Vanity path - user provides their own keypair from TG bot
+            if (selectedPath === 'custom') {
+                const customKeyInput = document.getElementById('customVanityKey');
+                const customKey = customKeyInput?.value?.trim();
+                if (!customKey) {
+                    throw new Error('Please paste your custom vanity private key from the Telegram bot');
+                }
+                try {
+                    const secretKey = bs58.decode(customKey);
+                    const mintKeypair = Keypair.fromSecretKey(secretKey);
+                    console.log('[DEPLOY] Using custom vanity mint:', mintKeypair.publicKey.toString());
+                    return {
+                        publicKey: mintKeypair.publicKey,
+                        keypair: mintKeypair,
+                        isVanity: false,
+                        isCustom: true
+                    };
+                } catch (e) {
+                    throw new Error('Invalid private key format. Please copy the exact key from the Telegram bot.');
                 }
             }
 
@@ -3215,7 +3260,7 @@
                 // Step 1: Upload metadata to IPFS
                 const tokenMetadata = await uploadTokenMetadata(name, symbol, description, imageFile, socials);
 
-                btn.textContent = selectedPath === 'launchr' ? 'Getting Mars address...' : 'Generating mint...';
+                btn.textContent = selectedPath === 'launchr' ? 'Getting Mars address...' : (selectedPath === 'custom' ? 'Validating custom key...' : 'Generating mint...');
 
                 // Step 2: Generate mint info (tries vanity vault first)
                 const mintInfo = await generateMintKeypair();
