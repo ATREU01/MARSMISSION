@@ -2074,6 +2074,14 @@
                 });
             });
 
+            // Auto-open launch modal if ?launch=true in URL
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('launch') === 'true') {
+                showCreateModal();
+                // Clean up URL
+                window.history.replaceState({}, '', '/launchpad');
+            }
+
             // Auto-refresh data every 30 seconds
             setInterval(() => {
                 fetchLiveTokens();
