@@ -1971,7 +1971,9 @@
                             holders: t.holders || t.holder_count || 0,
                             buys: t.buys || 0,
                             sells: t.sells || 0,
-                            hasOrbit: t.hasOrbit || false
+                            hasOrbit: t.hasOrbit || false,
+                            allocations: t.allocations || null,
+                            graduated: t.graduated || false
                         }));
                         console.log(`[TOKENS] Loaded ${registeredTokens.length} registered tokens`);
                     }
@@ -2403,7 +2405,7 @@
                         </div>
                         <div style="min-width:0;">
                             <div style="font-weight:600;color:var(--text-primary);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                                ${escapeHtml(t.name || 'Unknown')}${t.hasOrbit ? '<span class="tek-icon" title="Token Engine Kit Active"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 3V7M12 17V21M3 12H7M17 12H21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>' : ''}${hasSocials ? '<span style="color:var(--gold);margin-left:4px;">✓</span>' : ''}
+                                ${escapeHtml(t.name || 'Unknown')}${t.hasOrbit ? '<span class="tek-icon" title="Token Engine Kit Active"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 3V7M12 17V21M3 12H7M17 12H21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>' : ''}${t.graduated ? '<span style="color:#5fa663;font-size:9px;margin-left:4px;font-weight:600;">GRAD</span>' : ''}${hasSocials ? '<span style="color:var(--gold);margin-left:4px;">✓</span>' : ''}
                             </div>
                             <div style="font-size:11px;color:var(--text-muted);">$${escapeHtml(t.symbol || '???')}</div>
                         </div>
