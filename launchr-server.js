@@ -3206,7 +3206,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
         const launchId = '${launchId}';
         let launchData = null;
         const { Connection, VersionedTransaction } = solanaWeb3;
-        const connection = new Connection('${CONFIG.HELIUS_RPC}', 'confirmed');
+        const connection = new Connection('${PRODUCTION_CONFIG.HELIUS_RPC}', 'confirmed');
 
         async function init() {
             try {
