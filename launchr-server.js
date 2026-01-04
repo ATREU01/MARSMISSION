@@ -3345,23 +3345,26 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                     throw new Error(buildData.error || 'Failed to build transaction');
                 }
 
-                // Step 2: Sign with mint keypair first, then Phantom
+                // Step 2: Have Phantom sign first, then add mint signature
                 statusEl.innerHTML = '<div class="step step-done">✅ Transaction built</div><div class="step step-active"><span class="spinner"></span> Please approve in Phantom...</div>';
                 btn.textContent = 'Approve in wallet...';
 
-                // Decode base64 transaction
+                // Decode base64 transaction (UNSIGNED from PumpPortal)
                 const txBytes = Uint8Array.from(atob(buildData.transaction), c => c.charCodeAt(0));
                 const transaction = VersionedTransaction.deserialize(txBytes);
 
-                // Create mint keypair from secret key array (server already decoded bs58)
+                // Phantom signs first (on completely unsigned tx)
+                const phantomSigned = await window.solana.signTransaction(transaction);
+                console.log('[LAUNCH] Signed with Phantom');
+
+                // Now add mint signature to the Phantom-signed tx
                 const mintSecretBytes = new Uint8Array(buildData.mintSecretKey);
                 const mintKeypair = solanaWeb3.Keypair.fromSecretKey(mintSecretBytes);
-                transaction.sign([mintKeypair]);
+                phantomSigned.sign([mintKeypair]);
                 console.log('[LAUNCH] Signed with mint keypair');
 
-                // Sign with Phantom (user's wallet)
-                const signedTx = await window.solana.signTransaction(transaction);
-                console.log('[LAUNCH] Signed with Phantom');
+                // Use the fully signed transaction
+                const signedTx = phantomSigned;
 
                 // Step 3: Send to network
                 statusEl.innerHTML = '<div class="step step-done">✅ Transaction built</div><div class="step step-done">✅ Signed by wallet</div><div class="step step-active"><span class="spinner"></span> Sending to Solana...</div>';
