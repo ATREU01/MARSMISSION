@@ -1024,6 +1024,17 @@ function updateOrbitAllocations(mint, allocations) {
     return false;
 }
 
+// Normalize allocations - support both old and new field names
+function normalizeAllocations(rawAlloc) {
+    if (!rawAlloc) return null;
+    return {
+        buybackBurn: rawAlloc.buybackBurn ?? rawAlloc.burn ?? 25,
+        marketMaking: rawAlloc.marketMaking ?? rawAlloc.amm ?? 25,
+        creatorRevenue: rawAlloc.creatorRevenue ?? rawAlloc.creatorFees ?? 25,
+        liquidity: rawAlloc.liquidity ?? 25,
+    };
+}
+
 // Stop an ORBIT instance
 function stopOrbit(mint) {
     const status = orbitRegistry.get(mint);
@@ -2700,13 +2711,8 @@ The 4 percentages MUST sum to exactly 100.`;
                 .map(t => {
                     const orbitStatus = orbitRegistry.get(t.mint);
                     const hasOrbit = orbitStatus && orbitStatus.status === 'active';
-                    // Only return allocations if ORBIT is active (uses engine field names)
-                    const allocations = hasOrbit ? (orbitStatus?.allocations || {
-                        buybackBurn: 25,
-                        marketMaking: 25,
-                        creatorRevenue: 25,
-                        liquidity: 25,
-                    }) : null;
+                    // Get allocations - normalize old/new field names, null if no ORBIT
+                    const allocations = hasOrbit ? normalizeAllocations(orbitStatus?.allocations) : null;
                     return {
                         mint: t.mint,
                         name: t.name || 'Unknown Token',
@@ -3750,13 +3756,8 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 .map((t, index) => {
                     const orbitStatus = orbitRegistry.get(t.mint);
                     const hasOrbit = orbitStatus && orbitStatus.status === 'active';
-                    // Get allocations from ORBIT registry - uses engine field names
-                    const allocations = hasOrbit ? (orbitStatus?.allocations || {
-                        buybackBurn: 25,
-                        marketMaking: 25,
-                        creatorRevenue: 25,
-                        liquidity: 25,
-                    }) : null;
+                    // Get allocations - normalize old/new field names, null if no ORBIT
+                    const allocations = hasOrbit ? normalizeAllocations(orbitStatus?.allocations) : null;
                     return {
                         rank: index + 1,
                         mint: t.mint,
