@@ -4393,11 +4393,18 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
         try {
             const data = tracker.getTokens();
             const tokens = data.tokens || [];
+
+            // Sum totalDistributed from all active ORBIT engines
+            let totalDistributedAllTokens = 0;
+            for (const [mint, orbitStatus] of orbitRegistry.entries()) {
+                totalDistributedAllTokens += orbitStatus.totalDistributed || 0;
+            }
+
             const stats = {
                 totalLaunches: tokens.length,
                 vanityTokens: tokens.length, // Tokens with vanity addresses
                 totalVolume: tokens.reduce((sum, t) => sum + (t.volume || 0), 0),
-                poolDistribution: (data.stats?.totalDistributed || 0) * 0.01, // 1% to distribution pool
+                poolDistribution: totalDistributedAllTokens * 0.01, // 1% of all distributed goes to holder pool
                 graduated: tokens.filter(t => t.graduated).length,
             };
             res.writeHead(200, { 'Content-Type': 'application/json' });

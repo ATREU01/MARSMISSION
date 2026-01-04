@@ -2655,10 +2655,6 @@
                         <div class="holder-stat-label">Total Distributed</div>
                         <div class="holder-stat-value" id="totalDistributed">0 SOL</div>
                     </div>
-                    <div>
-                        <div class="holder-stat-label">Holders</div>
-                        <div class="holder-stat-value" id="holderCount">0</div>
-                    </div>
                 </div>
             </div>
 
@@ -3736,7 +3732,6 @@
                 document.getElementById('holderPoolAmount').textContent = holderPool.toFixed(4) + ' SOL';
                 document.getElementById('totalCollected').textContent = totalClaimed.toFixed(4) + ' SOL';
                 document.getElementById('totalDistributed').textContent = totalDistributed.toFixed(4) + ' SOL';
-                document.getElementById('holderCount').textContent = trackerData.totalTokens || 1;
 
                 // Update stats grid
                 document.getElementById('statClaimed').textContent = totalClaimed.toFixed(4);
