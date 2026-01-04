@@ -2088,14 +2088,6 @@
                 fetchLeaderboard();
                 fetchStats();
             }, 30000);
-
-            // Auto-open create modal if coming from launch button
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('launch') === 'true') {
-                showCreateModal();
-                // Clean URL without reload
-                window.history.replaceState({}, '', '/launchpad');
-            }
         });
 
         // ═══════════════════════════════════════════════════════════════════════
