@@ -3028,8 +3028,21 @@ if(window.solana?.isConnected)connect();
                     throw new Error('PumpPortal returned empty transaction');
                 }
 
+                // Check if PumpPortal returned JSON error instead of binary tx (ALICE pattern)
+                const txBuffer = Buffer.from(pumpRes.data);
+                const firstByte = txBuffer.slice(0, 1).toString('utf8');
+                if (firstByte === '{' || firstByte === '[') {
+                    try {
+                        const errorData = JSON.parse(txBuffer.toString('utf8'));
+                        console.error('[TG-LAUNCH] PumpPortal returned JSON error:', errorData);
+                        throw new Error(errorData.error || errorData.message || 'PumpPortal API returned error');
+                    } catch (parseErr) {
+                        // Not valid JSON, continue with binary
+                    }
+                }
+
                 // Return UNSIGNED transaction + mint secret key as array (no bs58 needed on frontend)
-                const unsignedTx = Buffer.from(pumpRes.data).toString('base64');
+                const unsignedTx = txBuffer.toString('base64');
                 // Decode bs58 on server, send as array so frontend doesn't need bs58
                 const mintSecretArray = Array.from(bs58.decode(launch.mintKeypair.secretKey));
                 console.log(`[TG-LAUNCH] ✅ BUILD TX COMPLETE - returning unsigned tx (${unsignedTx.length} chars) + mint key array`);
