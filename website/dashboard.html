@@ -224,7 +224,7 @@
             gap: 10px;
             padding: 10px 12px;
             border-radius: var(--radius);
-            color: var(--text-secondary);
+            color: rgba(255, 217, 102, 0.6);
             text-decoration: none;
             font-size: 13px;
             font-weight: 500;
@@ -232,11 +232,13 @@
         }
         .sidebar-link:hover {
             background: rgba(255,255,255,0.03);
-            color: var(--text);
+            color: var(--gold);
+            text-shadow: 0 0 10px rgba(255, 217, 102, 0.3);
         }
         .sidebar-link.active {
             background: var(--gold-dim);
             color: var(--gold);
+            text-shadow: 0 0 10px rgba(255, 217, 102, 0.4);
         }
         .sidebar-link svg {
             width: 18px;
@@ -1898,10 +1900,6 @@
                     <span class="sidebar-icon">◎</span>
                     Leaderboard
                 </a>
-                <a href="/dashboard" class="sidebar-link active">
-                    <span class="sidebar-icon">◈</span>
-                    Dashboard
-                </a>
                 <a href="/guide" class="sidebar-link">
                     <span class="sidebar-icon">◉</span>
                     Guide
@@ -1909,6 +1907,22 @@
                 <a href="/roadmap" class="sidebar-link">
                     <span class="sidebar-icon">◇</span>
                     Roadmap
+                </a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">CULTURE COINS</div>
+                <a href="/culture-coins" class="sidebar-link">
+                    <span class="sidebar-icon">◎</span>
+                    Discover
+                </a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">CREATOR CENTRAL</div>
+                <a href="/dashboard" class="sidebar-link active">
+                    <span class="sidebar-icon">◈</span>
+                    Dashboard
                 </a>
             </div>
 
