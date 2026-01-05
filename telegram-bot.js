@@ -1237,7 +1237,7 @@ Track via Telegram:
     async handleConnect(chatId, args, msg) {
         // SECURITY: Only allow in private DMs
         if (msg.chat.type !== 'private') {
-            await this.sendMessage(chatId, '🔒 <b>Security Notice</b>\n\nThis command only works in private DMs.\n\nMessage me directly: @LAUNCHR_V2_BOT');
+            await this.sendMessage(chatId, '🔒 <b>Security Notice</b>\n\nThis command only works in private DMs.\n\nMessage me directly: @LAUNCHR_V3_BOT');
             return;
         }
 
@@ -1533,7 +1533,7 @@ Changes take effect on next cycle.
     async handleAutoFund(chatId, args, msg) {
         // SECURITY: Only allow in private DMs
         if (msg.chat.type !== 'private') {
-            await this.sendMessage(chatId, '🔒 <b>Security Notice</b>\n\nThis command only works in private DMs.\n\nMessage me directly: @LAUNCHR_V2_BOT');
+            await this.sendMessage(chatId, '🔒 <b>Security Notice</b>\n\nThis command only works in private DMs.\n\nMessage me directly: @LAUNCHR_V3_BOT');
             return;
         }
 
