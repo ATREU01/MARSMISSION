@@ -1429,18 +1429,23 @@
         .price-change-value.positive { color: var(--success); }
         .price-change-value.negative { color: var(--error); }
 
-        /* Bonding Curve Progress */
+        /* Bonding Curve Progress - Animated Gradient Style */
+        @keyframes bonding-gradient-flow {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+        }
         .bonding-curve-section {
             background: var(--bg);
             border-radius: var(--radius);
             padding: 16px;
             margin-bottom: 16px;
+            position: relative;
         }
         .bonding-curve-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
+            margin-bottom: 14px;
         }
         .bonding-curve-title {
             font-size: 11px;
@@ -1452,7 +1457,7 @@
         .bonding-curve-status {
             font-size: 11px;
             font-weight: 600;
-            padding: 4px 10px;
+            padding: 4px 12px;
             border-radius: 4px;
         }
         .bonding-curve-status.active {
@@ -1465,39 +1470,53 @@
         }
         .bonding-curve-track {
             position: relative;
-            height: 8px;
+            height: 4px;
             background: var(--surface-2);
-            border-radius: 4px;
-            overflow: hidden;
-            margin-bottom: 10px;
+            border-radius: 2px;
+            overflow: visible;
+            margin-bottom: 12px;
         }
         .bonding-curve-fill {
             position: absolute;
             top: 0;
             left: 0;
             height: 100%;
-            background: linear-gradient(90deg, var(--gold-dim), var(--gold));
-            border-radius: 4px;
+            border-radius: 2px;
             transition: width 0.5s ease;
+            /* Animated gradient like leaderboard */
+            background: linear-gradient(90deg,
+                #FF3D8E 0%,
+                #FFD966 25%,
+                #00E5FF 50%,
+                #A855F7 75%,
+                #FF3D8E 100%
+            );
+            background-size: 200% 100%;
+            animation: bonding-gradient-flow 3s linear infinite;
+            box-shadow: 0 0 12px rgba(255, 217, 102, 0.4), 0 0 24px rgba(0, 229, 255, 0.2);
         }
         .bonding-curve-fill.graduated {
-            background: linear-gradient(90deg, var(--success), #22c55e);
+            background: linear-gradient(90deg, #22c55e, #4ADE80, #22c55e);
+            background-size: 200% 100%;
+            animation: bonding-gradient-flow 2s linear infinite;
+            box-shadow: 0 0 12px rgba(74, 222, 128, 0.5), 0 0 24px rgba(74, 222, 128, 0.3);
         }
         .bonding-curve-marker {
             position: absolute;
-            top: -4px;
-            width: 16px;
-            height: 16px;
+            top: 50%;
+            width: 12px;
+            height: 12px;
             background: var(--gold);
             border: 2px solid var(--bg);
             border-radius: 50%;
-            transform: translateX(-50%);
-            box-shadow: 0 0 8px rgba(255, 217, 102, 0.5);
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px rgba(255, 217, 102, 0.6);
             transition: left 0.5s ease;
+            z-index: 2;
         }
         .bonding-curve-marker.graduated {
             background: var(--success);
-            box-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
+            box-shadow: 0 0 10px rgba(74, 222, 128, 0.6);
         }
         .bonding-curve-labels {
             display: flex;
@@ -1506,8 +1525,9 @@
         }
         .bonding-curve-progress {
             font-size: 13px;
-            font-weight: 600;
+            font-weight: 700;
             color: var(--gold);
+            font-family: 'IBM Plex Mono', monospace;
         }
         .bonding-curve-progress.graduated {
             color: var(--success);
@@ -2466,7 +2486,7 @@
                         </div>
                         <div class="bonding-curve-labels">
                             <span class="bonding-curve-progress" id="bondingProgress">0%</span>
-                            <span class="bonding-curve-target">Target: ~$69K → Raydium</span>
+                            <span class="bonding-curve-target">Target: ~$69K → Pump Swap</span>
                         </div>
                     </div>
 
@@ -4974,7 +4994,7 @@
                 bondingProgress.className = `bonding-curve-progress${isGraduated ? ' graduated' : ''}`;
             }
             if (bondingStatus) {
-                bondingStatus.textContent = isGraduated ? 'On Raydium' : 'On Pump.fun';
+                bondingStatus.textContent = isGraduated ? 'On Pump Swap' : 'On Pump.fun';
                 bondingStatus.className = `bonding-curve-status ${isGraduated ? 'graduated' : 'active'}`;
             }
 

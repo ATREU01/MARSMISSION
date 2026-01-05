@@ -1774,9 +1774,14 @@
                     <!-- Custom Vanity Input (hidden by default) -->
                     <div id="customVanitySection" style="display:none;margin-bottom:16px;">
                         <div class="form-group">
-                            <label class="form-label">Custom Suffix <span style="color:var(--text-muted);font-weight:400;">(1-4 characters)</span></label>
-                            <input type="text" class="form-input" id="customVanitySuffix" placeholder="e.g. DOGE, moon, etc..." maxlength="4" style="font-family:'JetBrains Mono',monospace;">
-                            <p style="font-size:11px;color:var(--text-muted);margin-top:6px;">Address will end in your suffix. Shorter = faster generation.</p>
+                            <label class="form-label">Custom Suffix <span style="color:var(--text-muted);font-weight:400;">(2-4 characters)</span></label>
+                            <input type="text" class="form-input" id="customVanitySuffix" placeholder="e.g. DOGE, moon, moby..." maxlength="4" minlength="2" style="font-family:'JetBrains Mono',monospace;">
+                            <p style="font-size:11px;color:var(--text-muted);margin-top:6px;">
+                                Address will end with your suffix. Time estimates:
+                                <span style="color:var(--success);">2 chars &lt;1s</span> •
+                                <span style="color:var(--gold);">3 chars ~5s</span> •
+                                <span style="color:var(--warning);">4 chars ~1-3 min</span>
+                            </p>
                         </div>
                     </div>
 
@@ -3037,8 +3042,31 @@
             const { Keypair } = solanaWeb3;
             const targetSuffix = suffix.toLowerCase();
             let attempts = 0;
-            const maxAttempts = 1000000; // Safety limit
-            const batchSize = 100; // Generate in batches to not block UI
+
+            // Calculate max attempts based on suffix length
+            // Probability is roughly 1 / 58^length (base58)
+            // 2 chars: ~3,364 attempts avg, max 500K
+            // 3 chars: ~195K attempts avg, max 5M
+            // 4 chars: ~11M attempts avg, max 100M
+            // 5 chars: ~656M attempts avg - too long, reject
+            const suffixLen = suffix.length;
+            if (suffixLen > 4) {
+                throw new Error(`Suffix "${suffix}" is too long (max 4 characters). Longer suffixes would take too long to find.`);
+            }
+            if (suffixLen < 2) {
+                throw new Error(`Suffix must be at least 2 characters.`);
+            }
+
+            const maxAttemptsByLength = {
+                2: 500000,      // ~3K avg, generous limit
+                3: 5000000,     // ~195K avg
+                4: 100000000    // ~11M avg, allow up to 100M
+            };
+            const maxAttempts = maxAttemptsByLength[suffixLen] || 5000000;
+            const batchSize = 1000; // Larger batches for better performance
+            const startTime = Date.now();
+
+            console.log(`[VANITY] Starting search for suffix "${suffix}" (${suffixLen} chars), max ${maxAttempts.toLocaleString()} attempts`);
 
             return new Promise((resolve, reject) => {
                 function searchBatch() {
@@ -3048,20 +3076,26 @@
                         const address = keypair.publicKey.toString();
 
                         if (address.toLowerCase().endsWith(targetSuffix)) {
-                            console.log(`[VANITY] Found match after ${attempts} attempts:`, address);
+                            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                            console.log(`[VANITY] Found match after ${attempts.toLocaleString()} attempts (${elapsed}s):`, address);
                             resolve(keypair);
                             return;
                         }
 
                         if (attempts >= maxAttempts) {
-                            reject(new Error(`Could not find vanity address after ${maxAttempts} attempts. Try a shorter suffix.`));
+                            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                            reject(new Error(`Could not find vanity address ending in "${suffix}" after ${maxAttempts.toLocaleString()} attempts (${elapsed}s). This is extremely unlucky - try again or use a different suffix.`));
                             return;
                         }
                     }
 
-                    // Update UI with progress
+                    // Update UI with progress and time estimate
                     const btn = document.getElementById('deployBtn');
-                    if (btn) btn.textContent = `Mining vanity... (${attempts.toLocaleString()} attempts)`;
+                    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                    const rate = attempts / Math.max(1, elapsed);
+                    if (btn) {
+                        btn.textContent = `Mining "${suffix}"... ${(attempts / 1000000).toFixed(1)}M attempts`;
+                    }
 
                     // Continue searching in next frame
                     setTimeout(searchBatch, 0);
