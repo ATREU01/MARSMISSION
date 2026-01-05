@@ -842,7 +842,7 @@ function getRoadmapHTML() {
             <div class="disclaimer-links">
                 <a href="/terms">Terms & Conditions</a>
                 <a href="/docs">Documentation</a>
-                <a href="https://t.me/LAUNCHR_V2_BOT">Telegram</a>
+                <a href="https://t.me/LAUNCHR_V3_BOT">Telegram</a>
             </div>
         </div>
     </div>
@@ -2840,7 +2840,7 @@ h1{font-size:1.5rem;margin-bottom:.5rem}
 <div id="s2" class="hide">
 <div class="done"><h2>✅ Connected!</h2><div class="addr" id="wa"></div></div>
 <div class="back">📱 GO BACK TO TELEGRAM<br><small>Type <b>done</b> to continue</small></div>
-<a href="https://t.me/LAUNCHR_V2_BOT" class="btn" style="display:block;text-decoration:none;background:#222;color:#fff;margin-top:1rem">Open Telegram →</a>
+<a href="https://t.me/LAUNCHR_V3_BOT" class="btn" style="display:block;text-decoration:none;background:#222;color:#fff;margin-top:1rem">Open Telegram →</a>
 </div>
 </div>
 <script>
