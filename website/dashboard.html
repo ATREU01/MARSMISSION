@@ -1429,6 +1429,94 @@
         .price-change-value.positive { color: var(--success); }
         .price-change-value.negative { color: var(--error); }
 
+        /* Bonding Curve Progress */
+        .bonding-curve-section {
+            background: var(--bg);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .bonding-curve-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .bonding-curve-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .bonding-curve-status {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 4px;
+        }
+        .bonding-curve-status.active {
+            background: var(--gold-dim);
+            color: var(--gold);
+        }
+        .bonding-curve-status.graduated {
+            background: rgba(74, 222, 128, 0.15);
+            color: var(--success);
+        }
+        .bonding-curve-track {
+            position: relative;
+            height: 8px;
+            background: var(--surface-2);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        .bonding-curve-fill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: linear-gradient(90deg, var(--gold-dim), var(--gold));
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        .bonding-curve-fill.graduated {
+            background: linear-gradient(90deg, var(--success), #22c55e);
+        }
+        .bonding-curve-marker {
+            position: absolute;
+            top: -4px;
+            width: 16px;
+            height: 16px;
+            background: var(--gold);
+            border: 2px solid var(--bg);
+            border-radius: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 0 8px rgba(255, 217, 102, 0.5);
+            transition: left 0.5s ease;
+        }
+        .bonding-curve-marker.graduated {
+            background: var(--success);
+            box-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
+        }
+        .bonding-curve-labels {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .bonding-curve-progress {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gold);
+        }
+        .bonding-curve-progress.graduated {
+            color: var(--success);
+        }
+        .bonding-curve-target {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
         /* Trade Metrics Grid */
         .trade-metrics-grid {
             display: grid;
@@ -2363,6 +2451,22 @@
                         <div class="price-change-item">
                             <div class="price-change-period">24H</div>
                             <div class="price-change-value positive" id="priceChange24h">+0%</div>
+                        </div>
+                    </div>
+
+                    <!-- Bonding Curve Progress -->
+                    <div class="bonding-curve-section" id="bondingCurveSection">
+                        <div class="bonding-curve-header">
+                            <span class="bonding-curve-title">Bonding Curve</span>
+                            <span class="bonding-curve-status active" id="bondingStatus">On Pump.fun</span>
+                        </div>
+                        <div class="bonding-curve-track">
+                            <div class="bonding-curve-fill" id="bondingFill" style="width: 0%"></div>
+                            <div class="bonding-curve-marker" id="bondingMarker" style="left: 0%"></div>
+                        </div>
+                        <div class="bonding-curve-labels">
+                            <span class="bonding-curve-progress" id="bondingProgress">0%</span>
+                            <span class="bonding-curve-target">Target: ~$69K → Raydium</span>
                         </div>
                     </div>
 
@@ -4807,7 +4911,8 @@
                 bundlerPct: 0,
                 insiderPct: pumpData?.insider_pct || 0,
                 devHoldPct: pumpData?.dev_hold_pct || 0,
-                verified: pumpData?.is_verified || false
+                verified: pumpData?.is_verified || false,
+                isGraduated: pumpData?.complete === true || mcap >= 69000
             };
 
             console.log('[ANALYTICS] Updating with:', analyticsData);
@@ -4840,8 +4945,38 @@
                 bundlerPct: 0,
                 insiderPct: 0,
                 devHoldPct: 0,
-                verified: false
+                verified: false,
+                bondingProgress: 0,
+                isGraduated: false
             };
+
+            // Update bonding curve progress
+            const bondingFill = document.getElementById('bondingFill');
+            const bondingMarker = document.getElementById('bondingMarker');
+            const bondingProgress = document.getElementById('bondingProgress');
+            const bondingStatus = document.getElementById('bondingStatus');
+
+            // Calculate bonding progress (target ~$69K mcap = 100%)
+            const GRADUATION_TARGET = 69000;
+            const progress = Math.min(100, (data.marketCap / GRADUATION_TARGET) * 100);
+            const isGraduated = data.isGraduated || data.marketCap >= GRADUATION_TARGET;
+
+            if (bondingFill) {
+                bondingFill.style.width = `${isGraduated ? 100 : progress}%`;
+                bondingFill.className = `bonding-curve-fill${isGraduated ? ' graduated' : ''}`;
+            }
+            if (bondingMarker) {
+                bondingMarker.style.left = `${isGraduated ? 100 : progress}%`;
+                bondingMarker.className = `bonding-curve-marker${isGraduated ? ' graduated' : ''}`;
+            }
+            if (bondingProgress) {
+                bondingProgress.textContent = isGraduated ? 'GRADUATED' : `${progress.toFixed(1)}%`;
+                bondingProgress.className = `bonding-curve-progress${isGraduated ? ' graduated' : ''}`;
+            }
+            if (bondingStatus) {
+                bondingStatus.textContent = isGraduated ? 'On Raydium' : 'On Pump.fun';
+                bondingStatus.className = `bonding-curve-status ${isGraduated ? 'graduated' : 'active'}`;
+            }
 
             // Update main stats
             const mcapEl = document.getElementById('analyticsMcap');
@@ -5178,7 +5313,8 @@
                     bundlerPct: 0,
                     insiderPct: pumpData?.insider_pct || 0,
                     devHoldPct: pumpData?.dev_hold_pct || 0,
-                    verified: pumpData?.is_verified || false
+                    verified: pumpData?.is_verified || false,
+                    isGraduated: pumpData?.complete === true || token?.complete === true || mcap >= 69000
                 };
 
                 updateTokenAnalytics(analyticsData);
@@ -5679,6 +5815,7 @@
                     insiderPct: 0,
                     devHoldPct: 0,
                     verified: pumpData.complete === true,
+                    isGraduated: pumpData.complete === true || mcap >= 69000,
                     bondingProgress: progress,
                     solInCurve: realSolInCurve,
                     solTarget: BONDING_CURVE_TARGET
@@ -5726,7 +5863,8 @@
                     bundlerPct: 0,
                     insiderPct: 0,
                     devHoldPct: 0,
-                    verified: false
+                    verified: false,
+                    isGraduated: token.complete === true || (token.mcap || 0) >= 69000
                 });
 
                 showNotification(`Using local data for ${token.symbol}`, 'info');
@@ -5775,7 +5913,8 @@
                                 bundlerPct: 0,
                                 insiderPct: 0,
                                 devHoldPct: 0,
-                                verified: false
+                                verified: false,
+                                isGraduated: (pair.marketCap || pair.fdv || 0) >= 69000
                             });
 
                             // Update chart
