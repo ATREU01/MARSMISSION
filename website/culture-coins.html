@@ -3890,13 +3890,52 @@
             setTekLoading(false);
           };
 
-          // Auto-select TEK culture when cultures load
+          // State for all tokens created by this wallet (from /api/my-tokens)
+          const [myTokens, setMyTokens] = useState([]);
+          const [tokensLoading, setTokensLoading] = useState(false);
+
+          // Fetch all tokens created by connected wallet (same as main dashboard)
           useEffect(() => {
-            if (myCultures.length > 0 && !selectedTekCulture) {
+            const fetchMyTokens = async () => {
+              if (!wallet?.address) {
+                setMyTokens([]);
+                return;
+              }
+              setTokensLoading(true);
+              try {
+                console.log('[TEK] Fetching tokens for wallet:', wallet.address);
+                const res = await fetch(`/api/my-tokens?wallet=${wallet.address}`);
+                const data = await res.json();
+                const tokens = data.tokens || [];
+                console.log('[TEK] Found', tokens.length, 'tokens');
+                setMyTokens(tokens);
+
+                // Auto-select first token if none selected
+                if (tokens.length > 0 && !selectedTekCulture) {
+                  setSelectedTekCulture({
+                    tokenAddress: tokens[0].mint,
+                    name: tokens[0].name,
+                    ticker: tokens[0].symbol,
+                    image: tokens[0].image
+                  });
+                }
+              } catch (e) {
+                console.error('[TEK] Failed to fetch tokens:', e);
+                setMyTokens([]);
+              }
+              setTokensLoading(false);
+            };
+
+            fetchMyTokens();
+          }, [wallet?.address]);
+
+          // Auto-select TEK culture when cultures load (fallback to cultures if no tokens)
+          useEffect(() => {
+            if (myTokens.length === 0 && myCultures.length > 0 && !selectedTekCulture) {
               const withToken = myCultures.find(c => c.tokenAddress);
               if (withToken) setSelectedTekCulture(withToken);
             }
-          }, [myCultures]);
+          }, [myCultures, myTokens]);
 
           // Dashboard Colors based on light/dark mode
           const dashColors = lightMode ? {
@@ -4640,32 +4679,97 @@
                           </div>
                         </div>
 
-                        {/* Culture Selector for TEK */}
-                        {myCultures.filter(c => c.tokenAddress).length > 0 && (
-                          <select
-                            value={selectedTekCulture?.tokenAddress || ''}
-                            onChange={(e) => {
-                              const culture = myCultures.find(c => c.tokenAddress === e.target.value);
-                              setSelectedTekCulture(culture);
-                            }}
-                            style={{
+                        {/* Token Selector for TEK */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          {tokensLoading ? (
+                            <span style={{
                               padding: '8px 12px',
                               background: '#111',
                               border: '1px solid #333',
-                              color: '#fff',
+                              color: '#666',
                               fontSize: '11px',
-                              fontFamily: "'IBM Plex Mono', monospace",
-                              cursor: 'pointer',
-                              minWidth: '180px'
-                            }}
-                          >
-                            {myCultures.filter(c => c.tokenAddress).map(culture => (
-                              <option key={culture.tokenAddress} value={culture.tokenAddress}>
-                                {culture.name} (${culture.ticker})
-                              </option>
-                            ))}
-                          </select>
-                        )}
+                              fontFamily: "'IBM Plex Mono', monospace"
+                            }}>
+                              Loading tokens...
+                            </span>
+                          ) : myTokens.length > 0 ? (
+                            <select
+                              value={selectedTekCulture?.tokenAddress || ''}
+                              onChange={(e) => {
+                                const token = myTokens.find(t => t.mint === e.target.value);
+                                if (token) {
+                                  setSelectedTekCulture({
+                                    tokenAddress: token.mint,
+                                    name: token.name,
+                                    ticker: token.symbol,
+                                    image: token.image
+                                  });
+                                }
+                              }}
+                              style={{
+                                padding: '8px 12px',
+                                background: '#111',
+                                border: '1px solid #333',
+                                color: '#fff',
+                                fontSize: '11px',
+                                fontFamily: "'IBM Plex Mono', monospace",
+                                cursor: 'pointer',
+                                minWidth: '200px'
+                              }}
+                            >
+                              {myTokens.map(token => (
+                                <option key={token.mint} value={token.mint}>
+                                  {token.name} (${token.symbol})
+                                </option>
+                              ))}
+                            </select>
+                          ) : myCultures.filter(c => c.tokenAddress).length > 0 ? (
+                            <select
+                              value={selectedTekCulture?.tokenAddress || ''}
+                              onChange={(e) => {
+                                const culture = myCultures.find(c => c.tokenAddress === e.target.value);
+                                setSelectedTekCulture(culture);
+                              }}
+                              style={{
+                                padding: '8px 12px',
+                                background: '#111',
+                                border: '1px solid #333',
+                                color: '#fff',
+                                fontSize: '11px',
+                                fontFamily: "'IBM Plex Mono', monospace",
+                                cursor: 'pointer',
+                                minWidth: '200px'
+                              }}
+                            >
+                              {myCultures.filter(c => c.tokenAddress).map(culture => (
+                                <option key={culture.tokenAddress} value={culture.tokenAddress}>
+                                  {culture.name} (${culture.ticker})
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span style={{
+                              padding: '8px 12px',
+                              background: '#111',
+                              border: '1px solid #333',
+                              color: '#666',
+                              fontSize: '11px',
+                              fontFamily: "'IBM Plex Mono', monospace"
+                            }}>
+                              No tokens found
+                            </span>
+                          )}
+                          <span style={{
+                            padding: '4px 8px',
+                            background: 'rgba(34, 197, 94, 0.1)',
+                            border: '1px solid rgba(34, 197, 94, 0.3)',
+                            color: '#22c55e',
+                            fontSize: '10px',
+                            fontFamily: "'IBM Plex Mono', monospace"
+                          }}>
+                            {myTokens.length} token{myTokens.length !== 1 ? 's' : ''}
+                          </span>
+                        </div>
                       </div>
 
                       {/* TEK Status */}
