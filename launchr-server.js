@@ -672,180 +672,265 @@ function getRoadmapHTML() {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Roadmap - LAUNCHR</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <meta name="description" content="LAUNCHR 2026 Roadmap - Building the future of creator tokenomics on Solana">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        *{margin:0;padding:0;box-sizing:border-box}
-        :root{--gold:#F7B32B;--gold-glow:rgba(247,179,43,0.12);--green:#10B981;--green-glow:rgba(16,185,129,0.12);--bg:#000;--surface:#080808;--surface-2:#0f0f0f;--border:rgba(255,255,255,0.06);--text:#fff;--text-2:rgba(255,255,255,0.7);--text-3:rgba(255,255,255,0.4);--red:#ef4444}
-        body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
-        .nav{position:fixed;top:0;left:0;right:0;padding:16px 32px;display:flex;justify-content:space-between;align-items:center;z-index:100;background:rgba(0,0,0,0.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
-        .nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text);font-weight:700;font-size:16px}
-        .nav-logo img{width:28px;height:28px;border-radius:6px}
-        .nav-links{display:flex;gap:28px}
-        .nav-links a{color:var(--text-2);text-decoration:none;font-size:13px;font-weight:500;transition:color .2s}
-        .nav-links a:hover{color:var(--gold)}
-        .nav-btn{padding:8px 16px;background:var(--gold);color:#000;font-weight:600;font-size:13px;border-radius:6px;text-decoration:none;transition:all .2s}
-        .nav-btn:hover{box-shadow:0 4px 12px rgba(247,179,43,0.3)}
-        .hero{min-height:60vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:140px 24px 60px;background:radial-gradient(ellipse 70% 50% at 50% 0%,rgba(247,179,43,0.06),transparent)}
-        .hero-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;background:var(--gold-glow);border:1px solid rgba(247,179,43,0.15);border-radius:100px;font-size:11px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:24px}
-        .hero-badge::before{content:'';width:6px;height:6px;background:var(--gold);border-radius:50%;animation:pulse 2s infinite}
-        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-        .hero h1{font-size:clamp(40px,8vw,72px);font-weight:900;letter-spacing:-2px;line-height:1;margin-bottom:20px}
-        .hero h1 span{color:var(--gold)}
-        .hero-sub{font-size:18px;color:var(--text-2);max-width:500px}
-        .content{max-width:900px;margin:0 auto;padding:0 24px 60px}
-        .phase{margin-bottom:60px}
-        .phase-header{display:flex;align-items:center;gap:12px;margin-bottom:24px}
-        .phase-dot{width:10px;height:10px;border-radius:50%}
-        .phase-dot.live{background:var(--green);box-shadow:0 0 12px var(--green)}
-        .phase-dot.building{background:var(--gold);box-shadow:0 0 12px var(--gold)}
-        .phase-dot.planned{background:var(--text-3)}
-        .phase-label{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-3)}
-        .phase-label.live{color:var(--green)}
-        .phase-label.building{color:var(--gold)}
-        .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
-        .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;transition:all .25s}
-        .card:hover{border-color:rgba(247,179,43,0.2);transform:translateY(-2px);box-shadow:0 16px 32px rgba(0,0,0,0.3)}
-        .card-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:16px}
-        .card-icon.green{background:var(--green-glow)}
-        .card-icon.green svg{stroke:var(--green)}
-        .card-icon.gold{background:var(--gold-glow)}
-        .card-icon.gold svg{stroke:var(--gold)}
-        .card-icon.gray{background:rgba(255,255,255,0.05)}
-        .card-icon.gray svg{stroke:var(--text-3)}
-        .card-icon svg{width:20px;height:20px}
-        .card h3{font-size:16px;font-weight:700;margin-bottom:8px;letter-spacing:-0.3px}
-        .card p{font-size:13px;color:var(--text-2);line-height:1.5}
-        .card-checks{margin-top:16px;display:flex;flex-direction:column;gap:6px}
-        .card-check{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2)}
-        .card-check svg{width:14px;height:14px;stroke:var(--green);flex-shrink:0}
-        .cta{text-align:center;padding:60px 24px;background:var(--surface);border-top:1px solid var(--border)}
-        .cta h2{font-size:28px;font-weight:800;margin-bottom:12px;letter-spacing:-0.5px}
-        .cta p{color:var(--text-2);margin-bottom:24px;font-size:15px}
-        .cta-btn{display:inline-flex;align-items:center;gap:8px;padding:14px 28px;background:var(--gold);color:#000;font-weight:700;font-size:15px;border-radius:10px;text-decoration:none;transition:all .2s}
-        .cta-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(247,179,43,0.3)}
-        .cta-btn svg{width:18px;height:18px}
-        .disclaimer{max-width:900px;margin:0 auto;padding:40px 24px;border-top:1px solid var(--border)}
-        .disclaimer-box{padding:20px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.15);border-radius:12px}
-        .disclaimer-box p{font-size:11px;color:var(--text-3);text-align:center;line-height:1.7}
-        .disclaimer-box strong{color:var(--red)}
-        .disclaimer-links{display:flex;justify-content:center;gap:16px;margin-top:16px}
-        .disclaimer-links a{font-size:11px;color:var(--gold);text-decoration:none}
-        .disclaimer-links a:hover{text-decoration:underline}
-        @media(max-width:768px){.nav-links{display:none}.cards{grid-template-columns:1fr}}
+        *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#0a0a0a;--surface:#111;--border:#222;--border-active:#333;--text:#fff;--text-secondary:#a0a0a0;--text-muted:#666;--gold:#FFD966;--gold-dim:rgba(255,217,102,0.1);--gold-border:rgba(255,217,102,0.2)}
+        html{scroll-behavior:smooth}
+        body{font-family:'IBM Plex Mono',monospace;background:var(--bg);color:var(--text);line-height:1.7;-webkit-font-smoothing:antialiased}
+        ::selection{background:var(--gold);color:#000}
+        .nav{position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(10,10,10,0.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
+        .nav-inner{max-width:1200px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between}
+        .nav-brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--text)}
+        .nav-brand img{height:28px;width:28px}
+        .nav-brand span{font-weight:600;font-size:15px;letter-spacing:0.05em}
+        .nav-links{display:flex;align-items:center;gap:4px}
+        .nav-link{padding:8px 14px;color:var(--text-muted);text-decoration:none;font-size:12px;font-weight:500;letter-spacing:0.05em;transition:all 0.15s}
+        .nav-link:hover{color:var(--text)}
+        .nav-link.active{color:var(--gold)}
+        .header{padding:120px 24px 60px;text-align:center;border-bottom:1px solid var(--border)}
+        .header-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;background:var(--gold-dim);border:1px solid var(--gold-border);font-size:10px;font-weight:600;color:var(--gold);margin-bottom:24px;text-transform:uppercase;letter-spacing:0.15em}
+        .header-badge::before{content:'';width:6px;height:6px;background:var(--gold);border-radius:50%;animation:pulse 2s infinite}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+        .header-title{font-family:'Playfair Display',Georgia,serif;font-size:clamp(32px,5vw,48px);font-weight:600;letter-spacing:-0.02em;margin-bottom:16px}
+        .header-title .gold{color:var(--gold)}
+        .header-subtitle{font-size:13px;color:var(--text-muted);max-width:500px;margin:0 auto;line-height:1.8}
+        .main{max-width:900px;margin:0 auto;padding:60px 24px}
+        .timeline{position:relative}
+        .timeline::before{content:'';position:absolute;left:0;top:0;bottom:0;width:1px;background:var(--border)}
+        .quarter{position:relative;padding-left:40px;margin-bottom:60px}
+        .quarter:last-child{margin-bottom:0}
+        .quarter::before{content:'';position:absolute;left:-4px;top:6px;width:9px;height:9px;background:var(--gold);border:2px solid var(--bg)}
+        .quarter-label{font-size:11px;font-weight:600;color:var(--gold);letter-spacing:0.2em;margin-bottom:24px;text-transform:uppercase}
+        .section{background:var(--surface);border:1px solid var(--border);padding:24px;margin-bottom:16px}
+        .section:last-child{margin-bottom:0}
+        .section:hover{border-color:var(--border-active)}
+        .section-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:16px;letter-spacing:0.02em}
+        .section-items{display:flex;flex-direction:column;gap:10px}
+        .section-item{display:flex;align-items:flex-start;gap:12px;font-size:12px;color:var(--text-secondary);line-height:1.6}
+        .section-item::before{content:'—';color:var(--text-muted);flex-shrink:0}
+        .disclaimer-section{margin-top:80px;padding-top:60px;border-top:1px solid var(--border)}
+        .disclaimer-header{text-align:center;margin-bottom:32px}
+        .disclaimer-header h2{font-family:'Playfair Display',Georgia,serif;font-size:20px;color:var(--text-muted);margin-bottom:8px}
+        .disclaimer-header p{font-size:11px;color:var(--text-muted)}
+        .disclaimer-box{background:var(--surface);border:1px solid var(--border);padding:32px;margin-bottom:24px}
+        .disclaimer-box h3{font-size:11px;font-weight:600;color:var(--gold);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:16px}
+        .disclaimer-box p{font-size:12px;color:var(--text-muted);line-height:1.8;margin-bottom:12px}
+        .disclaimer-box p:last-child{margin-bottom:0}
+        .disclaimer-box ul{list-style:none;padding:0;margin:0}
+        .disclaimer-box li{font-size:12px;color:var(--text-muted);line-height:1.8;padding-left:20px;position:relative;margin-bottom:8px}
+        .disclaimer-box li::before{content:'•';position:absolute;left:0;color:var(--text-muted)}
+        .disclaimer-critical{background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);padding:24px;text-align:center;margin-bottom:24px}
+        .disclaimer-critical p{font-size:11px;color:#ef4444;line-height:1.8;margin:0}
+        .disclaimer-critical strong{display:block;font-size:12px;letter-spacing:0.1em;margin-bottom:8px}
+        .footer{text-align:center;padding:40px 24px;border-top:1px solid var(--border);margin-top:60px}
+        .footer p{color:var(--text-muted);font-size:11px;margin-bottom:16px}
+        .footer-links{display:flex;justify-content:center;gap:24px}
+        .footer-links a{color:var(--text-muted);text-decoration:none;font-size:11px;transition:color 0.15s}
+        .footer-links a:hover{color:var(--gold)}
+        @media(max-width:768px){.nav-links{display:none}.header{padding:100px 20px 40px}.main{padding:40px 20px}.quarter{padding-left:24px}.section{padding:20px}}
     </style>
 </head>
 <body>
     <nav class="nav">
-        <a href="/" class="nav-logo"><img src="/website/logo-icon.jpg" alt="">LAUNCHR</a>
-        <div class="nav-links">
-            <a href="/">Home</a>
-            <a href="/launchpad">Launchpad</a>
-            <a href="/dashboard">Dashboard</a>
-            <a href="/docs">Docs</a>
+        <div class="nav-inner">
+            <a href="/" class="nav-brand">
+                <img src="/website/logo-icon.jpg" alt="LAUNCHR">
+                <span>LAUNCHR</span>
+            </a>
+            <div class="nav-links">
+                <a href="/" class="nav-link">Home</a>
+                <a href="/launchpad" class="nav-link">Launchpad</a>
+                <a href="/dashboard" class="nav-link">Dashboard</a>
+                <a href="/culture-coins" class="nav-link">Culture</a>
+                <a href="/docs" class="nav-link">Docs</a>
+                <a href="/roadmap" class="nav-link active">Roadmap</a>
+            </div>
         </div>
-        <a href="/launchpad" class="nav-btn">Launch</a>
     </nav>
 
-    <section class="hero">
-        <div class="hero-badge">Roadmap 2025</div>
-        <h1>Building <span>LAUNCHR</span></h1>
-        <p class="hero-sub">The infrastructure layer for pump.fun launches. Ship fast, iterate faster.</p>
-    </section>
+    <header class="header">
+        <div class="header-badge">2026 Vision</div>
+        <h1 class="header-title"><span class="gold">LAUNCHR</span> Roadmap</h1>
+        <p class="header-subtitle">A forward-looking outline of platform development. Subject to change based on market conditions, technical feasibility, and community feedback.</p>
+    </header>
 
-    <div class="content">
-        <div class="phase">
-            <div class="phase-header">
-                <div class="phase-dot live"></div>
-                <span class="phase-label live">Live &mdash; Shipped</span>
-            </div>
-            <div class="cards">
-                <div class="card">
-                    <div class="card-icon green"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
-                    <h3>Pump.fun Launch</h3>
-                    <p>One-click token deployment with automatic fee routing.</p>
-                    <div class="card-checks">
-                        <div class="card-check"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>Instant token creation</div>
-                        <div class="card-check"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>1% distribution pool</div>
-                        <div class="card-check"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>Graduation tracking</div>
+    <main class="main">
+        <div class="timeline">
+            <div class="quarter">
+                <div class="quarter-label">Q1 2026</div>
+                <div class="section">
+                    <h3 class="section-title">Core Platform Hardening</h3>
+                    <div class="section-items">
+                        <div class="section-item">Production dual path launches via Pump and Raydium</div>
+                        <div class="section-item">Creator fee automation with configurable routing into buy and burns, LP adds, market making, or creator payouts</div>
+                        <div class="section-item">Improved LP management and liquidity transparency</div>
+                        <div class="section-item">Telegram first launch and management workflows</div>
+                        <div class="section-item">Public dashboards for fee flows, burns, LP adds, and liquidity actions</div>
                     </div>
                 </div>
-                <div class="card">
-                    <div class="card-icon green"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></div>
-                    <h3>Creator Dashboard</h3>
-                    <p>Full control over your 99% fee allocation.</p>
-                    <div class="card-checks">
-                        <div class="card-check"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>Buyback, burn, LP, revenue</div>
-                        <div class="card-check"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>Strategy presets</div>
-                        <div class="card-check"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>Auto-claim engine</div>
+                <div class="section">
+                    <h3 class="section-title">Culture Coins Alpha</h3>
+                    <div class="section-items">
+                        <div class="section-item">Launch Culture Coins framework</div>
+                        <div class="section-item">Creator defined tiers based on token ownership</div>
+                        <div class="section-item">Utility primitives for access, participation, and gated interactions</div>
+                        <div class="section-item">Native exchange of value between creators and communities</div>
+                        <div class="section-item">Early discovery layer for Culture Coins</div>
                     </div>
                 </div>
-                <div class="card">
-                    <div class="card-icon green"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
-                    <h3>Telegram Bot</h3>
-                    <p>Launch and manage from Telegram.</p>
-                    <div class="card-checks">
-                        <div class="card-check"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>/launch command</div>
-                        <div class="card-check"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>Real-time alerts</div>
+                <div class="section">
+                    <h3 class="section-title">Social and Economic Layer Expansion</h3>
+                    <div class="section-items">
+                        <div class="section-item">Culture Coin profiles as social hubs</div>
+                        <div class="section-item">Native engagement, rewards, and incentive distribution</div>
+                        <div class="section-item">Dynamic fee strategies tied to community activity</div>
+                        <div class="section-item">Creator analytics and holder insights</div>
+                    </div>
+                </div>
+                <div class="section">
+                    <h3 class="section-title">Mobile App Development Phase 1</h3>
+                    <div class="section-items">
+                        <div class="section-item">Mobile product strategy and UX architecture</div>
+                        <div class="section-item">Core feature scoping and API design</div>
+                        <div class="section-item">Begin iOS and Android development</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="quarter">
+                <div class="quarter-label">Q2 2026</div>
+                <div class="section">
+                    <h3 class="section-title">Cross Chain Expansion</h3>
+                    <div class="section-items">
+                        <div class="section-item">Cross chain Culture Coin visibility and analytics</div>
+                        <div class="section-item">Support for cross chain liquidity and value flows</div>
+                        <div class="section-item">Bridging primitives for participation across ecosystems</div>
+                        <div class="section-item">Early integrations beyond Solana</div>
+                    </div>
+                </div>
+                <div class="section">
+                    <h3 class="section-title">Mobile App Development Phase 2</h3>
+                    <div class="section-items">
+                        <div class="section-item">Core launch and monitoring features on mobile</div>
+                        <div class="section-item">Wallet connectivity and push notifications</div>
+                        <div class="section-item">Internal testing and closed beta</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="quarter">
+                <div class="quarter-label">Q3 2026</div>
+                <div class="section">
+                    <h3 class="section-title">Ecosystem and Infrastructure Scaling</h3>
+                    <div class="section-items">
+                        <div class="section-item">Advanced market making and liquidity strategies</div>
+                        <div class="section-item">Expanded monetization primitives for Culture Coins</div>
+                        <div class="section-item">Governance and incentive tooling for mature communities</div>
+                        <div class="section-item">Open APIs for third party builders</div>
+                    </div>
+                </div>
+                <div class="section">
+                    <h3 class="section-title">Mobile App Development Phase 3</h3>
+                    <div class="section-items">
+                        <div class="section-item">Public mobile beta release</div>
+                        <div class="section-item">Culture Coin discovery and interaction on mobile</div>
+                        <div class="section-item">Performance optimization and security hardening</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="quarter">
+                <div class="quarter-label">Q4 2026</div>
+                <div class="section">
+                    <h3 class="section-title">Platform Maturity</h3>
+                    <div class="section-items">
+                        <div class="section-item">Fully composable launch and culture infrastructure</div>
+                        <div class="section-item">Creator and community revenue optimization tooling</div>
+                        <div class="section-item">Cross chain discovery and aggregation</div>
+                        <div class="section-item">Long term sustainability tooling for large ecosystems</div>
+                    </div>
+                </div>
+                <div class="section">
+                    <h3 class="section-title">Mobile App Development Phase 4</h3>
+                    <div class="section-items">
+                        <div class="section-item">Full mobile release</div>
+                        <div class="section-item">Advanced creator controls on mobile</div>
+                        <div class="section-item">Ongoing iteration based on user behavior</div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="phase">
-            <div class="phase-header">
-                <div class="phase-dot building"></div>
-                <span class="phase-label building">Building &mdash; In Progress</span>
+        <div class="disclaimer-section">
+            <div class="disclaimer-header">
+                <h2>Important Disclosures</h2>
+                <p>Please read carefully before using this platform</p>
             </div>
-            <div class="cards">
-                <div class="card">
-                    <div class="card-icon gold"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg></div>
-                    <h3>Advanced Analytics</h3>
-                    <p>Deep insights into performance, holders, and fee metrics.</p>
-                </div>
-                <div class="card">
-                    <div class="card-icon gold"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg></div>
-                    <h3>Multi-Token Manager</h3>
-                    <p>Manage all launches from one dashboard.</p>
-                </div>
+
+            <div class="disclaimer-critical">
+                <p><strong>⚠️ EXPERIMENTAL MEME COIN PLATFORM</strong>LAUNCHR is an experimental platform for launching and managing meme coins. Meme coins are highly speculative, extremely volatile, and you should expect to lose 100% of any funds you use on this platform. This is NOT a regulated financial service.</p>
+            </div>
+
+            <div class="disclaimer-box">
+                <h3>No Financial Advice</h3>
+                <p>Nothing on this platform, including this roadmap, constitutes financial advice, investment advice, trading advice, or any other sort of advice. You should not treat any of the platform's content as such. LAUNCHR does not recommend that any cryptocurrency should be bought, sold, or held by you. Do conduct your own due diligence and consult your financial advisor before making any investment decisions.</p>
+            </div>
+
+            <div class="disclaimer-box">
+                <h3>Roadmap Disclaimer</h3>
+                <p>This roadmap is aspirational and provided for informational purposes only. It does not constitute a commitment, promise, or guarantee of any kind. Development priorities, timelines, and features are subject to change at any time without notice based on:</p>
+                <ul>
+                    <li>Technical feasibility and development challenges</li>
+                    <li>Market conditions and regulatory developments</li>
+                    <li>Community feedback and platform priorities</li>
+                    <li>Resource availability and team capacity</li>
+                    <li>Third-party dependencies and integrations</li>
+                </ul>
+                <p>The inclusion of any feature on this roadmap does not guarantee its implementation.</p>
+            </div>
+
+            <div class="disclaimer-box">
+                <h3>Risk Disclosure</h3>
+                <p>Using LAUNCHR and participating in cryptocurrency activities involves substantial risk of loss and is not suitable for every person. Before using this platform, you should carefully consider:</p>
+                <ul>
+                    <li>Cryptocurrency values are extremely volatile and can go to zero</li>
+                    <li>Meme coins have no intrinsic value and are purely speculative</li>
+                    <li>Smart contracts may contain bugs or vulnerabilities</li>
+                    <li>You may lose all funds you deposit or invest</li>
+                    <li>Past performance does not indicate future results</li>
+                    <li>Regulatory changes may affect the platform or your holdings</li>
+                    <li>There is no guarantee of liquidity for any token</li>
+                </ul>
+            </div>
+
+            <div class="disclaimer-box">
+                <h3>No Warranties</h3>
+                <p>This platform is provided "as is" and "as available" without warranties of any kind, either express or implied. LAUNCHR makes no warranty that the platform will meet your requirements, be uninterrupted, timely, secure, or error-free. You use this platform entirely at your own risk.</p>
+            </div>
+
+            <div class="disclaimer-box">
+                <h3>Regulatory Compliance</h3>
+                <p>LAUNCHR is not registered with, licensed by, or affiliated with any financial regulatory authority. The platform does not offer securities, investment contracts, or regulated financial products. Users are solely responsible for ensuring their use of the platform complies with all applicable laws and regulations in their jurisdiction. This platform is not available to residents of jurisdictions where cryptocurrency trading is prohibited.</p>
+            </div>
+
+            <div class="disclaimer-box">
+                <h3>Limitation of Liability</h3>
+                <p>To the maximum extent permitted by applicable law, LAUNCHR and its operators, developers, and affiliates shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits or revenues, whether incurred directly or indirectly, or any loss of data, use, goodwill, or other intangible losses resulting from your use of the platform.</p>
             </div>
         </div>
+    </main>
 
-        <div class="phase">
-            <div class="phase-header">
-                <div class="phase-dot planned"></div>
-                <span class="phase-label">Planned &mdash; Future</span>
-            </div>
-            <div class="cards">
-                <div class="card">
-                    <div class="card-icon gray"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
-                    <h3>Raydium Native</h3>
-                    <p>Direct AMM pool creation for advanced strategies.</p>
-                </div>
-                <div class="card">
-                    <div class="card-icon gray"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg></div>
-                    <h3>Auto-Strategy</h3>
-                    <p>Intelligent allocation based on market conditions.</p>
-                </div>
-            </div>
+    <footer class="footer">
+        <p>© 2026 LAUNCHR. Experimental meme coin platform. Use at your own risk.</p>
+        <div class="footer-links">
+            <a href="/terms">Terms of Service</a>
+            <a href="/docs">Documentation</a>
+            <a href="https://twitter.com/LaunchrTG" target="_blank">Twitter</a>
+            <a href="https://t.me/launchr_sol" target="_blank">Telegram</a>
         </div>
-    </div>
-
-    <section class="cta">
-        <h2>Start building today</h2>
-        <p>Launch your token in under a minute.</p>
-        <a href="/launchpad" class="cta-btn">Launch Token <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
-    </section>
-
-    <div class="disclaimer">
-        <div class="disclaimer-box">
-            <p><strong>DISCLAIMER:</strong> LAUNCHR is a meme coin with no intrinsic value or expectation of financial return. This is NOT financial advice. Cryptocurrency investments are extremely risky and may result in total loss of funds. DYOR. Only invest what you can afford to lose.</p>
-            <div class="disclaimer-links">
-                <a href="/terms">Terms & Conditions</a>
-                <a href="/docs">Documentation</a>
-                <a href="https://t.me/LAUNCHR_V3_BOT">Telegram</a>
-            </div>
-        </div>
-    </div>
+    </footer>
 </body>
 </html>`;
 }
