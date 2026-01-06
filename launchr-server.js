@@ -767,6 +767,12 @@ function getRoadmapHTML() {
         .section-items{display:flex;flex-direction:column;gap:10px}
         .section-item{display:flex;align-items:flex-start;gap:12px;font-size:12px;color:var(--text-secondary);line-height:1.6}
         .section-item::before{content:'—';color:var(--text-muted);flex-shrink:0}
+        .section-item.completed{color:var(--text)}
+        .section-item.completed::before{content:'✓';color:#22c55e;font-weight:600}
+        .section-item.building::before{content:'◐';color:var(--gold)}
+        .status-badge{display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:600;padding:4px 10px;border-radius:4px;text-transform:uppercase;letter-spacing:0.1em;margin-left:auto;flex-shrink:0}
+        .status-badge.completed{background:rgba(34,197,94,0.1);color:#22c55e;border:1px solid rgba(34,197,94,0.2)}
+        .status-badge.building{background:var(--gold-dim);color:var(--gold);border:1px solid var(--gold-border)}
         .disclaimer-section{margin-top:80px;padding-top:60px;border-top:1px solid var(--border)}
         .disclaimer-header{text-align:center;margin-bottom:32px}
         .disclaimer-header h2{font-family:'Playfair Display',Georgia,serif;font-size:20px;color:var(--text-muted);margin-bottom:8px}
@@ -818,40 +824,40 @@ function getRoadmapHTML() {
             <div class="quarter">
                 <div class="quarter-label">Q1 2026</div>
                 <div class="section">
-                    <h3 class="section-title">Core Platform Hardening</h3>
+                    <h3 class="section-title">Core Platform Hardening <span class="status-badge completed">Completed</span></h3>
                     <div class="section-items">
-                        <div class="section-item">Production dual path launches via Pump and Raydium</div>
-                        <div class="section-item">Creator fee automation with configurable routing into buy and burns, LP adds, market making, or creator payouts</div>
-                        <div class="section-item">Improved LP management and liquidity transparency</div>
-                        <div class="section-item">Telegram first launch and management workflows</div>
-                        <div class="section-item">Public dashboards for fee flows, burns, LP adds, and liquidity actions</div>
+                        <div class="section-item completed">Production dual path launches via Pump and Raydium</div>
+                        <div class="section-item completed">Creator fee automation with configurable routing into buy and burns, LP adds, market making, or creator payouts</div>
+                        <div class="section-item completed">Improved LP management and liquidity transparency</div>
+                        <div class="section-item completed">Telegram first launch and management workflows</div>
+                        <div class="section-item completed">Public dashboards for fee flows, burns, LP adds, and liquidity actions</div>
                     </div>
                 </div>
                 <div class="section">
-                    <h3 class="section-title">Culture Coins Alpha</h3>
+                    <h3 class="section-title">Culture Coins Alpha <span class="status-badge building">Building</span></h3>
                     <div class="section-items">
-                        <div class="section-item">Launch Culture Coins framework</div>
-                        <div class="section-item">Creator defined tiers based on token ownership</div>
-                        <div class="section-item">Utility primitives for access, participation, and gated interactions</div>
-                        <div class="section-item">Native exchange of value between creators and communities</div>
-                        <div class="section-item">Early discovery layer for Culture Coins</div>
+                        <div class="section-item building">Launch Culture Coins framework</div>
+                        <div class="section-item building">Creator defined tiers based on token ownership</div>
+                        <div class="section-item building">Utility primitives for access, participation, and gated interactions</div>
+                        <div class="section-item building">Native exchange of value between creators and communities</div>
+                        <div class="section-item building">Early discovery layer for Culture Coins</div>
                     </div>
                 </div>
                 <div class="section">
-                    <h3 class="section-title">Social and Economic Layer Expansion</h3>
+                    <h3 class="section-title">Social and Economic Layer Expansion <span class="status-badge building">Building</span></h3>
                     <div class="section-items">
-                        <div class="section-item">Culture Coin profiles as social hubs</div>
-                        <div class="section-item">Native engagement, rewards, and incentive distribution</div>
-                        <div class="section-item">Dynamic fee strategies tied to community activity</div>
-                        <div class="section-item">Creator analytics and holder insights</div>
+                        <div class="section-item building">Culture Coin profiles as social hubs</div>
+                        <div class="section-item building">Native engagement, rewards, and incentive distribution</div>
+                        <div class="section-item building">Dynamic fee strategies tied to community activity</div>
+                        <div class="section-item building">Creator analytics and holder insights</div>
                     </div>
                 </div>
                 <div class="section">
-                    <h3 class="section-title">Mobile App Development Phase 1</h3>
+                    <h3 class="section-title">Mobile App Development Phase 1 <span class="status-badge building">Building</span></h3>
                     <div class="section-items">
-                        <div class="section-item">Mobile product strategy and UX architecture</div>
-                        <div class="section-item">Core feature scoping and API design</div>
-                        <div class="section-item">Begin iOS and Android development</div>
+                        <div class="section-item building">Mobile product strategy and UX architecture</div>
+                        <div class="section-item building">Core feature scoping and API design</div>
+                        <div class="section-item building">Begin iOS and Android development</div>
                     </div>
                 </div>
             </div>
