@@ -7,13 +7,14 @@
     <meta http-equiv="X-Frame-Options" content="DENY">
     <meta http-equiv="X-XSS-Protection" content="1; mode=block">
     <title>Roadmap - LAUNCHR</title>
-    <meta name="description" content="LAUNCHR development roadmap - The #1 Meme Launchpad on Solana">
+    <meta name="description" content="LAUNCHR 2026 Roadmap - Building the future of creator tokenomics on Solana">
+    <meta name="robots" content="index, follow">
 
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://www.launchronsol.xyz/roadmap">
-    <meta property="og:title" content="LAUNCHR Roadmap">
-    <meta property="og:description" content="The journey to Mars - LAUNCHR development phases">
-    <meta property="og:image" content="https://www.launchronsol.xyz/website/logo-full.jpg">
+    <meta property="og:url" content="https://www.launchr.xyz/roadmap">
+    <meta property="og:title" content="LAUNCHR Roadmap 2026">
+    <meta property="og:description" content="Platform roadmap for LAUNCHR - Culture Coins, Cross-Chain, Mobile & More">
+    <meta property="og:image" content="https://www.launchr.xyz/website/logo-full.jpg">
 
     <link rel="icon" href="/favicon.ico" type="image/jpeg">
     <link rel="shortcut icon" href="/favicon.ico" type="image/jpeg">
@@ -24,41 +25,21 @@
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
-            --bg: #050508;
-            --bg-elevated: #0A0A0F;
-            --surface: #0E0E14;
-            --surface-2: #14141C;
-            --surface-3: #1A1A24;
-            --border: rgba(255, 215, 100, 0.1);
-            --border-active: rgba(255, 215, 100, 0.25);
-            --text: #F5F5F7;
-            --text-secondary: #A0A0A8;
-            --text-muted: #606068;
+            --bg: #0a0a0a;
+            --bg-elevated: #0f0f0f;
+            --surface: #111111;
+            --surface-2: #1a1a1a;
+            --border: #222222;
+            --border-active: #333333;
+            --text: #ffffff;
+            --text-secondary: #a0a0a0;
+            --text-muted: #666666;
             --gold: #FFD966;
             --gold-light: #FFE699;
-            --gold-dim: rgba(255, 217, 102, 0.15);
-            --cyan: #00E5FF;
-            --pink: #FF3D8E;
-            --purple: #A855F7;
-            --success: #4ADE80;
-            --error: #F43F5E;
-            --orange: #F97316;
-            --radius: 10px;
-            --radius-lg: 14px;
-        }
-
-        @keyframes gradient-flow {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-6px); }
+            --gold-dim: rgba(255, 217, 102, 0.1);
+            --gold-border: rgba(255, 217, 102, 0.2);
+            --radius: 0;
+            --radius-sm: 0;
         }
 
         html { scroll-behavior: smooth; }
@@ -71,31 +52,19 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        h1, h2, h3 {
-            font-family: 'Playfair Display', Georgia, serif;
-        }
-
-        /* Atmosphere */
-        .atmosphere {
-            position: fixed;
-            inset: 0;
-            background:
-                radial-gradient(ellipse 100% 60% at 50% -20%, rgba(255, 217, 102, 0.12) 0%, transparent 50%),
-                radial-gradient(ellipse 60% 40% at 100% 20%, rgba(0, 229, 255, 0.06) 0%, transparent 40%),
-                radial-gradient(ellipse 50% 40% at 0% 80%, rgba(255, 61, 142, 0.05) 0%, transparent 40%),
-                radial-gradient(ellipse 40% 30% at 80% 90%, rgba(168, 85, 247, 0.04) 0%, transparent 40%);
-            pointer-events: none;
-            z-index: 0;
-            animation: gradient-flow 20s ease infinite;
-            background-size: 200% 200%;
+        ::selection {
+            background: var(--gold);
+            color: #000;
         }
 
         /* Navigation */
         .nav {
             position: fixed;
-            top: 0; left: 0; right: 0;
+            top: 0;
+            left: 0;
+            right: 0;
             z-index: 1000;
-            background: rgba(5, 5, 5, 0.9);
+            background: rgba(10, 10, 10, 0.95);
             backdrop-filter: blur(20px);
             border-bottom: 1px solid var(--border);
         }
@@ -103,7 +72,7 @@
             max-width: 1200px;
             margin: 0 auto;
             padding: 0 24px;
-            height: 64px;
+            height: 60px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -116,269 +85,258 @@
             color: var(--text);
         }
         .nav-brand img {
-            height: 32px;
-            width: 32px;
-            border-radius: 6px;
+            height: 28px;
+            width: 28px;
         }
         .nav-brand span {
-            font-weight: 700;
-            font-size: 18px;
+            font-weight: 600;
+            font-size: 15px;
+            letter-spacing: 0.05em;
         }
         .nav-links {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 4px;
         }
         .nav-link {
-            padding: 8px 16px;
-            color: var(--text-secondary);
+            padding: 8px 14px;
+            color: var(--text-muted);
             text-decoration: none;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 500;
-            border-radius: var(--radius);
+            letter-spacing: 0.05em;
             transition: all 0.15s;
         }
         .nav-link:hover {
             color: var(--text);
-            background: var(--surface);
         }
         .nav-link.active {
             color: var(--gold);
-            background: var(--gold-dim);
         }
 
         /* Header */
         .header {
-            position: relative;
-            z-index: 1;
-            padding: 140px 24px 80px;
+            padding: 120px 24px 60px;
             text-align: center;
+            border-bottom: 1px solid var(--border);
         }
         .header-badge {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            padding: 8px 16px;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 100px;
-            font-size: 12px;
+            padding: 6px 14px;
+            background: var(--gold-dim);
+            border: 1px solid var(--gold-border);
+            font-size: 10px;
             font-weight: 600;
             color: var(--gold);
             margin-bottom: 24px;
             text-transform: uppercase;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.15em;
         }
         .header-badge::before {
             content: '';
             width: 6px;
             height: 6px;
-            background: var(--success);
+            background: var(--gold);
             border-radius: 50%;
             animation: pulse 2s infinite;
         }
-        .header-title {
-            font-size: clamp(36px, 5vw, 56px);
-            font-weight: 700;
-            letter-spacing: -0.03em;
-            margin-bottom: 20px;
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
         }
-        .header-title .highlight {
+        .header-title {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: clamp(32px, 5vw, 48px);
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            margin-bottom: 16px;
+        }
+        .header-title .gold {
             color: var(--gold);
         }
         .header-subtitle {
-            font-size: 17px;
-            color: var(--text-secondary);
-            max-width: 600px;
+            font-size: 13px;
+            color: var(--text-muted);
+            max-width: 500px;
             margin: 0 auto;
             line-height: 1.8;
         }
 
-        /* Disclaimer Banner */
-        .disclaimer-banner {
-            position: relative;
-            z-index: 1;
-            max-width: 800px;
-            margin: 0 auto 60px;
-            padding: 20px 24px;
-            background: rgba(251, 191, 36, 0.08);
-            border: 1px solid rgba(251, 191, 36, 0.3);
-            border-radius: var(--radius-lg);
-            text-align: center;
-        }
-        .disclaimer-banner p {
-            color: var(--text-secondary);
-            font-size: 13px;
-            margin: 0;
-        }
-        .disclaimer-banner strong {
-            color: var(--gold);
-        }
-
-        /* Main Content */
+        /* Main */
         .main {
-            position: relative;
-            z-index: 1;
-            max-width: 1000px;
+            max-width: 900px;
             margin: 0 auto;
-            padding: 0 24px 100px;
+            padding: 60px 24px;
         }
 
-        /* Phase Cards */
-        .phases {
+        /* Timeline */
+        .timeline {
+            position: relative;
+        }
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: var(--border);
+        }
+
+        /* Quarter */
+        .quarter {
+            position: relative;
+            padding-left: 40px;
+            margin-bottom: 60px;
+        }
+        .quarter:last-child {
+            margin-bottom: 0;
+        }
+        .quarter::before {
+            content: '';
+            position: absolute;
+            left: -4px;
+            top: 6px;
+            width: 9px;
+            height: 9px;
+            background: var(--gold);
+            border: 2px solid var(--bg);
+        }
+        .quarter-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--gold);
+            letter-spacing: 0.2em;
+            margin-bottom: 24px;
+            text-transform: uppercase;
+        }
+
+        /* Section */
+        .section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 24px;
+            margin-bottom: 16px;
+        }
+        .section:last-child {
+            margin-bottom: 0;
+        }
+        .section:hover {
+            border-color: var(--border-active);
+        }
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 16px;
+            letter-spacing: 0.02em;
+        }
+        .section-items {
             display: flex;
             flex-direction: column;
-            gap: 32px;
-        }
-
-        .phase {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: 32px;
-            position: relative;
-            overflow: hidden;
-            transition: all 0.3s ease;
-        }
-        .phase:hover {
-            border-color: var(--border-active);
-            transform: translateY(-2px);
-        }
-        .phase.current {
-            border-color: var(--gold);
-            background: linear-gradient(135deg, var(--gold-dim), transparent);
-        }
-        .phase.current::before {
-            content: 'CURRENT PHASE';
-            position: absolute;
-            top: 16px;
-            right: 16px;
-            padding: 4px 10px;
-            background: var(--gold);
-            color: var(--bg);
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 0.05em;
-            border-radius: 4px;
-        }
-        .phase.completed {
-            opacity: 0.7;
-        }
-        .phase.completed::before {
-            content: 'COMPLETED';
-            position: absolute;
-            top: 16px;
-            right: 16px;
-            padding: 4px 10px;
-            background: var(--success);
-            color: var(--bg);
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 0.05em;
-            border-radius: 4px;
-        }
-
-        .phase-header {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            margin-bottom: 20px;
-        }
-        .phase-icon {
-            width: 56px;
-            height: 56px;
-            background: var(--surface-2);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-        }
-        .phase.current .phase-icon {
-            background: var(--gold-dim);
-            border-color: var(--gold);
-            animation: float 3s ease-in-out infinite;
-        }
-        .phase-title {
-            font-size: 24px;
-            font-weight: 700;
-        }
-        .phase-subtitle {
-            color: var(--text-muted);
-            font-size: 13px;
-            margin-top: 4px;
-        }
-
-        .phase-content p {
-            color: var(--text-secondary);
-            font-size: 15px;
-            margin-bottom: 20px;
-            line-height: 1.8;
-        }
-
-        .phase-items {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 12px;
-        }
-        .phase-item {
-            display: flex;
-            align-items: center;
             gap: 10px;
-            padding: 12px 16px;
-            background: var(--surface-2);
-            border-radius: var(--radius);
-            font-size: 14px;
+        }
+        .section-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-size: 12px;
             color: var(--text-secondary);
+            line-height: 1.6;
         }
-        .phase-item.done {
-            color: var(--success);
+        .section-item::before {
+            content: '—';
+            color: var(--text-muted);
+            flex-shrink: 0;
         }
-        .phase-item.done::before {
-            content: '✓';
-            font-weight: 700;
+
+        /* Disclaimer Section */
+        .disclaimer-section {
+            margin-top: 80px;
+            padding-top: 60px;
+            border-top: 1px solid var(--border);
         }
-        .phase-item.progress::before {
-            content: '◎';
-            color: var(--gold);
+        .disclaimer-header {
+            text-align: center;
+            margin-bottom: 32px;
         }
-        .phase-item.pending::before {
-            content: '○';
+        .disclaimer-header h2 {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 20px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+        .disclaimer-header p {
+            font-size: 11px;
             color: var(--text-muted);
         }
 
-        /* Vision Section */
-        .vision {
-            margin-top: 80px;
-            text-align: center;
-            padding: 60px 32px;
+        .disclaimer-box {
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
+            padding: 32px;
+            margin-bottom: 24px;
         }
-        .vision h2 {
-            font-size: 28px;
-            margin-bottom: 20px;
+        .disclaimer-box h3 {
+            font-size: 11px;
+            font-weight: 600;
             color: var(--gold);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 16px;
         }
-        .vision p {
-            color: var(--text-secondary);
-            font-size: 15px;
-            max-width: 600px;
-            margin: 0 auto 24px;
-            line-height: 1.8;
-        }
-        .vision-note {
+        .disclaimer-box p {
+            font-size: 12px;
             color: var(--text-muted);
-            font-size: 13px;
-            font-style: italic;
+            line-height: 1.8;
+            margin-bottom: 12px;
+        }
+        .disclaimer-box p:last-child {
+            margin-bottom: 0;
+        }
+        .disclaimer-box ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .disclaimer-box li {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.8;
+            padding-left: 20px;
+            position: relative;
+            margin-bottom: 8px;
+        }
+        .disclaimer-box li::before {
+            content: '•';
+            position: absolute;
+            left: 0;
+            color: var(--text-muted);
+        }
+
+        .disclaimer-critical {
+            background: rgba(239, 68, 68, 0.05);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            padding: 24px;
+            text-align: center;
+        }
+        .disclaimer-critical p {
+            font-size: 11px;
+            color: #ef4444;
+            line-height: 1.8;
+            margin: 0;
+        }
+        .disclaimer-critical strong {
+            display: block;
+            font-size: 12px;
+            letter-spacing: 0.1em;
+            margin-bottom: 8px;
         }
 
         /* Footer */
         .footer {
-            position: relative;
-            z-index: 1;
             text-align: center;
             padding: 40px 24px;
             border-top: 1px solid var(--border);
@@ -386,48 +344,35 @@
         }
         .footer p {
             color: var(--text-muted);
-            font-size: 13px;
-        }
-        .footer a {
-            color: var(--gold);
-            text-decoration: none;
-        }
-        .footer a:hover {
-            text-decoration: underline;
+            font-size: 11px;
+            margin-bottom: 16px;
         }
         .footer-links {
-            margin-top: 16px;
             display: flex;
             justify-content: center;
             gap: 24px;
         }
-        .footer-disclaimer {
-            margin-top: 24px;
-            padding: 16px;
-            background: var(--surface);
-            border-radius: var(--radius);
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        .footer-disclaimer p {
-            font-size: 11px;
+        .footer-links a {
             color: var(--text-muted);
+            text-decoration: none;
+            font-size: 11px;
+            transition: color 0.15s;
+        }
+        .footer-links a:hover {
+            color: var(--gold);
         }
 
+        /* Responsive */
         @media (max-width: 768px) {
-            .phase-items {
-                grid-template-columns: 1fr;
-            }
-            .nav-links {
-                display: none;
-            }
+            .nav-links { display: none; }
+            .header { padding: 100px 20px 40px; }
+            .main { padding: 40px 20px; }
+            .quarter { padding-left: 24px; }
+            .section { padding: 20px; }
         }
     </style>
 </head>
 <body>
-    <div class="atmosphere"></div>
-
     <nav class="nav">
         <div class="nav-inner">
             <a href="/" class="nav-brand">
@@ -438,6 +383,7 @@
                 <a href="/" class="nav-link">Home</a>
                 <a href="/launchpad" class="nav-link">Launchpad</a>
                 <a href="/dashboard" class="nav-link">Dashboard</a>
+                <a href="/culture-coins" class="nav-link">Culture</a>
                 <a href="/docs" class="nav-link">Docs</a>
                 <a href="/roadmap" class="nav-link active">Roadmap</a>
             </div>
@@ -445,143 +391,206 @@
     </nav>
 
     <header class="header">
-        <div class="header-badge">Development Active</div>
-        <h1 class="header-title"><span class="highlight">LAUNCHR</span> Roadmap</h1>
+        <div class="header-badge">2026 Vision</div>
+        <h1 class="header-title"><span class="gold">LAUNCHR</span> Roadmap</h1>
         <p class="header-subtitle">
-            Our journey to build the most fun and transparent meme coin launchpad on Solana.
-            This is an experimental project built for the community, by the community.
+            A forward-looking outline of platform development. Subject to change based on market conditions, technical feasibility, and community feedback.
         </p>
     </header>
 
-    <div class="disclaimer-banner">
-        <p><strong>EXPERIMENTAL PROJECT:</strong> LAUNCHR is an open experiment in meme coin launching. This roadmap is aspirational, not a promise. Development priorities may change. This is NOT financial advice. <a href="/terms" style="color: var(--gold);">Read full terms</a></p>
-    </div>
-
     <main class="main">
-        <div class="phases">
+        <div class="timeline">
 
-            <!-- Phase 1: Launch -->
-            <div class="phase completed">
-                <div class="phase-header">
-                    <div class="phase-icon">🚀</div>
-                    <div>
-                        <h2 class="phase-title">Phase 1: Ignition</h2>
-                        <p class="phase-subtitle">Foundation & Launch</p>
+            <!-- Q1 2026 -->
+            <div class="quarter">
+                <div class="quarter-label">Q1 2026</div>
+
+                <div class="section">
+                    <h3 class="section-title">Core Platform Hardening</h3>
+                    <div class="section-items">
+                        <div class="section-item">Production dual path launches via Pump and Raydium</div>
+                        <div class="section-item">Creator fee automation with configurable routing into buy and burns, LP adds, market making, or creator payouts</div>
+                        <div class="section-item">Improved LP management and liquidity transparency</div>
+                        <div class="section-item">Telegram first launch and management workflows</div>
+                        <div class="section-item">Public dashboards for fee flows, burns, LP adds, and liquidity actions</div>
                     </div>
                 </div>
-                <div class="phase-content">
-                    <p>Built the core infrastructure for launching meme coins on Solana with Pump.fun integration. Established the LAUNCHR token and community.</p>
-                    <div class="phase-items">
-                        <div class="phase-item done">Pump.fun Integration</div>
-                        <div class="phase-item done">Token Launch System</div>
-                        <div class="phase-item done">Wallet Connections</div>
-                        <div class="phase-item done">LAUNCHR Token</div>
-                        <div class="phase-item done">Community Telegram</div>
-                        <div class="phase-item done">Basic Dashboard</div>
+
+                <div class="section">
+                    <h3 class="section-title">Culture Coins Alpha</h3>
+                    <div class="section-items">
+                        <div class="section-item">Launch Culture Coins framework</div>
+                        <div class="section-item">Creator defined tiers based on token ownership</div>
+                        <div class="section-item">Utility primitives for access, participation, and gated interactions</div>
+                        <div class="section-item">Native exchange of value between creators and communities</div>
+                        <div class="section-item">Early discovery layer for Culture Coins</div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3 class="section-title">Social and Economic Layer Expansion</h3>
+                    <div class="section-items">
+                        <div class="section-item">Culture Coin profiles as social hubs</div>
+                        <div class="section-item">Native engagement, rewards, and incentive distribution</div>
+                        <div class="section-item">Dynamic fee strategies tied to community activity</div>
+                        <div class="section-item">Creator analytics and holder insights</div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3 class="section-title">Mobile App Development Phase 1</h3>
+                    <div class="section-items">
+                        <div class="section-item">Mobile product strategy and UX architecture</div>
+                        <div class="section-item">Core feature scoping and API design</div>
+                        <div class="section-item">Begin iOS and Android development</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Phase 2: Orbit -->
-            <div class="phase current">
-                <div class="phase-header">
-                    <div class="phase-icon">🛸</div>
-                    <div>
-                        <h2 class="phase-title">Phase 2: Orbit</h2>
-                        <p class="phase-subtitle">Enhanced Features & Mars Vanity</p>
+            <!-- Q2 2026 -->
+            <div class="quarter">
+                <div class="quarter-label">Q2 2026</div>
+
+                <div class="section">
+                    <h3 class="section-title">Cross Chain Expansion</h3>
+                    <div class="section-items">
+                        <div class="section-item">Cross chain Culture Coin visibility and analytics</div>
+                        <div class="section-item">Support for cross chain liquidity and value flows</div>
+                        <div class="section-item">Bridging primitives for participation across ecosystems</div>
+                        <div class="section-item">Early integrations beyond Solana</div>
                     </div>
                 </div>
-                <div class="phase-content">
-                    <p>Expanding capabilities with Mars vanity addresses, custom vanity generation, and improved token management. Making launching more fun and unique.</p>
-                    <div class="phase-items">
-                        <div class="phase-item done">Mars Vanity Addresses (...mars)</div>
-                        <div class="phase-item done">Custom Vanity Generator</div>
-                        <div class="phase-item done">Unified Launch Experience</div>
-                        <div class="phase-item done">Enhanced Dashboard</div>
-                        <div class="phase-item progress">Allocation Engine</div>
-                        <div class="phase-item progress">Creator Fee Distribution</div>
-                        <div class="phase-item pending">Leaderboard System</div>
-                        <div class="phase-item pending">Token Analytics</div>
+
+                <div class="section">
+                    <h3 class="section-title">Mobile App Development Phase 2</h3>
+                    <div class="section-items">
+                        <div class="section-item">Core launch and monitoring features on mobile</div>
+                        <div class="section-item">Wallet connectivity and push notifications</div>
+                        <div class="section-item">Internal testing and closed beta</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Phase 3: Landing -->
-            <div class="phase">
-                <div class="phase-header">
-                    <div class="phase-icon">🔴</div>
-                    <div>
-                        <h2 class="phase-title">Phase 3: Mars Landing</h2>
-                        <p class="phase-subtitle">Advanced Features & Ecosystem</p>
+            <!-- Q3 2026 -->
+            <div class="quarter">
+                <div class="quarter-label">Q3 2026</div>
+
+                <div class="section">
+                    <h3 class="section-title">Ecosystem and Infrastructure Scaling</h3>
+                    <div class="section-items">
+                        <div class="section-item">Advanced market making and liquidity strategies</div>
+                        <div class="section-item">Expanded monetization primitives for Culture Coins</div>
+                        <div class="section-item">Governance and incentive tooling for mature communities</div>
+                        <div class="section-item">Open APIs for third party builders</div>
                     </div>
                 </div>
-                <div class="phase-content">
-                    <p>Building out the full Mars Mission ecosystem with advanced tools, community features, and ecosystem integrations.</p>
-                    <div class="phase-items">
-                        <div class="phase-item pending">Culture Coins Launch</div>
-                        <div class="phase-item pending">Community Tiers</div>
-                        <div class="phase-item pending">Advanced Analytics</div>
-                        <div class="phase-item pending">API Access</div>
-                        <div class="phase-item pending">Mobile Experience</div>
-                        <div class="phase-item pending">Partner Integrations</div>
+
+                <div class="section">
+                    <h3 class="section-title">Mobile App Development Phase 3</h3>
+                    <div class="section-items">
+                        <div class="section-item">Public mobile beta release</div>
+                        <div class="section-item">Culture Coin discovery and interaction on mobile</div>
+                        <div class="section-item">Performance optimization and security hardening</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Phase 4: Colony -->
-            <div class="phase">
-                <div class="phase-header">
-                    <div class="phase-icon">🏛️</div>
-                    <div>
-                        <h2 class="phase-title">Phase 4: Colony</h2>
-                        <p class="phase-subtitle">Decentralization & Governance</p>
+            <!-- Q4 2026 -->
+            <div class="quarter">
+                <div class="quarter-label">Q4 2026</div>
+
+                <div class="section">
+                    <h3 class="section-title">Platform Maturity</h3>
+                    <div class="section-items">
+                        <div class="section-item">Fully composable launch and culture infrastructure</div>
+                        <div class="section-item">Creator and community revenue optimization tooling</div>
+                        <div class="section-item">Cross chain discovery and aggregation</div>
+                        <div class="section-item">Long term sustainability tooling for large ecosystems</div>
                     </div>
                 </div>
-                <div class="phase-content">
-                    <p>The long-term vision for a community-governed platform. This phase depends on community growth and development progress.</p>
-                    <div class="phase-items">
-                        <div class="phase-item pending">Community Governance</div>
-                        <div class="phase-item pending">Token Holder Voting</div>
-                        <div class="phase-item pending">Open Source Contributions</div>
-                        <div class="phase-item pending">Ecosystem Grants</div>
+
+                <div class="section">
+                    <h3 class="section-title">Mobile App Development Phase 4</h3>
+                    <div class="section-items">
+                        <div class="section-item">Full mobile release</div>
+                        <div class="section-item">Advanced creator controls on mobile</div>
+                        <div class="section-item">Ongoing iteration based on user behavior</div>
                     </div>
                 </div>
             </div>
 
         </div>
 
-        <!-- Vision -->
-        <div class="vision">
-            <h2>The Vision</h2>
-            <p>
-                LAUNCHR was built by degens, for degens. We believe meme coins should be
-                fun, transparent, and accessible to everyone. No gatekeeping, no complicated setups.
-            </p>
-            <p>
-                We're building in public, iterating based on community feedback, and keeping it real
-                about what this is: an experimental platform for meme coin culture on Solana.
-            </p>
-            <p class="vision-note">
-                "If the President can launch a meme coin, so can you."
-            </p>
+        <!-- Legal Disclaimers -->
+        <div class="disclaimer-section">
+            <div class="disclaimer-header">
+                <h2>Important Disclosures</h2>
+                <p>Please read carefully before using this platform</p>
+            </div>
+
+            <div class="disclaimer-critical">
+                <p>
+                    <strong>⚠️ EXPERIMENTAL MEME COIN PLATFORM</strong>
+                    LAUNCHR is an experimental platform for launching and managing meme coins. Meme coins are highly speculative, extremely volatile, and you should expect to lose 100% of any funds you use on this platform. This is NOT a regulated financial service.
+                </p>
+            </div>
+
+            <div class="disclaimer-box">
+                <h3>No Financial Advice</h3>
+                <p>Nothing on this platform, including this roadmap, constitutes financial advice, investment advice, trading advice, or any other sort of advice. You should not treat any of the platform's content as such. LAUNCHR does not recommend that any cryptocurrency should be bought, sold, or held by you. Do conduct your own due diligence and consult your financial advisor before making any investment decisions.</p>
+            </div>
+
+            <div class="disclaimer-box">
+                <h3>Roadmap Disclaimer</h3>
+                <p>This roadmap is aspirational and provided for informational purposes only. It does not constitute a commitment, promise, or guarantee of any kind. Development priorities, timelines, and features are subject to change at any time without notice based on:</p>
+                <ul>
+                    <li>Technical feasibility and development challenges</li>
+                    <li>Market conditions and regulatory developments</li>
+                    <li>Community feedback and platform priorities</li>
+                    <li>Resource availability and team capacity</li>
+                    <li>Third-party dependencies and integrations</li>
+                </ul>
+                <p>The inclusion of any feature on this roadmap does not guarantee its implementation.</p>
+            </div>
+
+            <div class="disclaimer-box">
+                <h3>Risk Disclosure</h3>
+                <p>Using LAUNCHR and participating in cryptocurrency activities involves substantial risk of loss and is not suitable for every person. Before using this platform, you should carefully consider:</p>
+                <ul>
+                    <li>Cryptocurrency values are extremely volatile and can go to zero</li>
+                    <li>Meme coins have no intrinsic value and are purely speculative</li>
+                    <li>Smart contracts may contain bugs or vulnerabilities</li>
+                    <li>You may lose all funds you deposit or invest</li>
+                    <li>Past performance does not indicate future results</li>
+                    <li>Regulatory changes may affect the platform or your holdings</li>
+                    <li>There is no guarantee of liquidity for any token</li>
+                </ul>
+            </div>
+
+            <div class="disclaimer-box">
+                <h3>No Warranties</h3>
+                <p>This platform is provided "as is" and "as available" without warranties of any kind, either express or implied. LAUNCHR makes no warranty that the platform will meet your requirements, be uninterrupted, timely, secure, or error-free. You use this platform entirely at your own risk.</p>
+            </div>
+
+            <div class="disclaimer-box">
+                <h3>Regulatory Compliance</h3>
+                <p>LAUNCHR is not registered with, licensed by, or affiliated with any financial regulatory authority. The platform does not offer securities, investment contracts, or regulated financial products. Users are solely responsible for ensuring their use of the platform complies with all applicable laws and regulations in their jurisdiction. This platform is not available to residents of jurisdictions where cryptocurrency trading is prohibited.</p>
+            </div>
+
+            <div class="disclaimer-box">
+                <h3>Limitation of Liability</h3>
+                <p>To the maximum extent permitted by applicable law, LAUNCHR and its operators, developers, and affiliates shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits or revenues, whether incurred directly or indirectly, or any loss of data, use, goodwill, or other intangible losses resulting from your use of the platform.</p>
+            </div>
         </div>
     </main>
 
     <footer class="footer">
-        <p>&copy; 2025 LAUNCHR. Built for the Solana degen community.</p>
+        <p>© 2026 LAUNCHR. Experimental meme coin platform. Use at your own risk.</p>
         <div class="footer-links">
-            <a href="/">Home</a>
-            <a href="/docs">Docs</a>
-            <a href="/terms">Terms</a>
+            <a href="/terms">Terms of Service</a>
+            <a href="/docs">Documentation</a>
             <a href="https://twitter.com/LaunchrTG" target="_blank">Twitter</a>
             <a href="https://t.me/launchr_sol" target="_blank">Telegram</a>
-        </div>
-        <div class="footer-disclaimer">
-            <p>
-                LAUNCHR is an experimental platform for meme coins. Meme coins have no intrinsic value.
-                This roadmap is aspirational and subject to change. Nothing here is financial advice.
-                Only use funds you can afford to lose completely. <a href="/terms">Full terms apply</a>.
-            </p>
         </div>
     </footer>
 </body>
