@@ -3701,6 +3701,203 @@
             catch { return false; }
           });
 
+          // TEK Integration State
+          const [tekAllocations, setTekAllocations] = useState({
+            marketMaking: 25,
+            buybackBurn: 25,
+            liquidity: 25,
+            creatorRevenue: 25
+          });
+          const [lpBurnEnabled, setLpBurnEnabled] = useState(true);
+          const [tekAutomationRunning, setTekAutomationRunning] = useState(false);
+          const [tekLoading, setTekLoading] = useState(false);
+          const [tekStatus, setTekStatus] = useState('');
+          const [selectedTekCulture, setSelectedTekCulture] = useState(null);
+
+          // TEK Functions
+          const updateTekAllocation = (key, value) => {
+            const numVal = Math.max(0, Math.min(100, parseInt(value) || 0));
+            setTekAllocations(prev => ({ ...prev, [key]: numVal }));
+          };
+
+          const getTekTotal = () => {
+            return Object.values(tekAllocations).reduce((a, b) => a + b, 0);
+          };
+
+          const saveTekAllocations = async () => {
+            if (!selectedTekCulture?.tokenAddress) {
+              setTekStatus('Select a culture with a token first');
+              return;
+            }
+            if (getTekTotal() !== 100) {
+              setTekStatus('Allocations must total 100%');
+              return;
+            }
+            setTekLoading(true);
+            setTekStatus('Saving allocations...');
+            try {
+              const res = await fetch('/api/allocations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  mint: selectedTekCulture.tokenAddress,
+                  wallet: wallet?.address,
+                  allocations: tekAllocations
+                })
+              });
+              const data = await res.json();
+              if (data.success) {
+                setTekStatus('Allocations saved!');
+              } else {
+                setTekStatus('Error: ' + (data.error || 'Failed to save'));
+              }
+            } catch (e) {
+              setTekStatus('Error: ' + e.message);
+            }
+            setTekLoading(false);
+          };
+
+          const toggleTekLpBurn = async (enabled) => {
+            if (!selectedTekCulture?.tokenAddress) return;
+            setLpBurnEnabled(enabled);
+            try {
+              await fetch('/api/feature', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  mint: selectedTekCulture.tokenAddress,
+                  wallet: wallet?.address,
+                  feature: 'burnLP',
+                  enabled
+                })
+              });
+              setTekStatus(enabled ? 'LP Burn enabled' : 'LP Burn disabled');
+            } catch (e) {
+              setTekStatus('Error: ' + e.message);
+              setLpBurnEnabled(!enabled);
+            }
+          };
+
+          const startTekAutomation = async () => {
+            if (!selectedTekCulture?.tokenAddress) {
+              setTekStatus('Select a culture with a token first');
+              return;
+            }
+            setTekLoading(true);
+            setTekStatus('Starting automation...');
+            try {
+              const res = await fetch('/api/auto/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  mint: selectedTekCulture.tokenAddress,
+                  wallet: wallet?.address
+                })
+              });
+              const data = await res.json();
+              if (data.success) {
+                setTekAutomationRunning(true);
+                setTekStatus('Automation started!');
+              } else {
+                setTekStatus('Error: ' + (data.error || 'Failed to start'));
+              }
+            } catch (e) {
+              setTekStatus('Error: ' + e.message);
+            }
+            setTekLoading(false);
+          };
+
+          const stopTekAutomation = async () => {
+            setTekLoading(true);
+            setTekStatus('Stopping automation...');
+            try {
+              const res = await fetch('/api/auto/stop', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  mint: selectedTekCulture?.tokenAddress,
+                  wallet: wallet?.address
+                })
+              });
+              const data = await res.json();
+              if (data.success) {
+                setTekAutomationRunning(false);
+                setTekStatus('Automation stopped');
+              } else {
+                setTekStatus('Error: ' + (data.error || 'Failed to stop'));
+              }
+            } catch (e) {
+              setTekStatus('Error: ' + e.message);
+            }
+            setTekLoading(false);
+          };
+
+          const runSmartOptimizer = async () => {
+            if (!selectedTekCulture?.tokenAddress) {
+              setTekStatus('Select a culture with a token first');
+              return;
+            }
+            setTekLoading(true);
+            setTekStatus('Running AI analysis...');
+            try {
+              // Fetch market data from DexScreener
+              let marketData = { rsi: 50, tokenPrice: 0, priceChange24h: 0, volume24h: 0, marketCap: 0 };
+              try {
+                const dexRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${selectedTekCulture.tokenAddress}`);
+                if (dexRes.ok) {
+                  const dexData = await dexRes.json();
+                  const pair = dexData.pairs?.[0];
+                  if (pair) {
+                    marketData = {
+                      ...marketData,
+                      tokenPrice: parseFloat(pair.priceUsd) || 0,
+                      priceChange24h: pair.priceChange?.h24 || 0,
+                      volume24h: pair.volume?.h24 || 0,
+                      marketCap: pair.marketCap || pair.fdv || 0
+                    };
+                  }
+                }
+              } catch (e) { console.log('DexScreener fetch failed:', e); }
+
+              const res = await fetch('/api/ai/optimize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  mint: selectedTekCulture.tokenAddress,
+                  wallet: wallet?.address,
+                  rsi: marketData.rsi,
+                  tokenPrice: marketData.tokenPrice,
+                  priceChange24h: marketData.priceChange24h,
+                  volume24h: marketData.volume24h,
+                  marketCap: marketData.marketCap
+                })
+              });
+              const data = await res.json();
+              if (data.success && data.allocations) {
+                setTekAllocations({
+                  marketMaking: data.allocations.marketMaking || 25,
+                  buybackBurn: data.allocations.buybackBurn || 25,
+                  liquidity: data.allocations.liquidity || 25,
+                  creatorRevenue: data.allocations.creatorRevenue || 25
+                });
+                setTekStatus(`AI optimized! ${data.reasoning || 'Allocations updated based on market conditions.'}`);
+              } else {
+                setTekStatus('Error: ' + (data.error || 'Optimization failed'));
+              }
+            } catch (e) {
+              setTekStatus('Error: ' + e.message);
+            }
+            setTekLoading(false);
+          };
+
+          // Auto-select TEK culture when cultures load
+          useEffect(() => {
+            if (myCultures.length > 0 && !selectedTekCulture) {
+              const withToken = myCultures.find(c => c.tokenAddress);
+              if (withToken) setSelectedTekCulture(withToken);
+            }
+          }, [myCultures]);
+
           // Dashboard Colors based on light/dark mode
           const dashColors = lightMode ? {
             bg: '#fafafa',
@@ -4392,59 +4589,404 @@
                       ))}
                     </div>
 
-                    {/* Tools Grid */}
+                    {/* TEK Integration Panel - Full Width */}
                     <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(3, 1fr)',
-                      gap: '16px'
+                      background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.05) 0%, rgba(0,0,0,0) 100%)',
+                      border: '1px solid rgba(34, 197, 94, 0.2)',
+                      padding: '24px',
+                      marginBottom: '16px'
                     }}>
-                      {/* TEK Integration */}
+                      {/* TEK Header */}
                       <div style={{
-                        background: '#0a0a0a',
-                        border: '1px solid #1a1a1a',
-                        padding: '20px'
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginBottom: '20px',
+                        paddingBottom: '16px',
+                        borderBottom: '1px solid rgba(34, 197, 94, 0.1)'
                       }}>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '12px',
-                          marginBottom: '12px'
-                        }}>
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2">
-                            <polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>
-                          </svg>
-                          <span style={{
-                            fontFamily: "'IBM Plex Mono', monospace",
-                            fontSize: '12px',
-                            color: '#fff',
-                            letterSpacing: '0.05em'
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{
+                            width: '36px',
+                            height: '36px',
+                            background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                            borderRadius: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            boxShadow: '0 0 16px rgba(34, 197, 94, 0.4)'
                           }}>
-                            TEK INTEGRATION
-                          </span>
+                            <svg width="20" height="20" fill="#0a0a0a" viewBox="0 0 24 24">
+                              <path d="M13 2L4 14h7v8l9-12h-7l2-8h-2z"/>
+                            </svg>
+                          </div>
+                          <div>
+                            <div style={{
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontSize: '14px',
+                              fontWeight: 600,
+                              color: '#22c55e',
+                              letterSpacing: '0.1em'
+                            }}>
+                              TEK INTEGRATION
+                            </div>
+                            <div style={{
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontSize: '10px',
+                              color: '#666'
+                            }}>
+                              Token Engine Kit - Fee Distribution & Automation
+                            </div>
+                          </div>
                         </div>
-                        <p style={{
-                          fontSize: '11px',
-                          color: '#666',
-                          fontFamily: "'IBM Plex Mono', monospace",
-                          lineHeight: 1.6,
-                          marginBottom: '12px'
-                        }}>
-                          Connect your culture to TEK ecosystem for enhanced tokenomics and cross-chain features.
-                        </p>
-                        <button style={{
-                          padding: '8px 16px',
-                          background: 'transparent',
-                          border: '1px solid #333',
-                          color: '#888',
-                          fontSize: '10px',
-                          fontFamily: "'IBM Plex Mono', monospace",
-                          cursor: 'pointer',
-                          letterSpacing: '0.1em'
-                        }}>
-                          COMING SOON
-                        </button>
+
+                        {/* Culture Selector for TEK */}
+                        {myCultures.filter(c => c.tokenAddress).length > 0 && (
+                          <select
+                            value={selectedTekCulture?.tokenAddress || ''}
+                            onChange={(e) => {
+                              const culture = myCultures.find(c => c.tokenAddress === e.target.value);
+                              setSelectedTekCulture(culture);
+                            }}
+                            style={{
+                              padding: '8px 12px',
+                              background: '#111',
+                              border: '1px solid #333',
+                              color: '#fff',
+                              fontSize: '11px',
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              cursor: 'pointer',
+                              minWidth: '180px'
+                            }}
+                          >
+                            {myCultures.filter(c => c.tokenAddress).map(culture => (
+                              <option key={culture.tokenAddress} value={culture.tokenAddress}>
+                                {culture.name} (${culture.ticker})
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </div>
 
+                      {/* TEK Status */}
+                      {tekStatus && (
+                        <div style={{
+                          padding: '10px 14px',
+                          background: tekStatus.includes('Error') ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)',
+                          border: `1px solid ${tekStatus.includes('Error') ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`,
+                          marginBottom: '16px',
+                          fontSize: '11px',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          color: tekStatus.includes('Error') ? '#ef4444' : '#22c55e'
+                        }}>
+                          {tekStatus}
+                        </div>
+                      )}
+
+                      {/* Main TEK Controls Grid */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: '20px'
+                      }}>
+                        {/* Left Column - Allocation Splits */}
+                        <div>
+                          <div style={{
+                            fontSize: '10px',
+                            color: '#666',
+                            letterSpacing: '0.15em',
+                            marginBottom: '12px',
+                            fontFamily: "'IBM Plex Mono', monospace"
+                          }}>
+                            FEE ALLOCATION SPLITS
+                          </div>
+
+                          {/* Total Display */}
+                          <div style={{
+                            textAlign: 'center',
+                            padding: '12px',
+                            background: getTekTotal() === 100 ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                            border: `1px solid ${getTekTotal() === 100 ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                            marginBottom: '16px'
+                          }}>
+                            <div style={{ fontSize: '10px', color: '#666', marginBottom: '4px' }}>TOTAL</div>
+                            <div style={{
+                              fontSize: '24px',
+                              fontWeight: 700,
+                              color: getTekTotal() === 100 ? '#22c55e' : '#ef4444',
+                              fontFamily: "'IBM Plex Mono', monospace"
+                            }}>
+                              {getTekTotal()}%
+                            </div>
+                          </div>
+
+                          {/* Allocation Inputs Grid */}
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                            {[
+                              { key: 'marketMaking', label: 'Market Making' },
+                              { key: 'buybackBurn', label: 'Buyback & Burn' },
+                              { key: 'liquidity', label: 'Liquidity Pool' },
+                              { key: 'creatorRevenue', label: 'Creator Revenue' }
+                            ].map(({ key, label }) => (
+                              <div key={key} style={{
+                                background: '#111',
+                                border: '1px solid #222',
+                                padding: '12px'
+                              }}>
+                                <label style={{
+                                  fontSize: '10px',
+                                  color: '#666',
+                                  display: 'block',
+                                  marginBottom: '8px',
+                                  fontFamily: "'IBM Plex Mono', monospace"
+                                }}>
+                                  {label}
+                                </label>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={tekAllocations[key]}
+                                    onChange={(e) => updateTekAllocation(key, e.target.value)}
+                                    style={{
+                                      flex: 1,
+                                      padding: '10px',
+                                      background: '#0a0a0a',
+                                      border: '1px solid #333',
+                                      color: '#22c55e',
+                                      fontSize: '16px',
+                                      fontWeight: 600,
+                                      textAlign: 'center',
+                                      fontFamily: "'IBM Plex Mono', monospace"
+                                    }}
+                                  />
+                                  <span style={{ color: '#666', fontSize: '14px' }}>%</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Save Allocations Button */}
+                          <button
+                            onClick={saveTekAllocations}
+                            disabled={tekLoading || getTekTotal() !== 100}
+                            style={{
+                              width: '100%',
+                              padding: '12px',
+                              marginTop: '12px',
+                              background: getTekTotal() === 100 ? '#22c55e' : '#333',
+                              border: 'none',
+                              color: getTekTotal() === 100 ? '#0a0a0a' : '#666',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              letterSpacing: '0.1em',
+                              cursor: getTekTotal() === 100 ? 'pointer' : 'not-allowed',
+                              opacity: tekLoading ? 0.5 : 1
+                            }}
+                          >
+                            {tekLoading ? 'SAVING...' : 'SAVE ALLOCATIONS'}
+                          </button>
+                        </div>
+
+                        {/* Right Column - Controls */}
+                        <div>
+                          {/* LP Burn Toggle */}
+                          <div style={{
+                            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.05))',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            padding: '16px',
+                            marginBottom: '16px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                          }}>
+                            <div>
+                              <div style={{
+                                fontSize: '12px',
+                                fontWeight: 600,
+                                color: '#fff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                fontFamily: "'IBM Plex Mono', monospace"
+                              }}>
+                                <span style={{ fontSize: '16px' }}>🔥</span> LP BURN
+                              </div>
+                              <div style={{ fontSize: '10px', color: '#666', marginTop: '4px' }}>
+                                Lock liquidity forever (unruggable)
+                              </div>
+                            </div>
+                            <label style={{ position: 'relative', display: 'inline-block', width: '48px', height: '26px', cursor: 'pointer' }}>
+                              <input
+                                type="checkbox"
+                                checked={lpBurnEnabled}
+                                onChange={(e) => toggleTekLpBurn(e.target.checked)}
+                                style={{ opacity: 0, width: 0, height: 0 }}
+                              />
+                              <span style={{
+                                position: 'absolute',
+                                cursor: 'pointer',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                backgroundColor: lpBurnEnabled ? '#22c55e' : '#374151',
+                                transition: '0.3s',
+                                borderRadius: '26px'
+                              }} />
+                              <span style={{
+                                position: 'absolute',
+                                height: '20px',
+                                width: '20px',
+                                left: lpBurnEnabled ? '25px' : '3px',
+                                bottom: '3px',
+                                backgroundColor: 'white',
+                                transition: '0.3s',
+                                borderRadius: '50%'
+                              }} />
+                            </label>
+                          </div>
+
+                          {/* Automation Controls */}
+                          <div style={{
+                            fontSize: '10px',
+                            color: '#666',
+                            letterSpacing: '0.15em',
+                            marginBottom: '12px',
+                            fontFamily: "'IBM Plex Mono', monospace"
+                          }}>
+                            AUTOMATION
+                          </div>
+
+                          <div style={{
+                            background: '#111',
+                            border: '1px solid #222',
+                            padding: '16px',
+                            marginBottom: '16px'
+                          }}>
+                            {/* Status Badge */}
+                            <div style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              padding: '6px 14px',
+                              borderRadius: '20px',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              background: tekAutomationRunning ? 'rgba(34, 197, 94, 0.1)' : 'rgba(255, 255, 255, 0.03)',
+                              color: tekAutomationRunning ? '#22c55e' : '#666',
+                              border: `1px solid ${tekAutomationRunning ? 'rgba(34, 197, 94, 0.3)' : 'rgba(255, 255, 255, 0.06)'}`,
+                              marginBottom: '12px',
+                              fontFamily: "'IBM Plex Mono', monospace"
+                            }}>
+                              <span style={{
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                background: tekAutomationRunning ? '#22c55e' : '#666',
+                                boxShadow: tekAutomationRunning ? '0 0 8px #22c55e' : 'none'
+                              }} />
+                              {tekAutomationRunning ? 'RUNNING' : 'STOPPED'}
+                            </div>
+
+                            {/* Start/Stop Buttons */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                              <button
+                                onClick={startTekAutomation}
+                                disabled={tekLoading || tekAutomationRunning}
+                                style={{
+                                  padding: '12px',
+                                  background: !tekAutomationRunning ? 'rgba(34, 197, 94, 0.1)' : 'rgba(255, 255, 255, 0.03)',
+                                  color: !tekAutomationRunning ? '#22c55e' : '#666',
+                                  border: `1px solid ${!tekAutomationRunning ? 'rgba(34, 197, 94, 0.3)' : 'rgba(255, 255, 255, 0.08)'}`,
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                  fontFamily: "'IBM Plex Mono', monospace",
+                                  letterSpacing: '0.05em',
+                                  cursor: tekAutomationRunning ? 'not-allowed' : 'pointer',
+                                  opacity: tekLoading ? 0.5 : 1
+                                }}
+                              >
+                                START
+                              </button>
+                              <button
+                                onClick={stopTekAutomation}
+                                disabled={tekLoading || !tekAutomationRunning}
+                                style={{
+                                  padding: '12px',
+                                  background: tekAutomationRunning ? 'rgba(239, 68, 68, 0.1)' : 'rgba(255, 255, 255, 0.03)',
+                                  color: tekAutomationRunning ? '#ef4444' : '#666',
+                                  border: `1px solid ${tekAutomationRunning ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255, 255, 255, 0.08)'}`,
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                  fontFamily: "'IBM Plex Mono', monospace",
+                                  letterSpacing: '0.05em',
+                                  cursor: !tekAutomationRunning ? 'not-allowed' : 'pointer',
+                                  opacity: tekLoading ? 0.5 : 1
+                                }}
+                              >
+                                STOP
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Smart Optimizer */}
+                          <div style={{
+                            background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(99, 102, 241, 0.05))',
+                            border: '1px solid rgba(168, 85, 247, 0.3)',
+                            padding: '16px'
+                          }}>
+                            <div style={{
+                              fontSize: '10px',
+                              fontWeight: 600,
+                              letterSpacing: '0.15em',
+                              color: '#a855f7',
+                              marginBottom: '8px',
+                              fontFamily: "'IBM Plex Mono', monospace"
+                            }}>
+                              SMART OPTIMIZER
+                            </div>
+                            <p style={{
+                              fontSize: '10px',
+                              color: '#666',
+                              marginBottom: '12px',
+                              lineHeight: 1.6,
+                              fontFamily: "'IBM Plex Mono', monospace"
+                            }}>
+                              AI analyzes market conditions and optimizes your allocations automatically
+                            </p>
+                            <button
+                              onClick={runSmartOptimizer}
+                              disabled={tekLoading}
+                              style={{
+                                width: '100%',
+                                padding: '12px',
+                                background: 'linear-gradient(135deg, #a855f7, #6366f1)',
+                                border: 'none',
+                                color: '#fff',
+                                fontSize: '11px',
+                                fontWeight: 600,
+                                fontFamily: "'IBM Plex Mono', monospace",
+                                letterSpacing: '0.1em',
+                                cursor: 'pointer',
+                                opacity: tekLoading ? 0.5 : 1
+                              }}
+                            >
+                              {tekLoading ? 'ANALYZING...' : 'RUN ANALYSIS'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tools Grid - AI & Analytics */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(2, 1fr)',
+                      gap: '16px'
+                    }}>
                       {/* AI Integration */}
                       <div style={{
                         background: '#0a0a0a',
