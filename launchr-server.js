@@ -540,125 +540,182 @@ function getTermsHTML() {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Terms & Conditions - LAUNCHR</title>
+    <meta name="description" content="LAUNCHR Terms & Conditions - Meme coin entertainment platform on Solana">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0a0a0a;
-            color: #e5e5e5;
-            line-height: 1.8;
-            padding: 40px 20px;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: #111;
-            border: 1px solid #222;
-            border-radius: 16px;
-            padding: 40px;
-        }
-        h1 { color: #10b981; font-size: 28px; margin-bottom: 8px; }
-        h2 { color: #fff; font-size: 20px; margin: 32px 0 16px 0; border-bottom: 1px solid #333; padding-bottom: 8px; }
-        p { margin-bottom: 16px; color: #aaa; }
-        ul { margin: 16px 0 16px 24px; }
-        li { margin-bottom: 8px; color: #aaa; }
-        .warning { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; padding: 16px; margin: 24px 0; }
-        .warning strong { color: #ef4444; }
-        .back-link { display: inline-block; margin-top: 32px; color: #10b981; text-decoration: none; }
-        .back-link:hover { text-decoration: underline; }
-        .updated { font-size: 12px; color: #666; margin-top: 8px; }
+        *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#0a0a0a;--surface:#111;--border:#222;--border-active:#333;--text:#fff;--text-secondary:#a0a0a0;--text-muted:#666;--gold:#FFD966;--gold-dim:rgba(255,217,102,0.1);--gold-border:rgba(255,217,102,0.2);--red:#ef4444;--red-dim:rgba(239,68,68,0.1);--red-border:rgba(239,68,68,0.3)}
+        html{scroll-behavior:smooth}
+        body{font-family:'IBM Plex Mono',monospace;background:var(--bg);color:var(--text);line-height:1.7;-webkit-font-smoothing:antialiased}
+        ::selection{background:var(--gold);color:#000}
+        .nav{position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(10,10,10,0.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
+        .nav-inner{max-width:1200px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between}
+        .nav-brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--text)}
+        .nav-logo{width:32px;height:32px;background:var(--gold);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;color:#000;font-size:14px}
+        .nav-title{font-weight:600;font-size:16px;letter-spacing:-0.5px}
+        .nav-links{display:flex;gap:32px}
+        .nav-link{color:var(--text-secondary);text-decoration:none;font-size:13px;font-weight:500;transition:color 0.2s}
+        .nav-link:hover{color:var(--text)}
+        .container{max-width:900px;margin:0 auto;padding:100px 24px 60px}
+        .hero{text-align:center;margin-bottom:60px}
+        .hero-badge{display:inline-flex;align-items:center;gap:8px;background:var(--gold-dim);border:1px solid var(--gold-border);color:var(--gold);padding:8px 16px;border-radius:100px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:24px}
+        .hero h1{font-family:'Playfair Display',serif;font-size:clamp(36px,6vw,56px);font-weight:600;letter-spacing:-1px;margin-bottom:16px;background:linear-gradient(135deg,var(--text) 0%,var(--text-secondary) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .hero p{font-size:16px;color:var(--text-secondary);max-width:600px;margin:0 auto}
+        .updated{font-size:12px;color:var(--text-muted);margin-top:16px}
+        .warning-box{background:var(--red-dim);border:1px solid var(--red-border);border-radius:12px;padding:20px 24px;margin:40px 0}
+        .warning-box strong{color:var(--red);font-weight:600}
+        .warning-box p{color:var(--text-secondary);margin:0}
+        .section{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;margin-bottom:24px}
+        .section h2{font-size:18px;font-weight:600;color:var(--gold);margin-bottom:16px;display:flex;align-items:center;gap:12px}
+        .section h2 .num{background:var(--gold-dim);color:var(--gold);width:28px;height:28px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:600}
+        .section p{color:var(--text-secondary);margin-bottom:16px}
+        .section p:last-child{margin-bottom:0}
+        .section ul{list-style:none;margin:16px 0 0 0}
+        .section li{color:var(--text-secondary);padding:8px 0;padding-left:24px;position:relative}
+        .section li::before{content:"";position:absolute;left:0;top:16px;width:8px;height:8px;background:var(--gold);border-radius:50%;opacity:0.6}
+        .section li strong{color:var(--text)}
+        .gold-box{background:var(--gold-dim);border:1px solid var(--gold-border);border-radius:12px;padding:20px 24px;margin:40px 0}
+        .gold-box strong{color:var(--gold);font-weight:600}
+        .gold-box p{color:var(--text-secondary);margin:0}
+        .back-btn{display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:12px 24px;border-radius:8px;font-size:13px;font-weight:500;text-decoration:none;transition:all 0.2s;margin-top:20px}
+        .back-btn:hover{border-color:var(--gold);color:var(--gold)}
+        .footer{text-align:center;padding:40px 24px;border-top:1px solid var(--border);margin-top:40px}
+        .footer p{font-size:12px;color:var(--text-muted)}
+        @media(max-width:640px){.nav-links{display:none}.section{padding:24px}.hero h1{font-size:32px}}
     </style>
 </head>
 <body>
+    <nav class="nav">
+        <div class="nav-inner">
+            <a href="/" class="nav-brand">
+                <div class="nav-logo">L</div>
+                <span class="nav-title">LAUNCHR</span>
+            </a>
+            <div class="nav-links">
+                <a href="/culture-coins" class="nav-link">Culture Coins</a>
+                <a href="/roadmap" class="nav-link">Roadmap</a>
+                <a href="/terms" class="nav-link" style="color:var(--gold)">Terms</a>
+            </div>
+        </div>
+    </nav>
+
     <div class="container">
-        <h1>Terms & Conditions</h1>
-        <p class="updated">Last Updated: December 2024</p>
-
-        <div class="warning">
-            <strong>IMPORTANT NOTICE:</strong> LAUNCHR is a meme coin and entertainment platform created for educational and recreational purposes only.
-            By accessing or using this platform, you agree to be bound by these terms.
+        <div class="hero">
+            <div class="hero-badge">Legal</div>
+            <h1>Terms & Conditions</h1>
+            <p>Please read these terms carefully before using the LAUNCHR platform</p>
+            <p class="updated">Last Updated: January 2026</p>
         </div>
 
-        <h2>1. Nature of the Platform</h2>
-        <p>LAUNCHR is a cryptocurrency token and associated software tools operating on the Solana blockchain. This project is:</p>
-        <ul>
-            <li>Created purely for <strong>entertainment and educational purposes</strong></li>
-            <li>A "meme coin" with <strong>no intrinsic value</strong></li>
-            <li>NOT an investment vehicle or security</li>
-            <li>NOT intended to generate financial returns for holders</li>
-        </ul>
-
-        <h2>2. No Financial Advice</h2>
-        <p>Nothing on this platform constitutes financial, investment, legal, or tax advice. The creators and operators of LAUNCHR:</p>
-        <ul>
-            <li>Are NOT licensed financial advisors</li>
-            <li>Make NO representations about future value or returns</li>
-            <li>Do NOT recommend purchasing, selling, or holding any cryptocurrency</li>
-            <li>Strongly advise you to consult qualified professionals before any financial decisions</li>
-        </ul>
-
-        <h2>3. Risk Acknowledgment</h2>
-        <p>By using this platform, you acknowledge and accept that:</p>
-        <ul>
-            <li>Cryptocurrency investments are <strong>extremely high risk</strong></li>
-            <li>You may lose <strong>100% of any funds</strong> used to purchase tokens</li>
-            <li>Meme coins are particularly volatile and speculative</li>
-            <li>Smart contracts may contain bugs or vulnerabilities</li>
-            <li>Blockchain transactions are irreversible</li>
-            <li>Regulatory changes may affect cryptocurrency at any time</li>
-        </ul>
-
-        <h2>4. No Expectation of Profit</h2>
-        <p>LAUNCHR tokens are distributed and traded with <strong>NO expectation of profit</strong> derived from the efforts of others. Any value fluctuation is due solely to market dynamics and community interest, not the promise or efforts of the development team.</p>
-
-        <h2>5. Educational Purpose</h2>
-        <p>This platform demonstrates concepts including:</p>
-        <ul>
-            <li>Automated fee distribution mechanisms</li>
-            <li>Token buyback and burn mechanics</li>
-            <li>Market making algorithms</li>
-            <li>Liquidity provision strategies</li>
-        </ul>
-        <p>These features are provided for educational exploration of DeFi concepts.</p>
-
-        <h2>6. No Warranty</h2>
-        <p>This software and platform are provided "AS IS" without warranty of any kind, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, and non-infringement.</p>
-
-        <h2>7. Limitation of Liability</h2>
-        <p>In no event shall the creators, developers, or operators of LAUNCHR be liable for any direct, indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of profits, data, or other intangible losses resulting from:</p>
-        <ul>
-            <li>Use or inability to use the platform</li>
-            <li>Any transactions made through the platform</li>
-            <li>Unauthorized access to your wallet or data</li>
-            <li>Bugs, viruses, or errors in the software</li>
-            <li>Any third-party actions or content</li>
-        </ul>
-
-        <h2>8. User Responsibilities</h2>
-        <p>You are solely responsible for:</p>
-        <ul>
-            <li>Securing your private keys and wallet</li>
-            <li>Understanding the risks of cryptocurrency</li>
-            <li>Complying with your local laws and regulations</li>
-            <li>Any tax obligations arising from your activities</li>
-            <li>Your own financial decisions</li>
-        </ul>
-
-        <h2>9. Regulatory Compliance</h2>
-        <p>LAUNCHR does not target or solicit users in jurisdictions where cryptocurrency activities are prohibited. Users are responsible for ensuring their participation complies with their local laws.</p>
-
-        <h2>10. Modifications</h2>
-        <p>We reserve the right to modify these terms at any time. Continued use of the platform after changes constitutes acceptance of the modified terms.</p>
-
-        <h2>11. Governing Law</h2>
-        <p>These terms shall be governed by and construed in accordance with applicable laws, without regard to conflict of law principles.</p>
-
-        <div class="warning">
-            <strong>REMEMBER:</strong> This is a meme coin for fun and education. Never invest more than you can afford to lose completely.
-            Do Your Own Research (DYOR). Have fun, but be responsible!
+        <div class="warning-box">
+            <p><strong>IMPORTANT NOTICE:</strong> LAUNCHR is a meme coin and entertainment platform created for educational and recreational purposes only. By accessing or using this platform, you agree to be bound by these terms.</p>
         </div>
 
-        <a href="/" class="back-link">&larr; Back to LAUNCHR</a>
+        <div class="section">
+            <h2><span class="num">1</span>Nature of the Platform</h2>
+            <p>LAUNCHR is a cryptocurrency token and associated software tools operating on the Solana blockchain. This project is:</p>
+            <ul>
+                <li>Created purely for <strong>entertainment and educational purposes</strong></li>
+                <li>A "meme coin" with <strong>no intrinsic value</strong></li>
+                <li>NOT an investment vehicle or security</li>
+                <li>NOT intended to generate financial returns for holders</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2><span class="num">2</span>No Financial Advice</h2>
+            <p>Nothing on this platform constitutes financial, investment, legal, or tax advice. The creators and operators of LAUNCHR:</p>
+            <ul>
+                <li>Are NOT licensed financial advisors</li>
+                <li>Make NO representations about future value or returns</li>
+                <li>Do NOT recommend purchasing, selling, or holding any cryptocurrency</li>
+                <li>Strongly advise you to consult qualified professionals before any financial decisions</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2><span class="num">3</span>Risk Acknowledgment</h2>
+            <p>By using this platform, you acknowledge and accept that:</p>
+            <ul>
+                <li>Cryptocurrency investments are <strong>extremely high risk</strong></li>
+                <li>You may lose <strong>100% of any funds</strong> used to purchase tokens</li>
+                <li>Meme coins are particularly volatile and speculative</li>
+                <li>Smart contracts may contain bugs or vulnerabilities</li>
+                <li>Blockchain transactions are irreversible</li>
+                <li>Regulatory changes may affect cryptocurrency at any time</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2><span class="num">4</span>No Expectation of Profit</h2>
+            <p>LAUNCHR tokens are distributed and traded with <strong>NO expectation of profit</strong> derived from the efforts of others. Any value fluctuation is due solely to market dynamics and community interest, not the promise or efforts of the development team.</p>
+        </div>
+
+        <div class="section">
+            <h2><span class="num">5</span>Educational Purpose</h2>
+            <p>This platform demonstrates concepts including:</p>
+            <ul>
+                <li>Automated fee distribution mechanisms</li>
+                <li>Token buyback and burn mechanics</li>
+                <li>Market making algorithms</li>
+                <li>Liquidity provision strategies</li>
+            </ul>
+            <p>These features are provided for educational exploration of DeFi concepts.</p>
+        </div>
+
+        <div class="section">
+            <h2><span class="num">6</span>No Warranty</h2>
+            <p>This software and platform are provided "AS IS" without warranty of any kind, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, and non-infringement.</p>
+        </div>
+
+        <div class="section">
+            <h2><span class="num">7</span>Limitation of Liability</h2>
+            <p>In no event shall the creators, developers, or operators of LAUNCHR be liable for any direct, indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of profits, data, or other intangible losses resulting from:</p>
+            <ul>
+                <li>Use or inability to use the platform</li>
+                <li>Any transactions made through the platform</li>
+                <li>Unauthorized access to your wallet or data</li>
+                <li>Bugs, viruses, or errors in the software</li>
+                <li>Any third-party actions or content</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2><span class="num">8</span>User Responsibilities</h2>
+            <p>You are solely responsible for:</p>
+            <ul>
+                <li>Securing your private keys and wallet</li>
+                <li>Understanding the risks of cryptocurrency</li>
+                <li>Complying with your local laws and regulations</li>
+                <li>Any tax obligations arising from your activities</li>
+                <li>Your own financial decisions</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2><span class="num">9</span>Regulatory Compliance</h2>
+            <p>LAUNCHR does not target or solicit users in jurisdictions where cryptocurrency activities are prohibited. Users are responsible for ensuring their participation complies with their local laws.</p>
+        </div>
+
+        <div class="section">
+            <h2><span class="num">10</span>Modifications</h2>
+            <p>We reserve the right to modify these terms at any time. Continued use of the platform after changes constitutes acceptance of the modified terms.</p>
+        </div>
+
+        <div class="section">
+            <h2><span class="num">11</span>Governing Law</h2>
+            <p>These terms shall be governed by and construed in accordance with applicable laws, without regard to conflict of law principles.</p>
+        </div>
+
+        <div class="gold-box">
+            <p><strong>REMEMBER:</strong> This is a meme coin for fun and education. Never invest more than you can afford to lose completely. Do Your Own Research (DYOR). Have fun, but be responsible!</p>
+        </div>
+
+        <a href="/" class="back-btn">&larr; Back to LAUNCHR</a>
+
+        <div class="footer">
+            <p>&copy; 2026 LAUNCHR. All rights reserved. This is not financial advice.</p>
+        </div>
     </div>
 </body>
 </html>`;
@@ -710,6 +767,12 @@ function getRoadmapHTML() {
         .section-items{display:flex;flex-direction:column;gap:10px}
         .section-item{display:flex;align-items:flex-start;gap:12px;font-size:12px;color:var(--text-secondary);line-height:1.6}
         .section-item::before{content:'—';color:var(--text-muted);flex-shrink:0}
+        .section-item.completed{color:var(--text)}
+        .section-item.completed::before{content:'✓';color:#22c55e;font-weight:600}
+        .section-item.building::before{content:'◐';color:var(--gold)}
+        .status-badge{display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:600;padding:4px 10px;border-radius:4px;text-transform:uppercase;letter-spacing:0.1em;margin-left:auto;flex-shrink:0}
+        .status-badge.completed{background:rgba(34,197,94,0.1);color:#22c55e;border:1px solid rgba(34,197,94,0.2)}
+        .status-badge.building{background:var(--gold-dim);color:var(--gold);border:1px solid var(--gold-border)}
         .disclaimer-section{margin-top:80px;padding-top:60px;border-top:1px solid var(--border)}
         .disclaimer-header{text-align:center;margin-bottom:32px}
         .disclaimer-header h2{font-family:'Playfair Display',Georgia,serif;font-size:20px;color:var(--text-muted);margin-bottom:8px}
@@ -761,40 +824,40 @@ function getRoadmapHTML() {
             <div class="quarter">
                 <div class="quarter-label">Q1 2026</div>
                 <div class="section">
-                    <h3 class="section-title">Core Platform Hardening</h3>
+                    <h3 class="section-title">Core Platform Hardening <span class="status-badge completed">Completed</span></h3>
                     <div class="section-items">
-                        <div class="section-item">Production dual path launches via Pump and Raydium</div>
-                        <div class="section-item">Creator fee automation with configurable routing into buy and burns, LP adds, market making, or creator payouts</div>
-                        <div class="section-item">Improved LP management and liquidity transparency</div>
-                        <div class="section-item">Telegram first launch and management workflows</div>
-                        <div class="section-item">Public dashboards for fee flows, burns, LP adds, and liquidity actions</div>
+                        <div class="section-item completed">Production dual path launches via Pump and Raydium</div>
+                        <div class="section-item completed">Creator fee automation with configurable routing into buy and burns, LP adds, market making, or creator payouts</div>
+                        <div class="section-item completed">Improved LP management and liquidity transparency</div>
+                        <div class="section-item completed">Telegram first launch and management workflows</div>
+                        <div class="section-item completed">Public dashboards for fee flows, burns, LP adds, and liquidity actions</div>
                     </div>
                 </div>
                 <div class="section">
-                    <h3 class="section-title">Culture Coins Alpha</h3>
+                    <h3 class="section-title">Culture Coins Alpha <span class="status-badge building">Building</span></h3>
                     <div class="section-items">
-                        <div class="section-item">Launch Culture Coins framework</div>
-                        <div class="section-item">Creator defined tiers based on token ownership</div>
-                        <div class="section-item">Utility primitives for access, participation, and gated interactions</div>
-                        <div class="section-item">Native exchange of value between creators and communities</div>
-                        <div class="section-item">Early discovery layer for Culture Coins</div>
+                        <div class="section-item building">Launch Culture Coins framework</div>
+                        <div class="section-item building">Creator defined tiers based on token ownership</div>
+                        <div class="section-item building">Utility primitives for access, participation, and gated interactions</div>
+                        <div class="section-item building">Native exchange of value between creators and communities</div>
+                        <div class="section-item building">Early discovery layer for Culture Coins</div>
                     </div>
                 </div>
                 <div class="section">
-                    <h3 class="section-title">Social and Economic Layer Expansion</h3>
+                    <h3 class="section-title">Social and Economic Layer Expansion <span class="status-badge building">Building</span></h3>
                     <div class="section-items">
-                        <div class="section-item">Culture Coin profiles as social hubs</div>
-                        <div class="section-item">Native engagement, rewards, and incentive distribution</div>
-                        <div class="section-item">Dynamic fee strategies tied to community activity</div>
-                        <div class="section-item">Creator analytics and holder insights</div>
+                        <div class="section-item building">Culture Coin profiles as social hubs</div>
+                        <div class="section-item building">Native engagement, rewards, and incentive distribution</div>
+                        <div class="section-item building">Dynamic fee strategies tied to community activity</div>
+                        <div class="section-item building">Creator analytics and holder insights</div>
                     </div>
                 </div>
                 <div class="section">
-                    <h3 class="section-title">Mobile App Development Phase 1</h3>
+                    <h3 class="section-title">Mobile App Development Phase 1 <span class="status-badge building">Building</span></h3>
                     <div class="section-items">
-                        <div class="section-item">Mobile product strategy and UX architecture</div>
-                        <div class="section-item">Core feature scoping and API design</div>
-                        <div class="section-item">Begin iOS and Android development</div>
+                        <div class="section-item building">Mobile product strategy and UX architecture</div>
+                        <div class="section-item building">Core feature scoping and API design</div>
+                        <div class="section-item building">Begin iOS and Android development</div>
                     </div>
                 </div>
             </div>
