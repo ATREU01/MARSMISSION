@@ -2112,24 +2112,8 @@
                     gap: '20px'
                   }}>
                     {filteredCultures.map((culture, index) => {
-                      // Category-specific colors for differentiation
-                      const getCategoryColor = (cat) => {
-                        const categoryColors = {
-                          'Trading & Markets': '#14F195',
-                          'Taste & Curation': '#FF6B6B',
-                          'Fitness & Performance': '#4ECDC4',
-                          'Mindset & Philosophy': '#9B59B6',
-                          'Local & IRL': '#F39C12',
-                          'Operator': '#3498DB',
-                          'Meme': '#FF3D8E',
-                          'AI': '#00D9FF',
-                          'Finance': '#FFD966',
-                          'Tech': '#7C3AED',
-                          'default': '#FFD966'
-                        };
-                        return categoryColors[cat] || categoryColors['default'];
-                      };
-                      const categoryColor = getCategoryColor(culture.category);
+                      // Minimal professional accent - consistent throughout
+                      const accentColor = '#888888';
 
                       return (
                       <div
@@ -2145,61 +2129,27 @@
                           overflow: 'hidden'
                         }}
                         onMouseEnter={e => {
-                          e.currentTarget.style.borderColor = categoryColor;
-                          e.currentTarget.style.transform = 'translateY(-4px)';
-                          e.currentTarget.style.boxShadow = `0 12px 40px ${categoryColor}25`;
+                          e.currentTarget.style.borderColor = '#333';
+                          e.currentTarget.style.transform = 'translateY(-2px)';
                         }}
                         onMouseLeave={e => {
                           e.currentTarget.style.borderColor = colors.border;
                           e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = 'none';
                         }}
                       >
-                        {/* Category color accent bar */}
-                        <div style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          height: '3px',
-                          background: categoryColor
-                        }} />
-
-                        {/* Rank Badge for top 3 */}
-                        {index < 3 && (
-                          <div style={{
-                            position: 'absolute',
-                            top: '3px',
-                            left: 0,
-                            width: '32px',
-                            height: '32px',
-                            background: index === 0 ? '#FFD966' : index === 1 ? '#C0C0C0' : '#CD7F32',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontFamily: "'IBM Plex Mono', monospace",
-                            fontSize: '12px',
-                            fontWeight: 700,
-                            color: '#000'
-                          }}>
-                            {index + 1}
-                          </div>
-                        )}
 
                         {/* Category Tag */}
                         <div style={{
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          marginBottom: '16px',
-                          marginTop: index < 3 ? '12px' : 0
+                          marginBottom: '16px'
                         }}>
                           <div style={{
                             fontSize: '9px',
                             letterSpacing: '0.15em',
-                            color: categoryColor,
-                            fontFamily: "'IBM Plex Mono', monospace",
-                            fontWeight: 600
+                            color: '#666',
+                            fontFamily: "'IBM Plex Mono', monospace"
                           }}>
                             {culture.category?.toUpperCase() || 'CULTURE'}
                           </div>
@@ -2268,24 +2218,23 @@
                         {/* Core Pillar Preview */}
                         {culture.pillars && culture.pillars.length > 0 && (
                           <div style={{
-                            background: `${categoryColor}10`,
-                            border: `1px solid ${categoryColor}30`,
+                            background: 'rgba(255,255,255,0.03)',
+                            border: '1px solid #222',
                             padding: '12px',
                             marginBottom: '16px'
                           }}>
                             <div style={{
                               fontSize: '8px',
-                              color: categoryColor,
+                              color: '#666',
                               letterSpacing: '0.15em',
                               marginBottom: '6px',
-                              fontFamily: "'IBM Plex Mono', monospace",
-                              fontWeight: 600
+                              fontFamily: "'IBM Plex Mono', monospace"
                             }}>
                               CORE BELIEF
                             </div>
                             <div style={{
                               fontSize: '12px',
-                              color: colors.text,
+                              color: colors.textSecondary,
                               fontFamily: "'IBM Plex Mono', monospace",
                               lineHeight: 1.5
                             }}>
@@ -2305,7 +2254,7 @@
                           <div>
                             <div style={{
                               fontSize: '16px',
-                              color: categoryColor,
+                              color: colors.text,
                               fontFamily: "'IBM Plex Mono', monospace",
                               marginBottom: '4px',
                               fontWeight: 600
