@@ -2669,6 +2669,11 @@
             loading: true
           });
 
+          // Chart state for DexScreener
+          const [chartData, setChartData] = useState(null);
+          const [chartHeight, setChartHeight] = useState(400);
+          const [showChart, setShowChart] = useState(true);
+
           // Fetch real token data from pump.fun API
           useEffect(() => {
             const fetchTokenData = async () => {
@@ -2706,6 +2711,38 @@
             fetchTokenData();
             // Refresh every 30 seconds
             const interval = setInterval(fetchTokenData, 30000);
+            return () => clearInterval(interval);
+          }, [culture.tokenAddress]);
+
+          // Fetch DexScreener chart data
+          useEffect(() => {
+            const fetchChartData = async () => {
+              if (!culture.tokenAddress) {
+                setChartData(null);
+                return;
+              }
+              try {
+                const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${culture.tokenAddress}`);
+                if (res.ok) {
+                  const data = await res.json();
+                  const pair = data.pairs?.[0];
+                  if (pair) {
+                    setChartData({
+                      pairAddress: pair.pairAddress,
+                      priceUsd: pair.priceUsd,
+                      priceChange: pair.priceChange,
+                      volume: pair.volume,
+                      liquidity: pair.liquidity,
+                      marketCap: pair.marketCap || pair.fdv
+                    });
+                  }
+                }
+              } catch (e) {
+                console.error('[CULTURE] Failed to fetch chart data:', e);
+              }
+            };
+            fetchChartData();
+            const interval = setInterval(fetchChartData, 60000);
             return () => clearInterval(interval);
           }, [culture.tokenAddress]);
 
@@ -2864,7 +2901,230 @@
                     YOUR CULTURE
                   </div>
                 )}
+
+                {/* Edit Culture Button - always visible for culture owners */}
+                {(culture.isUserCreated ||
+                  culture.creatorAddress === wallet?.address ||
+                  culture.creator === wallet?.address ||
+                  culture.creatorWallet === wallet?.address ||
+                  culture.wallet === wallet?.address) && (
+                  <button
+                    onClick={() => {
+                      localStorage.setItem('edit_culture_data', JSON.stringify(culture));
+                      window.location.href = `/culture-coins?view=edit&id=${culture.id || culture.tokenAddress}`;
+                    }}
+                    style={{
+                      marginTop: '16px',
+                      padding: '12px 24px',
+                      background: accentColor,
+                      border: 'none',
+                      color: '#000',
+                      fontSize: '11px',
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      letterSpacing: '0.1em',
+                      cursor: 'pointer',
+                      fontWeight: 700,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                    EDIT CULTURE
+                  </button>
+                )}
               </div>
+
+              {/* Price Chart - DexScreener Integration */}
+              {culture.tokenAddress && showChart && (
+                <div style={{
+                  marginBottom: '48px',
+                  background: `linear-gradient(180deg, ${accentRgba(0.03)} 0%, rgba(0,0,0,0) 100%)`,
+                  border: `1px solid ${accentRgba(0.3)}`,
+                  boxShadow: `0 0 30px ${accentRgba(0.1)}, inset 0 0 60px ${accentRgba(0.02)}`,
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}>
+                  {/* Top glow line */}
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: '1px',
+                    background: `linear-gradient(90deg, transparent, ${accentRgba(0.5)}, transparent)`
+                  }} />
+
+                  {/* Chart Header */}
+                  <div style={{
+                    padding: '16px 24px',
+                    borderBottom: `1px solid ${accentRgba(0.15)}`,
+                    background: 'rgba(0, 0, 0, 0.4)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '16px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                      <div style={{
+                        fontSize: '11px',
+                        letterSpacing: '0.15em',
+                        color: accentColor,
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontWeight: 600
+                      }}>
+                        PRICE CHART
+                      </div>
+
+                      {/* Live Price */}
+                      {chartData && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <span style={{
+                            fontSize: '20px',
+                            fontWeight: 600,
+                            color: '#fff',
+                            fontFamily: "'IBM Plex Mono', monospace"
+                          }}>
+                            ${parseFloat(chartData.priceUsd || 0) < 0.0001
+                              ? parseFloat(chartData.priceUsd || 0).toExponential(2)
+                              : parseFloat(chartData.priceUsd || 0).toFixed(6)}
+                          </span>
+                          <span style={{
+                            fontSize: '13px',
+                            fontWeight: 500,
+                            padding: '4px 10px',
+                            borderRadius: '4px',
+                            background: (chartData.priceChange?.h24 || 0) >= 0 ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                            color: (chartData.priceChange?.h24 || 0) >= 0 ? '#22c55e' : '#ef4444'
+                          }}>
+                            {(chartData.priceChange?.h24 || 0) >= 0 ? '+' : ''}{(chartData.priceChange?.h24 || 0).toFixed(2)}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+                      {/* Quick Stats */}
+                      {chartData && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '24px', paddingRight: '20px', borderRight: '1px solid #222' }}>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginBottom: '2px' }}>MCAP</div>
+                            <div style={{ fontSize: '13px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
+                              ${(chartData.marketCap || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginBottom: '2px' }}>24H VOL</div>
+                            <div style={{ fontSize: '13px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
+                              ${(chartData.volume?.h24 || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginBottom: '2px' }}>LIQ</div>
+                            <div style={{ fontSize: '13px', color: accentColor, fontFamily: "'IBM Plex Mono', monospace" }}>
+                              ${(chartData.liquidity?.usd || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Size Controls */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {[300, 400, 550, 700].map(h => (
+                          <button
+                            key={h}
+                            onClick={() => setChartHeight(h)}
+                            style={{
+                              padding: '6px 12px',
+                              fontSize: '10px',
+                              borderRadius: '4px',
+                              border: chartHeight === h ? `1px solid ${accentColor}` : '1px solid #333',
+                              background: chartHeight === h ? accentRgba(0.15) : 'transparent',
+                              color: chartHeight === h ? accentColor : '#666',
+                              cursor: 'pointer',
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            {h === 300 ? 'S' : h === 400 ? 'M' : h === 550 ? 'L' : 'XL'}
+                          </button>
+                        ))}
+                        <button
+                          onClick={() => setShowChart(false)}
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '10px',
+                            borderRadius: '4px',
+                            border: '1px solid #333',
+                            background: 'transparent',
+                            color: '#666',
+                            cursor: 'pointer',
+                            fontFamily: "'IBM Plex Mono', monospace"
+                          }}
+                        >
+                          HIDE
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Chart Container */}
+                  <div style={{ height: chartHeight, background: '#0a0a0a', transition: 'height 0.3s ease' }}>
+                    {chartData?.pairAddress ? (
+                      <iframe
+                        src={`https://dexscreener.com/solana/${chartData.pairAddress}?embed=1&theme=dark&trades=0&info=0`}
+                        style={{ width: '100%', height: '100%', border: 'none' }}
+                        title="Price Chart"
+                      />
+                    ) : (
+                      <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        height: '100%',
+                        color: '#666',
+                        gap: '12px'
+                      }}>
+                        <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ opacity: 0.3 }}>
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4v16a1 1 0 001 1h14a1 1 0 001-1V4"></path>
+                        </svg>
+                        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px' }}>Loading chart...</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Show Chart Button (when hidden) */}
+              {culture.tokenAddress && !showChart && (
+                <button
+                  onClick={() => setShowChart(true)}
+                  style={{
+                    marginBottom: '32px',
+                    padding: '12px 24px',
+                    background: 'transparent',
+                    border: `1px solid ${accentRgba(0.3)}`,
+                    color: accentColor,
+                    fontSize: '11px',
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    letterSpacing: '0.1em',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4v16a1 1 0 001 1h14a1 1 0 001-1V4"></path>
+                  </svg>
+                  SHOW PRICE CHART
+                </button>
+              )}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: '60px' }}>
                 <div>
