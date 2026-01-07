@@ -2899,6 +2899,101 @@ The 4 percentages MUST sum to exactly 100.`;
         }
     }
 
+    // API: AI Coin Ideas Generator - Uses Claude to generate smart coin launch ideas
+    if (url.pathname === '/api/ai/generate-ideas' && req.method === 'POST') {
+        try {
+            const data = await parseBody(req);
+            const { trendingTokens, trendingNews } = data;
+
+            const apiKey = process.env.CLAUDE_API_KEY;
+            if (!apiKey) {
+                throw new Error('AI service not configured');
+            }
+
+            // Format trending data for context
+            const tokenContext = (trendingTokens || []).slice(0, 5).map(t =>
+                `${t.name} ($${t.symbol}) - MC: $${((t.marketCap || 0) / 1000000).toFixed(1)}M, ${t.priceChange > 0 ? '+' : ''}${t.priceChange}%`
+            ).join('\n');
+
+            const newsContext = (trendingNews || []).slice(0, 5).map(t =>
+                `"${t.name}" - ${t.volume} posts, sentiment: ${Math.round((t.sentiment || 0.5) * 100)}%`
+            ).join('\n');
+
+            const prompt = `You are a crypto culture analyst and memecoin expert on Solana. Based on current market trends, generate 5 UNIQUE and CREATIVE coin/token ideas that could gain traction.
+
+CURRENT TRENDING TOKENS:
+${tokenContext || 'No trending data available'}
+
+CURRENT CRYPTO NEWS/SENTIMENT:
+${newsContext || 'No news data available'}
+
+Generate 5 coin ideas that:
+1. Tap into current narratives and metas (AI agents, memes, culture, gaming, etc.)
+2. Have catchy, memorable names and tickers (4-6 chars max for ticker)
+3. Could realistically gain community traction
+4. Mix different categories: pure meme, utility-meme hybrid, culture coin, AI token, community token
+
+For each idea provide:
+- name: Creative token name
+- ticker: Short memorable ticker (4-6 chars)
+- description: 1-2 sentence pitch (what makes it unique)
+- category: The meta/narrative it targets
+- confidence: 1-100 score based on current market fit
+- reasoning: Why this could work NOW based on the trends
+
+Respond ONLY with valid JSON array:
+[{"name": "...", "ticker": "...", "description": "...", "category": "...", "confidence": XX, "reasoning": "..."}]
+
+Be creative but realistic. Think like a degen who knows what pumps.`;
+
+            const response = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey,
+                    'anthropic-version': '2023-06-01'
+                },
+                body: JSON.stringify({
+                    model: 'claude-3-haiku-20240307',
+                    max_tokens: 1024,
+                    messages: [{ role: 'user', content: prompt }]
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Claude API error: ' + response.status);
+            }
+
+            const result = await response.json();
+            const content = result.content[0].text;
+
+            // Parse the JSON response
+            let ideas;
+            try {
+                ideas = JSON.parse(content);
+            } catch (e) {
+                // Try to extract JSON from response
+                const jsonMatch = content.match(/\[[\s\S]*\]/);
+                if (jsonMatch) {
+                    ideas = JSON.parse(jsonMatch[0]);
+                } else {
+                    throw new Error('Failed to parse AI response');
+                }
+            }
+
+            log(`AI Ideas: Generated ${ideas.length} coin ideas`);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, ideas: ideas }));
+            return;
+        } catch (error) {
+            log('AI Ideas error: ' + error.message);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: error.message }));
+            return;
+        }
+    }
+
     // API: Public tracker stats
     if (url.pathname === '/api/tracker/stats' && req.method === 'GET') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
