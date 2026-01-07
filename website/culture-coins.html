@@ -4231,7 +4231,6 @@
           const wallet = useContext(WalletContext);
           const [posts, setPosts] = useState([]);
           const [loading, setLoading] = useState(true);
-          const [filter, setFilter] = useState('all'); // all, following, cultures
 
           // Light/Dark Mode State (synced with localStorage)
           const [lightMode, setLightMode] = useState(() => {
@@ -4481,34 +4480,51 @@
                   </p>
                 </div>
 
-                {/* Filter Tabs */}
+                {/* Feed Stats Bar */}
                 <div style={{
                   display: 'flex',
-                  gap: '16px',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
                   marginBottom: '24px',
-                  borderBottom: `1px solid ${colors.border}`,
-                  paddingBottom: '16px'
+                  paddingBottom: '16px',
+                  borderBottom: `1px solid ${colors.border}`
                 }}>
-                  {['all', 'following', 'cultures'].map(f => (
-                    <button
-                      key={f}
-                      onClick={() => setFilter(f)}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: filter === f ? colors.accent : colors.textMuted,
-                        fontSize: '12px',
-                        fontFamily: "'IBM Plex Mono', monospace",
-                        letterSpacing: '0.1em',
-                        textTransform: 'uppercase',
-                        cursor: 'pointer',
-                        padding: '4px 0',
-                        borderBottom: filter === f ? `2px solid ${colors.accent}` : '2px solid transparent'
-                      }}
-                    >
-                      {f}
-                    </button>
-                  ))}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      background: '#22c55e',
+                      animation: 'pulse 1.5s infinite'
+                    }} />
+                    <span style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: '12px',
+                      color: colors.textMuted,
+                      letterSpacing: '0.05em'
+                    }}>
+                      {posts.length} POSTS • ALL CREATORS
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => window.location.reload()}
+                    style={{
+                      background: 'none',
+                      border: `1px solid ${colors.border}`,
+                      color: colors.textMuted,
+                      fontSize: '10px',
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      letterSpacing: '0.1em',
+                      padding: '6px 12px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    REFRESH
+                  </button>
                 </div>
 
                 {/* Posts */}
