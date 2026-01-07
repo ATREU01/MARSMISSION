@@ -2482,7 +2482,7 @@
                 <div>
                   <div style={{
                     fontSize: compact ? '16px' : '20px',
-                    color: auction.burnOrReturn === 'burn' ? '#ef4444' : '#22c55e',
+                    color: auction.burnOrReturn === 'burn' ? '#ef4444' : '#FFD966',
                     fontFamily: "'IBM Plex Mono', monospace",
                     marginBottom: '4px'
                   }}>
@@ -2970,7 +2970,7 @@
                             padding: '4px 10px',
                             borderRadius: '4px',
                             background: (chartData.priceChange?.h24 || 0) >= 0 ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
-                            color: (chartData.priceChange?.h24 || 0) >= 0 ? '#22c55e' : '#ef4444'
+                            color: (chartData.priceChange?.h24 || 0) >= 0 ? '#FFD966' : '#ef4444'
                           }}>
                             {(chartData.priceChange?.h24 || 0) >= 0 ? '+' : ''}{(chartData.priceChange?.h24 || 0).toFixed(2)}%
                           </span>
@@ -3718,7 +3718,7 @@
                   style={{
                     background: 'none',
                     border: 'none',
-                    color: isLiked ? '#22c55e' : '#666',
+                    color: isLiked ? '#FFD966' : '#666',
                     fontSize: '12px',
                     fontFamily: "'IBM Plex Mono', monospace",
                     cursor: 'pointer',
@@ -3757,7 +3757,7 @@
                   style={{
                     background: 'none',
                     border: 'none',
-                    color: isReposted ? '#22c55e' : '#666',
+                    color: isReposted ? '#FFD966' : '#666',
                     fontSize: '12px',
                     fontFamily: "'IBM Plex Mono', monospace",
                     cursor: 'pointer',
@@ -4197,7 +4197,7 @@
                   disabled={!content.trim() && !mediaPreview}
                   style={{
                     padding: '10px 24px',
-                    background: (content.trim() || mediaPreview) ? '#22c55e' : '#222',
+                    background: (content.trim() || mediaPreview) ? '#FFD966' : '#222',
                     border: 'none',
                     color: (content.trim() || mediaPreview) ? '#000' : '#666',
                     fontSize: '12px',
@@ -6047,7 +6047,7 @@
                           marginBottom: '16px',
                           fontSize: '11px',
                           fontFamily: "'IBM Plex Mono', monospace",
-                          color: tekStatus.includes('Error') ? '#ef4444' : '#22c55e'
+                          color: tekStatus.includes('Error') ? '#ef4444' : '#FFD966'
                         }}>
                           {tekStatus}
                         </div>
@@ -6083,7 +6083,7 @@
                             <div style={{
                               fontSize: '24px',
                               fontWeight: 700,
-                              color: getTekTotal() === 100 ? '#22c55e' : '#ef4444',
+                              color: getTekTotal() === 100 ? '#FFD966' : '#ef4444',
                               fontFamily: "'IBM Plex Mono', monospace"
                             }}>
                               {getTekTotal()}%
@@ -6145,7 +6145,7 @@
                               width: '100%',
                               padding: '12px',
                               marginTop: '12px',
-                              background: getTekTotal() === 100 ? '#22c55e' : '#333',
+                              background: getTekTotal() === 100 ? '#FFD966' : '#333',
                               border: 'none',
                               color: getTekTotal() === 100 ? '#0a0a0a' : '#666',
                               fontSize: '11px',
@@ -6202,7 +6202,7 @@
                                 left: 0,
                                 right: 0,
                                 bottom: 0,
-                                backgroundColor: lpBurnEnabled ? '#22c55e' : '#374151',
+                                backgroundColor: lpBurnEnabled ? '#FFD966' : '#374151',
                                 transition: '0.3s',
                                 borderRadius: '26px'
                               }} />
@@ -6246,7 +6246,7 @@
                               fontSize: '11px',
                               fontWeight: 600,
                               background: tekAutomationRunning ? 'rgba(34, 197, 94, 0.1)' : 'rgba(255, 255, 255, 0.03)',
-                              color: tekAutomationRunning ? '#22c55e' : '#666',
+                              color: tekAutomationRunning ? '#FFD966' : '#666',
                               border: `1px solid ${tekAutomationRunning ? 'rgba(34, 197, 94, 0.3)' : 'rgba(255, 255, 255, 0.06)'}`,
                               marginBottom: '12px',
                               fontFamily: "'IBM Plex Mono', monospace"
@@ -6255,8 +6255,8 @@
                                 width: '8px',
                                 height: '8px',
                                 borderRadius: '50%',
-                                background: tekAutomationRunning ? '#22c55e' : '#666',
-                                boxShadow: tekAutomationRunning ? '0 0 8px #22c55e' : 'none'
+                                background: tekAutomationRunning ? '#FFD966' : '#666',
+                                boxShadow: tekAutomationRunning ? '0 0 8px #FFD966' : 'none'
                               }} />
                               {tekAutomationRunning ? 'RUNNING' : 'STOPPED'}
                             </div>
@@ -6269,7 +6269,7 @@
                                 style={{
                                   padding: '12px',
                                   background: !tekAutomationRunning ? 'rgba(34, 197, 94, 0.1)' : 'rgba(255, 255, 255, 0.03)',
-                                  color: !tekAutomationRunning ? '#22c55e' : '#666',
+                                  color: !tekAutomationRunning ? '#FFD966' : '#666',
                                   border: `1px solid ${!tekAutomationRunning ? 'rgba(34, 197, 94, 0.3)' : 'rgba(255, 255, 255, 0.08)'}`,
                                   fontSize: '11px',
                                   fontWeight: 600,
@@ -6611,7 +6611,7 @@
                             padding: '4px 10px',
                             borderRadius: '4px',
                             background: (chartData.priceChange?.h24 || 0) >= 0 ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
-                            color: (chartData.priceChange?.h24 || 0) >= 0 ? '#22c55e' : '#ef4444'
+                            color: (chartData.priceChange?.h24 || 0) >= 0 ? '#FFD966' : '#ef4444'
                           }}>
                             {(chartData.priceChange?.h24 || 0) >= 0 ? '+' : ''}{(chartData.priceChange?.h24 || 0).toFixed(2)}%
                           </span>
@@ -6654,9 +6654,9 @@
                               padding: '6px 12px',
                               fontSize: '10px',
                               borderRadius: '4px',
-                              border: chartHeight === h ? '1px solid #22c55e' : '1px solid #333',
+                              border: chartHeight === h ? '1px solid #FFD966' : '1px solid #333',
                               background: chartHeight === h ? 'rgba(34,197,94,0.15)' : 'transparent',
-                              color: chartHeight === h ? '#22c55e' : '#666',
+                              color: chartHeight === h ? '#FFD966' : '#666',
                               cursor: 'pointer',
                               fontFamily: "'IBM Plex Mono', monospace",
                               transition: 'all 0.2s'
@@ -6984,15 +6984,15 @@
                       {/* Culture Data Summary */}
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
                         <div style={{ padding: '12px', background: culture.beliefs?.length > 0 ? 'rgba(34,197,94,0.1)' : '#0a0a0a', border: `1px solid ${culture.beliefs?.length > 0 ? 'rgba(34,197,94,0.3)' : '#222'}` }}>
-                          <div style={{ fontSize: '9px', color: culture.beliefs?.length > 0 ? '#22c55e' : '#666', letterSpacing: '0.1em', marginBottom: '4px' }}>BELIEFS</div>
+                          <div style={{ fontSize: '9px', color: culture.beliefs?.length > 0 ? '#FFD966' : '#666', letterSpacing: '0.1em', marginBottom: '4px' }}>BELIEFS</div>
                           <div style={{ fontSize: '14px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>{culture.beliefs?.length || 0}</div>
                         </div>
                         <div style={{ padding: '12px', background: culture.unlocks?.length > 0 ? 'rgba(34,197,94,0.1)' : '#0a0a0a', border: `1px solid ${culture.unlocks?.length > 0 ? 'rgba(34,197,94,0.3)' : '#222'}` }}>
-                          <div style={{ fontSize: '9px', color: culture.unlocks?.length > 0 ? '#22c55e' : '#666', letterSpacing: '0.1em', marginBottom: '4px' }}>UNLOCKS</div>
+                          <div style={{ fontSize: '9px', color: culture.unlocks?.length > 0 ? '#FFD966' : '#666', letterSpacing: '0.1em', marginBottom: '4px' }}>UNLOCKS</div>
                           <div style={{ fontSize: '14px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>{culture.unlocks?.length || 0}</div>
                         </div>
                         <div style={{ padding: '12px', background: cTheme.accentColor ? 'rgba(34,197,94,0.1)' : '#0a0a0a', border: `1px solid ${cTheme.accentColor ? 'rgba(34,197,94,0.3)' : '#222'}` }}>
-                          <div style={{ fontSize: '9px', color: cTheme.accentColor ? '#22c55e' : '#666', letterSpacing: '0.1em', marginBottom: '4px' }}>THEME</div>
+                          <div style={{ fontSize: '9px', color: cTheme.accentColor ? '#FFD966' : '#666', letterSpacing: '0.1em', marginBottom: '4px' }}>THEME</div>
                           <div style={{ fontSize: '14px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>{cTheme.accentColor ? 'Set' : 'None'}</div>
                         </div>
                       </div>
@@ -7482,9 +7482,9 @@
                           }}
                           style={{
                             padding: '10px 16px',
-                            background: profile?.theme?.bgType === type ? '#22c55e' : '#0a0a0a',
+                            background: profile?.theme?.bgType === type ? '#FFD966' : '#0a0a0a',
                             border: '1px solid',
-                            borderColor: profile?.theme?.bgType === type ? '#22c55e' : '#333',
+                            borderColor: profile?.theme?.bgType === type ? '#FFD966' : '#333',
                             color: profile?.theme?.bgType === type ? '#000' : '#888',
                             fontSize: '11px',
                             fontFamily: "'IBM Plex Mono', monospace",
@@ -7511,7 +7511,7 @@
                       ACCENT COLOR
                     </label>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      {['#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#ef4444', '#ffffff'].map(color => (
+                      {['#FFD966', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#ef4444', '#ffffff'].map(color => (
                         <button
                           key={color}
                           onClick={() => {
@@ -7537,8 +7537,8 @@
                   {/* Connected Wallet */}
                   <div style={{
                     padding: '20px',
-                    background: 'rgba(34, 197, 94, 0.1)',
-                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                    background: 'rgba(255, 217, 102, 0.1)',
+                    border: '1px solid rgba(255, 217, 102, 0.3)',
                     marginTop: '40px'
                   }}>
                     <div style={{
@@ -9509,7 +9509,7 @@
                         <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginTop: '4px' }}>EST. TIME</div>
                       </div>
                       <div>
-                        <div style={{ fontSize: '18px', color: vanitySuffix.length <= 3 ? '#22c55e' : vanitySuffix.length <= 5 ? '#f59e0b' : '#ef4444', fontFamily: "'IBM Plex Mono', monospace" }}>
+                        <div style={{ fontSize: '18px', color: vanitySuffix.length <= 3 ? '#FFD966' : vanitySuffix.length <= 5 ? '#f59e0b' : '#ef4444', fontFamily: "'IBM Plex Mono', monospace" }}>
                           {vanitySuffix.length <= 3 ? 'EASY' : vanitySuffix.length <= 5 ? 'MEDIUM' : 'HARD'}
                         </div>
                         <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginTop: '4px' }}>DIFFICULTY</div>
@@ -10514,7 +10514,7 @@
                   >
                     <img src="/website/phantom_icon.png" alt="Phantom" style={{ width: '28px', height: '28px', borderRadius: '6px' }} />
                     <span style={{ flex: 1, textAlign: 'left' }}>Phantom</span>
-                    <span style={{ fontSize: '10px', color: hasPhantom ? '#22c55e' : '#666' }}>
+                    <span style={{ fontSize: '10px', color: hasPhantom ? '#FFD966' : '#666' }}>
                       {hasPhantom ? 'DETECTED' : 'NOT INSTALLED'}
                     </span>
                   </button>
@@ -10538,7 +10538,7 @@
                   >
                     <img src="https://solflare.com/favicon.ico" alt="Solflare" style={{ width: '28px', height: '28px', borderRadius: '6px' }} />
                     <span style={{ flex: 1, textAlign: 'left' }}>Solflare</span>
-                    <span style={{ fontSize: '10px', color: hasSolflare ? '#22c55e' : '#666' }}>
+                    <span style={{ fontSize: '10px', color: hasSolflare ? '#FFD966' : '#666' }}>
                       {hasSolflare ? 'DETECTED' : 'NOT INSTALLED'}
                     </span>
                   </button>
@@ -10641,7 +10641,7 @@
               bottom: '24px',
               right: '24px',
               padding: '16px 24px',
-              background: type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#fff',
+              background: type === 'success' ? '#FFD966' : type === 'error' ? '#ef4444' : '#fff',
               color: '#000',
               fontFamily: "'IBM Plex Mono', monospace",
               fontSize: '13px',
