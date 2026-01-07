@@ -2111,7 +2111,27 @@
                     gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
                     gap: '20px'
                   }}>
-                    {filteredCultures.map((culture, index) => (
+                    {filteredCultures.map((culture, index) => {
+                      // Category-specific colors for differentiation
+                      const getCategoryColor = (cat) => {
+                        const categoryColors = {
+                          'Trading & Markets': '#14F195',
+                          'Taste & Curation': '#FF6B6B',
+                          'Fitness & Performance': '#4ECDC4',
+                          'Mindset & Philosophy': '#9B59B6',
+                          'Local & IRL': '#F39C12',
+                          'Operator': '#3498DB',
+                          'Meme': '#FF3D8E',
+                          'AI': '#00D9FF',
+                          'Finance': '#FFD966',
+                          'Tech': '#7C3AED',
+                          'default': '#FFD966'
+                        };
+                        return categoryColors[cat] || categoryColors['default'];
+                      };
+                      const categoryColor = getCategoryColor(culture.category);
+
+                      return (
                       <div
                         key={culture.id}
                         onClick={() => onSelectCulture(culture)}
@@ -2125,9 +2145,9 @@
                           overflow: 'hidden'
                         }}
                         onMouseEnter={e => {
-                          e.currentTarget.style.borderColor = '#FFD966';
+                          e.currentTarget.style.borderColor = categoryColor;
                           e.currentTarget.style.transform = 'translateY(-4px)';
-                          e.currentTarget.style.boxShadow = '0 12px 40px rgba(255, 217, 102, 0.15)';
+                          e.currentTarget.style.boxShadow = `0 12px 40px ${categoryColor}25`;
                         }}
                         onMouseLeave={e => {
                           e.currentTarget.style.borderColor = colors.border;
@@ -2135,11 +2155,21 @@
                           e.currentTarget.style.boxShadow = 'none';
                         }}
                       >
+                        {/* Category color accent bar */}
+                        <div style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: '3px',
+                          background: categoryColor
+                        }} />
+
                         {/* Rank Badge for top 3 */}
                         {index < 3 && (
                           <div style={{
                             position: 'absolute',
-                            top: 0,
+                            top: '3px',
                             left: 0,
                             width: '32px',
                             height: '32px',
@@ -2161,12 +2191,13 @@
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          marginBottom: '16px'
+                          marginBottom: '16px',
+                          marginTop: index < 3 ? '12px' : 0
                         }}>
                           <div style={{
                             fontSize: '9px',
                             letterSpacing: '0.15em',
-                            color: '#FFD966',
+                            color: categoryColor,
                             fontFamily: "'IBM Plex Mono', monospace",
                             fontWeight: 600
                           }}>
@@ -2234,6 +2265,35 @@
                           "{culture.ethos}"
                         </p>
 
+                        {/* Core Pillar Preview */}
+                        {culture.pillars && culture.pillars.length > 0 && (
+                          <div style={{
+                            background: `${categoryColor}10`,
+                            border: `1px solid ${categoryColor}30`,
+                            padding: '12px',
+                            marginBottom: '16px'
+                          }}>
+                            <div style={{
+                              fontSize: '8px',
+                              color: categoryColor,
+                              letterSpacing: '0.15em',
+                              marginBottom: '6px',
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontWeight: 600
+                            }}>
+                              CORE BELIEF
+                            </div>
+                            <div style={{
+                              fontSize: '12px',
+                              color: colors.text,
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              lineHeight: 1.5
+                            }}>
+                              "{culture.pillars[0]}"
+                            </div>
+                          </div>
+                        )}
+
                         {/* Stats Grid */}
                         <div style={{
                           display: 'grid',
@@ -2245,7 +2305,7 @@
                           <div>
                             <div style={{
                               fontSize: '16px',
-                              color: '#FFD966',
+                              color: categoryColor,
                               fontFamily: "'IBM Plex Mono', monospace",
                               marginBottom: '4px',
                               fontWeight: 600
@@ -2298,20 +2358,18 @@
                           </div>
                         </div>
 
-                        {/* Hover indicator */}
+                        {/* Bottom accent bar */}
                         <div style={{
                           position: 'absolute',
                           bottom: 0,
                           left: 0,
                           right: 0,
                           height: '3px',
-                          background: 'linear-gradient(90deg, #FFD966, #FF3D8E)',
-                          transform: 'scaleX(0)',
-                          transformOrigin: 'left',
-                          transition: 'transform 0.3s ease'
-                        }} className="hover-indicator" />
+                          background: categoryColor,
+                          opacity: 0.5
+                        }} />
                       </div>
-                    ))}
+                    )})}
                   </div>
 
                   {/* Empty State */}
