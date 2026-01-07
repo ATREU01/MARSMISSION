@@ -6883,25 +6883,212 @@
 
               {activeTab === 'settings' && (
                 <div style={{
-                  background: '#0f0f0f',
-                  border: '1px solid #1a1a1a',
+                  background: dashColors.cardBg,
+                  border: `1px solid ${dashColors.border}`,
                   padding: '32px'
                 }}>
+                  {/* Profile Picture & Banner Section */}
                   <h3 style={{
                     fontSize: '12px',
                     letterSpacing: '0.15em',
-                    color: '#666',
+                    color: dashColors.accent,
                     marginBottom: '24px',
                     fontFamily: "'IBM Plex Mono', monospace"
                   }}>
-                    PROFILE SETTINGS
+                    PROFILE PICTURE & BANNER
+                  </h3>
+
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '200px 1fr',
+                    gap: '32px',
+                    marginBottom: '40px'
+                  }}>
+                    {/* PFP Section */}
+                    <div>
+                      <div style={{
+                        width: '128px',
+                        height: '128px',
+                        borderRadius: '50%',
+                        background: dashColors.border,
+                        overflow: 'hidden',
+                        marginBottom: '16px',
+                        border: `3px solid ${dashColors.accent}`
+                      }}>
+                        {profile?.pfp ? (
+                          <img
+                            src={profile.pfp}
+                            alt="Profile"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <div style={{
+                            width: '100%',
+                            height: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: dashColors.textMuted,
+                            fontSize: '12px',
+                            fontFamily: "'IBM Plex Mono', monospace"
+                          }}>
+                            NO PFP
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <button
+                          onClick={async () => {
+                            // Generate new 2-bit pixel PFP
+                            try {
+                              const seed = Date.now().toString();
+                              const res = await fetch('/api/generate-pfp', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ wallet: wallet?.address, seed })
+                              });
+                              const data = await res.json();
+                              if (data.success && data.pfp) {
+                                handleEditProfile({ pfp: data.pfp });
+                              }
+                            } catch (e) {
+                              console.error('[PFP] Generation failed:', e);
+                            }
+                          }}
+                          style={{
+                            padding: '10px 16px',
+                            background: dashColors.accent,
+                            border: 'none',
+                            color: '#000',
+                            fontSize: '10px',
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            cursor: 'pointer',
+                            letterSpacing: '0.1em',
+                            fontWeight: 600
+                          }}
+                        >
+                          GENERATE PIXEL PFP
+                        </button>
+                        <label style={{
+                          padding: '10px 16px',
+                          background: 'transparent',
+                          border: `1px solid ${dashColors.border}`,
+                          color: dashColors.textSecondary,
+                          fontSize: '10px',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          cursor: 'pointer',
+                          letterSpacing: '0.1em',
+                          textAlign: 'center'
+                        }}>
+                          UPLOAD IMAGE
+                          <input
+                            type="file"
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = (ev) => {
+                                  handleEditProfile({ pfp: ev.target.result });
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Banner Section */}
+                    <div>
+                      <div style={{
+                        width: '100%',
+                        height: '150px',
+                        background: profile?.banner ? `url(${profile.banner}) center/cover` : dashColors.border,
+                        borderRadius: '8px',
+                        marginBottom: '16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        {!profile?.banner && (
+                          <span style={{
+                            color: dashColors.textMuted,
+                            fontSize: '12px',
+                            fontFamily: "'IBM Plex Mono', monospace"
+                          }}>
+                            NO BANNER SET
+                          </span>
+                        )}
+                      </div>
+                      <label style={{
+                        display: 'inline-block',
+                        padding: '10px 20px',
+                        background: 'transparent',
+                        border: `1px solid ${dashColors.border}`,
+                        color: dashColors.textSecondary,
+                        fontSize: '10px',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        cursor: 'pointer',
+                        letterSpacing: '0.1em'
+                      }}>
+                        UPLOAD BANNER
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                handleEditProfile({ banner: ev.target.result });
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+                      {profile?.banner && (
+                        <button
+                          onClick={() => handleEditProfile({ banner: null })}
+                          style={{
+                            marginLeft: '12px',
+                            padding: '10px 20px',
+                            background: 'transparent',
+                            border: `1px solid #ef4444`,
+                            color: '#ef4444',
+                            fontSize: '10px',
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            cursor: 'pointer',
+                            letterSpacing: '0.1em'
+                          }}
+                        >
+                          REMOVE
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Basic Profile Info */}
+                  <h3 style={{
+                    fontSize: '12px',
+                    letterSpacing: '0.15em',
+                    color: dashColors.textMuted,
+                    marginBottom: '24px',
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    borderTop: `1px solid ${dashColors.border}`,
+                    paddingTop: '32px'
+                  }}>
+                    PROFILE INFORMATION
                   </h3>
 
                   <div style={{ marginBottom: '24px' }}>
                     <label style={{
                       display: 'block',
                       fontSize: '11px',
-                      color: '#888',
+                      color: dashColors.textMuted,
                       marginBottom: '8px',
                       fontFamily: "'IBM Plex Mono', monospace",
                       letterSpacing: '0.1em'
@@ -6917,9 +7104,9 @@
                         width: '100%',
                         maxWidth: '400px',
                         padding: '14px',
-                        background: '#0a0a0a',
-                        border: '1px solid #222',
-                        color: '#fff',
+                        background: dashColors.inputBg,
+                        border: `1px solid ${dashColors.inputBorder}`,
+                        color: dashColors.text,
                         fontSize: '15px',
                         fontFamily: "'IBM Plex Mono', monospace",
                         outline: 'none'
@@ -6931,7 +7118,7 @@
                     <label style={{
                       display: 'block',
                       fontSize: '11px',
-                      color: '#888',
+                      color: dashColors.textMuted,
                       marginBottom: '8px',
                       fontFamily: "'IBM Plex Mono', monospace",
                       letterSpacing: '0.1em'
@@ -6947,9 +7134,9 @@
                         maxWidth: '600px',
                         minHeight: '100px',
                         padding: '14px',
-                        background: '#0a0a0a',
-                        border: '1px solid #222',
-                        color: '#fff',
+                        background: dashColors.inputBg,
+                        border: `1px solid ${dashColors.inputBorder}`,
+                        color: dashColors.text,
                         fontSize: '14px',
                         fontFamily: "'IBM Plex Mono', monospace",
                         resize: 'vertical',

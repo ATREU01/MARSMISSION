@@ -4080,6 +4080,133 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     // ═══════════════════════════════════════════════════════════════════════════
 
     // API: Check username availability (must be before general profile GET)
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 2-BIT PIXEL PFP GENERATOR - Unique avatar for each user
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    if (url.pathname === '/api/generate-pfp' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', async () => {
+            try {
+                const data = JSON.parse(body);
+                const { wallet, seed } = data;
+
+                if (!wallet) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Wallet required' }));
+                    return;
+                }
+
+                // Generate unique pixel art based on wallet address
+                const pfpSvg = generatePixelPfp(wallet, seed);
+
+                // Save PFP as data URI
+                const pfpDataUri = `data:image/svg+xml;base64,${Buffer.from(pfpSvg).toString('base64')}`;
+
+                // Update profile with new PFP
+                profiles.updateProfile(wallet, { avatar: pfpDataUri });
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: true,
+                    pfp: pfpDataUri,
+                    message: 'Profile picture generated!'
+                }));
+            } catch (e) {
+                console.error('[PFP] Generation error:', e);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: e.message }));
+            }
+        });
+        return;
+    }
+
+    // Generate unique 8x8 pixel art PFP based on wallet address
+    function generatePixelPfp(wallet, customSeed = null) {
+        // Create deterministic seed from wallet
+        const seedStr = customSeed ? `${wallet}${customSeed}` : wallet;
+        const hash = crypto.createHash('sha256').update(seedStr).digest('hex');
+
+        // Color palettes - 2-bit style (4 colors each)
+        const palettes = [
+            ['#1a1a2e', '#16213e', '#0f3460', '#e94560'], // Cyberpunk
+            ['#0d1b2a', '#1b263b', '#415a77', '#778da9'], // Navy
+            ['#2d3436', '#636e72', '#b2bec3', '#dfe6e9'], // Grayscale
+            ['#1e3a5f', '#3d5a80', '#98c1d9', '#e0fbfc'], // Ocean
+            ['#2c061f', '#512b58', '#89a1ef', '#9ee493'], // Aurora
+            ['#0a0908', '#22333b', '#eae0d5', '#c6ac8f'], // Earth
+            ['#10002b', '#240046', '#5a189a', '#9d4edd'], // Purple
+            ['#03071e', '#370617', '#6a040f', '#d00000'], // Fire
+            ['#0b132b', '#1c2541', '#3a506b', '#5bc0be'], // Teal
+            ['#0a0a0a', '#1a1a1a', '#FFD966', '#FF3D8E'], // Culture Coins
+        ];
+
+        // Select palette based on hash
+        const paletteIdx = parseInt(hash.slice(0, 2), 16) % palettes.length;
+        const palette = palettes[paletteIdx];
+
+        // Generate 8x8 symmetrical pattern (only generate left half, mirror it)
+        const size = 8;
+        const pixels = [];
+
+        for (let y = 0; y < size; y++) {
+            const row = [];
+            for (let x = 0; x < size / 2; x++) {
+                // Use hash to determine if pixel is filled and which color
+                const idx = y * 4 + x;
+                const hashChar = parseInt(hash.slice(idx * 2 + 2, idx * 2 + 4), 16);
+                const filled = hashChar > 100; // ~60% fill rate
+                const colorIdx = filled ? (hashChar % 3) + 1 : 0; // 0 is background
+                row.push(colorIdx);
+            }
+            // Mirror the row for symmetry
+            const fullRow = [...row, ...row.reverse()];
+            pixels.push(fullRow);
+        }
+
+        // Generate SVG
+        const pixelSize = 16;
+        const svgSize = size * pixelSize;
+        let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgSize}" height="${svgSize}" viewBox="0 0 ${svgSize} ${svgSize}">`;
+        svg += `<rect width="${svgSize}" height="${svgSize}" fill="${palette[0]}"/>`;
+
+        for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+                const colorIdx = pixels[y][x];
+                if (colorIdx > 0) {
+                    svg += `<rect x="${x * pixelSize}" y="${y * pixelSize}" width="${pixelSize}" height="${pixelSize}" fill="${palette[colorIdx]}"/>`;
+                }
+            }
+        }
+
+        svg += '</svg>';
+        return svg;
+    }
+
+    // API: Auto-generate PFP for new users (called when profile is first created)
+    if (url.pathname === '/api/profile/auto-pfp' && req.method === 'GET') {
+        try {
+            const wallet = url.searchParams.get('wallet');
+            if (!wallet) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Wallet required' }));
+                return;
+            }
+
+            // Generate PFP
+            const pfpSvg = generatePixelPfp(wallet);
+            const pfpDataUri = `data:image/svg+xml;base64,${Buffer.from(pfpSvg).toString('base64')}`;
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ pfp: pfpDataUri }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: e.message }));
+        }
+        return;
+    }
+
     if (url.pathname === '/api/profile/check-username' && req.method === 'GET') {
         try {
             const username = url.searchParams.get('username');
