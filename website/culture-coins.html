@@ -557,7 +557,8 @@
                     mint: token.mint,
                     name: token.name || 'Unknown',
                     symbol: token.symbol || '???',
-                    image: token.image_uri || token.image || null,
+                    // Fallback to DexScreener image if pump.fun doesn't provide one
+                    image: token.image_uri || token.image || `https://dd.dexscreener.com/ds-data/tokens/solana/${token.mint}.png`,
                     marketCap: token.usd_market_cap || 0,
                     price: token.price || 0,
                     priceChange: ((Math.random() - 0.3) * 100).toFixed(1),
@@ -583,7 +584,8 @@
                       mint: token.tokenAddress,
                       name: token.description?.split(' - ')[0] || 'Unknown',
                       symbol: token.description?.match(/\$(\w+)/)?.[1] || '???',
-                      image: token.icon || null,
+                      // Use icon or fallback to DexScreener generated image
+                      image: token.icon || `https://dd.dexscreener.com/ds-data/tokens/solana/${token.tokenAddress}.png`,
                       marketCap: 0,
                       price: 0,
                       priceChange: '+' + (Math.random() * 50).toFixed(1),
@@ -604,7 +606,7 @@
                   { mint: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', name: 'dogwifhat', symbol: 'WIF', image: 'https://bafkreibk3covs5ltyqxa272uodhculbr6kea6betiez7rdewrljj7tfz6y.ipfs.nftstorage.link', marketCap: 2000000000, priceChange: '+8.3', source: 'fallback' },
                   { mint: 'MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5', name: 'cat in a dogs world', symbol: 'MEW', image: 'https://bafkreidlwyr565dxtao2ipsze6bmzpszqzybz7sqi2zaet5fs7k3rtxs7m.ipfs.nftstorage.link', marketCap: 800000000, priceChange: '+15.2', source: 'fallback' },
                   { mint: 'GJAFwWjJ3vnTsrQVabjBVK2TYB1YtRCQXRDfDgUnpump', name: 'POPCAT', symbol: 'POPCAT', image: 'https://bafkreidcmocpmemjnqvqoytxfvz7bkjnq6o5d6zklygdzzp4c7pfgntw5y.ipfs.nftstorage.link', marketCap: 600000000, priceChange: '+22.7', source: 'fallback' },
-                  { mint: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr', name: 'PNUT', symbol: 'PNUT', image: null, marketCap: 400000000, priceChange: '+18.9', source: 'fallback' }
+                  { mint: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr', name: 'PNUT', symbol: 'PNUT', image: 'https://dd.dexscreener.com/ds-data/tokens/solana/7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr.png', marketCap: 400000000, priceChange: '+18.9', source: 'fallback' }
                 ];
               }
 
