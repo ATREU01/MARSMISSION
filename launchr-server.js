@@ -4105,68 +4105,77 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                     .slice(0, 20);
             }
 
-            // Step 2: Use Helius DAS API to get rich metadata for these tokens
-            if (HELIUS_KEY && mints.length > 0) {
+            // Step 2: Use Helius DAS API (getAssetBatch) via RPC for rich metadata
+            const HELIUS_RPC = PRODUCTION_CONFIG.HELIUS_RPC;
+            const heliusMeta = {};
+
+            if (HELIUS_RPC && HELIUS_RPC.includes('helius') && mints.length > 0) {
                 try {
-                    const heliusRes = await fetch(`https://api.helius.xyz/v0/token-metadata?api-key=${HELIUS_KEY}`, {
+                    // Use getAssetBatch - the proper Helius DAS API method
+                    const batchRes = await fetch(HELIUS_RPC, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ mintAccounts: mints.slice(0, 15) })
+                        body: JSON.stringify({
+                            jsonrpc: '2.0',
+                            id: 'launchr-trending',
+                            method: 'getAssetBatch',
+                            params: { ids: mints.slice(0, 15) }
+                        })
                     });
-                    const heliusData = await heliusRes.json();
-                    log(`[HELIUS] Got metadata for ${heliusData?.length || 0} tokens`);
+                    const batchData = await batchRes.json();
 
-                    // Create a map of Helius metadata
-                    const heliusMeta = {};
-                    if (Array.isArray(heliusData)) {
-                        for (const meta of heliusData) {
-                            if (meta.account) {
-                                heliusMeta[meta.account] = {
-                                    name: meta.onChainMetadata?.metadata?.data?.name || meta.legacyMetadata?.name,
-                                    symbol: meta.onChainMetadata?.metadata?.data?.symbol || meta.legacyMetadata?.symbol,
-                                    image: meta.offChainMetadata?.metadata?.image || meta.legacyMetadata?.logoURI
+                    if (batchData.result && Array.isArray(batchData.result)) {
+                        log(`[HELIUS DAS] getAssetBatch returned ${batchData.result.length} assets`);
+                        for (const asset of batchData.result) {
+                            if (asset && asset.id) {
+                                heliusMeta[asset.id] = {
+                                    name: asset.content?.metadata?.name,
+                                    symbol: asset.content?.metadata?.symbol,
+                                    image: asset.content?.links?.image || asset.content?.files?.[0]?.uri
                                 };
                             }
                         }
-                    }
-
-                    // Step 3: Get price data from DexScreener for each token
-                    for (const mint of mints.slice(0, 15)) {
-                        try {
-                            const pairRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`);
-                            const pairData = await pairRes.json();
-
-                            if (pairData.pairs && pairData.pairs.length > 0) {
-                                const solPair = pairData.pairs
-                                    .filter(p => p.quoteToken?.symbol === 'SOL' || p.quoteToken?.symbol === 'WSOL')
-                                    .sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0]
-                                    || pairData.pairs[0];
-
-                                if ((solPair.liquidity?.usd || 0) > 1000 && (solPair.volume?.h24 || 0) > 1000) {
-                                    const hMeta = heliusMeta[mint] || {};
-                                    tokens.push({
-                                        mint: mint,
-                                        name: hMeta.name || solPair.baseToken?.name || 'Unknown',
-                                        symbol: hMeta.symbol || solPair.baseToken?.symbol || '???',
-                                        image: hMeta.image || solPair.info?.imageUrl || `https://dd.dexscreener.com/ds-data/tokens/solana/${mint}.png`,
-                                        marketCap: solPair.marketCap || solPair.fdv || 0,
-                                        price: parseFloat(solPair.priceUsd) || 0,
-                                        priceChange: solPair.priceChange?.h24 || 0,
-                                        priceChange5m: solPair.priceChange?.m5 || 0,
-                                        priceChange1h: solPair.priceChange?.h1 || 0,
-                                        volume24h: solPair.volume?.h24 || 0,
-                                        liquidity: solPair.liquidity?.usd || 0,
-                                        source: 'helius+dex'
-                                    });
-                                }
-                            }
-                        } catch (e) { /* skip */ }
-
-                        if (tokens.length >= 10) break;
+                    } else if (batchData.error) {
+                        log(`[HELIUS DAS] Error: ${batchData.error.message}`);
                     }
                 } catch (e) {
-                    log(`[HELIUS] Metadata API error: ${e.message}`);
+                    log(`[HELIUS DAS] getAssetBatch failed: ${e.message}`);
                 }
+            }
+
+            // Step 3: Get price data from DexScreener for each token
+            for (const mint of mints.slice(0, 15)) {
+                try {
+                    const pairRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`);
+                    const pairData = await pairRes.json();
+
+                    if (pairData.pairs && pairData.pairs.length > 0) {
+                        const solPair = pairData.pairs
+                            .filter(p => p.quoteToken?.symbol === 'SOL' || p.quoteToken?.symbol === 'WSOL')
+                            .sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0]
+                            || pairData.pairs[0];
+
+                        if ((solPair.liquidity?.usd || 0) > 1000 && (solPair.volume?.h24 || 0) > 1000) {
+                            const hMeta = heliusMeta[mint] || {};
+                            tokens.push({
+                                mint: mint,
+                                name: hMeta.name || solPair.baseToken?.name || 'Unknown',
+                                symbol: hMeta.symbol || solPair.baseToken?.symbol || '???',
+                                image: hMeta.image || solPair.info?.imageUrl || `https://dd.dexscreener.com/ds-data/tokens/solana/${mint}.png`,
+                                marketCap: solPair.marketCap || solPair.fdv || 0,
+                                price: parseFloat(solPair.priceUsd) || 0,
+                                priceChange: solPair.priceChange?.h24 || 0,
+                                priceChange5m: solPair.priceChange?.m5 || 0,
+                                priceChange1h: solPair.priceChange?.h1 || 0,
+                                volume24h: solPair.volume?.h24 || 0,
+                                liquidity: solPair.liquidity?.usd || 0,
+                                source: HELIUS_RPC?.includes('helius') ? 'helius+dex' : 'dexscreener'
+                            });
+                        }
+                    }
+                } catch (e) { /* skip */ }
+
+                if (tokens.length >= 10) break;
             }
 
             // Fallback: DexScreener only if Helius didn't work
