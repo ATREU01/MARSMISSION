@@ -6413,6 +6413,11 @@
 
           // Create a new post
           const handleCreatePost = async (postData) => {
+            if (!wallet?.address) {
+              console.error('[POST] No wallet connected');
+              return;
+            }
+
             const newPost = {
               id: Date.now().toString(),
               ...postData,
@@ -6425,8 +6430,9 @@
               reposts: 0
             };
 
-            // Save to server API first
+            // Save to server API - THIS IS REQUIRED
             try {
+              console.log('[POST] Saving to server...');
               const apiRes = await fetch('/api/posts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -6438,22 +6444,83 @@
                 })
               });
               const apiData = await apiRes.json();
-              if (apiData.success) {
-                console.log('[POST] Saved to server:', apiData.post?.id);
-                newPost.id = apiData.post?.id || newPost.id;
+              console.log('[POST] Server response:', apiData);
+
+              if (apiData.success && apiData.post) {
+                console.log('[POST] ✓ Saved to server with ID:', apiData.post.id);
+                newPost.id = apiData.post.id;
+                newPost.serverSynced = true;
+
+                // Also keep in localStorage as backup
+                const allPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
+                allPosts.unshift(newPost);
+                localStorage.setItem('culture_posts', JSON.stringify(allPosts));
+
+                // Update local state
+                setMyPosts(prev => [newPost, ...prev]);
+              } else {
+                console.error('[POST] ✗ Server rejected:', apiData.error || 'Unknown error');
+                alert('Failed to save post: ' + (apiData.error || 'Server error'));
               }
             } catch (e) {
-              console.error('[POST] Server save failed:', e);
+              console.error('[POST] ✗ Server save failed:', e);
+              alert('Failed to save post: Network error. Please try again.');
+            }
+          };
+
+          // Sync localStorage posts to server (for migration)
+          const syncLocalPostsToServer = async () => {
+            const localPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
+            const unsynced = localPosts.filter(p => !p.serverSynced && p.authorWallet);
+
+            if (unsynced.length === 0) {
+              console.log('[SYNC] No unsynced posts to migrate');
+              return { synced: 0, failed: 0 };
             }
 
-            // Also save to localStorage for backward compat
-            const allPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
-            allPosts.unshift(newPost);
-            localStorage.setItem('culture_posts', JSON.stringify(allPosts));
+            console.log('[SYNC] Migrating', unsynced.length, 'posts to server...');
+            let synced = 0, failed = 0;
 
-            // Update local state
-            setMyPosts(prev => [newPost, ...prev]);
+            for (const post of unsynced) {
+              try {
+                const res = await fetch('/api/posts', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    authorWallet: post.authorWallet,
+                    cultureId: post.cultureId || null,
+                    content: post.content,
+                    mediaUrls: post.media || []
+                  })
+                });
+                const data = await res.json();
+                if (data.success) {
+                  post.serverSynced = true;
+                  post.serverId = data.post?.id;
+                  synced++;
+                  console.log('[SYNC] ✓ Migrated post:', post.content?.slice(0, 30) + '...');
+                } else {
+                  failed++;
+                  console.error('[SYNC] ✗ Failed:', data.error);
+                }
+              } catch (e) {
+                failed++;
+                console.error('[SYNC] ✗ Error:', e);
+              }
+            }
+
+            // Update localStorage with sync status
+            localStorage.setItem('culture_posts', JSON.stringify(localPosts));
+            console.log('[SYNC] Complete:', synced, 'synced,', failed, 'failed');
+            return { synced, failed };
           };
+
+          // Auto-sync on load if wallet connected
+          useEffect(() => {
+            if (wallet?.address) {
+              syncLocalPostsToServer();
+            }
+          }, [wallet?.address]);
 
           // Handle like
           const handleLike = (postId) => {
