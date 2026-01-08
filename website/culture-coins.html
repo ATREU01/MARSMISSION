@@ -516,7 +516,7 @@
           const [loading, setLoading] = useState(true);
           const [lastUpdated, setLastUpdated] = useState(null);
           const [hoveredItem, setHoveredItem] = useState(null);
-          const [collapsed, setCollapsed] = useState(false);
+          // Removed inner collapse - using outer trendingCollapsed instead
 
           // Colors based on light/dark mode - GOLD ACCENT ONLY
           const colors = lightMode ? {
@@ -549,51 +549,41 @@
             gradient: 'linear-gradient(135deg, #FFD966 0%, #FF3D8E 100%)'
           };
 
-          // Fetch trending tokens from multiple sources with fallbacks
+          // Fetch REAL trending tokens from our API (DexScreener data)
           useEffect(() => {
             const fetchTokens = async () => {
-              let tokens = [];
-
-              // Primary: Use pump.fun API
               try {
-                const res = await fetch('/api/pump/coins?sort=usd_market_cap&order=DESC&limit=30');
+                // Use our trending API that fetches real DexScreener data
+                const res = await fetch('/api/trending-tokens');
                 const data = await res.json();
-                console.log('[TOKENS] Pump.fun response:', data?.length || 0, 'tokens');
-                if (Array.isArray(data) && data.length > 0) {
-                  tokens = data
-                    .filter(token => token.usd_market_cap > 5000 && token.symbol && token.name)
-                    .slice(0, 10)
-                    .map(token => ({
-                      mint: token.mint,
-                      name: token.name || 'Unknown',
-                      symbol: token.symbol || '???',
-                      image: token.image_uri || `https://dd.dexscreener.com/ds-data/tokens/solana/${token.mint}.png`,
-                      marketCap: token.usd_market_cap || 0,
-                      price: token.price || 0,
-                      priceChange: ((Math.random() - 0.3) * 40).toFixed(1),
-                      volume24h: token.volume_24h || 0,
-                      holders: token.holder_count || 0,
-                      source: 'pump.fun'
-                    }));
+                console.log('[TOKENS] Trending API response:', data);
+
+                if (data.success && data.tokens && data.tokens.length > 0) {
+                  const tokens = data.tokens.map(token => ({
+                    mint: token.mint,
+                    name: token.name || 'Unknown',
+                    symbol: token.symbol || '???',
+                    image: token.image || `https://dd.dexscreener.com/ds-data/tokens/solana/${token.mint}.png`,
+                    marketCap: token.marketCap || 0,
+                    price: token.price || 0,
+                    priceChange: token.priceChange ? token.priceChange.toFixed(1) : '0',
+                    priceChange5m: token.priceChange5m || 0,
+                    priceChange1h: token.priceChange1h || 0,
+                    volume24h: token.volume24h || 0,
+                    liquidity: token.liquidity || 0,
+                    source: token.source || 'dexscreener'
+                  }));
+                  setTokens(tokens.slice(0, 10));
+                  setLoading(false);
+                  return;
                 }
               } catch (e) {
-                console.log('[TOKENS] Pump.fun API failed:', e);
+                console.error('[TOKENS] Trending API failed:', e);
               }
 
-              // Fallback if pump.fun returns nothing
-              if (tokens.length === 0) {
-                console.log('[TOKENS] Using fallback tokens');
-                tokens = [
-                  { mint: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN', name: 'Jupiter', symbol: 'JUP', image: 'https://static.jup.ag/jup/icon.png', marketCap: 1200000000, priceChange: '+5.2', source: 'verified' },
-                  { mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', name: 'Bonk', symbol: 'BONK', image: 'https://arweave.net/hQiPZOsRZXGXBJd_82PhVdlM_hACsT_q6wqwf5cSY7I', marketCap: 1800000000, priceChange: '+3.8', source: 'verified' },
-                  { mint: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', name: 'dogwifhat', symbol: 'WIF', image: 'https://bafkreibk3covs5ltyqxa272uodhculbr6kea6betiez7rdewrljj7tfz6y.ipfs.nftstorage.link', marketCap: 2200000000, priceChange: '+7.1', source: 'verified' },
-                  { mint: 'MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5', name: 'cat in a dogs world', symbol: 'MEW', image: 'https://bafkreidlwyr565dxtao2ipsze6bmzpszqzybz7sqi2zaet5fs7k3rtxs7m.ipfs.nftstorage.link', marketCap: 850000000, priceChange: '+12.4', source: 'verified' },
-                  { mint: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr', name: 'Peanut the Squirrel', symbol: 'PNUT', image: 'https://dd.dexscreener.com/ds-data/tokens/solana/7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr.png', marketCap: 450000000, priceChange: '+9.6', source: 'verified' }
-                ];
-              }
-
-              tokens.sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0));
-              setTokens(tokens.slice(0, 10));
+              // Only if API completely fails, show empty state
+              setTokens([]);
+              setLoading(false);
             };
 
             const fetchTrends = async () => {
@@ -817,27 +807,10 @@
                       letterSpacing: '0.1em'
                     }}>LIVE</span>
                   </div>
-
-                  {/* Collapse button */}
-                  <button
-                    onClick={() => setCollapsed(!collapsed)}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: colors.textMuted,
-                      cursor: 'pointer',
-                      padding: '4px',
-                      marginLeft: '8px'
-                    }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: collapsed ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
-                      <path d="M18 15l-6-6-6 6"/>
-                    </svg>
-                  </button>
                 </div>
 
-                {/* Tabs - hidden when collapsed */}
-                {!collapsed && (
+                {/* Tabs */}
+                {true && (
                 <div style={{
                   display: 'flex',
                   gap: '0'
@@ -1052,7 +1025,7 @@
                               fontSize: '10px',
                               color: colors.textMuted
                             }}>
-                              {token.holders > 0 ? `${token.holders.toLocaleString()} holders` : token.source?.toUpperCase() || 'PUMP.FUN'}
+                              Vol: {formatMcap(token.volume24h || 0)}
                             </span>
                           </div>
                         </div>
@@ -1072,10 +1045,10 @@
                           </div>
                           <div style={{
                             fontFamily: "'IBM Plex Mono', monospace",
-                            fontSize: '10px',
-                            color: token.source === 'bonk.fun' ? '#FFD966' : colors.textMuted
+                            fontSize: '9px',
+                            color: colors.textMuted
                           }}>
-                            {token.source === 'bonk.fun' ? 'BONK.FUN' : 'PUMP.FUN'}
+                            24H
                           </div>
                         </div>
                       </a>
