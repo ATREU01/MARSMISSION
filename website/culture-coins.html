@@ -91,6 +91,196 @@
             }
         }
 
+        /* ═══════════════════════════════════════════════════════════════════
+           COMPREHENSIVE MOBILE RESPONSIVE DESIGN
+           ═══════════════════════════════════════════════════════════════════ */
+
+        /* Mobile Menu Overlay */
+        .mobile-menu-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1500;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        .mobile-menu-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Mobile Sidebar */
+        .mobile-sidebar {
+            position: fixed;
+            left: -280px;
+            top: 0;
+            bottom: 0;
+            width: 280px;
+            background: #0a0a0a;
+            border-right: 1px solid #1a1a1a;
+            z-index: 1600;
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            padding-top: 80px;
+        }
+        .mobile-sidebar.active {
+            left: 0;
+        }
+
+        /* Hamburger Menu Button */
+        .hamburger-btn {
+            display: none;
+            background: none;
+            border: none;
+            padding: 8px;
+            cursor: pointer;
+            z-index: 1100;
+        }
+        .hamburger-btn span {
+            display: block;
+            width: 24px;
+            height: 2px;
+            background: #fff;
+            margin: 5px 0;
+            transition: all 0.3s ease;
+        }
+        .hamburger-btn.active span:nth-child(1) {
+            transform: rotate(45deg) translate(5px, 5px);
+        }
+        .hamburger-btn.active span:nth-child(2) {
+            opacity: 0;
+        }
+        .hamburger-btn.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(5px, -5px);
+        }
+
+        /* Tablet Breakpoint - 1024px */
+        @media (max-width: 1024px) {
+            .desktop-sidebar {
+                width: 180px !important;
+            }
+            .main-content {
+                margin-left: 180px !important;
+            }
+        }
+
+        /* Mobile Breakpoint - 768px */
+        @media (max-width: 768px) {
+            .hamburger-btn {
+                display: block;
+            }
+            .desktop-sidebar {
+                display: none !important;
+            }
+            .desktop-nav-links {
+                display: none !important;
+            }
+            .main-content {
+                margin-left: 0 !important;
+            }
+            .mobile-full-width {
+                padding-left: 16px !important;
+                padding-right: 16px !important;
+            }
+            .mobile-stack {
+                flex-direction: column !important;
+            }
+            .mobile-text-center {
+                text-align: center !important;
+            }
+            .mobile-hide {
+                display: none !important;
+            }
+            .page-title {
+                font-size: 32px !important;
+            }
+            .page-subtitle {
+                font-size: 20px !important;
+            }
+            .notification-toast {
+                left: 16px !important;
+                right: 16px !important;
+                bottom: 80px !important;
+            }
+        }
+
+        /* Small Mobile - 480px */
+        @media (max-width: 480px) {
+            .page-title {
+                font-size: 28px !important;
+            }
+            .page-subtitle {
+                font-size: 18px !important;
+            }
+            .mobile-compact-padding {
+                padding: 12px !important;
+            }
+            .culture-grid {
+                grid-template-columns: 1fr !important;
+            }
+            .auction-grid {
+                grid-template-columns: 1fr !important;
+            }
+            .dashboard-grid {
+                grid-template-columns: 1fr !important;
+            }
+            .tek-grid {
+                grid-template-columns: 1fr 1fr !important;
+            }
+        }
+
+        /* Extra Small Mobile - 375px */
+        @media (max-width: 375px) {
+            .page-title {
+                font-size: 24px !important;
+            }
+            .tek-grid {
+                grid-template-columns: 1fr !important;
+            }
+        }
+
+        /* Touch-friendly buttons */
+        @media (max-width: 768px) {
+            button, .btn, [role="button"] {
+                min-height: 44px;
+                min-width: 44px;
+            }
+            input, select, textarea {
+                font-size: 16px !important; /* Prevents zoom on iOS */
+            }
+        }
+
+        /* Mobile Modal Styles */
+        @media (max-width: 768px) {
+            .modal-content {
+                width: 100% !important;
+                max-width: 100% !important;
+                height: 100vh !important;
+                max-height: 100vh !important;
+                margin: 0 !important;
+                border-radius: 0 !important;
+            }
+            .modal-mobile-header {
+                position: sticky;
+                top: 0;
+                background: #111;
+                z-index: 10;
+                padding: 16px;
+                border-bottom: 1px solid #222;
+            }
+        }
+
+        /* Safe area insets for notched phones */
+        @supports (padding-top: env(safe-area-inset-top)) {
+            .mobile-safe-top {
+                padding-top: env(safe-area-inset-top);
+            }
+            .mobile-safe-bottom {
+                padding-bottom: env(safe-area-inset-bottom);
+            }
+        }
+
         /* Access Gate */
         .access-gate {
             position: fixed;
@@ -419,6 +609,59 @@
 
         // Wallet Context for global state
         const WalletContext = createContext(null);
+
+        // ═══════════════════════════════════════════════════════════════════
+        // GLOBAL MOBILE DETECTION HOOK - Used by all components
+        // ═══════════════════════════════════════════════════════════════════
+        const MobileContext = createContext({ isMobile: false, isTablet: false, isMobileDevice: false });
+
+        const useMobile = () => useContext(MobileContext);
+
+        // Detect if running on actual mobile device (not just small window)
+        const detectMobileDevice = () => {
+          if (typeof window === 'undefined') return false;
+          const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+          // Check for mobile user agents
+          const mobileRegex = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile|tablet/i;
+          // Also check for touch capability
+          const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+          return mobileRegex.test(userAgent.toLowerCase()) || (hasTouch && window.innerWidth < 1024);
+        };
+
+        // Detect Phantom mobile app or mobile browser
+        const detectPhantomMobile = () => {
+          if (typeof window === 'undefined') return { isPhantomApp: false, isPhantomBrowser: false, canDeepLink: false };
+          const isMobileDevice = detectMobileDevice();
+          const hasPhantom = window.solana?.isPhantom;
+          // In Phantom mobile browser, window.solana exists
+          const isPhantomApp = hasPhantom && isMobileDevice;
+          // Can use deep link if on mobile but Phantom not injected
+          const canDeepLink = isMobileDevice && !hasPhantom;
+          return { isPhantomApp, isPhantomBrowser: hasPhantom && isMobileDevice, canDeepLink };
+        };
+
+        // Mobile Provider Component
+        const MobileProvider = ({ children }) => {
+          const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+          const [isTablet, setIsTablet] = useState(window.innerWidth >= 768 && window.innerWidth < 1024);
+          const [isMobileDevice, setIsMobileDevice] = useState(detectMobileDevice());
+
+          useEffect(() => {
+            const handleResize = () => {
+              setIsMobile(window.innerWidth < 768);
+              setIsTablet(window.innerWidth >= 768 && window.innerWidth < 1024);
+              setIsMobileDevice(detectMobileDevice());
+            };
+            window.addEventListener('resize', handleResize);
+            return () => window.removeEventListener('resize', handleResize);
+          }, []);
+
+          return (
+            <MobileContext.Provider value={{ isMobile, isTablet, isMobileDevice }}>
+              {children}
+            </MobileContext.Provider>
+          );
+        };
 
         // ═══════════════════════════════════════════════════════════════════
         // TOOLTIP COMPONENT - Hover explanations for users
@@ -1977,64 +2220,120 @@
           }
         ];
 
-        // Navigation Component
-        const Navigation = ({ view, setView }) => (
-          <nav style={{
-            position: 'fixed',
-            top: '36px',
-            left: 0,
-            right: 0,
-            height: '60px',
-            background: '#0a0a0a',
-            borderBottom: '1px solid #1a1a1a',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '0 40px',
-            zIndex: 1000,
-            fontFamily: "'IBM Plex Mono', monospace"
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
-              <a href="/" style={{
-                fontSize: '14px',
-                fontWeight: 600,
-                letterSpacing: '0.15em',
-                color: '#fff',
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px'
-              }}>
-                <img src="/website/logo-icon.jpg" alt="LAUNCHR" style={{ height: '28px', width: '28px' }} />
-                CULTURE COINS
-              </a>
-              <div style={{ display: 'flex', gap: '24px' }}>
-                {['discover', 'feed', 'create', 'auctions', 'dashboard'].map(v => (
+        // Navigation Component - Mobile Responsive with Hamburger Menu
+        const Navigation = ({ view, setView, onMenuToggle, menuOpen }) => {
+          const { isMobile } = useMobile();
+
+          return (
+            <nav style={{
+              position: 'fixed',
+              top: '36px',
+              left: 0,
+              right: 0,
+              height: '60px',
+              background: '#0a0a0a',
+              borderBottom: '1px solid #1a1a1a',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: isMobile ? '0 16px' : '0 40px',
+              zIndex: 1000,
+              fontFamily: "'IBM Plex Mono', monospace"
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '12px' : '32px' }}>
+                {/* Hamburger Menu Button - Mobile Only */}
+                {isMobile && (
                   <button
-                    key={v}
-                    onClick={() => setView(v)}
+                    className={`hamburger-btn ${menuOpen ? 'active' : ''}`}
+                    onClick={onMenuToggle}
+                    aria-label="Toggle menu"
                     style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      alignItems: 'center',
                       background: 'none',
                       border: 'none',
-                      color: view === v ? '#fff' : '#666',
-                      fontSize: '11px',
-                      letterSpacing: '0.1em',
-                      textTransform: 'uppercase',
+                      padding: '8px',
                       cursor: 'pointer',
-                      padding: '4px 0',
-                      borderBottom: view === v ? '1px solid #fff' : '1px solid transparent',
-                      transition: 'all 0.2s',
-                      fontFamily: "'IBM Plex Mono', monospace"
+                      minHeight: '44px',
+                      minWidth: '44px'
                     }}
                   >
-                    {v}
+                    <span style={{
+                      display: 'block',
+                      width: '22px',
+                      height: '2px',
+                      background: '#fff',
+                      marginBottom: '5px',
+                      transition: 'all 0.3s ease',
+                      transform: menuOpen ? 'rotate(45deg) translate(5px, 5px)' : 'none'
+                    }} />
+                    <span style={{
+                      display: 'block',
+                      width: '22px',
+                      height: '2px',
+                      background: '#fff',
+                      marginBottom: '5px',
+                      transition: 'all 0.3s ease',
+                      opacity: menuOpen ? 0 : 1
+                    }} />
+                    <span style={{
+                      display: 'block',
+                      width: '22px',
+                      height: '2px',
+                      background: '#fff',
+                      transition: 'all 0.3s ease',
+                      transform: menuOpen ? 'rotate(-45deg) translate(5px, -5px)' : 'none'
+                    }} />
                   </button>
-                ))}
+                )}
+
+                <a href="/" style={{
+                  fontSize: isMobile ? '12px' : '14px',
+                  fontWeight: 600,
+                  letterSpacing: '0.15em',
+                  color: '#fff',
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: isMobile ? '8px' : '12px'
+                }}>
+                  <img src="/website/logo-icon.jpg" alt="LAUNCHR" style={{ height: isMobile ? '24px' : '28px', width: isMobile ? '24px' : '28px' }} />
+                  {isMobile ? 'CC' : 'CULTURE COINS'}
+                </a>
+
+                {/* Desktop Nav Links - Hidden on Mobile */}
+                {!isMobile && (
+                  <div className="desktop-nav-links" style={{ display: 'flex', gap: '24px' }}>
+                    {['discover', 'feed', 'create', 'auctions', 'dashboard'].map(v => (
+                      <button
+                        key={v}
+                        onClick={() => setView(v)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: view === v ? '#fff' : '#666',
+                          fontSize: '11px',
+                          letterSpacing: '0.1em',
+                          textTransform: 'uppercase',
+                          cursor: 'pointer',
+                          padding: '4px 0',
+                          borderBottom: view === v ? '1px solid #fff' : '1px solid transparent',
+                          transition: 'all 0.2s',
+                          fontFamily: "'IBM Plex Mono', monospace"
+                        }}
+                      >
+                        {v}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-            <WalletButton />
-          </nav>
-        );
+              <WalletButton />
+            </nav>
+          );
+        };
 
         // Wallet Button Component
         const WalletButton = () => {
@@ -3117,6 +3416,7 @@
 
         // Culture Page
         const CulturePage = ({ culture, onBack }) => {
+          const { isMobile, isTablet } = useMobile();
           const [showJoinModal, setShowJoinModal] = useState(false);
           const [selectedTier, setSelectedTier] = useState(null);
           const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -5320,9 +5620,12 @@
             }
           };
 
+          // Get mobile state
+          const { isMobile } = useMobile();
+
           if (loading) {
             return (
-              <div style={{ padding: '136px 40px 60px', textAlign: 'center' }}>
+              <div style={{ padding: isMobile ? '110px 16px 80px' : '136px 40px 60px', textAlign: 'center' }}>
                 <p style={{ color: '#888', fontFamily: "'IBM Plex Mono', monospace" }}>
                   Loading the culture feed...
                 </p>
@@ -5332,7 +5635,7 @@
 
           return (
             <div style={{
-              padding: '136px 40px 60px',
+              padding: isMobile ? '110px 16px 80px' : '136px 40px 60px',
               background: colors.bg,
               minHeight: '100vh',
               transition: 'all 0.3s ease'
@@ -5347,7 +5650,7 @@
                 style={{
                   position: 'fixed',
                   top: '100px',
-                  right: '40px',
+                  right: isMobile ? '16px' : '40px',
                   zIndex: 100,
                   width: '44px',
                   height: '44px',
@@ -5384,19 +5687,22 @@
 
               <div style={{ maxWidth: '700px', margin: '0 auto' }}>
                 {/* Header */}
-                <div style={{ marginBottom: '32px' }}>
-                  <h1 style={{
-                    fontFamily: "'Playfair Display', serif",
-                    fontSize: '48px',
-                    fontWeight: 400,
-                    color: colors.text,
-                    marginBottom: '16px'
-                  }}>
+                <div style={{ marginBottom: isMobile ? '24px' : '32px' }}>
+                  <h1
+                    className="page-title"
+                    style={{
+                      fontFamily: "'Playfair Display', serif",
+                      fontSize: isMobile ? '32px' : '48px',
+                      fontWeight: 400,
+                      color: colors.text,
+                      marginBottom: '16px'
+                    }}
+                  >
                     Culture Feed
                   </h1>
                   <p style={{
                     fontFamily: "'IBM Plex Mono', monospace",
-                    fontSize: '14px',
+                    fontSize: isMobile ? '13px' : '14px',
                     color: colors.textMuted,
                     lineHeight: 1.7
                   }}>
@@ -5487,8 +5793,9 @@
           );
         };
 
-        // Auctions View
+        // Auctions View - Mobile Responsive
         const AuctionsView = () => {
+          const { isMobile } = useMobile();
           const [searchQuery, setSearchQuery] = useState('');
 
           // Filter auctions by culture name, title, or type
@@ -5504,20 +5811,23 @@
           });
 
           return (
-            <div style={{ padding: '136px 40px 60px' }}>
-              <div style={{ marginBottom: '48px' }}>
-                <h1 style={{
-                  fontFamily: "'Playfair Display', serif",
-                  fontSize: '48px',
-                  fontWeight: 400,
-                  color: '#fff',
-                  marginBottom: '16px'
-                }}>
+            <div style={{ padding: isMobile ? '110px 16px 80px' : '136px 40px 60px' }}>
+              <div style={{ marginBottom: isMobile ? '32px' : '48px' }}>
+                <h1
+                  className="page-title"
+                  style={{
+                    fontFamily: "'Playfair Display', serif",
+                    fontSize: isMobile ? '32px' : '48px',
+                    fontWeight: 400,
+                    color: '#fff',
+                    marginBottom: '16px'
+                  }}
+                >
                   Open Bidding
                 </h1>
                 <p style={{
                   fontFamily: "'IBM Plex Mono', monospace",
-                  fontSize: '14px',
+                  fontSize: isMobile ? '13px' : '14px',
                   color: '#888',
                   maxWidth: '600px',
                   lineHeight: 1.7
@@ -5528,28 +5838,29 @@
               </div>
 
               {/* Search */}
-              <div style={{ marginBottom: '32px' }}>
+              <div style={{ marginBottom: isMobile ? '24px' : '32px' }}>
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
                   background: '#0f0f0f',
                   border: '1px solid #222',
-                  padding: '0 16px'
+                  padding: '0 16px',
+                  borderRadius: isMobile ? '8px' : '0'
                 }}>
                   <span style={{ color: '#666', marginRight: '12px', fontSize: '14px' }}>⌕</span>
                   <input
                     type="text"
-                    placeholder="Search by culture name, title, or type..."
+                    placeholder={isMobile ? "Search auctions..." : "Search by culture name, title, or type..."}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     style={{
                       flex: 1,
-                      padding: '14px 0',
+                      padding: isMobile ? '16px 0' : '14px 0',
                       background: 'transparent',
                       border: 'none',
                       outline: 'none',
                       color: '#fff',
-                      fontSize: '13px',
+                      fontSize: isMobile ? '16px' : '13px',
                       fontFamily: "'IBM Plex Mono', monospace"
                     }}
                   />
@@ -5561,8 +5872,10 @@
                         border: 'none',
                         color: '#666',
                         cursor: 'pointer',
-                        fontSize: '16px',
-                        padding: '4px 8px'
+                        fontSize: '18px',
+                        padding: '8px',
+                        minHeight: '44px',
+                        minWidth: '44px'
                       }}
                     >
                       ✕
@@ -5571,11 +5884,14 @@
                 </div>
               </div>
 
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(450px, 1fr))',
-                gap: '24px'
-              }}>
+              <div
+                className="auction-grid"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(380px, 1fr))',
+                  gap: isMobile ? '16px' : '24px'
+                }}
+              >
                 {filteredAuctions.map(auction => (
                   <AuctionCard key={auction.id} auction={auction} />
                 ))}
@@ -5584,9 +5900,10 @@
           );
         };
 
-        // Dashboard View - Shows cultures you CREATED (as owner) + Social Hub
+        // Dashboard View - Shows cultures you CREATED (as owner) + Social Hub - Mobile Responsive
         const DashboardView = () => {
           const wallet = useContext(WalletContext);
+          const { isMobile, isTablet } = useMobile();
           const [myCultures, setMyCultures] = useState([]);
           const [loading, setLoading] = useState(true);
           const [searchQuery, setSearchQuery] = useState('');
@@ -6801,7 +7118,7 @@
                     {/* Stats Grid */}
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(4, 1fr)',
+                      gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : (isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)'),
                       gap: '16px',
                       marginBottom: '24px'
                     }}>
@@ -7351,7 +7668,7 @@
                       )}
 
                       {/* Stats Grid - Coral/Gold Elegant */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '20px', padding: '16px', background: 'linear-gradient(135deg, rgba(6,182,212,0.05) 0%, rgba(139,92,246,0.05) 100%)', border: '1px solid rgba(6,182,212,0.15)', borderRadius: '6px' }}>
+                      <div className="tek-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? '12px' : '16px', marginBottom: '20px', padding: isMobile ? '12px' : '16px', background: 'linear-gradient(135deg, rgba(6,182,212,0.05) 0%, rgba(139,92,246,0.05) 100%)', border: '1px solid rgba(6,182,212,0.15)', borderRadius: '6px' }}>
                         <div style={{ textAlign: 'center' }}>
                           <div style={{ fontSize: '20px', color: '#06b6d4', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '4px', fontWeight: 700 }}>{culture.holders || 0}</div>
                           <div style={{ fontSize: '9px', color: '#888', letterSpacing: '0.1em' }}>HOLDERS</div>
@@ -7611,7 +7928,7 @@
                     {/* Stats Grid - Culture Coins Style */}
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(4, 1fr)',
+                      gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : (isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)'),
                       gap: '16px',
                       marginBottom: '24px'
                     }}>
@@ -8697,6 +9014,7 @@
 
         // Create Culture Page - Manifesto Style (also handles Edit mode)
         const CreateCulturePage = ({ editMode = false }) => {
+          const { isMobile, isTablet } = useMobile();
           const wallet = useContext(WalletContext);
           const [editCultureId, setEditCultureId] = useState(null);
           const [cultureName, setCultureName] = useState('');
@@ -10474,7 +10792,7 @@
                 <div style={{ marginBottom: '16px' }}>
                   <SectionHeader title="COLOR SCHEME" tooltip="Accent = buttons & highlights. Text = all text color. Cards = background of content boxes. Borders = lines between sections." />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+                <div className="tek-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? '12px' : '16px' }}>
                   <div>
                     <div style={{ fontSize: '9px', letterSpacing: '0.1em', color: '#666', marginBottom: '8px', fontFamily: "'IBM Plex Mono', monospace" }}>
                       ACCENT
@@ -10678,7 +10996,7 @@
                       </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', textAlign: 'center' }}>
+                    <div className="tek-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? '12px' : '16px', textAlign: 'center' }}>
                       <div>
                         <div style={{ fontSize: '24px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
                           {vanityProgress.attempts.toLocaleString()}
@@ -11533,15 +11851,45 @@
           );
         };
 
-        // Wallet Select Modal Component
+        // Wallet Select Modal Component - Mobile Optimized with Deep Link Support
         const WalletSelectModal = ({ onClose, onConnect }) => {
-          console.log('[WALLET-MODAL] Rendering WalletSelectModal');
+          const { isMobile, isMobileDevice } = useMobile();
+          console.log('[WALLET-MODAL] Rendering WalletSelectModal, isMobile:', isMobile, 'isMobileDevice:', isMobileDevice);
+
+          // Detect available wallets
           const hasPhantom = typeof window !== 'undefined' && window.solana?.isPhantom;
           const hasSolflare = typeof window !== 'undefined' && window.solflare?.isSolflare;
-          console.log('[WALLET-MODAL] hasPhantom:', hasPhantom, 'hasSolflare:', hasSolflare);
+
+          // Mobile deep link detection
+          const phantomMobile = detectPhantomMobile();
+          const canUsePhantomDeepLink = isMobileDevice && !hasPhantom;
+          const canUseSolflareDeepLink = isMobileDevice && !hasSolflare;
+
+          console.log('[WALLET-MODAL] hasPhantom:', hasPhantom, 'hasSolflare:', hasSolflare, 'canDeepLink:', canUsePhantomDeepLink);
+
+          // Generate Phantom deep link URL for mobile
+          const getPhantomDeepLink = () => {
+            const currentUrl = encodeURIComponent(window.location.href);
+            const appUrl = encodeURIComponent(window.location.origin + '/culture-coins');
+            // Phantom universal link format for connecting
+            return `https://phantom.app/ul/v1/connect?app_url=${appUrl}&redirect_url=${currentUrl}&cluster=mainnet-beta`;
+          };
+
+          // Generate Solflare deep link URL for mobile
+          const getSolflareDeepLink = () => {
+            const currentUrl = encodeURIComponent(window.location.href);
+            return `https://solflare.com/ul/v1/connect?redirect_url=${currentUrl}`;
+          };
 
           const connectPhantom = async () => {
             console.log('[PHANTOM] Connecting...');
+            if (canUsePhantomDeepLink) {
+              // Mobile: Use deep link to open Phantom app
+              console.log('[PHANTOM] Using mobile deep link');
+              window.location.href = getPhantomDeepLink();
+              return;
+            }
+            // Desktop: Use injected provider
             try {
               const res = await window.solana.connect();
               console.log('[PHANTOM] Connected:', res.publicKey.toString());
@@ -11551,6 +11899,13 @@
           };
 
           const connectSolflare = async () => {
+            if (canUseSolflareDeepLink) {
+              // Mobile: Use deep link to open Solflare app
+              console.log('[SOLFLARE] Using mobile deep link');
+              window.location.href = getSolflareDeepLink();
+              return;
+            }
+            // Desktop: Use injected provider
             try {
               await window.solflare.connect();
               onConnect(window.solflare.publicKey.toString(), 'solflare');
@@ -11559,14 +11914,27 @@
           };
 
           const connectPrivy = () => {
-            console.log('[PRIVY] Opening auth popup...');
-            const w = 420, h = 650;
-            const left = (screen.width - w) / 2;
-            const top = (screen.height - h) / 2;
-            const popup = window.open('/auth', 'privy-auth', `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
-            console.log('[PRIVY] Popup opened:', popup ? 'success' : 'blocked');
-            onClose();
+            console.log('[PRIVY] Opening auth...');
+            if (isMobileDevice) {
+              // Mobile: Navigate directly instead of popup (popups often blocked on mobile)
+              console.log('[PRIVY] Mobile detected, using direct navigation');
+              // Store return URL
+              sessionStorage.setItem('privy_return_url', window.location.href);
+              window.location.href = '/auth?mobile=true';
+            } else {
+              // Desktop: Use popup
+              const w = 420, h = 650;
+              const left = (screen.width - w) / 2;
+              const top = (screen.height - h) / 2;
+              const popup = window.open('/auth', 'privy-auth', `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
+              console.log('[PRIVY] Popup opened:', popup ? 'success' : 'blocked');
+              onClose();
+            }
           };
+
+          // Determine if Phantom/Solflare should be enabled
+          const phantomEnabled = hasPhantom || canUsePhantomDeepLink;
+          const solflareEnabled = hasSolflare || canUseSolflareDeepLink;
 
           return (
             <div
@@ -11576,49 +11944,100 @@
                 inset: 0,
                 background: 'rgba(0,0,0,0.85)',
                 display: 'flex',
-                alignItems: 'center',
+                alignItems: isMobile ? 'flex-end' : 'center',
                 justifyContent: 'center',
                 zIndex: 2000
               }}
             >
-              <div style={{
-                background: '#111',
-                border: '1px solid #222',
-                maxWidth: '400px',
-                width: '90%'
-              }}>
+              <div
+                className="modal-content"
+                style={{
+                  background: '#111',
+                  border: isMobile ? 'none' : '1px solid #222',
+                  borderTop: isMobile ? '1px solid #222' : undefined,
+                  borderRadius: isMobile ? '16px 16px 0 0' : '0',
+                  maxWidth: isMobile ? '100%' : '400px',
+                  width: isMobile ? '100%' : '90%',
+                  maxHeight: isMobile ? '80vh' : 'auto',
+                  overflow: 'auto'
+                }}
+              >
                 <div style={{
-                  padding: '20px 24px',
+                  padding: isMobile ? '16px 20px' : '20px 24px',
                   borderBottom: '1px solid #222',
                   display: 'flex',
                   justifyContent: 'space-between',
-                  alignItems: 'center'
+                  alignItems: 'center',
+                  position: 'sticky',
+                  top: 0,
+                  background: '#111',
+                  zIndex: 10
                 }}>
-                  <span style={{ fontFamily: "'Playfair Display', serif", fontSize: '18px', color: '#fff' }}>
+                  <span style={{ fontFamily: "'Playfair Display', serif", fontSize: isMobile ? '16px' : '18px', color: '#fff' }}>
                     Connect Wallet
                   </span>
-                  <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#666', fontSize: '24px', cursor: 'pointer' }}>
+                  <button
+                    onClick={onClose}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#666',
+                      fontSize: '28px',
+                      cursor: 'pointer',
+                      padding: '8px',
+                      minHeight: '44px',
+                      minWidth: '44px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
                     &times;
                   </button>
                 </div>
-                <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ padding: isMobile ? '20px 16px 32px' : '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {/* Mobile info banner */}
+                  {isMobileDevice && (
+                    <div style={{
+                      padding: '12px 16px',
+                      background: 'rgba(139,92,246,0.1)',
+                      border: '1px solid rgba(139,92,246,0.2)',
+                      borderRadius: '8px',
+                      marginBottom: '8px'
+                    }}>
+                      <p style={{
+                        color: '#8b5cf6',
+                        fontSize: '12px',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        textAlign: 'center',
+                        margin: 0
+                      }}>
+                        Mobile detected - Use Privy for best experience
+                      </p>
+                    </div>
+                  )}
+
                   <p style={{ color: '#666', fontSize: '13px', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '8px', textAlign: 'center' }}>
-                    Choose your wallet to connect
+                    {isMobileDevice ? 'Tap to connect your wallet' : 'Choose your wallet to connect'}
                   </p>
+
+                  {/* Privy - Recommended for mobile */}
                   <button
                     onClick={connectPrivy}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: '14px',
-                      padding: '16px 20px',
+                      padding: isMobile ? '18px 20px' : '16px 20px',
                       background: 'rgba(139,92,246,0.15)',
-                      border: '1px solid rgba(139,92,246,0.3)',
+                      border: '2px solid rgba(139,92,246,0.5)',
                       color: '#fff',
                       fontSize: '14px',
                       fontFamily: "'IBM Plex Mono', monospace",
                       cursor: 'pointer',
-                      width: '100%'
+                      width: '100%',
+                      borderRadius: '8px',
+                      minHeight: '56px'
                     }}
                   >
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
@@ -11626,57 +12045,205 @@
                       <path d="M12 6L18 10V14L12 18L6 14V10L12 6Z" fill="white"/>
                     </svg>
                     <span style={{ flex: 1, textAlign: 'left' }}>Privy</span>
-                    <span style={{ fontSize: '10px', color: '#8b5cf6', background: 'rgba(139,92,246,0.15)', padding: '4px 8px' }}>
-                      EMBEDDED
+                    <span style={{
+                      fontSize: '10px',
+                      color: '#8b5cf6',
+                      background: 'rgba(139,92,246,0.15)',
+                      padding: '4px 8px',
+                      borderRadius: '4px'
+                    }}>
+                      {isMobileDevice ? 'RECOMMENDED' : 'EMBEDDED'}
                     </span>
                   </button>
+
+                  {/* Phantom - with mobile deep link support */}
                   <button
-                    onClick={hasPhantom ? connectPhantom : null}
-                    disabled={!hasPhantom}
+                    onClick={phantomEnabled ? connectPhantom : null}
+                    disabled={!phantomEnabled}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: '14px',
-                      padding: '16px 20px',
+                      padding: isMobile ? '18px 20px' : '16px 20px',
                       background: '#0a0a0a',
                       border: '1px solid #222',
-                      color: hasPhantom ? '#fff' : '#444',
+                      color: phantomEnabled ? '#fff' : '#444',
                       fontSize: '14px',
                       fontFamily: "'IBM Plex Mono', monospace",
-                      cursor: hasPhantom ? 'pointer' : 'not-allowed',
+                      cursor: phantomEnabled ? 'pointer' : 'not-allowed',
                       width: '100%',
-                      opacity: hasPhantom ? 1 : 0.5
+                      opacity: phantomEnabled ? 1 : 0.5,
+                      borderRadius: '8px',
+                      minHeight: '56px'
                     }}
                   >
                     <img src="/website/phantom_icon.png" alt="Phantom" style={{ width: '28px', height: '28px', borderRadius: '6px' }} />
                     <span style={{ flex: 1, textAlign: 'left' }}>Phantom</span>
-                    <span style={{ fontSize: '10px', color: hasPhantom ? '#8b5cf6' : '#666' }}>
-                      {hasPhantom ? 'DETECTED' : 'NOT INSTALLED'}
+                    <span style={{ fontSize: '10px', color: phantomEnabled ? '#8b5cf6' : '#666' }}>
+                      {hasPhantom ? 'DETECTED' : (canUsePhantomDeepLink ? 'OPEN APP' : 'NOT INSTALLED')}
                     </span>
                   </button>
+
+                  {/* Solflare - with mobile deep link support */}
                   <button
-                    onClick={hasSolflare ? connectSolflare : null}
-                    disabled={!hasSolflare}
+                    onClick={solflareEnabled ? connectSolflare : null}
+                    disabled={!solflareEnabled}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: '14px',
-                      padding: '16px 20px',
+                      padding: isMobile ? '18px 20px' : '16px 20px',
                       background: '#0a0a0a',
                       border: '1px solid #222',
-                      color: hasSolflare ? '#fff' : '#444',
+                      color: solflareEnabled ? '#fff' : '#444',
                       fontSize: '14px',
                       fontFamily: "'IBM Plex Mono', monospace",
-                      cursor: hasSolflare ? 'pointer' : 'not-allowed',
+                      cursor: solflareEnabled ? 'pointer' : 'not-allowed',
                       width: '100%',
-                      opacity: hasSolflare ? 1 : 0.5
+                      opacity: solflareEnabled ? 1 : 0.5,
+                      borderRadius: '8px',
+                      minHeight: '56px'
                     }}
                   >
                     <img src="https://solflare.com/favicon.ico" alt="Solflare" style={{ width: '28px', height: '28px', borderRadius: '6px' }} />
                     <span style={{ flex: 1, textAlign: 'left' }}>Solflare</span>
-                    <span style={{ fontSize: '10px', color: hasSolflare ? '#8b5cf6' : '#666' }}>
-                      {hasSolflare ? 'DETECTED' : 'NOT INSTALLED'}
+                    <span style={{ fontSize: '10px', color: solflareEnabled ? '#8b5cf6' : '#666' }}>
+                      {hasSolflare ? 'DETECTED' : (canUseSolflareDeepLink ? 'OPEN APP' : 'NOT INSTALLED')}
                     </span>
+                  </button>
+
+                  {/* Help text for mobile */}
+                  {isMobileDevice && !hasPhantom && !hasSolflare && (
+                    <p style={{
+                      color: '#555',
+                      fontSize: '11px',
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      textAlign: 'center',
+                      marginTop: '8px',
+                      lineHeight: 1.5
+                    }}>
+                      Don't have a wallet? Privy creates one for you automatically.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        // Wallet Info Modal - Mobile Responsive
+        const WalletInfoModal = ({ address, balance, holdings, onClose, onDisconnect }) => {
+          const { isMobile } = useMobile();
+
+          return (
+            <div
+              onClick={(e) => e.target === e.currentTarget && onClose()}
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.85)',
+                display: 'flex',
+                alignItems: isMobile ? 'flex-end' : 'center',
+                justifyContent: 'center',
+                zIndex: 2000
+              }}
+            >
+              <div
+                className="modal-content"
+                style={{
+                  background: '#111',
+                  border: isMobile ? 'none' : '1px solid #222',
+                  borderTop: isMobile ? '1px solid #222' : undefined,
+                  borderRadius: isMobile ? '16px 16px 0 0' : '0',
+                  maxWidth: isMobile ? '100%' : '400px',
+                  width: isMobile ? '100%' : '90%',
+                  maxHeight: isMobile ? '80vh' : 'auto',
+                  overflow: 'auto'
+                }}
+              >
+                <div style={{
+                  padding: isMobile ? '16px 20px' : '20px 24px',
+                  borderBottom: '1px solid #222',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  position: 'sticky',
+                  top: 0,
+                  background: '#111',
+                  zIndex: 10
+                }}>
+                  <span style={{ fontFamily: "'Playfair Display', serif", fontSize: isMobile ? '16px' : '18px', color: '#fff' }}>
+                    Wallet
+                  </span>
+                  <button
+                    onClick={onClose}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#666',
+                      fontSize: '28px',
+                      cursor: 'pointer',
+                      padding: '8px',
+                      minHeight: '44px',
+                      minWidth: '44px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    &times;
+                  </button>
+                </div>
+                <div style={{ padding: isMobile ? '20px 16px 32px' : '24px' }}>
+                  <div style={{ marginBottom: '24px' }}>
+                    <div style={{ fontSize: '11px', color: '#666', fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.1em', marginBottom: '8px' }}>
+                      ADDRESS
+                    </div>
+                    <div style={{
+                      fontSize: isMobile ? '12px' : '14px',
+                      color: '#fff',
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      wordBreak: 'break-all',
+                      background: '#0a0a0a',
+                      padding: '12px',
+                      borderRadius: '6px'
+                    }}>
+                      {address}
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: '24px' }}>
+                    <div style={{ fontSize: '11px', color: '#666', fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.1em', marginBottom: '8px' }}>
+                      BALANCE
+                    </div>
+                    <div style={{ fontSize: isMobile ? '20px' : '24px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
+                      {balance.toFixed(4)} SOL
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: '24px' }}>
+                    <div style={{ fontSize: '11px', color: '#666', fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.1em', marginBottom: '8px' }}>
+                      CULTURES JOINED
+                    </div>
+                    <div style={{ fontSize: isMobile ? '20px' : '24px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
+                      {holdings.length}
+                    </div>
+                  </div>
+                  <button
+                    onClick={onDisconnect}
+                    style={{
+                      width: '100%',
+                      padding: '16px',
+                      background: 'transparent',
+                      border: '1px solid #ef4444',
+                      color: '#ef4444',
+                      fontSize: '12px',
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      letterSpacing: '0.1em',
+                      cursor: 'pointer',
+                      borderRadius: '6px',
+                      minHeight: '48px'
+                    }}
+                  >
+                    DISCONNECT
                   </button>
                 </div>
               </div>
@@ -11684,110 +12251,50 @@
           );
         };
 
-        // Wallet Info Modal
-        const WalletInfoModal = ({ address, balance, holdings, onClose, onDisconnect }) => (
-          <div
-            onClick={(e) => e.target === e.currentTarget && onClose()}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0,0,0,0.85)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 2000
-            }}
-          >
-            <div style={{
-              background: '#111',
-              border: '1px solid #222',
-              maxWidth: '400px',
-              width: '90%'
-            }}>
-              <div style={{
-                padding: '20px 24px',
-                borderBottom: '1px solid #222',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <span style={{ fontFamily: "'Playfair Display', serif", fontSize: '18px', color: '#fff' }}>
-                  Wallet
-                </span>
-                <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#666', fontSize: '24px', cursor: 'pointer' }}>
-                  &times;
-                </button>
-              </div>
-              <div style={{ padding: '24px' }}>
-                <div style={{ marginBottom: '24px' }}>
-                  <div style={{ fontSize: '11px', color: '#666', fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.1em', marginBottom: '8px' }}>
-                    ADDRESS
-                  </div>
-                  <div style={{ fontSize: '14px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace", wordBreak: 'break-all' }}>
-                    {address}
-                  </div>
-                </div>
-                <div style={{ marginBottom: '24px' }}>
-                  <div style={{ fontSize: '11px', color: '#666', fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.1em', marginBottom: '8px' }}>
-                    BALANCE
-                  </div>
-                  <div style={{ fontSize: '24px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
-                    {balance.toFixed(4)} SOL
-                  </div>
-                </div>
-                <div style={{ marginBottom: '24px' }}>
-                  <div style={{ fontSize: '11px', color: '#666', fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.1em', marginBottom: '8px' }}>
-                    CULTURES JOINED
-                  </div>
-                  <div style={{ fontSize: '24px', color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
-                    {holdings.length}
-                  </div>
-                </div>
-                <button
-                  onClick={onDisconnect}
-                  style={{
-                    width: '100%',
-                    padding: '14px',
-                    background: 'transparent',
-                    border: '1px solid #ef4444',
-                    color: '#ef4444',
-                    fontSize: '12px',
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    letterSpacing: '0.1em',
-                    cursor: 'pointer'
-                  }}
-                >
-                  DISCONNECT
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-
-        // Notification Component
+        // Notification Component - Mobile Responsive
         const Notification = ({ message, type, onClose }) => {
+          const { isMobile } = useMobile();
+
           useEffect(() => {
             const timer = setTimeout(onClose, 3000);
             return () => clearTimeout(timer);
           }, []);
 
           return (
-            <div style={{
-              position: 'fixed',
-              bottom: '24px',
-              right: '24px',
-              padding: '16px 24px',
-              background: type === 'success' ? '#8b5cf6' : type === 'error' ? '#ef4444' : '#fff',
-              color: '#000',
-              fontFamily: "'IBM Plex Mono', monospace",
-              fontSize: '13px',
-              zIndex: 3000,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px'
-            }}>
-              {message}
-              <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#000', cursor: 'pointer', fontSize: '16px' }}>
+            <div
+              className="notification-toast"
+              style={{
+                position: 'fixed',
+                bottom: isMobile ? '80px' : '24px',
+                right: isMobile ? '16px' : '24px',
+                left: isMobile ? '16px' : 'auto',
+                padding: isMobile ? '14px 16px' : '16px 24px',
+                background: type === 'success' ? '#8b5cf6' : type === 'error' ? '#ef4444' : '#fff',
+                color: '#000',
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: isMobile ? '12px' : '13px',
+                zIndex: 3000,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                borderRadius: isMobile ? '8px' : '0',
+                boxShadow: isMobile ? '0 4px 20px rgba(0,0,0,0.3)' : 'none'
+              }}
+            >
+              <span style={{ flex: 1 }}>{message}</span>
+              <button
+                onClick={onClose}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#000',
+                  cursor: 'pointer',
+                  fontSize: '18px',
+                  padding: '4px',
+                  minHeight: '32px',
+                  minWidth: '32px'
+                }}
+              >
                 &times;
               </button>
             </div>
@@ -11969,8 +12476,18 @@
             showNotification
           };
 
-          // Sidebar component
-          const Sidebar = ({ view, setView }) => {
+          // Mobile menu state
+          const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+          // Close mobile menu when navigating
+          const handleSetView = (v) => {
+            setView(v);
+            setSelectedCulture(null);
+            setMobileMenuOpen(false);
+          };
+
+          // Sidebar component - Mobile Responsive
+          const Sidebar = ({ view, setView, isMobile, isOpen, onClose }) => {
             const navItems = [
               { id: 'home', label: 'Home', icon: '⌂', action: () => window.location.href = '/' },
               { id: 'leaderboard', label: 'Leaderboard', icon: '◎', action: () => window.location.href = '/launchpad' },
@@ -11979,13 +12496,13 @@
               { id: 'roadmap', label: 'Roadmap', icon: '◇', action: () => window.location.href = '/roadmap' },
             ];
             const cultureItems = [
-              { id: 'discover', label: 'Discover', icon: '◎', action: () => setView('discover'), active: true },
-              { id: 'feed', label: 'Feed', icon: '◈', disabled: true, soon: true },
-              { id: 'auctions', label: 'Auctions', icon: '◇', disabled: true, soon: true },
+              { id: 'discover', label: 'Discover', icon: '◎', action: () => { setView('discover'); if (onClose) onClose(); } },
+              { id: 'feed', label: 'Feed', icon: '◈', action: () => { setView('feed'); if (onClose) onClose(); } },
+              { id: 'auctions', label: 'Auctions', icon: '◇', action: () => { setView('auctions'); if (onClose) onClose(); } },
             ];
             const creatorItems = [
-              { id: 'create', label: 'Create', icon: '◈', disabled: true, soon: true },
-              { id: 'mycultures', label: 'My Cultures', icon: '◉', disabled: true, soon: true },
+              { id: 'create', label: 'Create', icon: '◈', action: () => { setView('create'); if (onClose) onClose(); } },
+              { id: 'mycultures', label: 'My Cultures', icon: '◉', action: () => { setView('dashboard'); if (onClose) onClose(); } },
             ];
             const socialItems = [
               { id: 'twitter', label: 'Twitter', icon: '𝕏', href: 'https://twitter.com/laaboratory' },
@@ -12007,18 +12524,19 @@
                     alignItems: 'center',
                     gap: '10px',
                     width: '100%',
-                    padding: '10px 12px',
+                    padding: isMobile ? '14px 12px' : '10px 12px',
                     background: isActive && !isDisabled ? 'rgba(139, 92, 246, 0.1)' : 'transparent',
                     border: 'none',
                     borderRadius: '6px',
                     color: isDisabled ? 'rgba(139, 92, 246, 0.3)' : (isActive ? '#8b5cf6' : 'rgba(139, 92, 246, 0.6)'),
-                    fontSize: '13px',
+                    fontSize: isMobile ? '14px' : '13px',
                     cursor: isDisabled ? 'default' : 'pointer',
                     textAlign: 'left',
                     marginBottom: '4px',
                     transition: 'all 0.2s',
                     textShadow: isActive && !isDisabled ? '0 0 10px rgba(139, 92, 246, 0.4)' : 'none',
-                    pointerEvents: isDisabled ? 'none' : 'auto'
+                    pointerEvents: isDisabled ? 'none' : 'auto',
+                    minHeight: isMobile ? '48px' : 'auto'
                   }}
                   onMouseEnter={(e) => {
                     if (!isActive && !isDisabled) {
@@ -12033,28 +12551,49 @@
                     }
                   }}
                 >
-                  <span style={{ fontSize: '14px' }}>{item.icon}</span>
+                  <span style={{ fontSize: isMobile ? '16px' : '14px' }}>{item.icon}</span>
                   {item.label}
                   {showSoon && <span style={{ fontSize: '10px', color: 'rgba(139, 92, 246, 0.4)', marginLeft: 'auto' }}>(soon)</span>}
                 </button>
               );
             };
 
-            return (
-              <div style={{
-                position: 'fixed',
-                left: 0,
-                top: '76px',
-                bottom: 0,
-                width: '200px',
-                background: '#0a0a0a',
-                borderRight: '1px solid #1a1a1a',
-                padding: '24px 0',
-                display: 'flex',
-                flexDirection: 'column',
-                zIndex: 100,
-                fontFamily: "'IBM Plex Mono', monospace"
-              }}>
+            // Don't render desktop sidebar on mobile
+            if (isMobile && !isOpen) return null;
+
+            const sidebarContent = (
+              <>
+                {/* Mobile Header with Close */}
+                {isMobile && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '16px 20px',
+                    borderBottom: '1px solid #1a1a1a',
+                    marginBottom: '16px'
+                  }}>
+                    <span style={{ color: '#fff', fontSize: '14px', fontWeight: 600, letterSpacing: '0.1em' }}>
+                      MENU
+                    </span>
+                    <button
+                      onClick={onClose}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#666',
+                        fontSize: '24px',
+                        cursor: 'pointer',
+                        padding: '8px',
+                        minHeight: '44px',
+                        minWidth: '44px'
+                      }}
+                    >
+                      &times;
+                    </button>
+                  </div>
+                )}
+
                 {/* Navigation */}
                 <div style={{ padding: '0 16px', marginBottom: '24px' }}>
                   <div style={{ fontSize: '10px', color: '#444', letterSpacing: '0.1em', marginBottom: '12px' }}>NAVIGATION</div>
@@ -12064,13 +12603,13 @@
                 {/* Culture Coins */}
                 <div style={{ padding: '0 16px', marginBottom: '24px' }}>
                   <div style={{ fontSize: '10px', color: '#444', letterSpacing: '0.1em', marginBottom: '12px' }}>CULTURE COINS</div>
-                  {cultureItems.map(item => renderNavButton(item, item.id === 'discover' && view === 'discover'))}
+                  {cultureItems.map(item => renderNavButton(item, item.id === view))}
                 </div>
 
                 {/* Creator Central */}
                 <div style={{ padding: '0 16px', marginBottom: '24px' }}>
                   <div style={{ fontSize: '10px', color: '#444', letterSpacing: '0.1em', marginBottom: '12px' }}>CREATOR CENTRAL</div>
-                  {creatorItems.map(item => renderNavButton(item, false))}
+                  {creatorItems.map(item => renderNavButton(item, item.id === 'create' && view === 'create'))}
                 </div>
 
                 {/* Resources */}
@@ -12086,13 +12625,14 @@
                         display: 'flex',
                         alignItems: 'center',
                         gap: '10px',
-                        padding: '10px 12px',
+                        padding: isMobile ? '14px 12px' : '10px 12px',
                         color: 'rgba(139, 92, 246, 0.6)',
-                        fontSize: '12px',
+                        fontSize: isMobile ? '14px' : '12px',
                         textDecoration: 'none',
                         marginBottom: '4px',
                         borderRadius: '6px',
-                        transition: 'all 0.2s'
+                        transition: 'all 0.2s',
+                        minHeight: isMobile ? '48px' : 'auto'
                       }}
                       onMouseEnter={(e) => {
                         e.target.style.color = '#8b5cf6';
@@ -12103,22 +12643,105 @@
                         e.target.style.textShadow = 'none';
                       }}
                     >
-                      <span style={{ fontSize: '14px' }}>{item.icon}</span>
+                      <span style={{ fontSize: isMobile ? '16px' : '14px' }}>{item.icon}</span>
                       {item.label}
                     </a>
                   ))}
                 </div>
+              </>
+            );
+
+            // Mobile: Overlay sidebar
+            if (isMobile) {
+              return (
+                <>
+                  {/* Overlay backdrop */}
+                  <div
+                    onClick={onClose}
+                    style={{
+                      position: 'fixed',
+                      inset: 0,
+                      background: 'rgba(0, 0, 0, 0.8)',
+                      zIndex: 1500,
+                      opacity: isOpen ? 1 : 0,
+                      visibility: isOpen ? 'visible' : 'hidden',
+                      transition: 'all 0.3s ease'
+                    }}
+                  />
+                  {/* Sidebar panel */}
+                  <div
+                    className="mobile-sidebar"
+                    style={{
+                      position: 'fixed',
+                      left: isOpen ? 0 : '-280px',
+                      top: 0,
+                      bottom: 0,
+                      width: '280px',
+                      background: '#0a0a0a',
+                      borderRight: '1px solid #1a1a1a',
+                      padding: '96px 0 24px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      zIndex: 1600,
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      transition: 'left 0.3s ease',
+                      overflowY: 'auto'
+                    }}
+                  >
+                    {sidebarContent}
+                  </div>
+                </>
+              );
+            }
+
+            // Desktop: Fixed sidebar
+            return (
+              <div
+                className="desktop-sidebar"
+                style={{
+                  position: 'fixed',
+                  left: 0,
+                  top: '96px',
+                  bottom: 0,
+                  width: '200px',
+                  background: '#0a0a0a',
+                  borderRight: '1px solid #1a1a1a',
+                  padding: '24px 0',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  zIndex: 100,
+                  fontFamily: "'IBM Plex Mono', monospace"
+                }}
+              >
+                {sidebarContent}
               </div>
             );
           };
 
+          // Get mobile state from context
+          const { isMobile } = useMobile();
+
           return (
             <WalletContext.Provider value={walletContextValue}>
               <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#fff' }}>
-                <Navigation view={view} setView={(v) => { setView(v); setSelectedCulture(null); }} />
-                <Sidebar view={view} setView={(v) => { setView(v); setSelectedCulture(null); }} />
+                <Navigation
+                  view={view}
+                  setView={handleSetView}
+                  onMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  menuOpen={mobileMenuOpen}
+                />
+                <Sidebar
+                  view={view}
+                  setView={handleSetView}
+                  isMobile={isMobile}
+                  isOpen={mobileMenuOpen}
+                  onClose={() => setMobileMenuOpen(false)}
+                />
 
-                <div style={{ marginLeft: '200px' }}>
+                <div
+                  className="main-content"
+                  style={{ marginLeft: isMobile ? 0 : '200px' }}
+                >
                   {view === 'discover' && <DiscoveryView onSelectCulture={handleSelectCulture} />}
                   {view === 'feed' && <FeedView onSelectCulture={handleSelectCulture} />}
                   {view === 'create' && <CreateCulturePage />}
@@ -12150,7 +12773,7 @@
                   />
                 )}
 
-                {/* Notification */}
+                {/* Notification - Mobile aware positioning */}
                 {notification && (
                   <Notification
                     message={notification.message}
@@ -12164,7 +12787,11 @@
         }
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<CultureCoinsApp />);
+        root.render(
+          <MobileProvider>
+            <CultureCoinsApp />
+          </MobileProvider>
+        );
     </script>
 </body>
 </html>
