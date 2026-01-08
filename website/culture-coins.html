@@ -6426,6 +6426,7 @@
                     { id: 'overview', label: 'Overview' },
                     { id: 'posts', label: 'My Posts' },
                     { id: 'cultures', label: 'My Cultures' },
+                    { id: 'tek', label: 'TEK Engine' },
                     { id: 'settings', label: 'Settings' }
                   ].map(tab => (
                     <button
@@ -6577,675 +6578,6 @@
                           </div>
                         </div>
                       ))}
-                    </div>
-
-                    {/* TEK Integration Panel - Wall Street Elegant */}
-                    <div style={{
-                      background: dashColors.gradientSubtle,
-                      border: `1px solid rgba(255, 107, 107, 0.2)`,
-                      borderRadius: '8px',
-                      padding: '20px',
-                      marginBottom: '16px',
-                      boxShadow: '0 4px 24px rgba(255, 107, 107, 0.05)'
-                    }}>
-                      {/* TEK Header - Wall Street Elegant */}
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        marginBottom: '16px',
-                        paddingBottom: '16px',
-                        borderBottom: `1px solid rgba(255, 107, 107, 0.15)`
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div style={{
-                            width: '36px',
-                            height: '36px',
-                            background: dashColors.gradient,
-                            borderRadius: '8px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            boxShadow: '0 4px 16px rgba(255, 107, 107, 0.3)'
-                          }}>
-                            <svg width="18" height="18" fill="#0a0a0a" viewBox="0 0 24 24">
-                              <path d="M13 2L4 14h7v8l9-12h-7l2-8h-2z"/>
-                            </svg>
-                          </div>
-                          <div>
-                            <div style={{
-                              fontFamily: "'IBM Plex Mono', monospace",
-                              fontSize: '14px',
-                              fontWeight: 700,
-                              background: dashColors.gradient,
-                              WebkitBackgroundClip: 'text',
-                              WebkitTextFillColor: 'transparent',
-                              letterSpacing: '0.08em'
-                            }}>
-                              TEK ENGINE
-                            </div>
-                            <div style={{
-                              fontFamily: "'IBM Plex Mono', monospace",
-                              fontSize: '10px',
-                              color: dashColors.textMuted,
-                              letterSpacing: '0.05em'
-                            }}>
-                              Automated Fee Distribution
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Token Selector for TEK */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          {tokensLoading ? (
-                            <span style={{
-                              padding: '8px 12px',
-                              background: '#111',
-                              border: '1px solid #333',
-                              color: '#666',
-                              fontSize: '11px',
-                              fontFamily: "'IBM Plex Mono', monospace"
-                            }}>
-                              Loading tokens...
-                            </span>
-                          ) : myTokens.length > 0 ? (
-                            <select
-                              value={selectedTekCulture?.tokenAddress || ''}
-                              onChange={(e) => {
-                                const token = myTokens.find(t => t.mint === e.target.value);
-                                if (token) {
-                                  const culture = {
-                                    tokenAddress: token.mint,
-                                    name: token.name,
-                                    ticker: token.symbol,
-                                    image: token.image
-                                  };
-                                  setSelectedTekCulture(culture);
-                                  setSelectedChartCulture(culture); // Also update chart
-                                }
-                              }}
-                              style={{
-                                padding: '8px 12px',
-                                background: '#111',
-                                border: '1px solid #333',
-                                color: '#fff',
-                                fontSize: '11px',
-                                fontFamily: "'IBM Plex Mono', monospace",
-                                cursor: 'pointer',
-                                minWidth: '200px'
-                              }}
-                            >
-                              {myTokens.map(token => (
-                                <option key={token.mint} value={token.mint}>
-                                  {token.name} (${token.symbol})
-                                </option>
-                              ))}
-                            </select>
-                          ) : myCultures.filter(c => c.tokenAddress).length > 0 ? (
-                            <select
-                              value={selectedTekCulture?.tokenAddress || ''}
-                              onChange={(e) => {
-                                const culture = myCultures.find(c => c.tokenAddress === e.target.value);
-                                setSelectedTekCulture(culture);
-                                setSelectedChartCulture(culture); // Also update chart selection
-                              }}
-                              style={{
-                                padding: '8px 12px',
-                                background: '#111',
-                                border: '1px solid #333',
-                                color: '#fff',
-                                fontSize: '11px',
-                                fontFamily: "'IBM Plex Mono', monospace",
-                                cursor: 'pointer',
-                                minWidth: '200px'
-                              }}
-                            >
-                              {myCultures.filter(c => c.tokenAddress).map(culture => (
-                                <option key={culture.tokenAddress} value={culture.tokenAddress}>
-                                  {culture.name} (${culture.ticker})
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            <span style={{
-                              padding: '8px 12px',
-                              background: '#111',
-                              border: '1px solid #333',
-                              color: '#666',
-                              fontSize: '11px',
-                              fontFamily: "'IBM Plex Mono', monospace"
-                            }}>
-                              No tokens found
-                            </span>
-                          )}
-                          <span style={{
-                            padding: '4px 8px',
-                            background: 'rgba(255, 217, 102, 0.1)',
-                            border: '1px solid rgba(255, 217, 102, 0.3)',
-                            color: '#FFD966',
-                            fontSize: '10px',
-                            fontFamily: "'IBM Plex Mono', monospace"
-                          }}>
-                            {myTokens.length} token{myTokens.length !== 1 ? 's' : ''}
-                          </span>
-                        </div>
-
-                        {/* Edit Culture Button - requires PK+CA verification */}
-                        {selectedTekCulture && (
-                          <button
-                            onClick={() => handleEditCulture(selectedTekCulture)}
-                            style={{
-                              padding: '10px 16px',
-                              background: '#FFD966',
-                              border: 'none',
-                              color: '#000',
-                              fontSize: '10px',
-                              fontFamily: "'IBM Plex Mono', monospace",
-                              letterSpacing: '0.1em',
-                              cursor: 'pointer',
-                              fontWeight: 700,
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                            </svg>
-                            EDIT CULTURE
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Import Token by Contract Address */}
-                      <div style={{
-                        marginBottom: '12px',
-                        padding: '10px',
-                        background: '#0a0a0a',
-                        border: '1px solid #222'
-                      }}>
-                        <div style={{ fontSize: '9px', color: '#666', letterSpacing: '0.1em', marginBottom: '8px', fontFamily: "'IBM Plex Mono', monospace" }}>
-                          IMPORT TOKEN BY CONTRACT ADDRESS
-                        </div>
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <input
-                            type="text"
-                            placeholder="Enter token CA..."
-                            value={importTokenAddress}
-                            onChange={(e) => setImportTokenAddress(e.target.value)}
-                            style={{
-                              flex: 1,
-                              padding: '8px 10px',
-                              background: '#111',
-                              border: '1px solid #333',
-                              color: '#fff',
-                              fontSize: '11px',
-                              fontFamily: "'IBM Plex Mono', monospace"
-                            }}
-                          />
-                          <button
-                            onClick={handleImportCoin}
-                            disabled={importLoading || !importTokenAddress.trim()}
-                            style={{
-                              padding: '8px 14px',
-                              background: importTokenAddress.trim() ? '#FFD966' : '#333',
-                              border: 'none',
-                              color: importTokenAddress.trim() ? '#000' : '#666',
-                              fontSize: '10px',
-                              fontFamily: "'IBM Plex Mono', monospace",
-                              letterSpacing: '0.1em',
-                              cursor: importTokenAddress.trim() ? 'pointer' : 'not-allowed',
-                              fontWeight: 600
-                            }}
-                          >
-                            {importLoading ? 'LOADING...' : 'IMPORT'}
-                          </button>
-                        </div>
-                        {importedTokenData && (
-                          <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(255,217,102,0.1)', border: '1px solid rgba(255,217,102,0.3)' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                              {importedTokenData.image_uri && (
-                                <img src={importedTokenData.image_uri} alt="" style={{ width: '40px', height: '40px', borderRadius: '8px' }} />
-                              )}
-                              <div>
-                                <div style={{ color: '#fff', fontFamily: "'IBM Plex Mono', monospace", fontSize: '14px' }}>{importedTokenData.name}</div>
-                                <div style={{ color: '#FFD966', fontFamily: "'IBM Plex Mono', monospace", fontSize: '11px' }}>${importedTokenData.symbol}</div>
-                              </div>
-                            </div>
-                            <button
-                              onClick={handleConfirmImport}
-                              style={{
-                                width: '100%',
-                                padding: '12px',
-                                background: '#FFD966',
-                                border: 'none',
-                                color: '#000',
-                                fontSize: '11px',
-                                fontFamily: "'IBM Plex Mono', monospace",
-                                letterSpacing: '0.1em',
-                                cursor: 'pointer',
-                                fontWeight: 700
-                              }}
-                            >
-                              ADD TO MY CULTURES
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* TEK Status */}
-                      {tekStatus && (
-                        <div style={{
-                          padding: '10px 14px',
-                          background: tekStatus.includes('Error') ? 'rgba(239, 68, 68, 0.1)' : 'rgba(255, 217, 102, 0.1)',
-                          border: `1px solid ${tekStatus.includes('Error') ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255, 217, 102, 0.3)'}`,
-                          marginBottom: '16px',
-                          fontSize: '11px',
-                          fontFamily: "'IBM Plex Mono', monospace",
-                          color: tekStatus.includes('Error') ? '#ef4444' : '#FFD966'
-                        }}>
-                          {tekStatus}
-                        </div>
-                      )}
-
-                      {/* Main TEK Controls Grid */}
-                      <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 1fr',
-                        gap: '12px'
-                      }}>
-                        {/* Left Column - Allocation Splits */}
-                        <div>
-                          <div style={{
-                            fontSize: '9px',
-                            color: '#666',
-                            letterSpacing: '0.15em',
-                            marginBottom: '8px',
-                            fontFamily: "'IBM Plex Mono', monospace"
-                          }}>
-                            FEE ALLOCATION SPLITS
-                          </div>
-
-                          {/* Total Display */}
-                          <div style={{
-                            textAlign: 'center',
-                            padding: '8px',
-                            background: getTekTotal() === 100 ? 'rgba(255, 217, 102, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                            border: `1px solid ${getTekTotal() === 100 ? 'rgba(255, 217, 102, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
-                            marginBottom: '10px'
-                          }}>
-                            <div style={{ fontSize: '9px', color: '#666', marginBottom: '2px' }}>TOTAL</div>
-                            <div style={{
-                              fontSize: '18px',
-                              fontWeight: 700,
-                              color: getTekTotal() === 100 ? '#FFD966' : '#ef4444',
-                              fontFamily: "'IBM Plex Mono', monospace"
-                            }}>
-                              {getTekTotal()}%
-                            </div>
-                          </div>
-
-                          {/* Allocation Inputs Grid */}
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                            {[
-                              { key: 'marketMaking', label: 'Market Making' },
-                              { key: 'buybackBurn', label: 'Buyback & Burn' },
-                              { key: 'liquidity', label: 'Liquidity Pool' },
-                              { key: 'creatorRevenue', label: 'Creator Revenue' }
-                            ].map(({ key, label }) => (
-                              <div key={key} style={{
-                                background: '#111',
-                                border: '1px solid #222',
-                                padding: '8px'
-                              }}>
-                                <label style={{
-                                  fontSize: '9px',
-                                  color: '#666',
-                                  display: 'block',
-                                  marginBottom: '4px',
-                                  fontFamily: "'IBM Plex Mono', monospace"
-                                }}>
-                                  {label}
-                                </label>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    max="100"
-                                    value={tekAllocations[key]}
-                                    onChange={(e) => updateTekAllocation(key, e.target.value)}
-                                    style={{
-                                      flex: 1,
-                                      padding: '6px',
-                                      background: '#0a0a0a',
-                                      border: '1px solid #333',
-                                      color: '#FFD966',
-                                      fontSize: '14px',
-                                      fontWeight: 600,
-                                      textAlign: 'center',
-                                      fontFamily: "'IBM Plex Mono', monospace"
-                                    }}
-                                  />
-                                  <span style={{ color: '#666', fontSize: '12px' }}>%</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* Save Allocations Button */}
-                          <button
-                            onClick={saveTekAllocations}
-                            disabled={tekLoading || getTekTotal() !== 100}
-                            style={{
-                              width: '100%',
-                              padding: '8px',
-                              marginTop: '8px',
-                              background: getTekTotal() === 100 ? '#FFD966' : '#333',
-                              border: 'none',
-                              color: getTekTotal() === 100 ? '#0a0a0a' : '#666',
-                              fontSize: '10px',
-                              fontWeight: 600,
-                              fontFamily: "'IBM Plex Mono', monospace",
-                              letterSpacing: '0.1em',
-                              cursor: getTekTotal() === 100 ? 'pointer' : 'not-allowed',
-                              opacity: tekLoading ? 0.5 : 1
-                            }}
-                          >
-                            {tekLoading ? 'SAVING...' : 'SAVE ALLOCATIONS'}
-                          </button>
-                        </div>
-
-                        {/* Right Column - Controls */}
-                        <div>
-                          {/* LP Burn Toggle */}
-                          <div style={{
-                            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.05))',
-                            border: '1px solid rgba(239, 68, 68, 0.3)',
-                            padding: '10px',
-                            marginBottom: '10px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between'
-                          }}>
-                            <div>
-                              <div style={{
-                                fontSize: '11px',
-                                fontWeight: 600,
-                                color: '#fff',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                fontFamily: "'IBM Plex Mono', monospace"
-                              }}>
-                                <span style={{ fontSize: '12px' }}>🔥</span> LP BURN
-                              </div>
-                              <div style={{ fontSize: '9px', color: '#666', marginTop: '2px' }}>
-                                Lock liquidity forever
-                              </div>
-                            </div>
-                            <label style={{ position: 'relative', display: 'inline-block', width: '40px', height: '22px', cursor: 'pointer' }}>
-                              <input
-                                type="checkbox"
-                                checked={lpBurnEnabled}
-                                onChange={(e) => toggleTekLpBurn(e.target.checked)}
-                                style={{ opacity: 0, width: 0, height: 0 }}
-                              />
-                              <span style={{
-                                position: 'absolute',
-                                cursor: 'pointer',
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                backgroundColor: lpBurnEnabled ? '#FFD966' : '#374151',
-                                transition: '0.3s',
-                                borderRadius: '22px'
-                              }} />
-                              <span style={{
-                                position: 'absolute',
-                                height: '16px',
-                                width: '16px',
-                                left: lpBurnEnabled ? '21px' : '3px',
-                                bottom: '3px',
-                                backgroundColor: 'white',
-                                transition: '0.3s',
-                                borderRadius: '50%'
-                              }} />
-                            </label>
-                          </div>
-
-                          {/* Automation Controls */}
-                          <div style={{
-                            fontSize: '9px',
-                            color: '#666',
-                            letterSpacing: '0.15em',
-                            marginBottom: '6px',
-                            fontFamily: "'IBM Plex Mono', monospace"
-                          }}>
-                            AUTOMATION
-                          </div>
-
-                          <div style={{
-                            background: '#111',
-                            border: '1px solid #222',
-                            padding: '10px',
-                            marginBottom: '10px'
-                          }}>
-                            {/* Status Badge */}
-                            <div style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              padding: '4px 10px',
-                              borderRadius: '16px',
-                              fontSize: '10px',
-                              fontWeight: 600,
-                              background: tekAutomationRunning ? 'rgba(255, 217, 102, 0.1)' : 'rgba(255, 255, 255, 0.03)',
-                              color: tekAutomationRunning ? '#FFD966' : '#666',
-                              border: `1px solid ${tekAutomationRunning ? 'rgba(255, 217, 102, 0.3)' : 'rgba(255, 255, 255, 0.06)'}`,
-                              marginBottom: '8px',
-                              fontFamily: "'IBM Plex Mono', monospace"
-                            }}>
-                              <span style={{
-                                width: '6px',
-                                height: '6px',
-                                borderRadius: '50%',
-                                background: tekAutomationRunning ? '#FFD966' : '#666',
-                                boxShadow: tekAutomationRunning ? '0 0 6px #FFD966' : 'none'
-                              }} />
-                              {tekAutomationRunning ? 'RUNNING' : 'STOPPED'}
-                            </div>
-
-                            {/* Start/Stop Buttons */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                              <button
-                                onClick={startTekAutomation}
-                                disabled={tekLoading || tekAutomationRunning}
-                                style={{
-                                  padding: '8px',
-                                  background: !tekAutomationRunning ? 'rgba(255, 217, 102, 0.1)' : 'rgba(255, 255, 255, 0.03)',
-                                  color: !tekAutomationRunning ? '#FFD966' : '#666',
-                                  border: `1px solid ${!tekAutomationRunning ? 'rgba(255, 217, 102, 0.3)' : 'rgba(255, 255, 255, 0.08)'}`,
-                                  fontSize: '10px',
-                                  fontWeight: 600,
-                                  fontFamily: "'IBM Plex Mono', monospace",
-                                  letterSpacing: '0.05em',
-                                  cursor: tekAutomationRunning ? 'not-allowed' : 'pointer',
-                                  opacity: tekLoading ? 0.5 : 1
-                                }}
-                              >
-                                START
-                              </button>
-                              <button
-                                onClick={stopTekAutomation}
-                                disabled={tekLoading || !tekAutomationRunning}
-                                style={{
-                                  padding: '8px',
-                                  background: tekAutomationRunning ? 'rgba(239, 68, 68, 0.1)' : 'rgba(255, 255, 255, 0.03)',
-                                  color: tekAutomationRunning ? '#ef4444' : '#666',
-                                  border: `1px solid ${tekAutomationRunning ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255, 255, 255, 0.08)'}`,
-                                  fontSize: '10px',
-                                  fontWeight: 600,
-                                  fontFamily: "'IBM Plex Mono', monospace",
-                                  letterSpacing: '0.05em',
-                                  cursor: !tekAutomationRunning ? 'not-allowed' : 'pointer',
-                                  opacity: tekLoading ? 0.5 : 1
-                                }}
-                              >
-                                STOP
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Smart Optimizer */}
-                          <div style={{
-                            background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(99, 102, 241, 0.05))',
-                            border: '1px solid rgba(168, 85, 247, 0.3)',
-                            padding: '10px'
-                          }}>
-                            <div style={{
-                              fontSize: '9px',
-                              fontWeight: 600,
-                              letterSpacing: '0.15em',
-                              color: '#a855f7',
-                              marginBottom: '4px',
-                              fontFamily: "'IBM Plex Mono', monospace"
-                            }}>
-                              SMART OPTIMIZER
-                            </div>
-                            <p style={{
-                              fontSize: '9px',
-                              color: '#666',
-                              marginBottom: '8px',
-                              lineHeight: 1.4,
-                              fontFamily: "'IBM Plex Mono', monospace"
-                            }}>
-                              AI optimizes allocations automatically
-                            </p>
-                            <button
-                              onClick={runSmartOptimizer}
-                              disabled={tekLoading}
-                              style={{
-                                width: '100%',
-                                padding: '8px',
-                                background: 'linear-gradient(135deg, #a855f7, #6366f1)',
-                                border: 'none',
-                                color: '#fff',
-                                fontSize: '10px',
-                                fontWeight: 600,
-                                fontFamily: "'IBM Plex Mono', monospace",
-                                letterSpacing: '0.1em',
-                                cursor: 'pointer',
-                                opacity: tekLoading ? 0.5 : 1
-                              }}
-                            >
-                              {tekLoading ? 'ANALYZING...' : 'RUN ANALYSIS'}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Tools Grid - AI & Analytics */}
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(2, 1fr)',
-                      gap: '12px'
-                    }}>
-                      {/* AI Integration */}
-                      <div style={{
-                        background: '#0a0a0a',
-                        border: '1px solid #1a1a1a',
-                        padding: '14px'
-                      }}>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          marginBottom: '8px'
-                        }}>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFD966" strokeWidth="2">
-                            <path d="M12 2a10 10 0 1 0 10 10H12V2z"/><path d="M12 2a10 10 0 0 1 10 10"/><circle cx="12" cy="12" r="6"/>
-                          </svg>
-                          <span style={{
-                            fontFamily: "'IBM Plex Mono', monospace",
-                            fontSize: '11px',
-                            color: '#fff',
-                            letterSpacing: '0.05em'
-                          }}>
-                            AI TOOLS
-                          </span>
-                        </div>
-                        <p style={{
-                          fontSize: '11px',
-                          color: '#666',
-                          fontFamily: "'IBM Plex Mono', monospace",
-                          lineHeight: 1.6,
-                          marginBottom: '12px'
-                        }}>
-                          AI-powered content generation, community insights, and automated engagement tools.
-                        </p>
-                        <button style={{
-                          padding: '8px 16px',
-                          background: 'transparent',
-                          border: '1px solid #333',
-                          color: '#888',
-                          fontSize: '10px',
-                          fontFamily: "'IBM Plex Mono', monospace",
-                          cursor: 'pointer',
-                          letterSpacing: '0.1em'
-                        }}>
-                          COMING SOON
-                        </button>
-                      </div>
-
-                      {/* Analytics */}
-                      <div style={{
-                        background: '#0a0a0a',
-                        border: '1px solid #1a1a1a',
-                        padding: '20px'
-                      }}>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '12px',
-                          marginBottom: '12px'
-                        }}>
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFD966" strokeWidth="2">
-                            <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
-                          </svg>
-                          <span style={{
-                            fontFamily: "'IBM Plex Mono', monospace",
-                            fontSize: '12px',
-                            color: '#fff',
-                            letterSpacing: '0.05em'
-                          }}>
-                            ANALYTICS
-                          </span>
-                        </div>
-                        <p style={{
-                          fontSize: '11px',
-                          color: '#666',
-                          fontFamily: "'IBM Plex Mono', monospace",
-                          lineHeight: 1.6,
-                          marginBottom: '12px'
-                        }}>
-                          Deep analytics on your culture's performance, holder distribution, and trading activity.
-                        </p>
-                        <button style={{
-                          padding: '8px 16px',
-                          background: 'transparent',
-                          border: '1px solid #333',
-                          color: '#888',
-                          fontSize: '10px',
-                          fontFamily: "'IBM Plex Mono', monospace",
-                          cursor: 'pointer',
-                          letterSpacing: '0.1em'
-                        }}>
-                          COMING SOON
-                        </button>
-                      </div>
                     </div>
                   </div>
                 )}
@@ -7900,6 +7232,445 @@
                 </button>
               </div>
                 </>
+              )}
+
+              {activeTab === 'tek' && (
+                <div style={{
+                  background: dashColors.cardBg,
+                  border: `1px solid ${dashColors.border}`,
+                  padding: '24px'
+                }}>
+                  {/* TEK Engine Header */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '24px',
+                    paddingBottom: '16px',
+                    borderBottom: `1px solid ${dashColors.border}`
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{
+                        width: '40px',
+                        height: '40px',
+                        background: dashColors.gradient,
+                        borderRadius: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <svg width="20" height="20" fill="#0a0a0a" viewBox="0 0 24 24">
+                          <path d="M13 2L4 14h7v8l9-12h-7l2-8h-2z"/>
+                        </svg>
+                      </div>
+                      <div>
+                        <div style={{
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: '16px',
+                          fontWeight: 700,
+                          color: dashColors.accent,
+                          letterSpacing: '0.08em'
+                        }}>
+                          TEK ENGINE
+                        </div>
+                        <div style={{
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: '11px',
+                          color: dashColors.textMuted
+                        }}>
+                          Automated Fee Distribution
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Token Selector */}
+                    <div>
+                      {tokensLoading ? (
+                        <span style={{
+                          padding: '10px 16px',
+                          background: '#111',
+                          border: '1px solid #333',
+                          color: '#666',
+                          fontSize: '11px',
+                          fontFamily: "'IBM Plex Mono', monospace"
+                        }}>
+                          Loading tokens...
+                        </span>
+                      ) : myTokens.length > 0 ? (
+                        <select
+                          value={selectedTekCulture?.tokenAddress || ''}
+                          onChange={(e) => {
+                            const token = myTokens.find(t => t.mint === e.target.value);
+                            if (token) {
+                              const culture = {
+                                tokenAddress: token.mint,
+                                name: token.name,
+                                ticker: token.symbol,
+                                image: token.image
+                              };
+                              setSelectedTekCulture(culture);
+                              setSelectedChartCulture(culture);
+                            }
+                          }}
+                          style={{
+                            padding: '10px 16px',
+                            background: '#0a0a0a',
+                            border: '1px solid #333',
+                            color: '#fff',
+                            fontSize: '12px',
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            cursor: 'pointer',
+                            minWidth: '200px'
+                          }}
+                        >
+                          <option value="">Select a token</option>
+                          {myTokens.map(token => (
+                            <option key={token.mint} value={token.mint}>
+                              {token.symbol} - {token.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span style={{
+                          padding: '10px 16px',
+                          background: '#111',
+                          border: '1px solid #333',
+                          color: '#666',
+                          fontSize: '11px',
+                          fontFamily: "'IBM Plex Mono', monospace"
+                        }}>
+                          No tokens found
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {selectedTekCulture ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                      {/* Left Column - Fee Allocations */}
+                      <div style={{
+                        background: '#0a0a0a',
+                        border: '1px solid #1a1a1a',
+                        padding: '20px'
+                      }}>
+                        <div style={{
+                          fontSize: '11px',
+                          letterSpacing: '0.15em',
+                          color: dashColors.accent,
+                          marginBottom: '16px',
+                          fontFamily: "'IBM Plex Mono', monospace"
+                        }}>
+                          FEE ALLOCATIONS
+                        </div>
+                        <div style={{
+                          fontSize: '10px',
+                          color: '#666',
+                          marginBottom: '16px',
+                          fontFamily: "'IBM Plex Mono', monospace"
+                        }}>
+                          Total: <span style={{ color: getTekTotal() === 100 ? '#4ade80' : '#ef4444', fontWeight: 600 }}>{getTekTotal()}%</span> {getTekTotal() !== 100 && '(must equal 100%)'}
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          {[
+                            { key: 'marketMaking', label: 'Market Making', color: '#4ade80', icon: '📈' },
+                            { key: 'buybackBurn', label: 'Buyback & Burn', color: '#f97316', icon: '🔥' },
+                            { key: 'liquidity', label: 'Liquidity', color: '#3b82f6', icon: '💧' },
+                            { key: 'creatorRevenue', label: 'Creator Revenue', color: '#a855f7', icon: '💰' }
+                          ].map(item => (
+                            <div key={item.key} style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '12px',
+                              padding: '12px',
+                              background: `${item.color}08`,
+                              border: `1px solid ${item.color}30`
+                            }}>
+                              <span style={{ fontSize: '14px' }}>{item.icon}</span>
+                              <div style={{ flex: 1 }}>
+                                <div style={{
+                                  fontSize: '11px',
+                                  color: item.color,
+                                  fontFamily: "'IBM Plex Mono', monospace",
+                                  marginBottom: '4px'
+                                }}>
+                                  {item.label}
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  value={tekAllocations[item.key]}
+                                  onChange={(e) => setTekAllocations(prev => ({
+                                    ...prev,
+                                    [item.key]: Math.max(0, Math.min(100, parseInt(e.target.value) || 0))
+                                  }))}
+                                  style={{
+                                    width: '60px',
+                                    padding: '8px',
+                                    background: '#0a0a0a',
+                                    border: '1px solid #333',
+                                    color: item.color,
+                                    fontSize: '14px',
+                                    fontWeight: 600,
+                                    textAlign: 'center',
+                                    fontFamily: "'IBM Plex Mono', monospace"
+                                  }}
+                                />
+                                <span style={{ color: '#666', fontSize: '12px' }}>%</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <button
+                          onClick={saveTekAllocations}
+                          disabled={tekLoading || getTekTotal() !== 100}
+                          style={{
+                            width: '100%',
+                            padding: '12px',
+                            marginTop: '16px',
+                            background: getTekTotal() === 100 ? '#FFD966' : '#333',
+                            border: 'none',
+                            color: getTekTotal() === 100 ? '#0a0a0a' : '#666',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            letterSpacing: '0.1em',
+                            cursor: getTekTotal() === 100 ? 'pointer' : 'not-allowed',
+                            opacity: tekLoading ? 0.5 : 1
+                          }}
+                        >
+                          {tekLoading ? 'SAVING...' : 'SAVE ALLOCATIONS'}
+                        </button>
+                      </div>
+
+                      {/* Right Column - Controls & Status */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        {/* LP Burn Toggle */}
+                        <div style={{
+                          background: 'rgba(239, 68, 68, 0.08)',
+                          border: '1px solid rgba(239, 68, 68, 0.3)',
+                          padding: '16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between'
+                        }}>
+                          <div>
+                            <div style={{
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              color: '#fff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              fontFamily: "'IBM Plex Mono', monospace"
+                            }}>
+                              <span>🔥</span> LP BURN
+                            </div>
+                            <div style={{ fontSize: '10px', color: '#666', marginTop: '4px' }}>
+                              Lock liquidity forever
+                            </div>
+                          </div>
+                          <label style={{ position: 'relative', display: 'inline-block', width: '48px', height: '26px', cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={lpBurnEnabled}
+                              onChange={(e) => toggleTekLpBurn(e.target.checked)}
+                              style={{ opacity: 0, width: 0, height: 0 }}
+                            />
+                            <span style={{
+                              position: 'absolute',
+                              cursor: 'pointer',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              background: lpBurnEnabled ? '#ef4444' : '#333',
+                              transition: '0.3s',
+                              borderRadius: '26px'
+                            }}>
+                              <span style={{
+                                position: 'absolute',
+                                content: '',
+                                height: '20px',
+                                width: '20px',
+                                left: lpBurnEnabled ? '25px' : '3px',
+                                bottom: '3px',
+                                background: '#fff',
+                                transition: '0.3s',
+                                borderRadius: '50%'
+                              }}/>
+                            </span>
+                          </label>
+                        </div>
+
+                        {/* Auto-Rebalance Toggle */}
+                        <div style={{
+                          background: 'rgba(74, 222, 128, 0.08)',
+                          border: '1px solid rgba(74, 222, 128, 0.3)',
+                          padding: '16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between'
+                        }}>
+                          <div>
+                            <div style={{
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              color: '#fff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              fontFamily: "'IBM Plex Mono', monospace"
+                            }}>
+                              <span>⚡</span> AUTO-REBALANCE
+                            </div>
+                            <div style={{ fontSize: '10px', color: '#666', marginTop: '4px' }}>
+                              Automatically adjust allocations
+                            </div>
+                          </div>
+                          <label style={{ position: 'relative', display: 'inline-block', width: '48px', height: '26px', cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={autoRebalance}
+                              onChange={(e) => toggleTekAutoRebalance(e.target.checked)}
+                              style={{ opacity: 0, width: 0, height: 0 }}
+                            />
+                            <span style={{
+                              position: 'absolute',
+                              cursor: 'pointer',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              background: autoRebalance ? '#4ade80' : '#333',
+                              transition: '0.3s',
+                              borderRadius: '26px'
+                            }}>
+                              <span style={{
+                                position: 'absolute',
+                                content: '',
+                                height: '20px',
+                                width: '20px',
+                                left: autoRebalance ? '25px' : '3px',
+                                bottom: '3px',
+                                background: '#fff',
+                                transition: '0.3s',
+                                borderRadius: '50%'
+                              }}/>
+                            </span>
+                          </label>
+                        </div>
+
+                        {/* Smart Optimizer */}
+                        <div style={{
+                          background: 'rgba(168, 85, 247, 0.08)',
+                          border: '1px solid rgba(168, 85, 247, 0.3)',
+                          padding: '16px'
+                        }}>
+                          <div style={{
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            letterSpacing: '0.15em',
+                            color: '#a855f7',
+                            marginBottom: '8px',
+                            fontFamily: "'IBM Plex Mono', monospace"
+                          }}>
+                            SMART OPTIMIZER
+                          </div>
+                          <p style={{
+                            fontSize: '10px',
+                            color: '#666',
+                            marginBottom: '12px',
+                            lineHeight: 1.5,
+                            fontFamily: "'IBM Plex Mono', monospace"
+                          }}>
+                            AI analyzes market conditions and optimizes your fee allocations automatically.
+                          </p>
+                          <button
+                            onClick={runSmartOptimizer}
+                            disabled={tekLoading}
+                            style={{
+                              width: '100%',
+                              padding: '12px',
+                              background: '#a855f7',
+                              border: 'none',
+                              color: '#fff',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              letterSpacing: '0.1em',
+                              cursor: 'pointer',
+                              opacity: tekLoading ? 0.5 : 1
+                            }}
+                          >
+                            {tekLoading ? 'ANALYZING...' : 'RUN ANALYSIS'}
+                          </button>
+                        </div>
+
+                        {/* TEK Status */}
+                        <div style={{
+                          background: '#0a0a0a',
+                          border: '1px solid #1a1a1a',
+                          padding: '16px'
+                        }}>
+                          <div style={{
+                            fontSize: '11px',
+                            letterSpacing: '0.15em',
+                            color: dashColors.accent,
+                            marginBottom: '12px',
+                            fontFamily: "'IBM Plex Mono', monospace"
+                          }}>
+                            TEK STATUS
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#666', fontSize: '11px', fontFamily: "'IBM Plex Mono', monospace" }}>Engine Status</span>
+                              <span style={{ color: '#4ade80', fontSize: '11px', fontFamily: "'IBM Plex Mono', monospace" }}>● ACTIVE</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#666', fontSize: '11px', fontFamily: "'IBM Plex Mono', monospace" }}>Last Distribution</span>
+                              <span style={{ color: '#fff', fontSize: '11px', fontFamily: "'IBM Plex Mono', monospace" }}>--</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#666', fontSize: '11px', fontFamily: "'IBM Plex Mono', monospace" }}>Total Distributed</span>
+                              <span style={{ color: '#FFD966', fontSize: '11px', fontFamily: "'IBM Plex Mono', monospace" }}>$0.00</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{
+                      padding: '60px 40px',
+                      background: '#0a0a0a',
+                      border: '1px solid #1a1a1a',
+                      textAlign: 'center'
+                    }}>
+                      <svg width="48" height="48" fill="none" stroke="#666" strokeWidth="1" style={{ marginBottom: '16px', opacity: 0.3 }} viewBox="0 0 24 24">
+                        <path d="M13 2L4 14h7v8l9-12h-7l2-8h-2z"/>
+                      </svg>
+                      <p style={{
+                        color: '#666',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: '14px',
+                        marginBottom: '8px'
+                      }}>
+                        Select a token above to configure TEK Engine
+                      </p>
+                      <p style={{
+                        color: '#444',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: '11px'
+                      }}>
+                        TEK automatically distributes trading fees based on your allocation settings
+                      </p>
+                    </div>
+                  )}
+                </div>
               )}
 
               {activeTab === 'settings' && (
