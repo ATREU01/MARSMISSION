@@ -2133,46 +2133,25 @@
                   const baseCulturesFiltered = BASE_CULTURES.filter(c => !apiCultureIds.has(c.id));
                   const allCultures = [...data.cultures, ...baseCulturesFiltered];
 
-                  // Enrich with REAL on-chain data (try pump.fun first, then DexScreener)
+                  // Enrich with REAL blockchain data via Helius DAS + DexScreener
                   const enriched = await Promise.all(allCultures.map(async (culture) => {
                     if (!culture.tokenAddress) return culture;
                     try {
-                      // Try pump.fun first
-                      let enrichedData = null;
-                      try {
-                        const pumpRes = await fetch(`/api/pump/coin/${culture.tokenAddress}`);
-                        if (pumpRes.ok) {
-                          const pumpData = await pumpRes.json();
-                          if (pumpData && pumpData.usd_market_cap) {
-                            enrichedData = {
-                              marketCap: pumpData.usd_market_cap || 0,
-                              holders: pumpData.holder_count || 0,
-                              volume: pumpData.volume_24h || 0
-                            };
-                          }
+                      // Use /api/token endpoint (Helius DAS + DexScreener + pump.fun combined)
+                      const tokenRes = await fetch(`/api/token/${culture.tokenAddress}`);
+                      if (tokenRes.ok) {
+                        const tokenData = await tokenRes.json();
+                        if (tokenData) {
+                          return {
+                            ...culture,
+                            marketCap: tokenData.marketCap || 0,
+                            volume: tokenData.volume || 0,
+                            holders: tokenData.holders || 1,
+                            price: tokenData.price || 0,
+                            liquidity: tokenData.liquidity || 0,
+                            priceChange24h: tokenData.priceChange24h || 0
+                          };
                         }
-                      } catch (e) {}
-
-                      // If no pump.fun data, try DexScreener (real RPC data)
-                      if (!enrichedData) {
-                        try {
-                          const dexRes = await fetch(`/api/trending?mint=${culture.tokenAddress}`);
-                          if (dexRes.ok) {
-                            const dexData = await dexRes.json();
-                            const token = dexData.tokens?.find(t => t.mint === culture.tokenAddress);
-                            if (token) {
-                              enrichedData = {
-                                marketCap: token.marketCap || 0,
-                                volume: token.volume24h || 0,
-                                holders: token.holders || 1
-                              };
-                            }
-                          }
-                        } catch (e) {}
-                      }
-
-                      if (enrichedData) {
-                        return { ...culture, ...enrichedData };
                       }
                     } catch (e) {
                       console.error('[DISCOVER] Failed to enrich', culture.name, e);
