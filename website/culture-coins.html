@@ -1048,7 +1048,7 @@
                               fontSize: '10px',
                               color: colors.textMuted
                             }}>
-                              {token.holders?.toLocaleString() || 0} holders
+                              {token.holders > 0 ? `${token.holders.toLocaleString()} holders` : token.source?.toUpperCase() || 'PUMP.FUN'}
                             </span>
                           </div>
                         </div>
@@ -1069,9 +1069,9 @@
                           <div style={{
                             fontFamily: "'IBM Plex Mono', monospace",
                             fontSize: '10px',
-                            color: colors.textMuted
+                            color: token.source === 'bonk.fun' ? '#FFD966' : colors.textMuted
                           }}>
-                            PUMP.FUN
+                            {token.source === 'bonk.fun' ? 'BONK.FUN' : 'PUMP.FUN'}
                           </div>
                         </div>
                       </a>
