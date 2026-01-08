@@ -5153,8 +5153,9 @@
             return () => clearInterval(interval);
           }, []);
 
-          const handleLike = (postId) => {
+          const handleLike = async (postId) => {
             if (!wallet?.address) return;
+            // Optimistic UI update
             const updatedPosts = posts.map(p => {
               if (p.id === postId) {
                 const likes = p.likes || [];
@@ -5169,41 +5170,71 @@
               return p;
             });
             setPosts(updatedPosts);
-            localStorage.setItem('culture_posts', JSON.stringify(updatedPosts));
+            // Sync to server (all users will see the update)
+            try {
+              const res = await fetch(`/api/posts/${postId}/like`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ wallet: wallet.address })
+              });
+              const data = await res.json();
+              if (data.success) {
+                // Update with server's authoritative like list
+                setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes: data.likes } : p));
+              }
+            } catch (e) {
+              console.error('[LIKE] Sync failed:', e);
+            }
           };
 
-          const handleComment = (postId, comment) => {
-            if (!wallet?.address) return;
-            // Get commenter's display name from profile
+          const handleComment = async (postId, comment) => {
+            if (!wallet?.address || !comment.trim()) return;
+            // Get commenter's display name from profile for optimistic UI
             let commenterName = 'Anonymous';
             try {
               const profile = JSON.parse(localStorage.getItem('creator_profile_' + wallet.address) || 'null');
               if (profile?.displayName) commenterName = profile.displayName;
               else if (profile?.username) commenterName = profile.username;
             } catch (e) {}
-            const updatedPosts = posts.map(p => {
+            // Optimistic UI update
+            const newComment = {
+              author: commenterName,
+              authorWallet: wallet.address,
+              content: comment,
+              createdAt: new Date().toISOString()
+            };
+            setPosts(prev => prev.map(p => {
               if (p.id === postId) {
-                return {
-                  ...p,
-                  comments: [
-                    ...(p.comments || []),
-                    {
-                      author: commenterName,
-                      authorWallet: wallet.address,
-                      content: comment,
-                      createdAt: new Date().toISOString()
-                    }
-                  ]
-                };
+                return { ...p, comments: [...(p.comments || []), newComment] };
               }
               return p;
-            });
-            setPosts(updatedPosts);
-            localStorage.setItem('culture_posts', JSON.stringify(updatedPosts));
+            }));
+            // Sync to server (all users will see the comment)
+            try {
+              const res = await fetch(`/api/posts/${postId}/comment`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ authorWallet: wallet.address, content: comment })
+              });
+              const data = await res.json();
+              if (data.success && data.comment) {
+                // Update with server's comment (includes proper ID)
+                setPosts(prev => prev.map(p => {
+                  if (p.id === postId) {
+                    const comments = (p.comments || []).filter(c => c.createdAt !== newComment.createdAt);
+                    return { ...p, comments: [...comments, data.comment] };
+                  }
+                  return p;
+                }));
+              }
+            } catch (e) {
+              console.error('[COMMENT] Sync failed:', e);
+            }
           };
 
-          const handleRepost = (postId) => {
+          const handleRepost = async (postId) => {
             if (!wallet?.address) return;
+            // Optimistic UI update
             const updatedPosts = posts.map(p => {
               if (p.id === postId) {
                 const reposts = p.repostedBy || [];
@@ -5219,7 +5250,21 @@
               return p;
             });
             setPosts(updatedPosts);
-            localStorage.setItem('culture_posts', JSON.stringify(updatedPosts));
+            // Sync to server (all users will see the repost)
+            try {
+              const res = await fetch(`/api/posts/${postId}/repost`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ wallet: wallet.address })
+              });
+              const data = await res.json();
+              if (data.success) {
+                // Update with server's authoritative repost data
+                setPosts(prev => prev.map(p => p.id === postId ? { ...p, reposts: data.reposts, repostedBy: data.repostedBy } : p));
+              }
+            } catch (e) {
+              console.error('[REPOST] Sync failed:', e);
+            }
           };
 
           if (loading) {
@@ -5860,19 +5905,35 @@
           });
           const [myPosts, setMyPosts] = useState([]);
 
-          // Load profile when wallet changes
+          // Load profile when wallet changes and sync to server
           useEffect(() => {
             if (wallet?.address) {
               try {
                 const stored = localStorage.getItem('creator_profile_' + wallet.address);
                 // Also load dashboard theme separately in case profile doesn't have it
                 const dashTheme = JSON.parse(localStorage.getItem('dashboard_theme') || '{}');
+                let profileData;
                 if (stored) {
-                  const profileData = JSON.parse(stored);
+                  profileData = JSON.parse(stored);
                   // Merge dashboard theme into profile if profile doesn't have theme
                   setProfile({ ...profileData, theme: profileData.theme || dashTheme });
                 } else {
-                  setProfile({ wallet: wallet.address, displayName: '', bio: '', pfp: null, banner: null, theme: dashTheme });
+                  profileData = { wallet: wallet.address, displayName: '', bio: '', pfp: null, banner: null, theme: dashTheme };
+                  setProfile(profileData);
+                }
+                // Sync profile to server on load (ensures SQLite has the display name)
+                if (profileData.displayName) {
+                  fetch('/api/profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      wallet: wallet.address,
+                      displayName: profileData.displayName || '',
+                      username: profileData.username || '',
+                      bio: profileData.bio || '',
+                      avatar: profileData.pfp || null
+                    })
+                  }).catch(e => console.log('[PROFILE] Sync on load failed:', e));
                 }
                 // Load ALL posts from everyone
                 const allPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
@@ -5896,11 +5957,29 @@
             }
           }, [wallet?.address]);
 
-          // Save profile changes
-          const handleEditProfile = (updates) => {
-            const newProfile = { ...profile, ...updates, wallet: wallet?.address };
+          // Save profile changes - syncs to server so all users see display name
+          const handleEditProfile = async (updates) => {
+            if (!wallet?.address) return;
+            const newProfile = { ...profile, ...updates, wallet: wallet.address };
             setProfile(newProfile);
-            localStorage.setItem('creator_profile_' + wallet?.address, JSON.stringify(newProfile));
+            localStorage.setItem('creator_profile_' + wallet.address, JSON.stringify(newProfile));
+            // Sync to server so posts show correct username
+            try {
+              await fetch('/api/profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  wallet: wallet.address,
+                  displayName: newProfile.displayName || '',
+                  username: newProfile.username || '',
+                  bio: newProfile.bio || '',
+                  avatar: newProfile.pfp || null
+                })
+              });
+              console.log('[PROFILE] Synced to server:', newProfile.displayName);
+            } catch (e) {
+              console.error('[PROFILE] Server sync failed:', e);
+            }
           };
 
           // Create a new post
