@@ -40,7 +40,7 @@
             top: 0;
             left: 0;
             right: 0;
-            background: linear-gradient(90deg, #FFD966, #FF6B6B);
+            background: #FFD966;
             color: #000;
             font-family: 'IBM Plex Mono', monospace;
             font-size: 11px;
@@ -2246,7 +2246,7 @@
                   left: 0,
                   width: '120px',
                   height: '4px',
-                  background: 'linear-gradient(90deg, #FFD966 0%, #FF6B6B 100%)',
+                  background: '#FFD966',
                   borderRadius: '2px'
                 }} />
 
@@ -2406,7 +2406,7 @@
                       width: trendingCollapsed ? '100%' : '32px',
                       minWidth: trendingCollapsed ? '140px' : '32px',
                       height: trendingCollapsed ? '50px' : '32px',
-                      background: trendingCollapsed ? 'linear-gradient(135deg, #FFD966 0%, #FF6B6B 100%)' : 'rgba(255, 217, 102, 0.2)',
+                      background: trendingCollapsed ? '#FFD966' : 'rgba(255, 217, 102, 0.2)',
                       border: trendingCollapsed ? 'none' : '1px solid rgba(255, 217, 102, 0.3)',
                       borderRadius: trendingCollapsed ? '8px' : '50%',
                       cursor: 'pointer',
@@ -2419,8 +2419,7 @@
                       fontFamily: "'IBM Plex Mono', monospace",
                       fontSize: '11px',
                       fontWeight: 700,
-                      letterSpacing: '0.12em',
-                      boxShadow: trendingCollapsed ? '0 4px 16px rgba(255, 107, 107, 0.3)' : 'none'
+                      letterSpacing: '0.12em'
                     }}
                   >
                     {trendingCollapsed ? (
@@ -2464,7 +2463,7 @@
                         left: 0,
                         right: 0,
                         height: '2px',
-                        background: 'linear-gradient(90deg, #FFD966, #FF6B6B)',
+                        background: '#FFD966',
                         transform: searchQuery ? 'scaleX(1)' : 'scaleX(0)',
                         transformOrigin: 'left',
                         transition: 'transform 0.3s ease'
@@ -6317,11 +6316,10 @@
                     height: '80px',
                     margin: '0 auto 32px',
                     borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #FFD966, #FF6B6B)',
+                    background: '#FFD966',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 0 40px rgba(255, 217, 102, 0.3)'
+                    justifyContent: 'center'
                   }}>
                     <svg width="36" height="36" viewBox="0 0 24 24" fill="#000" stroke="none">
                       <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
@@ -6358,7 +6356,7 @@
                     onClick={wallet?.connect}
                     style={{
                       padding: '18px 50px',
-                      background: 'linear-gradient(135deg, #FFD966, #FF6B6B)',
+                      background: '#FFD966',
                       border: 'none',
                       color: '#000',
                       fontSize: '13px',
@@ -6366,11 +6364,8 @@
                       letterSpacing: '0.1em',
                       cursor: 'pointer',
                       fontWeight: 700,
-                      transition: 'all 0.3s',
-                      boxShadow: '0 0 20px rgba(255, 217, 102, 0.3)'
+                      transition: 'all 0.3s'
                     }}
-                    onMouseOver={(e) => e.target.style.boxShadow = '0 0 30px rgba(255, 217, 102, 0.5)'}
-                    onMouseOut={(e) => e.target.style.boxShadow = '0 0 20px rgba(255, 217, 102, 0.3)'}
                   >
                     CONNECT WALLET TO ENTER
                   </button>
