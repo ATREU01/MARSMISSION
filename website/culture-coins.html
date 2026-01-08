@@ -554,15 +554,22 @@
             const fetchTokens = async () => {
               let tokens = [];
 
-              // Primary: Use pump.fun API for real memecoin data
+              // Helper: Check if token is from pump.fun or bonk.fun (mint ends in 'pump' or 'bonk')
+              const isLaunchpadToken = (mint) => {
+                if (!mint) return false;
+                const lower = mint.toLowerCase();
+                return lower.endsWith('pump') || lower.endsWith('bonk');
+              };
+
+              // Primary: Use pump.fun API for pump.fun tokens
               try {
-                const res = await fetch('/api/pump/coins?sort=usd_market_cap&order=DESC&limit=20');
+                const res = await fetch('/api/pump/coins?sort=usd_market_cap&order=DESC&limit=30');
                 const data = await res.json();
                 if (Array.isArray(data) && data.length > 0) {
-                  // Filter for tokens with actual trading activity
+                  // Filter for pump.fun/bonk.fun tokens only (mint ends in pump or bonk)
                   tokens = data
-                    .filter(token => token.usd_market_cap > 10000 && token.symbol && token.name)
-                    .slice(0, 10)
+                    .filter(token => token.usd_market_cap > 5000 && token.symbol && token.name && isLaunchpadToken(token.mint))
+                    .slice(0, 15)
                     .map(token => ({
                       mint: token.mint,
                       name: token.name || 'Unknown',
@@ -573,33 +580,11 @@
                       priceChange: ((Math.random() - 0.3) * 40).toFixed(1),
                       volume24h: token.volume_24h || 0,
                       holders: token.holder_count || 0,
-                      source: 'pump.fun'
+                      source: token.mint.toLowerCase().endsWith('pump') ? 'pump.fun' : 'bonk.fun'
                     }));
                 }
               } catch (e) {
-                console.log('[TOKENS] Pump.fun failed:', e);
-              }
-
-              // Always include top Solana memecoins (the OGs)
-              const knownTokens = [
-                { mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', name: 'Bonk', symbol: 'BONK', image: 'https://arweave.net/hQiPZOsRZXGXBJd_82PhVdlM_hACsT_q6wqwf5cSY7I', marketCap: 1800000000, priceChange: '+5.2', source: 'verified' },
-                { mint: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', name: 'dogwifhat', symbol: 'WIF', image: 'https://bafkreibk3covs5ltyqxa272uodhculbr6kea6betiez7rdewrljj7tfz6y.ipfs.nftstorage.link', marketCap: 2200000000, priceChange: '+3.1', source: 'verified' },
-                { mint: 'MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5', name: 'cat in a dogs world', symbol: 'MEW', image: 'https://bafkreidlwyr565dxtao2ipsze6bmzpszqzybz7sqi2zaet5fs7k3rtxs7m.ipfs.nftstorage.link', marketCap: 850000000, priceChange: '+8.7', source: 'verified' },
-                { mint: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr', name: 'Peanut the Squirrel', symbol: 'PNUT', image: 'https://dd.dexscreener.com/ds-data/tokens/solana/7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr.png', marketCap: 450000000, priceChange: '+12.4', source: 'verified' },
-                { mint: 'ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82', name: 'BOOK OF MEME', symbol: 'BOME', image: 'https://bafkreidrcfqdhjgvdgvcsgoho3nz4lph6xtupkgmlgquvrbqh6xnhg7bvm.ipfs.nftstorage.link', marketCap: 680000000, priceChange: '+6.9', source: 'verified' }
-              ];
-
-              // Merge: put known tokens first if pump.fun failed, otherwise mix them in
-              if (tokens.length === 0) {
-                tokens = knownTokens;
-              } else {
-                // Add known tokens that aren't already in the list
-                const existingMints = new Set(tokens.map(t => t.mint));
-                knownTokens.forEach(kt => {
-                  if (!existingMints.has(kt.mint)) {
-                    tokens.push(kt);
-                  }
-                });
+                console.log('[TOKENS] Pump.fun API failed:', e);
               }
 
               // Sort by market cap (highest first)
