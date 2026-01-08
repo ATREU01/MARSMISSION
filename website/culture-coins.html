@@ -706,89 +706,86 @@
             return `$${num.toFixed(2)}`;
           };
 
-          // Generate AI coin ideas based on trending tokens and news
+          // Generate AI coin ideas using Claude API based on trending tokens and news
           const generateAiIdeas = async () => {
             setIdeasLoading(true);
             try {
-              // Combine trending data for context
-              const trendingContext = tokens.slice(0, 5).map(t => t.name).join(', ');
-              const newsContext = trends.slice(0, 3).map(t => t.name).join(', ');
-
-              // Call AI endpoint to generate ideas
+              // Call Claude-powered AI endpoint
               const res = await fetch('/api/ai/generate-ideas', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   trendingTokens: tokens.slice(0, 5),
-                  trendingNews: trends.slice(0, 5),
-                  prompt: `Based on trending tokens (${trendingContext}) and news (${newsContext}), generate 5 unique memecoin/culture coin ideas`
+                  trendingNews: trends.slice(0, 5)
                 })
               });
 
               if (res.ok) {
                 const data = await res.json();
-                if (data.ideas) {
+                if (data.success && data.ideas && data.ideas.length > 0) {
+                  console.log('[AI IDEAS] Claude generated', data.ideas.length, 'ideas');
                   setAiIdeas(data.ideas);
+                  setIdeasLoading(false);
                   return;
                 }
               }
+              throw new Error('API response invalid');
             } catch (e) {
-              console.log('[AI IDEAS] API failed, using generated ideas');
+              console.log('[AI IDEAS] Claude API failed, using fallback:', e.message);
+
+              // Fallback: Generate ideas locally based on trends
+              const themes = tokens.length > 0
+                ? tokens.slice(0, 3).map(t => t.name.split(' ')[0])
+                : ['Doge', 'Pepe', 'Cat'];
+              const newsThemes = trends.length > 0
+                ? trends.slice(0, 2).map(t => t.name.split(' ').slice(0, 2).join(' '))
+                : ['Crypto Rally', 'New Meta'];
+
+              const generatedIdeas = [
+                {
+                  name: `${themes[0] || 'Moon'}AI`,
+                  ticker: `${(themes[0] || 'MOON').substring(0, 3).toUpperCase()}AI`,
+                  description: `AI-powered ${themes[0] || 'community'} token with automated trading signals and community governance`,
+                  category: 'AI + Meme',
+                  confidence: 87,
+                  reasoning: `Combines trending ${themes[0] || 'meme'} narrative with AI agent meta`
+                },
+                {
+                  name: `${newsThemes[0] || 'Trending'} Coin`,
+                  ticker: `${(newsThemes[0] || 'TREND').split(' ')[0].substring(0, 4).toUpperCase()}`,
+                  description: `Capitalizes on "${newsThemes[0] || 'current trends'}" momentum with community-driven development`,
+                  category: 'News Meta',
+                  confidence: 82,
+                  reasoning: `Direct play on breaking news sentiment`
+                },
+                {
+                  name: 'Culture DAO',
+                  ticker: 'CULT',
+                  description: 'Decentralized culture curation with tiered membership and exclusive content access',
+                  category: 'Social',
+                  confidence: 79,
+                  reasoning: 'Culture coins gaining traction, DAO structure adds legitimacy'
+                },
+                {
+                  name: `Baby ${themes[1] || 'Doge'}`,
+                  ticker: `BABY${(themes[1] || 'DOGE').substring(0, 4).toUpperCase()}`,
+                  description: `Community spin-off of popular ${themes[1] || 'meme'} with deflationary mechanics`,
+                  category: 'Meme Derivative',
+                  confidence: 75,
+                  reasoning: `Baby/derivative tokens historically perform well off trending parents`
+                },
+                {
+                  name: 'Solana Sensei',
+                  ticker: 'SENSEI',
+                  description: 'Educational token rewarding users for learning DeFi and completing quests',
+                  category: 'Utility + Meme',
+                  confidence: 71,
+                  reasoning: 'Gamification + education meta emerging in Solana ecosystem'
+                }
+              ];
+
+              setAiIdeas(generatedIdeas);
             }
-
-            // Fallback: Generate ideas locally based on trends
-            const categories = ['AI', 'Gaming', 'Meme', 'DeFi', 'Social', 'Culture'];
-            const themes = tokens.length > 0
-              ? tokens.slice(0, 3).map(t => t.name.split(' ')[0])
-              : ['Doge', 'Pepe', 'Cat'];
-            const newsThemes = trends.length > 0
-              ? trends.slice(0, 2).map(t => t.name.split(' ').slice(0, 2).join(' '))
-              : ['Crypto Rally', 'New Meta'];
-
-            const generatedIdeas = [
-              {
-                name: `${themes[0] || 'Moon'}AI`,
-                ticker: `${(themes[0] || 'MOON').substring(0, 3).toUpperCase()}AI`,
-                description: `AI-powered ${themes[0] || 'community'} token with automated trading signals and community governance`,
-                category: 'AI + Meme',
-                confidence: 87,
-                reasoning: `Combines trending ${themes[0] || 'meme'} narrative with AI agent meta`
-              },
-              {
-                name: `${newsThemes[0] || 'Trending'} Coin`,
-                ticker: `${(newsThemes[0] || 'TREND').split(' ')[0].substring(0, 4).toUpperCase()}`,
-                description: `Capitalizes on "${newsThemes[0] || 'current trends'}" momentum with community-driven development`,
-                category: 'News Meta',
-                confidence: 82,
-                reasoning: `Direct play on breaking news sentiment`
-              },
-              {
-                name: 'Culture DAO',
-                ticker: 'CULT',
-                description: 'Decentralized culture curation with tiered membership and exclusive content access',
-                category: 'Social',
-                confidence: 79,
-                reasoning: 'Culture coins gaining traction, DAO structure adds legitimacy'
-              },
-              {
-                name: `Baby ${themes[1] || 'Doge'}`,
-                ticker: `BABY${(themes[1] || 'DOGE').substring(0, 4).toUpperCase()}`,
-                description: `Community spin-off of popular ${themes[1] || 'meme'} with deflationary mechanics`,
-                category: 'Meme Derivative',
-                confidence: 75,
-                reasoning: `Baby/derivative tokens historically perform well off trending parents`
-              },
-              {
-                name: 'Solana Sensei',
-                ticker: 'SENSEI',
-                description: 'Educational token rewarding users for learning DeFi and completing quests',
-                category: 'Utility + Meme',
-                confidence: 71,
-                reasoning: 'Gamification + education meta emerging in Solana ecosystem'
-              }
-            ];
-
-            setAiIdeas(generatedIdeas);
             setIdeasLoading(false);
           };
 
@@ -1288,7 +1285,8 @@
                         {/* Refresh Button */}
                         <div style={{ padding: '12px 20px', borderBottom: `1px solid ${colors.border}` }}>
                           <button
-                            onClick={generateAiIdeas}
+                            onClick={() => { setAiIdeas([]); setTimeout(generateAiIdeas, 100); }}
+                            disabled={ideasLoading}
                             style={{
                               width: '100%',
                               padding: '10px',
@@ -1335,25 +1333,27 @@
                             }}
                           >
                             <div style={{ display: 'flex', gap: '12px' }}>
-                              {/* Pixel Art Avatar */}
+                              {/* AI Generated Avatar */}
                               <div style={{
                                 width: '48px',
                                 height: '48px',
-                                borderRadius: '8px',
-                                background: `linear-gradient(135deg, hsl(${(index * 60) % 360}, 70%, 50%), hsl(${(index * 60 + 60) % 360}, 70%, 40%))`,
+                                borderRadius: '12px',
+                                background: `linear-gradient(135deg, hsl(${(index * 50 + 260) % 360}, 80%, 45%), hsl(${(index * 50 + 300) % 360}, 70%, 35%))`,
                                 overflow: 'hidden',
                                 flexShrink: 0,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                border: '2px solid rgba(255,255,255,0.1)',
-                                imageRendering: 'pixelated'
+                                border: '2px solid rgba(168, 85, 247, 0.4)',
+                                boxShadow: '0 4px 12px rgba(168, 85, 247, 0.3)'
                               }}>
                                 <img
-                                  src={`https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(idea.ticker)}&backgroundColor=transparent`}
+                                  src={`https://api.dicebear.com/7.x/bottts-neutral/svg?seed=${encodeURIComponent(idea.name + idea.ticker)}&backgroundColor=transparent&eyes=bulging,dizzy,eva,frame1,frame2,glow,happy,robocop,round,roundFrame01,roundFrame02,sensor,shade01&mouth=bite,diagram,grill01,grill02,grill03,smile01,smile02,square01,square02`}
                                   alt={idea.name}
-                                  style={{ width: '40px', height: '40px', imageRendering: 'pixelated' }}
-                                  onError={(e) => { e.target.style.display = 'none'; }}
+                                  style={{ width: '44px', height: '44px' }}
+                                  onError={(e) => {
+                                    e.target.src = `https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(idea.ticker)}&backgroundColor=transparent`;
+                                  }}
                                 />
                               </div>
 
