@@ -4111,7 +4111,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
             if (HELIUS_RPC && HELIUS_RPC.includes('helius') && mints.length > 0) {
                 try {
-                    // Use getAssetBatch - the proper Helius DAS API method
+                    // Use getAssetBatch - Helius DAS API with displayOptions for fungible tokens
                     const batchRes = await fetch(HELIUS_RPC, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -4119,7 +4119,13 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                             jsonrpc: '2.0',
                             id: 'launchr-trending',
                             method: 'getAssetBatch',
-                            params: { ids: mints.slice(0, 15) }
+                            params: {
+                                ids: mints.slice(0, 15),
+                                displayOptions: {
+                                    showFungible: true,
+                                    showCollectionMetadata: true
+                                }
+                            }
                         })
                     });
                     const batchData = await batchRes.json();
@@ -4128,10 +4134,15 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                         log(`[HELIUS DAS] getAssetBatch returned ${batchData.result.length} assets`);
                         for (const asset of batchData.result) {
                             if (asset && asset.id) {
+                                // Extract metadata from Helius DAS response
                                 heliusMeta[asset.id] = {
-                                    name: asset.content?.metadata?.name,
-                                    symbol: asset.content?.metadata?.symbol,
-                                    image: asset.content?.links?.image || asset.content?.files?.[0]?.uri
+                                    name: asset.content?.metadata?.name || asset.token_info?.symbol,
+                                    symbol: asset.content?.metadata?.symbol || asset.token_info?.symbol,
+                                    image: asset.content?.links?.image || asset.content?.files?.[0]?.uri,
+                                    // Additional token info from Helius
+                                    decimals: asset.token_info?.decimals,
+                                    supply: asset.token_info?.supply,
+                                    priceInfo: asset.token_info?.price_info
                                 };
                             }
                         }
@@ -4143,7 +4154,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 }
             }
 
-            // Step 3: Get price data from DexScreener for each token
+            // Step 3: Get price data from DexScreener + RUG DETECTION
             for (const mint of mints.slice(0, 15)) {
                 try {
                     const pairRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`);
@@ -4155,22 +4166,38 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                             .sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0]
                             || pairData.pairs[0];
 
-                        if ((solPair.liquidity?.usd || 0) > 1000 && (solPair.volume?.h24 || 0) > 1000) {
+                        const liquidity = solPair.liquidity?.usd || 0;
+                        const volume24h = solPair.volume?.h24 || 0;
+                        const priceChange24h = solPair.priceChange?.h24 || 0;
+                        const marketCap = solPair.marketCap || solPair.fdv || 0;
+
+                        // RUG DETECTION - Skip tokens that look rugged/dead
+                        const isRugged = (
+                            liquidity < 10000 ||           // Less than $10k liquidity = likely rugged
+                            volume24h < 5000 ||            // Less than $5k volume = dead
+                            priceChange24h < -90 ||        // Dropped 90%+ = rugged
+                            marketCap < 10000 ||           // Market cap under $10k = dead
+                            (liquidity > 0 && marketCap / liquidity > 100) // Suspicious MC/liquidity ratio
+                        );
+
+                        if (!isRugged) {
                             const hMeta = heliusMeta[mint] || {};
                             tokens.push({
                                 mint: mint,
                                 name: hMeta.name || solPair.baseToken?.name || 'Unknown',
                                 symbol: hMeta.symbol || solPair.baseToken?.symbol || '???',
                                 image: hMeta.image || solPair.info?.imageUrl || `https://dd.dexscreener.com/ds-data/tokens/solana/${mint}.png`,
-                                marketCap: solPair.marketCap || solPair.fdv || 0,
+                                marketCap: marketCap,
                                 price: parseFloat(solPair.priceUsd) || 0,
-                                priceChange: solPair.priceChange?.h24 || 0,
+                                priceChange: priceChange24h,
                                 priceChange5m: solPair.priceChange?.m5 || 0,
                                 priceChange1h: solPair.priceChange?.h1 || 0,
-                                volume24h: solPair.volume?.h24 || 0,
-                                liquidity: solPair.liquidity?.usd || 0,
+                                volume24h: volume24h,
+                                liquidity: liquidity,
                                 source: HELIUS_RPC?.includes('helius') ? 'helius+dex' : 'dexscreener'
                             });
+                        } else {
+                            log(`[RUG FILTER] Skipped ${solPair.baseToken?.symbol || mint}: liq=$${liquidity}, vol=$${volume24h}, change=${priceChange24h}%`);
                         }
                     }
                 } catch (e) { /* skip */ }
@@ -4178,9 +4205,9 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 if (tokens.length >= 10) break;
             }
 
-            // Fallback: DexScreener only if Helius didn't work
+            // Fallback: DexScreener only if not enough tokens
             if (tokens.length < 5) {
-                log('[TRENDING] Helius fallback - using DexScreener search');
+                log('[TRENDING] Fallback - using DexScreener search');
                 try {
                     const searchRes = await fetch('https://api.dexscreener.com/latest/dex/search?q=solana%20meme');
                     const searchData = await searchRes.json();
@@ -4188,13 +4215,23 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                     if (searchData.pairs) {
                         const seenMints = new Set(tokens.map(t => t.mint));
                         const memePairs = searchData.pairs
-                            .filter(p =>
-                                p.chainId === 'solana' &&
-                                !seenMints.has(p.baseToken?.address) &&
-                                !EXCLUDED.has(p.baseToken?.address) &&
-                                (p.liquidity?.usd || 0) > 5000 &&
-                                (p.volume?.h24 || 0) > 10000
-                            )
+                            .filter(p => {
+                                const liq = p.liquidity?.usd || 0;
+                                const vol = p.volume?.h24 || 0;
+                                const change = p.priceChange?.h24 || 0;
+                                const mc = p.marketCap || p.fdv || 0;
+                                // Same rug detection as above
+                                return (
+                                    p.chainId === 'solana' &&
+                                    !seenMints.has(p.baseToken?.address) &&
+                                    !EXCLUDED.has(p.baseToken?.address) &&
+                                    liq >= 10000 &&
+                                    vol >= 5000 &&
+                                    change > -90 &&
+                                    mc >= 10000 &&
+                                    (liq === 0 || mc / liq <= 100)
+                                );
+                            })
                             .sort((a, b) => (b.volume?.h24 || 0) - (a.volume?.h24 || 0))
                             .slice(0, 10 - tokens.length);
 
