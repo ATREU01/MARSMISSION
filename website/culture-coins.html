@@ -2499,7 +2499,7 @@
 
           return (
             <div style={{
-              padding: '136px 40px 60px',
+              padding: isMobile ? '110px 16px 60px' : '136px 40px 60px',
               background: colors.bg,
               minHeight: '100vh',
               transition: 'all 0.3s ease'
@@ -2513,8 +2513,8 @@
                 }}
                 style={{
                   position: 'fixed',
-                  top: '100px',
-                  right: '40px',
+                  top: isMobile ? '104px' : '100px',
+                  right: isMobile ? '16px' : '40px',
                   zIndex: 100,
                   width: '44px',
                   height: '44px',
@@ -3104,7 +3104,7 @@
                             </div>
                             <div style={{
                               fontSize: '12px',
-                              color: '#fff',
+                              color: colors.text,
                               fontFamily: "'IBM Plex Mono', monospace",
                               lineHeight: 1.5
                             }}>
@@ -3124,7 +3124,7 @@
                           <div>
                             <div style={{
                               fontSize: '16px',
-                              color: '#fff',
+                              color: colors.text,
                               fontFamily: "'IBM Plex Mono', monospace",
                               marginBottom: '4px',
                               fontWeight: 600
@@ -3137,14 +3137,14 @@
                                       : `$${culture.marketCap.toFixed(0)}`)
                                 : '—'}
                             </div>
-                            <div style={{ fontSize: '8px', color: '#666', letterSpacing: '0.1em', fontFamily: "'IBM Plex Mono', monospace" }}>
+                            <div style={{ fontSize: '8px', color: colors.textMuted, letterSpacing: '0.1em', fontFamily: "'IBM Plex Mono', monospace" }}>
                               MCAP
                             </div>
                           </div>
                           <div>
                             <div style={{
                               fontSize: '16px',
-                              color: '#fff',
+                              color: colors.text,
                               fontFamily: "'IBM Plex Mono', monospace",
                               marginBottom: '4px',
                               fontWeight: 600
@@ -3157,7 +3157,7 @@
                                       : `$${culture.volume.toFixed(0)}`)
                                 : '—'}
                             </div>
-                            <div style={{ fontSize: '8px', color: '#666', letterSpacing: '0.1em', fontFamily: "'IBM Plex Mono', monospace" }}>
+                            <div style={{ fontSize: '8px', color: colors.textMuted, letterSpacing: '0.1em', fontFamily: "'IBM Plex Mono', monospace" }}>
                               VOLUME
                             </div>
                           </div>
@@ -3171,7 +3171,7 @@
                             }}>
                               {(culture.holders || 0).toLocaleString()}
                             </div>
-                            <div style={{ fontSize: '8px', color: '#666', letterSpacing: '0.1em', fontFamily: "'IBM Plex Mono', monospace" }}>
+                            <div style={{ fontSize: '8px', color: colors.textMuted, letterSpacing: '0.1em', fontFamily: "'IBM Plex Mono', monospace" }}>
                               HOLDERS
                             </div>
                           </div>
@@ -7626,10 +7626,10 @@
                       {/* Header */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
                         <div>
-                          <div style={{ fontSize: '9px', letterSpacing: '0.15em', color: '#666', marginBottom: '6px', fontFamily: "'IBM Plex Mono', monospace" }}>
+                          <div style={{ fontSize: '9px', letterSpacing: '0.15em', color: dashColors.textMuted, marginBottom: '6px', fontFamily: "'IBM Plex Mono', monospace" }}>
                             {(culture.category || 'CULTURE').toUpperCase()}
                           </div>
-                          <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '26px', color: cTheme.textColor || '#fff', marginBottom: '8px' }}>
+                          <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '26px', color: cTheme.textColor || dashColors.text, marginBottom: '8px' }}>
                             {culture.name}
                           </h3>
                           <div style={{ display: 'inline-block', background: cAccent, color: '#000', fontSize: '11px', fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.1em', padding: '4px 12px', fontWeight: 600 }}>
@@ -7644,7 +7644,7 @@
                           <div style={{ fontSize: '9px', color: '#FFAB91', letterSpacing: '0.1em', marginBottom: '10px', fontFamily: "'IBM Plex Mono', monospace" }}>
                             DESCRIPTION
                           </div>
-                          <p style={{ fontSize: '13px', color: '#ddd', lineHeight: 1.7, fontFamily: "'IBM Plex Mono', monospace" }}>
+                          <p style={{ fontSize: '13px', color: dashColors.textSecondary, lineHeight: 1.7, fontFamily: "'IBM Plex Mono', monospace" }}>
                             {(culture.description || culture.ethos || '').slice(0, 200)}{(culture.description || culture.ethos || '').length > 200 ? '...' : ''}
                           </p>
                         </div>
@@ -7657,7 +7657,7 @@
                             TOKEN ADDRESS
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(139,92,246,0.03)', padding: '12px 14px', border: '1px solid rgba(139,92,246,0.15)', borderRadius: '4px' }}>
-                            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '11px', color: '#fff', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '11px', color: dashColors.text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {culture.tokenAddress}
                             </span>
                             <button onClick={() => { navigator.clipboard.writeText(culture.tokenAddress); }} style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.3)', color: '#8b5cf6', padding: '6px 12px', fontSize: '9px', fontFamily: "'IBM Plex Mono', monospace", cursor: 'pointer', letterSpacing: '0.05em' }}>
@@ -11869,16 +11869,19 @@
 
           // Generate Phantom deep link URL for mobile
           const getPhantomDeepLink = () => {
-            const currentUrl = encodeURIComponent(window.location.href);
-            const appUrl = encodeURIComponent(window.location.origin + '/culture-coins');
-            // Phantom universal link format for connecting
-            return `https://phantom.app/ul/v1/connect?app_url=${appUrl}&redirect_url=${currentUrl}&cluster=mainnet-beta`;
+            // Use explicit Culture Coins page URL for redirect
+            const baseUrl = window.location.origin + '/culture-coins';
+            const redirectUrl = encodeURIComponent(baseUrl);
+            const appUrl = encodeURIComponent(baseUrl);
+            // Phantom universal link format - use redirect_link (not redirect_url)
+            return `https://phantom.app/ul/v1/connect?app_url=${appUrl}&redirect_link=${redirectUrl}&cluster=mainnet-beta`;
           };
 
           // Generate Solflare deep link URL for mobile
           const getSolflareDeepLink = () => {
-            const currentUrl = encodeURIComponent(window.location.href);
-            return `https://solflare.com/ul/v1/connect?redirect_url=${currentUrl}`;
+            const baseUrl = window.location.origin + '/culture-coins';
+            const redirectUrl = encodeURIComponent(baseUrl);
+            return `https://solflare.com/ul/v1/connect?redirect_link=${redirectUrl}`;
           };
 
           const connectPhantom = async () => {
@@ -12322,6 +12325,12 @@
           // Notifications
           const [notification, setNotification] = useState(null);
 
+          // Light mode state (global)
+          const [lightMode, setLightMode] = useState(() => {
+            try { return JSON.parse(localStorage.getItem('lightMode') || 'false'); }
+            catch { return false; }
+          });
+
           const showNotification = (message, type = 'success') => {
             setNotification({ message, type });
           };
@@ -12370,6 +12379,35 @@
                 }
               }
             }
+          }, []);
+
+          // Handle Phantom mobile deep link return
+          useEffect(() => {
+            const checkPhantomReturn = async () => {
+              // Check if Phantom injected after returning from deep link
+              if (window.solana?.isPhantom && window.solana.isConnected) {
+                try {
+                  const resp = await window.solana.connect({ onlyIfTrusted: true });
+                  if (resp?.publicKey) {
+                    console.log('[PHANTOM] Auto-connected from deep link:', resp.publicKey.toString());
+                    handleWalletConnected(resp.publicKey.toString(), 'phantom');
+                    showNotification('Phantom connected!');
+                  }
+                } catch (e) {
+                  console.log('[PHANTOM] Not pre-authorized');
+                }
+              }
+              // Also try Solflare
+              if (window.solflare?.isConnected) {
+                console.log('[SOLFLARE] Auto-connected:', window.solflare.publicKey?.toString());
+                if (window.solflare.publicKey) {
+                  handleWalletConnected(window.solflare.publicKey.toString(), 'solflare');
+                  showNotification('Solflare connected!');
+                }
+              }
+            };
+            // Delay check to allow wallet extension to inject
+            setTimeout(checkPhantomReturn, 500);
           }, []);
 
           // Listen for Privy auth via BroadcastChannel
@@ -12487,7 +12525,28 @@
           };
 
           // Sidebar component - Mobile Responsive
-          const Sidebar = ({ view, setView, isMobile, isOpen, onClose }) => {
+          const Sidebar = ({ view, setView, isMobile, isOpen, onClose, lightMode }) => {
+            // Light mode colors for sidebar
+            const sidebarColors = lightMode ? {
+              bg: '#f5f5f5',
+              border: '#e0e0e0',
+              sectionLabel: '#666',
+              itemDefault: 'rgba(139, 92, 246, 0.7)',
+              itemHover: '#7c3aed',
+              itemActive: '#8b5cf6',
+              headerText: '#333',
+              closeBtn: '#999'
+            } : {
+              bg: '#0a0a0a',
+              border: '#1a1a1a',
+              sectionLabel: '#444',
+              itemDefault: 'rgba(139, 92, 246, 0.6)',
+              itemHover: '#8b5cf6',
+              itemActive: '#8b5cf6',
+              headerText: '#fff',
+              closeBtn: '#666'
+            };
+
             const navItems = [
               { id: 'home', label: 'Home', icon: '⌂', action: () => window.location.href = '/' },
               { id: 'leaderboard', label: 'Leaderboard', icon: '◎', action: () => window.location.href = '/launchpad' },
@@ -12528,7 +12587,7 @@
                     background: isActive && !isDisabled ? 'rgba(139, 92, 246, 0.1)' : 'transparent',
                     border: 'none',
                     borderRadius: '6px',
-                    color: isDisabled ? 'rgba(139, 92, 246, 0.3)' : (isActive ? '#8b5cf6' : 'rgba(139, 92, 246, 0.6)'),
+                    color: isDisabled ? 'rgba(139, 92, 246, 0.3)' : (isActive ? sidebarColors.itemActive : sidebarColors.itemDefault),
                     fontSize: isMobile ? '14px' : '13px',
                     cursor: isDisabled ? 'default' : 'pointer',
                     textAlign: 'left',
@@ -12540,13 +12599,13 @@
                   }}
                   onMouseEnter={(e) => {
                     if (!isActive && !isDisabled) {
-                      e.target.style.color = '#8b5cf6';
+                      e.target.style.color = sidebarColors.itemHover;
                       e.target.style.textShadow = '0 0 10px rgba(139, 92, 246, 0.3)';
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!isActive && !isDisabled) {
-                      e.target.style.color = 'rgba(139, 92, 246, 0.6)';
+                      e.target.style.color = sidebarColors.itemDefault;
                       e.target.style.textShadow = 'none';
                     }
                   }}
@@ -12570,10 +12629,10 @@
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '16px 20px',
-                    borderBottom: '1px solid #1a1a1a',
+                    borderBottom: `1px solid ${sidebarColors.border}`,
                     marginBottom: '16px'
                   }}>
-                    <span style={{ color: '#fff', fontSize: '14px', fontWeight: 600, letterSpacing: '0.1em' }}>
+                    <span style={{ color: sidebarColors.headerText, fontSize: '14px', fontWeight: 600, letterSpacing: '0.1em' }}>
                       MENU
                     </span>
                     <button
@@ -12581,7 +12640,7 @@
                       style={{
                         background: 'none',
                         border: 'none',
-                        color: '#666',
+                        color: sidebarColors.closeBtn,
                         fontSize: '24px',
                         cursor: 'pointer',
                         padding: '8px',
@@ -12596,25 +12655,25 @@
 
                 {/* Navigation */}
                 <div style={{ padding: '0 16px', marginBottom: '24px' }}>
-                  <div style={{ fontSize: '10px', color: '#444', letterSpacing: '0.1em', marginBottom: '12px' }}>NAVIGATION</div>
+                  <div style={{ fontSize: '10px', color: sidebarColors.sectionLabel, letterSpacing: '0.1em', marginBottom: '12px' }}>NAVIGATION</div>
                   {navItems.map(item => renderNavButton(item, false))}
                 </div>
 
                 {/* Culture Coins */}
                 <div style={{ padding: '0 16px', marginBottom: '24px' }}>
-                  <div style={{ fontSize: '10px', color: '#444', letterSpacing: '0.1em', marginBottom: '12px' }}>CULTURE COINS</div>
+                  <div style={{ fontSize: '10px', color: sidebarColors.sectionLabel, letterSpacing: '0.1em', marginBottom: '12px' }}>CULTURE COINS</div>
                   {cultureItems.map(item => renderNavButton(item, item.id === view))}
                 </div>
 
                 {/* Creator Central */}
                 <div style={{ padding: '0 16px', marginBottom: '24px' }}>
-                  <div style={{ fontSize: '10px', color: '#444', letterSpacing: '0.1em', marginBottom: '12px' }}>CREATOR CENTRAL</div>
+                  <div style={{ fontSize: '10px', color: sidebarColors.sectionLabel, letterSpacing: '0.1em', marginBottom: '12px' }}>CREATOR CENTRAL</div>
                   {creatorItems.map(item => renderNavButton(item, item.id === 'create' && view === 'create'))}
                 </div>
 
                 {/* Resources */}
                 <div style={{ padding: '0 16px', marginTop: 'auto' }}>
-                  <div style={{ fontSize: '10px', color: '#444', letterSpacing: '0.1em', marginBottom: '12px' }}>RESOURCES</div>
+                  <div style={{ fontSize: '10px', color: sidebarColors.sectionLabel, letterSpacing: '0.1em', marginBottom: '12px' }}>RESOURCES</div>
                   {socialItems.map(item => (
                     <a
                       key={item.id}
@@ -12626,7 +12685,7 @@
                         alignItems: 'center',
                         gap: '10px',
                         padding: isMobile ? '14px 12px' : '10px 12px',
-                        color: 'rgba(139, 92, 246, 0.6)',
+                        color: sidebarColors.itemDefault,
                         fontSize: isMobile ? '14px' : '12px',
                         textDecoration: 'none',
                         marginBottom: '4px',
@@ -12635,11 +12694,11 @@
                         minHeight: isMobile ? '48px' : 'auto'
                       }}
                       onMouseEnter={(e) => {
-                        e.target.style.color = '#8b5cf6';
+                        e.target.style.color = sidebarColors.itemHover;
                         e.target.style.textShadow = '0 0 10px rgba(139, 92, 246, 0.3)';
                       }}
                       onMouseLeave={(e) => {
-                        e.target.style.color = 'rgba(139, 92, 246, 0.6)';
+                        e.target.style.color = sidebarColors.itemDefault;
                         e.target.style.textShadow = 'none';
                       }}
                     >
@@ -12677,14 +12736,14 @@
                       top: 0,
                       bottom: 0,
                       width: '280px',
-                      background: '#0a0a0a',
-                      borderRight: '1px solid #1a1a1a',
+                      background: sidebarColors.bg,
+                      borderRight: `1px solid ${sidebarColors.border}`,
                       padding: '96px 0 24px',
                       display: 'flex',
                       flexDirection: 'column',
                       zIndex: 1600,
                       fontFamily: "'IBM Plex Mono', monospace",
-                      transition: 'left 0.3s ease',
+                      transition: 'left 0.3s ease, background 0.3s ease',
                       overflowY: 'auto'
                     }}
                   >
@@ -12704,13 +12763,14 @@
                   top: '96px',
                   bottom: 0,
                   width: '200px',
-                  background: '#0a0a0a',
-                  borderRight: '1px solid #1a1a1a',
+                  background: sidebarColors.bg,
+                  borderRight: `1px solid ${sidebarColors.border}`,
                   padding: '24px 0',
                   display: 'flex',
                   flexDirection: 'column',
                   zIndex: 100,
-                  fontFamily: "'IBM Plex Mono', monospace"
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  transition: 'background 0.3s ease'
                 }}
               >
                 {sidebarContent}
@@ -12736,6 +12796,7 @@
                   isMobile={isMobile}
                   isOpen={mobileMenuOpen}
                   onClose={() => setMobileMenuOpen(false)}
+                  lightMode={lightMode}
                 />
 
                 <div
