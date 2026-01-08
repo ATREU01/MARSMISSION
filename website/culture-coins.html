@@ -1978,6 +1978,19 @@
           const [cultures, setCultures] = useState(CULTURES);
           const [loading, setLoading] = useState(true);
           const [searchQuery, setSearchQuery] = useState('');
+          const [trendingCollapsed, setTrendingCollapsed] = useState(window.innerWidth < 768);
+          const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+          // Handle window resize for mobile detection
+          useEffect(() => {
+            const handleResize = () => {
+              const mobile = window.innerWidth < 768;
+              setIsMobile(mobile);
+              if (mobile && !trendingCollapsed) setTrendingCollapsed(true);
+            };
+            window.addEventListener('resize', handleResize);
+            return () => window.removeEventListener('resize', handleResize);
+          }, []);
 
           // Light/Dark Mode State (synced with localStorage)
           const [lightMode, setLightMode] = useState(() => {
@@ -2143,7 +2156,9 @@
                   alignItems: 'flex-end',
                   justifyContent: 'space-between',
                   flexWrap: 'wrap',
-                  gap: '24px'
+                  gap: '24px',
+                  flexDirection: isMobile ? 'column' : 'row',
+                  alignItems: isMobile ? 'stretch' : 'flex-end'
                 }}>
                   <div>
                     <div style={{
@@ -2158,7 +2173,7 @@
                     </div>
                     <h1 style={{
                       fontFamily: "'Playfair Display', serif",
-                      fontSize: '56px',
+                      fontSize: isMobile ? '36px' : '56px',
                       fontWeight: 400,
                       color: colors.text,
                       marginBottom: '16px',
@@ -2176,7 +2191,7 @@
                     </h1>
                     <p style={{
                       fontFamily: "'IBM Plex Mono', monospace",
-                      fontSize: '14px',
+                      fontSize: isMobile ? '12px' : '14px',
                       color: colors.textMuted,
                       maxWidth: '500px',
                       lineHeight: 1.8
@@ -2189,10 +2204,12 @@
                   {/* Quick Stats */}
                   <div style={{
                     display: 'flex',
-                    gap: '32px',
-                    padding: '24px 32px',
+                    gap: isMobile ? '16px' : '32px',
+                    padding: isMobile ? '16px 20px' : '24px 32px',
                     background: colors.cardBg,
-                    border: `1px solid ${colors.border}`
+                    border: `1px solid ${colors.border}`,
+                    justifyContent: isMobile ? 'space-around' : 'flex-start',
+                    width: isMobile ? '100%' : 'auto'
                   }}>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{
@@ -2265,19 +2282,63 @@
                   ═══════════════════════════════════════════════════════════════════ */}
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: '380px 1fr',
-                gap: '32px',
-                alignItems: 'start'
+                gridTemplateColumns: isMobile ? '1fr' : (trendingCollapsed ? '60px 1fr' : '380px 1fr'),
+                gap: isMobile ? '16px' : '32px',
+                alignItems: 'start',
+                transition: 'grid-template-columns 0.3s ease'
               }}>
 
-                {/* LEFT COLUMN - Trending X Feed (Sticky) */}
+                {/* LEFT COLUMN - Trending X Feed (Collapsible) */}
                 <div style={{
-                  position: 'sticky',
-                  top: '136px',
-                  height: 'calc(100vh - 180px)',
-                  minHeight: '600px'
+                  position: isMobile ? 'relative' : 'sticky',
+                  top: isMobile ? 'auto' : '136px',
+                  height: isMobile ? 'auto' : (trendingCollapsed ? 'auto' : 'calc(100vh - 180px)'),
+                  minHeight: trendingCollapsed ? 'auto' : (isMobile ? 'auto' : '600px'),
+                  transition: 'all 0.3s ease'
                 }}>
-                  <TrendingXFeed lightMode={lightMode} />
+                  {/* Collapse/Expand Button */}
+                  <button
+                    onClick={() => setTrendingCollapsed(!trendingCollapsed)}
+                    style={{
+                      position: trendingCollapsed ? 'relative' : 'absolute',
+                      top: trendingCollapsed ? '0' : '8px',
+                      right: trendingCollapsed ? 'auto' : '8px',
+                      zIndex: 10,
+                      width: trendingCollapsed ? '100%' : '32px',
+                      height: trendingCollapsed ? '50px' : '32px',
+                      background: trendingCollapsed ? 'linear-gradient(135deg, #FFD966, #FF3D8E)' : 'rgba(255, 217, 102, 0.2)',
+                      border: trendingCollapsed ? 'none' : '1px solid rgba(255, 217, 102, 0.3)',
+                      borderRadius: trendingCollapsed ? '8px' : '50%',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      color: trendingCollapsed ? '#000' : '#FFD966',
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: '10px',
+                      fontWeight: 600,
+                      letterSpacing: '0.1em'
+                    }}
+                  >
+                    {trendingCollapsed ? (
+                      <>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M9 18l6-6-6-6"/>
+                        </svg>
+                        TRENDING
+                      </>
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M15 18l-6-6 6-6"/>
+                      </svg>
+                    )}
+                  </button>
+
+                  {/* Trending Panel - Hidden when collapsed */}
+                  {!trendingCollapsed && (
+                    <TrendingXFeed lightMode={lightMode} />
+                  )}
                 </div>
 
                 {/* RIGHT COLUMN - Culture Discovery */}
@@ -2381,8 +2442,11 @@
                     </div>
                     <div style={{
                       display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: '8px'
+                      flexWrap: isMobile ? 'nowrap' : 'wrap',
+                      gap: '8px',
+                      overflowX: isMobile ? 'auto' : 'visible',
+                      paddingBottom: isMobile ? '8px' : '0',
+                      WebkitOverflowScrolling: 'touch'
                     }}>
                       {CATEGORIES.map(cat => {
                         const isActive = (cat.id === 'all' && !selectedCategory) || selectedCategory === cat.id;
@@ -2391,7 +2455,8 @@
                             key={cat.id}
                             onClick={() => setSelectedCategory(cat.id === 'all' ? null : cat.id)}
                             style={{
-                              padding: '10px 18px',
+                              padding: isMobile ? '8px 14px' : '10px 18px',
+                              flexShrink: 0,
                               background: isActive
                                 ? 'linear-gradient(135deg, #FFD966, #FF3D8E)'
                                 : 'transparent',
@@ -2473,8 +2538,8 @@
                   {/* Culture Grid */}
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-                    gap: '20px'
+                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))',
+                    gap: isMobile ? '16px' : '20px'
                   }}>
                     {filteredCultures.map((culture, index) => {
                       // Minimal professional accent - consistent throughout
