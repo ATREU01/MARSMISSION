@@ -249,6 +249,18 @@
         const { useState, useEffect, createContext, useContext, useRef } = React;
 
         // ═══════════════════════════════════════════════════════════════════
+        // SAFE FETCH HELPER - Properly checks response.ok before parsing JSON
+        // ═══════════════════════════════════════════════════════════════════
+        async function safeFetch(url, options = {}) {
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                const errorText = await response.text().catch(() => 'Unknown error');
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
+            }
+            return response.json();
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
         // CIA-LEVEL CLIENT SECURITY - Anti-Tampering & Verification
         // ═══════════════════════════════════════════════════════════════════
         const CultureSecurity = {
@@ -680,8 +692,8 @@
               try {
                 // Use our trending API that fetches real DexScreener data
                 const res = await fetch('/api/trending-tokens');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
-                console.log('[TOKENS] Trending API response:', data);
 
                 if (data.success && data.tokens && data.tokens.length > 0) {
                   const tokens = data.tokens.map(token => ({
@@ -2126,6 +2138,7 @@
             const fetchCultures = async () => {
               try {
                 const res = await fetch('/api/cultures');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
                 if (data.success && data.cultures) {
                   // Merge API cultures with base cultures (API cultures take priority)
@@ -5129,6 +5142,7 @@
               try {
                 // SERVER IS SINGLE SOURCE OF TRUTH
                 const apiRes = await fetch('/api/posts?limit=200');
+                if (!apiRes.ok) throw new Error(`HTTP ${apiRes.status}`);
                 const apiData = await apiRes.json();
                 console.log('[FEED] Server returned', apiData.posts?.length || 0, 'posts');
 
