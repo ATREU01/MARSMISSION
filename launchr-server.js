@@ -3159,41 +3159,76 @@ The 4 percentages MUST sum to exactly 100.`;
                 throw new Error('AI service not configured');
             }
 
-            // Format trending data for context
-            const tokenContext = (trendingTokens || []).slice(0, 5).map(t =>
-                `${t.name} ($${t.symbol}) - MC: $${((t.marketCap || 0) / 1000000).toFixed(1)}M, ${t.priceChange > 0 ? '+' : ''}${t.priceChange}%`
+            // Format trending data with rich context
+            const tokenContext = (trendingTokens || []).slice(0, 8).map(t =>
+                `• ${t.name} ($${t.symbol}) - MC: $${((t.marketCap || 0) / 1000000).toFixed(2)}M, 24h: ${t.priceChange > 0 ? '+' : ''}${(t.priceChange || 0).toFixed(1)}%, Volume: $${((t.volume || 0) / 1000).toFixed(0)}K`
             ).join('\n');
 
-            const newsContext = (trendingNews || []).slice(0, 5).map(t =>
-                `"${t.name}" - ${t.volume} posts, sentiment: ${Math.round((t.sentiment || 0.5) * 100)}%`
+            const newsContext = (trendingNews || []).slice(0, 8).map(t =>
+                `• "${t.name}" - ${t.volume || 'N/A'} mentions, sentiment: ${Math.round((t.sentiment || 0.5) * 100)}% positive`
             ).join('\n');
 
-            const prompt = `You are a crypto culture analyst and memecoin expert on Solana. Based on current market trends, generate 5 UNIQUE and CREATIVE coin/token ideas that could gain traction.
+            const currentDate = new Date().toISOString().split('T')[0];
 
-CURRENT TRENDING TOKENS:
-${tokenContext || 'No trending data available'}
+            const prompt = `You are an elite crypto venture analyst and cultural trend forecaster specializing in Solana memecoin launches. Your role is to identify UNIQUE market opportunities by synthesizing on-chain data, social sentiment, and cultural zeitgeist.
 
-CURRENT CRYPTO NEWS/SENTIMENT:
-${newsContext || 'No news data available'}
+DATE: ${currentDate}
 
-Generate 5 coin ideas that:
-1. Tap into current narratives and metas (AI agents, memes, culture, gaming, etc.)
-2. Have catchy, memorable names and tickers (4-6 chars max for ticker)
-3. Could realistically gain community traction
-4. Mix different categories: pure meme, utility-meme hybrid, culture coin, AI token, community token
+═══════════════════════════════════════════════════════════════
+LIVE MARKET DATA - TOP PERFORMING TOKENS (SOLANA)
+═══════════════════════════════════════════════════════════════
+${tokenContext || 'Market data unavailable - analyze based on known Solana trends'}
 
-For each idea provide:
-- name: Creative token name
-- ticker: Short memorable ticker (4-6 chars)
-- description: 1-2 sentence pitch (what makes it unique)
-- category: The meta/narrative it targets
-- confidence: 1-100 score based on current market fit
-- reasoning: Why this could work NOW based on the trends
+═══════════════════════════════════════════════════════════════
+SOCIAL SENTIMENT - TRENDING NARRATIVES (X/TWITTER)
+═══════════════════════════════════════════════════════════════
+${newsContext || 'Social data unavailable - analyze based on known crypto narratives'}
 
-Respond ONLY with valid JSON array:
-[{"name": "...", "ticker": "...", "description": "...", "category": "...", "confidence": XX, "reasoning": "..."}]
+═══════════════════════════════════════════════════════════════
+YOUR ANALYSIS FRAMEWORK
+═══════════════════════════════════════════════════════════════
 
-Be creative but realistic. Think like a degen who knows what pumps.`;
+STEP 1: PATTERN RECOGNITION
+- What meta-narratives are emerging from the trending tokens?
+- What cultural moments or memes are gaining velocity?
+- What gaps exist in the current market (underserved niches)?
+
+STEP 2: OPPORTUNITY SYNTHESIS
+Generate exactly 5 token concepts. Each MUST be:
+- GENUINELY ORIGINAL - No lazy derivatives like "Baby X" or "X Inu"
+- CULTURALLY RESONANT - Tap into real human emotions, communities, or movements
+- NARRATIVELY COMPELLING - Has a story that spreads organically
+- TECHNICALLY SOUND - Makes sense as a Solana token with clear use case
+
+STEP 3: DIFFERENTIATION CHECK
+Before finalizing, verify each idea:
+- Does this name already exist? (If it sounds too obvious, it's taken)
+- Is this a lazy pattern? (Avoid: [Animal][Crypto term], [Meme]AI, Baby[X])
+- Would a sophisticated investor take notice? (Not just degens)
+
+═══════════════════════════════════════════════════════════════
+OUTPUT FORMAT (STRICT JSON)
+═══════════════════════════════════════════════════════════════
+
+Return ONLY a JSON array with exactly 5 objects:
+[
+  {
+    "name": "Unique creative name (2-3 words max)",
+    "ticker": "TICKER (3-5 chars, memorable, not generic)",
+    "description": "Compelling 2-sentence pitch explaining the unique value proposition and why NOW is the moment",
+    "category": "Specific narrative (e.g., 'AI Agent Infrastructure', 'Culture DAO', 'Gaming Guild', 'Creator Economy')",
+    "confidence": 75-95 (realistic assessment based on market timing),
+    "reasoning": "Detailed analysis: What specific trend data supports this? What cultural moment does it capture? Why would it spread virally?"
+  }
+]
+
+QUALITY STANDARDS:
+- Names should be evocative, not descriptive (Think "Render" not "GPU Token")
+- Tickers should be speakable and memorable (Think "BONK" not "SOLDOG")
+- Descriptions should create FOMO, not just explain
+- Reasoning should reference SPECIFIC data points from the trends above
+
+Generate ideas that would make a crypto-native VC say "Why didn't I think of that?" - not ideas that make them roll their eyes.`;
 
             const response = await fetch('https://api.anthropic.com/v1/messages', {
                 method: 'POST',
@@ -3204,7 +3239,7 @@ Be creative but realistic. Think like a degen who knows what pumps.`;
                 },
                 body: JSON.stringify({
                     model: 'claude-sonnet-4-20250514',
-                    max_tokens: 1024,
+                    max_tokens: 2048,
                     messages: [{ role: 'user', content: prompt }]
                 })
             });
@@ -3230,7 +3265,17 @@ Be creative but realistic. Think like a degen who knows what pumps.`;
                 }
             }
 
-            log(`AI Ideas: Generated ${ideas.length} coin ideas`);
+            // Validate and clean ideas
+            ideas = ideas.slice(0, 5).map(idea => ({
+                name: idea.name || 'Unnamed',
+                ticker: (idea.ticker || 'TKN').toUpperCase().slice(0, 6),
+                description: idea.description || '',
+                category: idea.category || 'Culture',
+                confidence: Math.min(99, Math.max(50, idea.confidence || 75)),
+                reasoning: idea.reasoning || ''
+            }));
+
+            log(`AI Ideas: Generated ${ideas.length} institutional-grade coin ideas`);
 
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: true, ideas: ideas }));

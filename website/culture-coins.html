@@ -1046,60 +1046,17 @@
               }
               throw new Error('API response invalid');
             } catch (e) {
-              console.log('[AI IDEAS] Claude API failed, using fallback:', e.message);
-
-              // Fallback: Generate ideas locally based on trends
-              const themes = tokens.length > 0
-                ? tokens.slice(0, 3).map(t => t.name.split(' ')[0])
-                : ['Doge', 'Pepe', 'Cat'];
-              const newsThemes = trends.length > 0
-                ? trends.slice(0, 2).map(t => t.name.split(' ').slice(0, 2).join(' '))
-                : ['Crypto Rally', 'New Meta'];
-
-              const generatedIdeas = [
-                {
-                  name: `${themes[0] || 'Moon'}AI`,
-                  ticker: `${(themes[0] || 'MOON').substring(0, 3).toUpperCase()}AI`,
-                  description: `AI-powered ${themes[0] || 'community'} token with automated trading signals and community governance`,
-                  category: 'AI + Meme',
-                  confidence: 87,
-                  reasoning: `Combines trending ${themes[0] || 'meme'} narrative with AI agent meta`
-                },
-                {
-                  name: `${newsThemes[0] || 'Trending'} Coin`,
-                  ticker: `${(newsThemes[0] || 'TREND').split(' ')[0].substring(0, 4).toUpperCase()}`,
-                  description: `Capitalizes on "${newsThemes[0] || 'current trends'}" momentum with community-driven development`,
-                  category: 'News Meta',
-                  confidence: 82,
-                  reasoning: `Direct play on breaking news sentiment`
-                },
-                {
-                  name: 'Culture DAO',
-                  ticker: 'CULT',
-                  description: 'Decentralized culture curation with tiered membership and exclusive content access',
-                  category: 'Social',
-                  confidence: 79,
-                  reasoning: 'Culture coins gaining traction, DAO structure adds legitimacy'
-                },
-                {
-                  name: `Baby ${themes[1] || 'Doge'}`,
-                  ticker: `BABY${(themes[1] || 'DOGE').substring(0, 4).toUpperCase()}`,
-                  description: `Community spin-off of popular ${themes[1] || 'meme'} with deflationary mechanics`,
-                  category: 'Meme Derivative',
-                  confidence: 75,
-                  reasoning: `Baby/derivative tokens historically perform well off trending parents`
-                },
-                {
-                  name: 'Solana Sensei',
-                  ticker: 'SENSEI',
-                  description: 'Educational token rewarding users for learning DeFi and completing quests',
-                  category: 'Utility + Meme',
-                  confidence: 71,
-                  reasoning: 'Gamification + education meta emerging in Solana ecosystem'
-                }
-              ];
-
-              setAiIdeas(generatedIdeas);
+              console.log('[AI IDEAS] Claude API failed:', e.message);
+              // Show error state - don't generate fake ideas
+              setAiIdeas([{
+                name: 'AI Analysis Unavailable',
+                ticker: 'RETRY',
+                description: 'Unable to connect to AI analysis service. Click REGENERATE to try again.',
+                category: 'System',
+                confidence: 0,
+                reasoning: 'The AI service may be temporarily unavailable. Please try again in a moment.',
+                isError: true
+              }]);
             }
             setIdeasLoading(false);
           };
