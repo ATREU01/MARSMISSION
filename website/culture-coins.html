@@ -5069,16 +5069,16 @@
                   if (apiData.success && apiData.posts) {
                     serverPosts = apiData.posts.map(p => ({
                       id: p.id,
-                      authorWallet: p.author_wallet,
-                      authorName: p.authorName || p.author_wallet?.slice(0, 8) + '...',
-                      authorPfp: p.authorAvatar,
+                      authorWallet: p.authorWallet || p.author_wallet,
+                      authorName: p.authorName || (p.authorWallet || p.author_wallet)?.slice(0, 6) + '...',
+                      authorPfp: p.authorPfp || p.authorAvatar,
                       content: p.content,
-                      media: p.media_urls ? JSON.parse(p.media_urls) : [],
-                      likes: p.liked_by ? JSON.parse(p.liked_by) : [],
-                      reposts: p.reposted_by ? JSON.parse(p.reposted_by) : [],
+                      media: p.mediaUrl ? [p.mediaUrl] : (p.media_urls ? JSON.parse(p.media_urls) : []),
+                      likes: p.likes || (p.liked_by ? JSON.parse(p.liked_by) : []),
+                      reposts: p.repostedBy || (p.reposted_by ? JSON.parse(p.reposted_by) : []),
                       comments: [],
-                      createdAt: p.created_at,
-                      cultureId: p.culture_id
+                      createdAt: p.createdAt || p.created_at,
+                      cultureId: p.cultureId || p.culture_id
                     }));
                   }
                 } catch (e) {
