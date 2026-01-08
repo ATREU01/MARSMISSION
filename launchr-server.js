@@ -4064,6 +4064,206 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
         return;
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // TOKEN OWNERSHIP VERIFICATION - Uses Helius DAS API (CIA-Level)
+    // Verifies if wallet is creator/authority of a token before allowing edits
+    // ═══════════════════════════════════════════════════════════════════════════
+    if (url.pathname === '/api/verify-token-ownership' && req.method === 'POST') {
+        try {
+            const body = await parseBody(req);
+            const { mint, wallet } = body;
+
+            if (!mint || !wallet) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'mint and wallet required' }));
+                return;
+            }
+
+            const HELIUS_RPC = PRODUCTION_CONFIG.HELIUS_RPC;
+            if (!HELIUS_RPC || !HELIUS_RPC.includes('helius')) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Helius RPC not configured' }));
+                return;
+            }
+
+            log(`[VERIFY] Checking ownership: ${wallet.slice(0,8)}... owns ${mint.slice(0,8)}...`);
+
+            // Use Helius DAS API getAsset to get token metadata including authorities
+            const heliusRes = await fetch(HELIUS_RPC, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    jsonrpc: '2.0',
+                    id: 'verify-ownership',
+                    method: 'getAsset',
+                    params: { id: mint }
+                })
+            });
+            const heliusData = await heliusRes.json();
+
+            if (heliusData.error) {
+                log(`[VERIFY] Helius error: ${heliusData.error.message}`);
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: heliusData.error.message }));
+                return;
+            }
+
+            const asset = heliusData.result;
+            if (!asset) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Token not found' }));
+                return;
+            }
+
+            // Check multiple authority sources
+            let isOwner = false;
+            let ownershipType = null;
+            const walletLower = wallet.toLowerCase();
+
+            // 1. Check authorities array (update authority, freeze authority, etc.)
+            if (asset.authorities && Array.isArray(asset.authorities)) {
+                for (const auth of asset.authorities) {
+                    if (auth.address?.toLowerCase() === walletLower) {
+                        isOwner = true;
+                        ownershipType = `authority:${auth.scopes?.join(',') || 'full'}`;
+                        break;
+                    }
+                }
+            }
+
+            // 2. Check creators array (original token creator)
+            if (!isOwner && asset.creators && Array.isArray(asset.creators)) {
+                for (const creator of asset.creators) {
+                    if (creator.address?.toLowerCase() === walletLower) {
+                        isOwner = true;
+                        ownershipType = creator.verified ? 'verified_creator' : 'creator';
+                        break;
+                    }
+                }
+            }
+
+            // 3. Check ownership.owner (current holder - less authoritative)
+            if (!isOwner && asset.ownership?.owner?.toLowerCase() === walletLower) {
+                // For fungible tokens, being an owner doesn't mean creator
+                // But for NFTs/cultures it might
+                isOwner = false; // Don't grant access just for holding
+                ownershipType = 'holder_only';
+            }
+
+            // 4. Check token_info for mint authority (SPL tokens)
+            if (!isOwner && asset.token_info) {
+                if (asset.token_info.mint_authority?.toLowerCase() === walletLower) {
+                    isOwner = true;
+                    ownershipType = 'mint_authority';
+                }
+                if (asset.token_info.freeze_authority?.toLowerCase() === walletLower) {
+                    isOwner = true;
+                    ownershipType = 'freeze_authority';
+                }
+            }
+
+            log(`[VERIFY] Result: wallet=${wallet.slice(0,8)}... isOwner=${isOwner} type=${ownershipType}`);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                isOwner,
+                ownershipType,
+                tokenInfo: {
+                    name: asset.content?.metadata?.name || asset.content?.json_uri,
+                    symbol: asset.content?.metadata?.symbol,
+                    image: asset.content?.links?.image,
+                    authorities: asset.authorities?.map(a => ({ address: a.address, scopes: a.scopes })),
+                    creators: asset.creators?.map(c => ({ address: c.address, verified: c.verified }))
+                }
+            }));
+        } catch (e) {
+            console.error('[VERIFY] Error:', e.message);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Get ALL tokens owned/created by a wallet using Helius DAS
+    if (url.pathname === '/api/wallet-tokens' && req.method === 'GET') {
+        const wallet = url.searchParams.get('wallet');
+        if (!wallet) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'wallet required' }));
+            return;
+        }
+
+        const HELIUS_RPC = PRODUCTION_CONFIG.HELIUS_RPC;
+        if (!HELIUS_RPC || !HELIUS_RPC.includes('helius')) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Helius RPC not configured' }));
+            return;
+        }
+
+        const cacheKey = `wallet_tokens_${wallet}`;
+        const CACHE_TTL = 60000; // 1 minute
+        if (!global.walletTokenCache) global.walletTokenCache = {};
+        const cached = global.walletTokenCache[cacheKey];
+        if (cached && Date.now() - cached.ts < CACHE_TTL) {
+            res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'HIT' });
+            res.end(JSON.stringify(cached.data));
+            return;
+        }
+
+        try {
+            log(`[WALLET-TOKENS] Fetching all tokens for ${wallet.slice(0,8)}...`);
+
+            // Use Helius searchAssets to find all fungible tokens owned by wallet
+            const heliusRes = await fetch(HELIUS_RPC, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    jsonrpc: '2.0',
+                    id: 'wallet-tokens',
+                    method: 'searchAssets',
+                    params: {
+                        ownerAddress: wallet,
+                        tokenType: 'fungible',
+                        displayOptions: { showFungible: true },
+                        limit: 100
+                    }
+                })
+            });
+            const heliusData = await heliusRes.json();
+
+            let tokens = [];
+            if (heliusData.result?.items) {
+                tokens = heliusData.result.items
+                    .filter(item => item.token_info) // Only fungible tokens
+                    .map(item => ({
+                        mint: item.id,
+                        name: item.content?.metadata?.name || 'Unknown',
+                        symbol: item.content?.metadata?.symbol || '???',
+                        image: item.content?.links?.image,
+                        balance: item.token_info?.balance || 0,
+                        decimals: item.token_info?.decimals || 0,
+                        supply: item.token_info?.supply,
+                        isCreator: item.creators?.some(c => c.address === wallet) || false,
+                        isAuthority: item.authorities?.some(a => a.address === wallet) || false
+                    }));
+            }
+
+            log(`[WALLET-TOKENS] Found ${tokens.length} fungible tokens`);
+
+            const result = { success: true, tokens, count: tokens.length };
+            global.walletTokenCache[cacheKey] = { data: result, ts: Date.now() };
+
+            res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'MISS' });
+            res.end(JSON.stringify(result));
+        } catch (e) {
+            console.error('[WALLET-TOKENS] Error:', e.message);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
     // API: Get REAL trending Solana meme coins using Helius + DexScreener
     if (url.pathname === '/api/trending-tokens' && req.method === 'GET') {
         const CACHE_TTL = 60000; // 1 minute cache
@@ -4202,11 +4402,11 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                     }
                 } catch (e) { /* skip */ }
 
-                if (tokens.length >= 10) break;
+                if (tokens.length >= 20) break; // Show 20 trending tokens
             }
 
             // Fallback: DexScreener only if not enough tokens
-            if (tokens.length < 5) {
+            if (tokens.length < 10) {
                 log('[TRENDING] Fallback - using DexScreener search');
                 try {
                     const searchRes = await fetch('https://api.dexscreener.com/latest/dex/search?q=solana%20meme');
@@ -4233,7 +4433,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                                 );
                             })
                             .sort((a, b) => (b.volume?.h24 || 0) - (a.volume?.h24 || 0))
-                            .slice(0, 10 - tokens.length);
+                            .slice(0, 20 - tokens.length);
 
                         for (const pair of memePairs) {
                             tokens.push({
@@ -4255,9 +4455,9 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 } catch (e) { /* skip */ }
             }
 
-            // Sort by 24h volume and take top 10
+            // Sort by 24h volume and take top 20
             tokens.sort((a, b) => (b.volume24h || 0) - (a.volume24h || 0));
-            tokens = tokens.slice(0, 10);
+            tokens = tokens.slice(0, 20);
 
             // Cache result
             global.trendingCache[cacheKey] = { data: { success: true, tokens, count: tokens.length, source: HELIUS_KEY ? 'helius' : 'dexscreener' }, ts: Date.now() };
