@@ -6136,11 +6136,28 @@
             fetchMyCultures();
           }, [wallet?.address]);
 
-          const totalParticipation = {
-            culturesCreated: myCultures.length,
-            totalHolders: myCultures.reduce((sum, c) => sum + (c.holders || 0), 0),
-            totalVolume: myCultures.reduce((sum, c) => sum + (c.volume || 0), 0)
-          };
+          // Combine counts from myCultures + myTokens (deduplicated)
+          const totalParticipation = React.useMemo(() => {
+            // Build deduplicated set of all token addresses
+            const tokenAddrs = new Set();
+            myCultures.forEach(c => { if (c.tokenAddress) tokenAddrs.add(c.tokenAddress); });
+            myTokens.forEach(t => { if (t.mint) tokenAddrs.add(t.mint); });
+
+            // Total unique cultures/tokens
+            const totalCount = Math.max(tokenAddrs.size, myCultures.length, myTokens.length);
+
+            // Sum stats from both sources
+            const holdersFromCultures = myCultures.reduce((sum, c) => sum + (c.holders || 0), 0);
+            const holdersFromTokens = myTokens.reduce((sum, t) => sum + (t.holders || 0), 0);
+            const volumeFromCultures = myCultures.reduce((sum, c) => sum + (c.volume || 0), 0);
+            const volumeFromTokens = myTokens.reduce((sum, t) => sum + (t.volume || 0), 0);
+
+            return {
+              culturesCreated: totalCount,
+              totalHolders: Math.max(holdersFromCultures, holdersFromTokens),
+              totalVolume: Math.max(volumeFromCultures, volumeFromTokens)
+            };
+          }, [myCultures, myTokens]);
 
           // Import existing coin from multiple sources (pump.fun, DexScreener, Jupiter)
           const handleImportCoin = async () => {
@@ -6280,8 +6297,43 @@
             }
           };
 
+          // Combine myCultures with myTokens for complete list
+          // myTokens comes from local tracker, myCultures from pump.fun API + our cultures
+          const allMyCultures = React.useMemo(() => {
+            const cultureMap = new Map();
+
+            // First add myCultures (has full culture data)
+            myCultures.forEach(c => {
+              const key = c.tokenAddress || c.id;
+              if (key) cultureMap.set(key, c);
+            });
+
+            // Then add myTokens that aren't already in myCultures
+            myTokens.forEach(t => {
+              if (!cultureMap.has(t.mint)) {
+                cultureMap.set(t.mint, {
+                  id: `token_${t.mint}`,
+                  name: t.name || 'Unnamed Token',
+                  ticker: t.symbol || 'TOKEN',
+                  tokenAddress: t.mint,
+                  imageUri: t.image,
+                  marketCap: t.mcap || 0,
+                  holders: t.holders || 0,
+                  volume: t.volume || 0,
+                  needsCultureSetup: true,
+                  theme: {},
+                  beliefs: [],
+                  unlocks: [],
+                  tiers: []
+                });
+              }
+            });
+
+            return Array.from(cultureMap.values());
+          }, [myCultures, myTokens]);
+
           // Filter by search query (name, ticker, or contract address)
-          const filteredCultures = myCultures.filter(c => {
+          const filteredCultures = allMyCultures.filter(c => {
             if (!searchQuery.trim()) return true;
             const query = searchQuery.toLowerCase().trim();
             return (
@@ -6405,7 +6457,7 @@
                 onEditProfile={handleEditProfile}
                 isOwner={true}
                 stats={{
-                  cultures: myCultures.length,
+                  cultures: totalParticipation.culturesCreated,
                   posts: myPosts.length,
                   followers: 0,
                   following: 0
@@ -6545,7 +6597,7 @@
                       marginBottom: '24px'
                     }}>
                       {[
-                        { value: myCultures.length, label: 'CULTURES', color: dashColors.coral },
+                        { value: totalParticipation.culturesCreated, label: 'CULTURES', color: dashColors.coral },
                         { value: myPosts.length, label: 'POSTS', color: dashColors.peach },
                         { value: totalParticipation.totalHolders, label: 'HOLDERS', color: dashColors.gold },
                         { value: `$${totalParticipation.totalVolume.toLocaleString()}`, label: 'VOLUME', color: dashColors.accent }
@@ -6882,7 +6934,7 @@
                   color: '#666',
                   fontFamily: "'IBM Plex Mono', monospace"
                 }}>
-                  YOUR CULTURES {myCultures.length > 0 && `(${myCultures.length})`}
+                  YOUR CULTURES {filteredCultures.length > 0 && `(${filteredCultures.length})`}
                 </div>
                 {/* Refresh button to re-fetch coins */}
                 <button
