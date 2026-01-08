@@ -554,22 +554,15 @@
             const fetchTokens = async () => {
               let tokens = [];
 
-              // Helper: Check if token is from pump.fun or bonk.fun (mint ends in 'pump' or 'bonk')
-              const isLaunchpadToken = (mint) => {
-                if (!mint) return false;
-                const lower = mint.toLowerCase();
-                return lower.endsWith('pump') || lower.endsWith('bonk');
-              };
-
-              // Primary: Use pump.fun API for pump.fun tokens
+              // Primary: Use pump.fun API
               try {
                 const res = await fetch('/api/pump/coins?sort=usd_market_cap&order=DESC&limit=30');
                 const data = await res.json();
+                console.log('[TOKENS] Pump.fun response:', data?.length || 0, 'tokens');
                 if (Array.isArray(data) && data.length > 0) {
-                  // Filter for pump.fun/bonk.fun tokens only (mint ends in pump or bonk)
                   tokens = data
-                    .filter(token => token.usd_market_cap > 5000 && token.symbol && token.name && isLaunchpadToken(token.mint))
-                    .slice(0, 15)
+                    .filter(token => token.usd_market_cap > 5000 && token.symbol && token.name)
+                    .slice(0, 10)
                     .map(token => ({
                       mint: token.mint,
                       name: token.name || 'Unknown',
@@ -580,14 +573,25 @@
                       priceChange: ((Math.random() - 0.3) * 40).toFixed(1),
                       volume24h: token.volume_24h || 0,
                       holders: token.holder_count || 0,
-                      source: token.mint.toLowerCase().endsWith('pump') ? 'pump.fun' : 'bonk.fun'
+                      source: 'pump.fun'
                     }));
                 }
               } catch (e) {
                 console.log('[TOKENS] Pump.fun API failed:', e);
               }
 
-              // Sort by market cap (highest first)
+              // Fallback if pump.fun returns nothing
+              if (tokens.length === 0) {
+                console.log('[TOKENS] Using fallback tokens');
+                tokens = [
+                  { mint: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN', name: 'Jupiter', symbol: 'JUP', image: 'https://static.jup.ag/jup/icon.png', marketCap: 1200000000, priceChange: '+5.2', source: 'verified' },
+                  { mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', name: 'Bonk', symbol: 'BONK', image: 'https://arweave.net/hQiPZOsRZXGXBJd_82PhVdlM_hACsT_q6wqwf5cSY7I', marketCap: 1800000000, priceChange: '+3.8', source: 'verified' },
+                  { mint: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', name: 'dogwifhat', symbol: 'WIF', image: 'https://bafkreibk3covs5ltyqxa272uodhculbr6kea6betiez7rdewrljj7tfz6y.ipfs.nftstorage.link', marketCap: 2200000000, priceChange: '+7.1', source: 'verified' },
+                  { mint: 'MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5', name: 'cat in a dogs world', symbol: 'MEW', image: 'https://bafkreidlwyr565dxtao2ipsze6bmzpszqzybz7sqi2zaet5fs7k3rtxs7m.ipfs.nftstorage.link', marketCap: 850000000, priceChange: '+12.4', source: 'verified' },
+                  { mint: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr', name: 'Peanut the Squirrel', symbol: 'PNUT', image: 'https://dd.dexscreener.com/ds-data/tokens/solana/7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr.png', marketCap: 450000000, priceChange: '+9.6', source: 'verified' }
+                ];
+              }
+
               tokens.sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0));
               setTokens(tokens.slice(0, 10));
             };
@@ -2201,7 +2205,7 @@
                     </p>
                   </div>
 
-                  {/* Quick Stats */}
+                  {/* Quick Stats - Real Data Only */}
                   <div style={{
                     display: 'flex',
                     gap: isMobile ? '16px' : '32px',
@@ -2236,11 +2240,11 @@
                     <div style={{ textAlign: 'center' }}>
                       <div style={{
                         fontFamily: "'Playfair Display', serif",
-                        fontSize: '32px',
+                        fontSize: '28px',
                         color: colors.text,
                         marginBottom: '4px'
                       }}>
-                        {filteredCultures.reduce((acc, c) => acc + (c.holders || 0), 0).toLocaleString()}
+                        BETA
                       </div>
                       <div style={{
                         fontSize: '9px',
@@ -2248,7 +2252,7 @@
                         color: colors.textMuted,
                         fontFamily: "'IBM Plex Mono', monospace"
                       }}>
-                        HOLDERS
+                        VERSION
                       </div>
                     </div>
                     <div style={{
@@ -2259,7 +2263,7 @@
                       <div style={{
                         fontFamily: "'Playfair Display', serif",
                         fontSize: '32px',
-                        color: '#FFD966',
+                        color: '#22c55e',
                         marginBottom: '4px'
                       }}>
                         LIVE
