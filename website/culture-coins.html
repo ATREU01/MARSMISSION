@@ -643,7 +643,7 @@
             return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" shape-rendering="crispEdges">${svg.join('')}</svg>`)}`;
           };
 
-          // Colors based on light/dark mode - GOLD ACCENT ONLY
+          // Colors based on light/dark mode - PURPLE/BLUE VIBE
           const colors = lightMode ? {
             bg: '#ffffff',
             cardBg: '#fafafa',
@@ -651,13 +651,13 @@
             text: '#171717',
             textSecondary: '#404040',
             textMuted: '#737373',
-            accent: '#FFD966',
-            accentAlt: '#FF6B6B',
-            positive: '#FFD966',
+            accent: '#8b5cf6',
+            accentAlt: '#06b6d4',
+            positive: '#22c55e',
             negative: '#ef4444',
-            green: '#16a34a',
+            green: '#22c55e',
             red: '#dc2626',
-            gradient: 'linear-gradient(135deg, #FFD966 0%, #FF6B6B 100%)'
+            gradient: 'linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%)'
           } : {
             bg: '#0a0a0a',
             cardBg: '#0f0f0f',
@@ -665,13 +665,13 @@
             text: '#ffffff',
             textSecondary: '#a0a0a0',
             textMuted: '#666666',
-            accent: '#FFD966',
-            accentAlt: '#FF6B6B',
-            positive: '#FFD966',
+            accent: '#8b5cf6',
+            accentAlt: '#06b6d4',
+            positive: '#22c55e',
             negative: '#ef4444',
             green: '#22c55e',
             red: '#ef4444',
-            gradient: 'linear-gradient(135deg, #FFD966 0%, #FF6B6B 100%)'
+            gradient: 'linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%)'
           };
 
           // Fetch REAL trending tokens from our API (DexScreener data)
@@ -698,7 +698,7 @@
                     liquidity: token.liquidity || 0,
                     source: token.source || 'dexscreener'
                   }));
-                  setTokens(tokens.slice(0, 25));
+                  setTokens(tokens.slice(0, 50));
                   setLoading(false);
                   return;
                 }
@@ -2282,7 +2282,7 @@
                       The Cultural
                       <br />
                       <span style={{
-                        background: 'linear-gradient(90deg, #FFD966, #FF6B6B)',
+                        background: 'linear-gradient(90deg, #8b5cf6, #06b6d4)',
                         WebkitBackgroundClip: 'text',
                         WebkitTextFillColor: 'transparent',
                         backgroundClip: 'text'
@@ -2559,7 +2559,7 @@
                               padding: isMobile ? '8px 14px' : '10px 18px',
                               flexShrink: 0,
                               background: isActive
-                                ? 'linear-gradient(135deg, #FFD966, #FF6B6B)'
+                                ? 'linear-gradient(135deg, #8b5cf6, #06b6d4)'
                                 : 'transparent',
                               color: isActive ? '#000' : colors.textSecondary,
                               border: '1px solid',
@@ -4113,11 +4113,13 @@
         // ═══════════════════════════════════════════════════════════════════════════
 
         // Post Card Component - Displays individual posts in the feed
-        const PostCard = ({ post, onLike, onComment, onRepost, currentUser }) => {
+        const PostCard = ({ post, onLike, onComment, onRepost, onBlock, currentUser }) => {
           const [showComments, setShowComments] = useState(false);
           const [newComment, setNewComment] = useState('');
+          const [showMenu, setShowMenu] = useState(false);
           const isLiked = post.likes?.includes(currentUser);
           const isReposted = post.repostedBy?.includes(currentUser);
+          const isOwnPost = currentUser && post.authorWallet === currentUser;
           const timeAgo = (date) => {
             const seconds = Math.floor((new Date() - new Date(date)) / 1000);
             if (seconds < 60) return 'just now';
@@ -4147,7 +4149,7 @@
                   borderRadius: '50%',
                   overflow: 'hidden',
                   border: '2px solid #FFD966',
-                  background: 'linear-gradient(135deg, #FFD966, #FF6B6B)',
+                  background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -4205,6 +4207,63 @@
                     {timeAgo(post.createdAt)}
                   </div>
                 </div>
+                {/* Menu Button - Block/Report */}
+                {!isOwnPost && (
+                  <div style={{ position: 'relative' }}>
+                    <button
+                      onClick={() => setShowMenu(!showMenu)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#666',
+                        cursor: 'pointer',
+                        padding: '8px',
+                        fontSize: '16px'
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+                    </button>
+                    {showMenu && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        right: 0,
+                        background: '#1a1a1a',
+                        border: '1px solid #333',
+                        zIndex: 10,
+                        minWidth: '140px'
+                      }}>
+                        <button
+                          onClick={() => {
+                            if (onBlock && post.authorWallet) {
+                              onBlock(post.authorWallet);
+                            }
+                            setShowMenu(false);
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '10px 16px',
+                            background: 'none',
+                            border: 'none',
+                            color: '#ef4444',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}
+                          onMouseEnter={(e) => e.target.style.background = '#222'}
+                          onMouseLeave={(e) => e.target.style.background = 'none'}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="4" y1="4" x2="20" y2="20"/></svg>
+                          BLOCK USER
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Post Content */}
@@ -4501,7 +4560,7 @@
                     width: '48px',
                     height: '48px',
                     borderRadius: '50%',
-                    background: profile?.pfp ? `url(${profile.pfp}) center/cover` : 'linear-gradient(135deg, #FFD966, #FF6B6B)',
+                    background: profile?.pfp ? `url(${profile.pfp}) center/cover` : 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
                     border: '2px solid #FFD966',
                     flexShrink: 0
                   }} />
@@ -4867,7 +4926,7 @@
                     borderRadius: '50%',
                     background: profile?.pfp
                       ? `url(${profile.pfp}) center/cover`
-                      : 'linear-gradient(135deg, #FFD966, #FF6B6B)',
+                      : 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
                     border: '4px solid #0f0f0f',
                     boxShadow: '0 0 20px rgba(255, 217, 102, 0.3)'
                   }} />
@@ -5104,77 +5163,82 @@
             inputBorder: '#333333'
           };
 
-          // Load posts from server API AND localStorage (merge both sources)
+          // Load posts from SERVER ONLY - single source of truth for ALL users
+          // Block list stored locally - users can block wallets they don't want to see
+          const [blockedUsers, setBlockedUsers] = useState(() => {
+            try { return JSON.parse(localStorage.getItem('blocked_users') || '[]'); }
+            catch { return []; }
+          });
+
+          const blockUser = (walletToBlock) => {
+            if (!walletToBlock || blockedUsers.includes(walletToBlock)) return;
+            const newBlocked = [...blockedUsers, walletToBlock];
+            setBlockedUsers(newBlocked);
+            localStorage.setItem('blocked_users', JSON.stringify(newBlocked));
+            // Remove their posts from view
+            setPosts(prev => prev.filter(p => p.authorWallet !== walletToBlock));
+          };
+
+          const unblockUser = (wallet) => {
+            const newBlocked = blockedUsers.filter(w => w !== wallet);
+            setBlockedUsers(newBlocked);
+            localStorage.setItem('blocked_users', JSON.stringify(newBlocked));
+          };
+
           useEffect(() => {
             const loadPosts = async () => {
               try {
-                // Fetch from server API first
-                let serverPosts = [];
-                try {
-                  const apiRes = await fetch('/api/posts?limit=100');
-                  const apiData = await apiRes.json();
-                  if (apiData.success && apiData.posts) {
-                    serverPosts = apiData.posts.map(p => {
-                      const wallet = p.authorWallet || p.author_wallet || '';
-                      // Use authorName from server, fallback to checking both camelCase and snake_case
-                      const name = p.authorName || p.author_name ||
-                        (wallet ? wallet.slice(0, 6) + '...' + wallet.slice(-4) : 'Anonymous');
-                      return {
-                        id: p.id,
-                        authorWallet: wallet,
-                        authorName: name,
-                        authorPfp: p.authorPfp || p.author_pfp || p.authorAvatar,
-                        content: p.content,
-                        media: p.mediaUrl ? [p.mediaUrl] : (p.media_urls ? JSON.parse(p.media_urls) : []),
-                        likes: Array.isArray(p.likes) ? p.likes : (p.liked_by ? JSON.parse(p.liked_by) : []),
-                        reposts: Array.isArray(p.repostedBy) ? p.repostedBy : (p.reposted_by ? JSON.parse(p.reposted_by) : []),
-                        comments: [],
-                        createdAt: p.createdAt || p.created_at,
-                        cultureId: p.cultureId || p.culture_id
-                      };
-                    });
-                  }
-                } catch (e) {
-                  console.error('[FEED] API fetch failed:', e);
+                // SERVER IS SINGLE SOURCE OF TRUTH - all posts stored in database
+                const apiRes = await fetch('/api/posts?limit=200');
+                const apiData = await apiRes.json();
+                console.log('[FEED] Server returned', apiData.posts?.length || 0, 'posts');
+
+                if (apiData.success && apiData.posts) {
+                  const serverPosts = apiData.posts.map(p => {
+                    const wallet = p.authorWallet || p.author_wallet || '';
+                    const name = p.authorName || p.author_name ||
+                      (wallet ? wallet.slice(0, 6) + '...' + wallet.slice(-4) : 'Anonymous');
+                    return {
+                      id: p.id,
+                      authorWallet: wallet,
+                      authorName: name,
+                      authorPfp: p.authorPfp || p.author_pfp || p.authorAvatar,
+                      content: p.content,
+                      media: p.mediaUrl ? [p.mediaUrl] : (p.media_urls ? JSON.parse(p.media_urls) : []),
+                      likes: Array.isArray(p.likes) ? p.likes : (p.liked_by ? JSON.parse(p.liked_by) : []),
+                      reposts: p.reposts || 0,
+                      repostedBy: Array.isArray(p.repostedBy) ? p.repostedBy : (p.reposted_by ? JSON.parse(p.reposted_by) : []),
+                      comments: p.comments || [],
+                      createdAt: p.createdAt || p.created_at,
+                      cultureId: p.cultureId || p.culture_id
+                    };
+                  });
+
+                  // Filter out blocked users
+                  const blocked = JSON.parse(localStorage.getItem('blocked_users') || '[]');
+                  const filteredPosts = serverPosts.filter(p => !blocked.includes(p.authorWallet));
+
+                  // Sort by newest first
+                  filteredPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                  setPosts(filteredPosts);
+                } else {
+                  console.error('[FEED] API returned no posts:', apiData);
+                  setPosts([]);
                 }
-
-                // Also get localStorage posts (for backward compat)
-                const storedPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
-
-                // Merge: server posts take priority, add local posts not on server
-                const serverIds = new Set(serverPosts.map(p => p.id));
-                const localOnly = storedPosts.filter(p => !serverIds.has(p.id));
-
-                const allPosts = [...serverPosts, ...localOnly];
-
-                // Enrich posts with profile display names from localStorage
-                const enrichedPosts = allPosts.map(post => {
-                  if (post.authorWallet && !post.authorName) {
-                    try {
-                      const profile = JSON.parse(localStorage.getItem('creator_profile_' + post.authorWallet) || 'null');
-                      if (profile?.displayName) {
-                        return { ...post, authorName: profile.displayName, authorPfp: profile.pfp || post.authorPfp };
-                      }
-                    } catch (e) {}
-                  }
-                  return post;
-                });
-
-                // Sort by newest first
-                enrichedPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-                console.log('[FEED] Loaded', enrichedPosts.length, 'posts (server:', serverPosts.length, ', local:', localOnly.length, ')');
-                setPosts(enrichedPosts);
               } catch (e) {
-                console.error('[FEED] Error loading posts:', e);
+                console.error('[FEED] Failed to load posts:', e);
+                setPosts([]);
               } finally {
                 setLoading(false);
               }
             };
+
             loadPosts();
-            // Refresh every 30 seconds
-            const interval = setInterval(loadPosts, 30000);
+            // Refresh every 15 seconds for real-time feel
+            const interval = setInterval(loadPosts, 15000);
             return () => clearInterval(interval);
           }, []);
+
 
           const handleLike = async (postId) => {
             if (!wallet?.address) return;
@@ -5449,6 +5513,7 @@
                       onLike={handleLike}
                       onComment={handleComment}
                       onRepost={handleRepost}
+                      onBlock={blockUser}
                     />
                   ))
                 )}
@@ -6855,6 +6920,7 @@
                           onLike={handleLike}
                           onComment={handleComment}
                           onRepost={handleRepost}
+                          onBlock={blockUser}
                         />
                       ))
                     )}
@@ -6896,6 +6962,7 @@
                         onLike={handleLike}
                         onComment={handleComment}
                         onRepost={handleRepost}
+                        onBlock={blockUser}
                       />
                     ))
                   )}
@@ -7651,10 +7718,10 @@
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                           {[
-                            { key: 'marketMaking', label: 'Market Making', color: '#4ade80', icon: '📈' },
-                            { key: 'buybackBurn', label: 'Buyback & Burn', color: '#f97316', icon: '🔥' },
-                            { key: 'liquidity', label: 'Liquidity', color: '#3b82f6', icon: '💧' },
-                            { key: 'creatorRevenue', label: 'Creator Revenue', color: '#a855f7', icon: '💰' }
+                            { key: 'marketMaking', label: 'MARKET MAKING', color: '#22c55e', svg: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>' },
+                            { key: 'buybackBurn', label: 'BUYBACK & BURN', color: '#ef4444', svg: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>' },
+                            { key: 'liquidity', label: 'LIQUIDITY POOL', color: '#06b6d4', svg: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>' },
+                            { key: 'creatorRevenue', label: 'CREATOR REVENUE', color: '#8b5cf6', svg: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v3"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>' }
                           ].map(item => (
                             <div key={item.key} style={{
                               display: 'flex',
@@ -7664,7 +7731,7 @@
                               background: `${item.color}08`,
                               border: `1px solid ${item.color}30`
                             }}>
-                              <span style={{ fontSize: '14px' }}>{item.icon}</span>
+                              <div style={{ color: item.color, display: 'flex', alignItems: 'center' }} dangerouslySetInnerHTML={{ __html: item.svg }} />
                               <div style={{ flex: 1 }}>
                                 <div style={{
                                   fontSize: '11px',
@@ -8543,7 +8610,7 @@
                       <div style={{
                         fontFamily: "'IBM Plex Mono', monospace",
                         fontSize: '14px',
-                        background: 'linear-gradient(135deg, #FFD966, #FF6B6B)',
+                        background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
                         WebkitBackgroundClip: 'text',
                         WebkitTextFillColor: 'transparent',
                         fontWeight: 700,

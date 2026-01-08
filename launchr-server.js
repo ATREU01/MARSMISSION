@@ -4302,7 +4302,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 mints = boostData
                     .filter(t => t.chainId === 'solana' && !EXCLUDED.has(t.tokenAddress))
                     .map(t => t.tokenAddress)
-                    .slice(0, 20);
+                    .slice(0, 60);
             }
 
             // Step 2: Use Helius DAS API (getAssetBatch) via RPC for rich metadata
@@ -4320,7 +4320,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                             id: 'launchr-trending',
                             method: 'getAssetBatch',
                             params: {
-                                ids: mints.slice(0, 15),
+                                ids: mints.slice(0, 50),
                                 displayOptions: {
                                     showFungible: true,
                                     showCollectionMetadata: true
@@ -4355,7 +4355,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             }
 
             // Step 3: Get price data from DexScreener + RUG DETECTION
-            for (const mint of mints.slice(0, 15)) {
+            for (const mint of mints.slice(0, 60)) {
                 try {
                     const pairRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`);
                     const pairData = await pairRes.json();
@@ -4402,7 +4402,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                     }
                 } catch (e) { /* skip */ }
 
-                if (tokens.length >= 20) break; // Show 20 trending tokens
+                if (tokens.length >= 50) break; // Show 50 trending tokens
             }
 
             // Fallback: DexScreener only if not enough tokens
@@ -4433,7 +4433,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                                 );
                             })
                             .sort((a, b) => (b.volume?.h24 || 0) - (a.volume?.h24 || 0))
-                            .slice(0, 20 - tokens.length);
+                            .slice(0, 50 - tokens.length);
 
                         for (const pair of memePairs) {
                             tokens.push({
