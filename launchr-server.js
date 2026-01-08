@@ -52,8 +52,15 @@ const PRODUCTION_CONFIG = {
     // openssl ec -in private.pem -pubout -out public.pem
     PRIVY_AUTH_PRIVATE_KEY: process.env.PRIVY_AUTH_PRIVATE_KEY || '',
 
-    // Helius RPC (Solana)
+    // Helius RPC & API (Solana)
     HELIUS_RPC: process.env.HELIUS_RPC || process.env.RPC_URL || 'https://api.mainnet-beta.solana.com',
+    HELIUS_API_KEY: process.env.HELIUS_API_KEY || '',
+
+    // Twitter/X API (for real crypto news)
+    X_API_KEY: process.env.X_API_KEY || '',
+    X_API_SECRET_KEY: process.env.X_API_SECRET_KEY || '',
+    X_ACCESS_TOKEN: process.env.X_ACCESS_TOKEN || '',
+    X_ACCESS_TOKEN_SECRET: process.env.X_ACCESS_TOKEN_SECRET || '',
 
     // Fee Structure
     PLATFORM_FEE_PERCENT: 1,      // 1% of all fees to LAUNCHR distribution pool
@@ -99,6 +106,8 @@ console.log(`  - Privy App ID: ${PRODUCTION_CONFIG.PRIVY_APP_ID ? 'SET' : 'NOT S
 console.log(`  - Privy App Secret: ${PRODUCTION_CONFIG.PRIVY_APP_SECRET ? 'SET' : 'NOT SET'}`);
 console.log(`  - Privy Auth Key: ${PRODUCTION_CONFIG.PRIVY_AUTH_PRIVATE_KEY ? 'SET' : 'NOT SET'}`);
 console.log(`  - Helius RPC: ${PRODUCTION_CONFIG.HELIUS_RPC ? 'SET' : 'NOT SET'}`);
+console.log(`  - Helius API Key: ${PRODUCTION_CONFIG.HELIUS_API_KEY ? 'SET' : 'NOT SET'}`);
+console.log(`  - Twitter/X API: ${PRODUCTION_CONFIG.X_API_KEY ? 'SET' : 'NOT SET'}`);
 console.log(`  - Fee Wallet: ${FEE_WALLET_PUBLIC_KEY ? 'SET' : 'NOT SET'}`);
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -4055,10 +4064,10 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
         return;
     }
 
-    // API: Get REAL trending Solana meme coins from DexScreener
+    // API: Get REAL trending Solana meme coins using Helius + DexScreener
     if (url.pathname === '/api/trending-tokens' && req.method === 'GET') {
         const CACHE_TTL = 60000; // 1 minute cache
-        const cacheKey = 'trending_tokens_v2';
+        const cacheKey = 'trending_tokens_v3';
 
         if (!global.trendingCache) global.trendingCache = {};
         const cached = global.trendingCache[cacheKey];
@@ -4068,71 +4077,108 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             return;
         }
 
-        // Tokens to EXCLUDE (not meme coins)
+        // Tokens to EXCLUDE (not meme coins - stables, LSTs, wrapped)
         const EXCLUDED = new Set([
             'So11111111111111111111111111111111111111112', // Wrapped SOL
             'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
             'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', // USDT
             'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So', // mSOL
             'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn', // jitoSOL
-            'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', // BONK (already established)
+            'bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1', // bSOL
+            '7dHbWXmci3dT8UFYWYZweBLXgycu7Y3iL6trKn1Y7ARj', // stSOL
         ]);
+
+        const HELIUS_KEY = PRODUCTION_CONFIG.HELIUS_API_KEY;
 
         try {
             let tokens = [];
 
-            // Method 1: Get boosted/promoted Solana tokens (these are ACTUAL trending)
+            // Step 1: Get trending tokens from DexScreener boosted list
             const boostRes = await fetch('https://api.dexscreener.com/token-boosts/top/v1');
             const boostData = await boostRes.json();
 
+            let mints = [];
             if (Array.isArray(boostData)) {
-                const solBoosted = boostData
+                mints = boostData
                     .filter(t => t.chainId === 'solana' && !EXCLUDED.has(t.tokenAddress))
-                    .slice(0, 15);
+                    .map(t => t.tokenAddress)
+                    .slice(0, 20);
+            }
 
-                // Fetch details for each boosted token
-                for (const token of solBoosted) {
-                    try {
-                        const pairRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${token.tokenAddress}`);
-                        const pairData = await pairRes.json();
+            // Step 2: Use Helius DAS API to get rich metadata for these tokens
+            if (HELIUS_KEY && mints.length > 0) {
+                try {
+                    const heliusRes = await fetch(`https://api.helius.xyz/v0/token-metadata?api-key=${HELIUS_KEY}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ mintAccounts: mints.slice(0, 15) })
+                    });
+                    const heliusData = await heliusRes.json();
+                    log(`[HELIUS] Got metadata for ${heliusData?.length || 0} tokens`);
 
-                        if (pairData.pairs && pairData.pairs.length > 0) {
-                            // Find the best SOL pair (highest liquidity)
-                            const solPair = pairData.pairs
-                                .filter(p => p.quoteToken?.symbol === 'SOL' || p.quoteToken?.symbol === 'WSOL')
-                                .sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0]
-                                || pairData.pairs[0];
-
-                            if ((solPair.liquidity?.usd || 0) > 1000) {
-                                tokens.push({
-                                    mint: token.tokenAddress,
-                                    name: solPair.baseToken?.name || token.description || 'Unknown',
-                                    symbol: solPair.baseToken?.symbol || '???',
-                                    image: solPair.info?.imageUrl || token.icon || `https://dd.dexscreener.com/ds-data/tokens/solana/${token.tokenAddress}.png`,
-                                    marketCap: solPair.marketCap || solPair.fdv || 0,
-                                    price: parseFloat(solPair.priceUsd) || 0,
-                                    priceChange: solPair.priceChange?.h24 || 0,
-                                    priceChange5m: solPair.priceChange?.m5 || 0,
-                                    priceChange1h: solPair.priceChange?.h1 || 0,
-                                    volume24h: solPair.volume?.h24 || 0,
-                                    liquidity: solPair.liquidity?.usd || 0,
-                                    source: 'trending'
-                                });
+                    // Create a map of Helius metadata
+                    const heliusMeta = {};
+                    if (Array.isArray(heliusData)) {
+                        for (const meta of heliusData) {
+                            if (meta.account) {
+                                heliusMeta[meta.account] = {
+                                    name: meta.onChainMetadata?.metadata?.data?.name || meta.legacyMetadata?.name,
+                                    symbol: meta.onChainMetadata?.metadata?.data?.symbol || meta.legacyMetadata?.symbol,
+                                    image: meta.offChainMetadata?.metadata?.image || meta.legacyMetadata?.logoURI
+                                };
                             }
                         }
-                    } catch (e) { /* skip failed token */ }
+                    }
+
+                    // Step 3: Get price data from DexScreener for each token
+                    for (const mint of mints.slice(0, 15)) {
+                        try {
+                            const pairRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`);
+                            const pairData = await pairRes.json();
+
+                            if (pairData.pairs && pairData.pairs.length > 0) {
+                                const solPair = pairData.pairs
+                                    .filter(p => p.quoteToken?.symbol === 'SOL' || p.quoteToken?.symbol === 'WSOL')
+                                    .sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0]
+                                    || pairData.pairs[0];
+
+                                if ((solPair.liquidity?.usd || 0) > 1000 && (solPair.volume?.h24 || 0) > 1000) {
+                                    const hMeta = heliusMeta[mint] || {};
+                                    tokens.push({
+                                        mint: mint,
+                                        name: hMeta.name || solPair.baseToken?.name || 'Unknown',
+                                        symbol: hMeta.symbol || solPair.baseToken?.symbol || '???',
+                                        image: hMeta.image || solPair.info?.imageUrl || `https://dd.dexscreener.com/ds-data/tokens/solana/${mint}.png`,
+                                        marketCap: solPair.marketCap || solPair.fdv || 0,
+                                        price: parseFloat(solPair.priceUsd) || 0,
+                                        priceChange: solPair.priceChange?.h24 || 0,
+                                        priceChange5m: solPair.priceChange?.m5 || 0,
+                                        priceChange1h: solPair.priceChange?.h1 || 0,
+                                        volume24h: solPair.volume?.h24 || 0,
+                                        liquidity: solPair.liquidity?.usd || 0,
+                                        source: 'helius+dex'
+                                    });
+                                }
+                            }
+                        } catch (e) { /* skip */ }
+
+                        if (tokens.length >= 10) break;
+                    }
+                } catch (e) {
+                    log(`[HELIUS] Metadata API error: ${e.message}`);
                 }
             }
 
-            // Method 2: Search for recent pump.fun tokens if we need more
-            if (tokens.length < 10) {
+            // Fallback: DexScreener only if Helius didn't work
+            if (tokens.length < 5) {
+                log('[TRENDING] Helius fallback - using DexScreener search');
                 try {
-                    const searchRes = await fetch('https://api.dexscreener.com/latest/dex/search?q=pump');
+                    const searchRes = await fetch('https://api.dexscreener.com/latest/dex/search?q=solana%20meme');
                     const searchData = await searchRes.json();
 
                     if (searchData.pairs) {
                         const seenMints = new Set(tokens.map(t => t.mint));
-                        const pumpPairs = searchData.pairs
+                        const memePairs = searchData.pairs
                             .filter(p =>
                                 p.chainId === 'solana' &&
                                 !seenMints.has(p.baseToken?.address) &&
@@ -4143,7 +4189,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                             .sort((a, b) => (b.volume?.h24 || 0) - (a.volume?.h24 || 0))
                             .slice(0, 10 - tokens.length);
 
-                        for (const pair of pumpPairs) {
+                        for (const pair of memePairs) {
                             tokens.push({
                                 mint: pair.baseToken?.address,
                                 name: pair.baseToken?.name || 'Unknown',
@@ -4156,7 +4202,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                                 priceChange1h: pair.priceChange?.h1 || 0,
                                 volume24h: pair.volume?.h24 || 0,
                                 liquidity: pair.liquidity?.usd || 0,
-                                source: 'pump'
+                                source: 'dexscreener'
                             });
                         }
                     }
@@ -4168,9 +4214,9 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             tokens = tokens.slice(0, 10);
 
             // Cache result
-            global.trendingCache[cacheKey] = { data: { success: true, tokens, count: tokens.length }, ts: Date.now() };
+            global.trendingCache[cacheKey] = { data: { success: true, tokens, count: tokens.length, source: HELIUS_KEY ? 'helius' : 'dexscreener' }, ts: Date.now() };
 
-            log(`[TRENDING] Fetched ${tokens.length} real meme coins`);
+            log(`[TRENDING] Fetched ${tokens.length} meme coins via ${HELIUS_KEY ? 'Helius+DexScreener' : 'DexScreener'}`);
             res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'MISS' });
             res.end(JSON.stringify({ success: true, tokens, count: tokens.length }));
         } catch (e) {
