@@ -4055,6 +4055,105 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
         return;
     }
 
+    // API: Get REAL trending Solana tokens from DexScreener
+    if (url.pathname === '/api/trending-tokens' && req.method === 'GET') {
+        const CACHE_TTL = 60000; // 1 minute cache
+        const cacheKey = 'trending_tokens';
+
+        if (!global.trendingCache) global.trendingCache = {};
+        const cached = global.trendingCache[cacheKey];
+        if (cached && Date.now() - cached.ts < CACHE_TTL) {
+            res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'HIT' });
+            res.end(JSON.stringify(cached.data));
+            return;
+        }
+
+        try {
+            // Fetch trending/boosted Solana tokens from DexScreener
+            const [boostRes, gainersRes] = await Promise.all([
+                fetch('https://api.dexscreener.com/token-boosts/top/v1'),
+                fetch('https://api.dexscreener.com/latest/dex/tokens/So11111111111111111111111111111111111111112')
+            ]);
+
+            const boostData = await boostRes.json();
+            const gainersData = await gainersRes.json();
+
+            let tokens = [];
+
+            // Get boosted Solana tokens
+            if (Array.isArray(boostData)) {
+                const solBoosted = boostData.filter(t => t.chainId === 'solana').slice(0, 10);
+                for (const token of solBoosted) {
+                    try {
+                        const pairRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${token.tokenAddress}`);
+                        const pairData = await pairRes.json();
+                        if (pairData.pairs && pairData.pairs[0]) {
+                            const pair = pairData.pairs[0];
+                            if ((pair.liquidity?.usd || 0) > 5000) {
+                                tokens.push({
+                                    mint: token.tokenAddress,
+                                    name: pair.baseToken?.name || 'Unknown',
+                                    symbol: pair.baseToken?.symbol || '???',
+                                    image: pair.info?.imageUrl || token.icon || `https://dd.dexscreener.com/ds-data/tokens/solana/${token.tokenAddress}.png`,
+                                    marketCap: pair.marketCap || pair.fdv || 0,
+                                    price: parseFloat(pair.priceUsd) || 0,
+                                    priceChange: pair.priceChange?.h24 || 0,
+                                    priceChange5m: pair.priceChange?.m5 || 0,
+                                    priceChange1h: pair.priceChange?.h1 || 0,
+                                    volume24h: pair.volume?.h24 || 0,
+                                    liquidity: pair.liquidity?.usd || 0,
+                                    source: 'trending'
+                                });
+                            }
+                        }
+                    } catch (e) { /* skip */ }
+                }
+            }
+
+            // Add top gainers from SOL pairs
+            if (gainersData.pairs && tokens.length < 15) {
+                const seenMints = new Set(tokens.map(t => t.mint));
+                const topPairs = gainersData.pairs
+                    .filter(p => !seenMints.has(p.baseToken?.address) && (p.liquidity?.usd || 0) > 10000 && (p.volume?.h24 || 0) > 5000)
+                    .sort((a, b) => (b.priceChange?.h24 || 0) - (a.priceChange?.h24 || 0))
+                    .slice(0, 10);
+
+                for (const pair of topPairs) {
+                    tokens.push({
+                        mint: pair.baseToken?.address,
+                        name: pair.baseToken?.name || 'Unknown',
+                        symbol: pair.baseToken?.symbol || '???',
+                        image: pair.info?.imageUrl || `https://dd.dexscreener.com/ds-data/tokens/solana/${pair.baseToken?.address}.png`,
+                        marketCap: pair.marketCap || pair.fdv || 0,
+                        price: parseFloat(pair.priceUsd) || 0,
+                        priceChange: pair.priceChange?.h24 || 0,
+                        priceChange5m: pair.priceChange?.m5 || 0,
+                        priceChange1h: pair.priceChange?.h1 || 0,
+                        volume24h: pair.volume?.h24 || 0,
+                        liquidity: pair.liquidity?.usd || 0,
+                        source: 'gainers'
+                    });
+                }
+            }
+
+            // Sort by 24h volume (most active first)
+            tokens.sort((a, b) => (b.volume24h || 0) - (a.volume24h || 0));
+            tokens = tokens.slice(0, 15);
+
+            // Cache result
+            global.trendingCache[cacheKey] = { data: { success: true, tokens }, ts: Date.now() };
+
+            log(`[TRENDING] Fetched ${tokens.length} real trending tokens`);
+            res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'MISS' });
+            res.end(JSON.stringify({ success: true, tokens }));
+        } catch (e) {
+            console.error('[TRENDING] Error:', e.message);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, tokens: [], error: e.message }));
+        }
+        return;
+    }
+
     // API: Register a new token (called after successful launch)
     if (url.pathname === '/api/register-token' && req.method === 'POST') {
         try {
