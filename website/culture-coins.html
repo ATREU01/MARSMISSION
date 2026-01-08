@@ -1251,26 +1251,27 @@
                             }}
                           >
                             <div style={{ display: 'flex', gap: '12px' }}>
-                              {/* AI Generated Avatar */}
+                              {/* Pixel Art Avatar */}
                               <div style={{
                                 width: '48px',
                                 height: '48px',
-                                borderRadius: '12px',
-                                background: `linear-gradient(135deg, hsl(${(index * 50 + 260) % 360}, 80%, 45%), hsl(${(index * 50 + 300) % 360}, 70%, 35%))`,
+                                borderRadius: '8px',
+                                background: '#1a1a2e',
                                 overflow: 'hidden',
                                 flexShrink: 0,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                border: '2px solid rgba(168, 85, 247, 0.4)',
-                                boxShadow: '0 4px 12px rgba(168, 85, 247, 0.3)'
+                                border: '2px solid rgba(168, 85, 247, 0.5)',
+                                boxShadow: '0 4px 12px rgba(168, 85, 247, 0.3)',
+                                imageRendering: 'pixelated'
                               }}>
                                 <img
-                                  src={`https://api.dicebear.com/7.x/bottts-neutral/svg?seed=${encodeURIComponent(idea.name + idea.ticker)}&backgroundColor=transparent&eyes=bulging,dizzy,eva,frame1,frame2,glow,happy,robocop,round,roundFrame01,roundFrame02,sensor,shade01&mouth=bite,diagram,grill01,grill02,grill03,smile01,smile02,square01,square02`}
+                                  src={`https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(idea.name + idea.ticker)}&backgroundColor=1a1a2e,0f0f1a,1e1e3f&hair=short01,short02,short03,short04,short05&accessories=variant01,variant02,variant03,variant04&accessoriesProbability=40&glassesProbability=30`}
                                   alt={idea.name}
-                                  style={{ width: '44px', height: '44px' }}
+                                  style={{ width: '44px', height: '44px', imageRendering: 'pixelated' }}
                                   onError={(e) => {
-                                    e.target.src = `https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(idea.ticker)}&backgroundColor=transparent`;
+                                    e.target.src = `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(idea.ticker)}`;
                                   }}
                                 />
                               </div>
