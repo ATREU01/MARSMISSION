@@ -518,6 +518,54 @@
           const [hoveredItem, setHoveredItem] = useState(null);
           // Removed inner collapse - using outer trendingCollapsed instead
 
+          // Custom Pixel Art Generator - Unique to Launchr
+          const generatePixelArt = (seed) => {
+            // Hash function for consistent randomness
+            const hash = (str) => {
+              let h = 0;
+              for (let i = 0; i < str.length; i++) {
+                h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+              }
+              return Math.abs(h);
+            };
+
+            const h = hash(seed);
+            const size = 8;
+            const pixelSize = 6;
+
+            // Generate vibrant color palette based on seed
+            const palettes = [
+              ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96E6A1'], // Coral + Teal
+              ['#A855F7', '#EC4899', '#F59E0B', '#10B981'], // Purple + Pink + Gold
+              ['#3B82F6', '#8B5CF6', '#EC4899', '#06B6D4'], // Blue + Purple + Cyan
+              ['#F97316', '#EF4444', '#FBBF24', '#84CC16'], // Orange + Fire
+              ['#06B6D4', '#22D3EE', '#A855F7', '#F472B6'], // Cyan + Purple
+              ['#10B981', '#34D399', '#6EE7B7', '#FFD966'], // Green + Gold
+              ['#FF3D8E', '#FFD966', '#A855F7', '#3B82F6'], // Launchr colors
+            ];
+            const palette = palettes[h % palettes.length];
+
+            // Generate symmetric pixel pattern (mirrored for cool look)
+            let pixels = [];
+            for (let y = 0; y < size; y++) {
+              for (let x = 0; x < size / 2; x++) {
+                const idx = y * size + x;
+                const rand = hash(seed + idx.toString());
+                const filled = (rand % 3) !== 0; // 66% fill rate
+                if (filled) {
+                  const color = palette[rand % palette.length];
+                  // Original pixel
+                  pixels.push(`<rect x="${x * pixelSize}" y="${y * pixelSize}" width="${pixelSize}" height="${pixelSize}" fill="${color}"/>`);
+                  // Mirrored pixel
+                  pixels.push(`<rect x="${(size - 1 - x) * pixelSize}" y="${y * pixelSize}" width="${pixelSize}" height="${pixelSize}" fill="${color}"/>`);
+                }
+              }
+            }
+
+            const svgSize = size * pixelSize;
+            return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgSize} ${svgSize}" shape-rendering="crispEdges"><rect width="${svgSize}" height="${svgSize}" fill="#0a0a0a"/>${pixels.join('')}</svg>`)}`;
+          };
+
           // Colors based on light/dark mode - GOLD ACCENT ONLY
           const colors = lightMode ? {
             bg: '#ffffff',
@@ -1251,28 +1299,24 @@
                             }}
                           >
                             <div style={{ display: 'flex', gap: '12px' }}>
-                              {/* Pixel Art Avatar */}
+                              {/* Custom Launchr Pixel Art Avatar */}
                               <div style={{
                                 width: '48px',
                                 height: '48px',
                                 borderRadius: '8px',
-                                background: '#1a1a2e',
+                                background: '#0a0a0a',
                                 overflow: 'hidden',
                                 flexShrink: 0,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 border: '2px solid rgba(168, 85, 247, 0.5)',
-                                boxShadow: '0 4px 12px rgba(168, 85, 247, 0.3)',
-                                imageRendering: 'pixelated'
+                                boxShadow: '0 4px 12px rgba(168, 85, 247, 0.3), inset 0 0 20px rgba(168, 85, 247, 0.1)'
                               }}>
                                 <img
-                                  src={`https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(idea.name + idea.ticker)}&backgroundColor=1a1a2e,0f0f1a,1e1e3f&hair=short01,short02,short03,short04,short05&accessories=variant01,variant02,variant03,variant04&accessoriesProbability=40&glassesProbability=30`}
+                                  src={generatePixelArt(idea.name + idea.ticker)}
                                   alt={idea.name}
-                                  style={{ width: '44px', height: '44px', imageRendering: 'pixelated' }}
-                                  onError={(e) => {
-                                    e.target.src = `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(idea.ticker)}`;
-                                  }}
+                                  style={{ width: '48px', height: '48px', imageRendering: 'pixelated' }}
                                 />
                               </div>
 
