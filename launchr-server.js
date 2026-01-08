@@ -5089,9 +5089,14 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 return;
             }
 
-            const result = postDB.like(postId, wallet);
+            const likes = postDB.toggleLike(postId, wallet);
+            if (likes === null) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Post not found' }));
+                return;
+            }
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true, likes: result.likes }));
+            res.end(JSON.stringify({ success: true, likes }));
         } catch (e) {
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: false, error: e.message }));
@@ -5112,9 +5117,14 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 return;
             }
 
-            const result = postDB.repost(postId, wallet);
+            const result = postDB.toggleRepost(postId, wallet);
+            if (result === null) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Post not found' }));
+                return;
+            }
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true, reposts: result.reposts }));
+            res.end(JSON.stringify({ success: true, reposts: result.reposts, repostedBy: result.repostedBy }));
         } catch (e) {
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: false, error: e.message }));
