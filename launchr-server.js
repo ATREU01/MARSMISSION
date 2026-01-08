@@ -3156,8 +3156,10 @@ The 4 percentages MUST sum to exactly 100.`;
 
             const apiKey = process.env.CLAUDE_API_KEY;
             if (!apiKey) {
-                throw new Error('AI service not configured');
+                log('AI Ideas error: CLAUDE_API_KEY not set in environment');
+                throw new Error('AI service not configured - missing API key');
             }
+            log('AI Ideas: API key found, length=' + apiKey.length);
 
             // Format trending data with rich context
             const tokenContext = (trendingTokens || []).slice(0, 8).map(t =>
@@ -3244,11 +3246,22 @@ Generate ideas that would make a crypto-native VC say "Why didn't I think of tha
                 })
             });
 
+            log('Claude API call made, awaiting response...');
+
             if (!response.ok) {
+                const errBody = await response.text();
+                log('Claude API error: ' + response.status + ' - ' + errBody.slice(0, 300));
                 throw new Error('Claude API error: ' + response.status);
             }
 
             const result = await response.json();
+            log('Claude response received, content length: ' + (result.content?.[0]?.text?.length || 0));
+
+            if (!result.content || !result.content[0] || !result.content[0].text) {
+                log('Unexpected Claude response: ' + JSON.stringify(result).slice(0, 300));
+                throw new Error('Claude returned unexpected format');
+            }
+
             const content = result.content[0].text;
 
             // Parse the JSON response
