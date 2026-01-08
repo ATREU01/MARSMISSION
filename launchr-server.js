@@ -4807,18 +4807,10 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 posts = postDB.getAll(limit, offset);
             }
 
-            // Enrich with profile data
-            const enrichedPosts = posts.map(post => {
-                const profile = profileDB.getByWallet(post.author_wallet);
-                return {
-                    ...post,
-                    authorName: profile?.display_name || profile?.username || post.author_wallet.slice(0, 8) + '...',
-                    authorAvatar: profile?.avatar || null
-                };
-            });
-
+            // Posts already come with authorName/authorPfp from database JOIN
+            // Just pass through - no need to re-enrich
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true, posts: enrichedPosts }));
+            res.end(JSON.stringify({ success: true, posts }));
         } catch (e) {
             console.error('[POSTS] Get error:', e);
             res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -4839,11 +4831,12 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 return;
             }
 
-            const profile = profileDB.getByWallet(post.author_wallet);
+            // Use correct method name: profileDB.get() not getByWallet()
+            const profile = profileDB.get(post.authorWallet);
             const enrichedPost = {
                 ...post,
-                authorName: profile?.display_name || profile?.username || post.author_wallet.slice(0, 8) + '...',
-                authorAvatar: profile?.avatar || null
+                authorName: profile?.displayName || post.authorWallet.slice(0, 6) + '...' + post.authorWallet.slice(-4),
+                authorPfp: profile?.pfpUrl || null
             };
 
             res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -4937,13 +4930,13 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             const postId = parseInt(url.pathname.split('/')[3]);
             const comments = postDB.getComments(postId);
 
-            // Enrich with profile data
+            // Enrich with profile data - use correct method name
             const enrichedComments = comments.map(comment => {
-                const profile = profileDB.getByWallet(comment.author_wallet);
+                const profile = profileDB.get(comment.authorWallet || comment.author_wallet);
                 return {
                     ...comment,
-                    authorName: profile?.display_name || profile?.username || comment.author_wallet.slice(0, 8) + '...',
-                    authorAvatar: profile?.avatar || null
+                    authorName: profile?.displayName || (comment.authorWallet || comment.author_wallet)?.slice(0, 6) + '...',
+                    authorPfp: profile?.pfpUrl || null
                 };
             });
 
