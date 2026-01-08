@@ -1285,7 +1285,8 @@
                         {/* Refresh Button */}
                         <div style={{ padding: '12px 20px', borderBottom: `1px solid ${colors.border}` }}>
                           <button
-                            onClick={generateAiIdeas}
+                            onClick={() => { setAiIdeas([]); setTimeout(generateAiIdeas, 100); }}
+                            disabled={ideasLoading}
                             style={{
                               width: '100%',
                               padding: '10px',
@@ -1332,25 +1333,27 @@
                             }}
                           >
                             <div style={{ display: 'flex', gap: '12px' }}>
-                              {/* Pixel Art Avatar */}
+                              {/* AI Generated Avatar */}
                               <div style={{
                                 width: '48px',
                                 height: '48px',
-                                borderRadius: '8px',
-                                background: `linear-gradient(135deg, hsl(${(index * 60) % 360}, 70%, 50%), hsl(${(index * 60 + 60) % 360}, 70%, 40%))`,
+                                borderRadius: '12px',
+                                background: `linear-gradient(135deg, hsl(${(index * 50 + 260) % 360}, 80%, 45%), hsl(${(index * 50 + 300) % 360}, 70%, 35%))`,
                                 overflow: 'hidden',
                                 flexShrink: 0,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                border: '2px solid rgba(255,255,255,0.1)',
-                                imageRendering: 'pixelated'
+                                border: '2px solid rgba(168, 85, 247, 0.4)',
+                                boxShadow: '0 4px 12px rgba(168, 85, 247, 0.3)'
                               }}>
                                 <img
-                                  src={`https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(idea.ticker)}&backgroundColor=transparent`}
+                                  src={`https://api.dicebear.com/7.x/bottts-neutral/svg?seed=${encodeURIComponent(idea.name + idea.ticker)}&backgroundColor=transparent&eyes=bulging,dizzy,eva,frame1,frame2,glow,happy,robocop,round,roundFrame01,roundFrame02,sensor,shade01&mouth=bite,diagram,grill01,grill02,grill03,smile01,smile02,square01,square02`}
                                   alt={idea.name}
-                                  style={{ width: '40px', height: '40px', imageRendering: 'pixelated' }}
-                                  onError={(e) => { e.target.style.display = 'none'; }}
+                                  style={{ width: '44px', height: '44px' }}
+                                  onError={(e) => {
+                                    e.target.src = `https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(idea.ticker)}&backgroundColor=transparent`;
+                                  }}
                                 />
                               </div>
 
