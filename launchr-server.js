@@ -291,10 +291,175 @@ function getPrivySigner(sessionToken) {
     return new PrivyWalletSigner(session.privyWalletId, session.publicKey);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// PRIVY ENGINE MANAGEMENT - 24/7 Auto-Claim with Privy Signing
+// Stores active Privy-backed engines that run continuously
+// ═══════════════════════════════════════════════════════════════════════════
+const PRIVY_ENGINES_FILE = path.join(
+    process.env.RAILWAY_ENVIRONMENT ? '/app/data' : __dirname,
+    '.privy-engines.json'
+);
+const privyEngines = new Map(); // tokenMint -> { engine, interval, sessionToken, publicKey }
+
+// Load active Privy engines from disk and restart them
+async function loadAndRecoverPrivyEngines() {
+    if (!privyEnabled) {
+        console.log('[PRIVY-ENGINE] Privy not enabled - skipping recovery');
+        return;
+    }
+
+    try {
+        if (fs.existsSync(PRIVY_ENGINES_FILE)) {
+            const data = JSON.parse(fs.readFileSync(PRIVY_ENGINES_FILE, 'utf8'));
+            console.log(`[PRIVY-ENGINE] Found ${Object.keys(data.engines || {}).length} engines to recover`);
+
+            for (const [tokenMint, engineData] of Object.entries(data.engines || {})) {
+                try {
+                    // Get the Privy session for this engine
+                    const session = privyWalletSessions.get(engineData.sessionToken);
+                    if (!session) {
+                        console.log(`[PRIVY-ENGINE] Session expired for ${tokenMint.slice(0, 8)}... - skipping`);
+                        continue;
+                    }
+
+                    // Create Privy signer and engine
+                    await startPrivyEngine(tokenMint, engineData.sessionToken, engineData.allocations);
+                    console.log(`[PRIVY-ENGINE] Recovered engine for ${tokenMint.slice(0, 8)}...`);
+                } catch (e) {
+                    console.error(`[PRIVY-ENGINE] Failed to recover ${tokenMint.slice(0, 8)}...:`, e.message);
+                }
+            }
+        }
+    } catch (e) {
+        console.error('[PRIVY-ENGINE] Failed to load engines:', e.message);
+    }
+}
+
+// Save active Privy engines to disk
+function savePrivyEngines() {
+    try {
+        const engines = {};
+        for (const [tokenMint, data] of privyEngines.entries()) {
+            engines[tokenMint] = {
+                sessionToken: data.sessionToken,
+                publicKey: data.publicKey,
+                allocations: data.engine?.allocations || null,
+                startedAt: data.startedAt
+            };
+        }
+        fs.writeFileSync(PRIVY_ENGINES_FILE, JSON.stringify({ engines, updatedAt: Date.now() }, null, 2));
+    } catch (e) {
+        console.error('[PRIVY-ENGINE] Failed to save engines:', e.message);
+    }
+}
+
+// Start a Privy-backed engine for a token
+async function startPrivyEngine(tokenMint, sessionToken, allocations = null) {
+    // Check if already running
+    if (privyEngines.has(tokenMint)) {
+        console.log(`[PRIVY-ENGINE] Engine already running for ${tokenMint.slice(0, 8)}...`);
+        return privyEngines.get(tokenMint);
+    }
+
+    // Get Privy signer
+    const signer = getPrivySigner(sessionToken);
+    if (!signer) {
+        throw new Error('Invalid session - Privy signer not found');
+    }
+
+    // Create connection
+    const rpcUrl = PRODUCTION_CONFIG.HELIUS_RPC || 'https://api.mainnet-beta.solana.com';
+    const conn = new Connection(rpcUrl, 'confirmed');
+
+    // Create engine with Privy signer
+    const privyEngine = new LaunchrEngine(conn, tokenMint, signer);
+
+    // Set allocations if provided
+    if (allocations) {
+        try {
+            privyEngine.setAllocations(allocations);
+        } catch (e) {
+            console.log(`[PRIVY-ENGINE] Using default allocations: ${e.message}`);
+        }
+    }
+
+    // Start auto-claim loop
+    const intervalMs = 1 * 60 * 1000; // 1 minute
+    const runClaim = async () => {
+        try {
+            await privyEngine.updatePrice();
+            const result = await privyEngine.claimAndDistribute();
+            if (result.claimed > 0) {
+                console.log(`[PRIVY-ENGINE] ${tokenMint.slice(0, 8)}... Claimed ${(result.claimed / 1e9).toFixed(4)} SOL`);
+                logOrbitActivity(tokenMint, 'claimed', {
+                    amount: result.claimed,
+                    amountSOL: (result.claimed / 1e9).toFixed(6)
+                });
+            }
+        } catch (e) {
+            console.log(`[PRIVY-ENGINE] ${tokenMint.slice(0, 8)}... Error: ${e.message}`);
+            logOrbitActivity(tokenMint, 'error', { error: e.message });
+        }
+    };
+
+    // Run first claim
+    runClaim();
+    const interval = setInterval(runClaim, intervalMs);
+
+    // Start price updates every 10s
+    const priceInterval = setInterval(async () => {
+        try {
+            await privyEngine.updatePrice();
+        } catch (e) {
+            // Silent fail for price updates
+        }
+    }, 10000);
+
+    // Store engine data
+    const session = privyWalletSessions.get(sessionToken);
+    privyEngines.set(tokenMint, {
+        engine: privyEngine,
+        interval,
+        priceInterval,
+        sessionToken,
+        publicKey: session?.publicKey,
+        startedAt: Date.now()
+    });
+
+    // Register ORBIT
+    registerOrbit(tokenMint, session?.publicKey);
+
+    // Save to disk
+    savePrivyEngines();
+
+    console.log(`[PRIVY-ENGINE] Started 24/7 engine for ${tokenMint.slice(0, 8)}... with Privy signing`);
+    return privyEngines.get(tokenMint);
+}
+
+// Stop a Privy-backed engine
+function stopPrivyEngine(tokenMint) {
+    const engineData = privyEngines.get(tokenMint);
+    if (!engineData) return false;
+
+    if (engineData.interval) clearInterval(engineData.interval);
+    if (engineData.priceInterval) clearInterval(engineData.priceInterval);
+
+    privyEngines.delete(tokenMint);
+    savePrivyEngines();
+
+    // Update ORBIT status
+    stopOrbit(tokenMint);
+
+    console.log(`[PRIVY-ENGINE] Stopped engine for ${tokenMint.slice(0, 8)}...`);
+    return true;
+}
+
 // Initialize Privy on server start
 initPrivyClient().then(success => {
     if (success) {
         loadPrivySessions();
+        // Recover Privy engines after a short delay (let server initialize)
+        setTimeout(() => loadAndRecoverPrivyEngines(), 3000);
     }
 });
 
@@ -2727,8 +2892,12 @@ const server = http.createServer(async (req, res) => {
         // Start price updates every 10s to build RSI data
         if (!priceUpdateInterval) {
             priceUpdateInterval = setInterval(async () => {
-                if (engine) {
-                    await engine.updatePrice();
+                try {
+                    if (engine) {
+                        await engine.updatePrice();
+                    }
+                } catch (e) {
+                    // Silent fail - don't crash on price update errors
                 }
             }, 10000);
         }
@@ -6119,9 +6288,16 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                     // Register the wallet for 24/7 signing
                     registerPrivyWallet(orbitSessionToken, privyWalletId, publicKey, verifiedUser.userId);
 
-                    // If token mint provided, register ORBIT instance
+                    // If token mint provided, START THE 24/7 ENGINE with Privy signing!
+                    let engineStarted = false;
                     if (tokenMint) {
-                        registerOrbit(tokenMint, publicKey);
+                        try {
+                            await startPrivyEngine(tokenMint, orbitSessionToken);
+                            engineStarted = true;
+                            console.log(`[PRIVY] 24/7 Engine STARTED for ${tokenMint.slice(0, 8)}...`);
+                        } catch (engineError) {
+                            console.error(`[PRIVY] Failed to start engine: ${engineError.message}`);
+                        }
                     }
 
                     console.log(`[PRIVY] 24/7 ORBIT registered for user ${verifiedUser.userId}`);
@@ -6130,7 +6306,10 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                     res.end(JSON.stringify({
                         success: true,
                         orbitSessionToken,
-                        message: '24/7 ORBIT signing enabled. Your token will auto-claim even when browser is closed.',
+                        engineStarted,
+                        message: engineStarted
+                            ? '24/7 ORBIT Engine STARTED! Auto-claim runs continuously even when browser is closed.'
+                            : '24/7 ORBIT signing enabled. Provide tokenMint to start auto-claim.',
                         privyEnabled: true
                     }));
                 } catch (verifyError) {
@@ -6152,12 +6331,25 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
     // API: Check Privy 24/7 status
     if (url.pathname === '/api/privy/status' && req.method === 'GET') {
+        // Get active engines info
+        const activeEngines = [];
+        for (const [tokenMint, data] of privyEngines.entries()) {
+            activeEngines.push({
+                tokenMint: tokenMint.slice(0, 8) + '...',
+                publicKey: data.publicKey?.slice(0, 8) + '...',
+                startedAt: data.startedAt,
+                runningFor: Math.floor((Date.now() - data.startedAt) / 1000 / 60) + ' minutes'
+            });
+        }
+
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
             success: true,
             privyEnabled,
             serverSideSigningAvailable: privyEnabled && !!PRODUCTION_CONFIG.PRIVY_AUTH_PRIVATE_KEY,
             activeSessions: privyWalletSessions.size,
+            activeEngines: activeEngines.length,
+            engines: activeEngines,
             message: privyEnabled
                 ? '24/7 ORBIT available - close browser and auto-claim continues'
                 : 'Privy server signing not configured'
@@ -6201,16 +6393,26 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                     }
                 }
 
+                // Stop any engines using this session
+                let enginesStopped = 0;
+                for (const [tokenMint, engineData] of privyEngines.entries()) {
+                    if (engineData.sessionToken === orbitSessionToken) {
+                        stopPrivyEngine(tokenMint);
+                        enginesStopped++;
+                    }
+                }
+
                 // Revoke the session
                 privyWalletSessions.delete(orbitSessionToken);
                 savePrivySessions();
 
-                console.log(`[PRIVY] 24/7 ORBIT session revoked for wallet ${session.publicKey.slice(0, 8)}...`);
+                console.log(`[PRIVY] 24/7 ORBIT session revoked for wallet ${session.publicKey.slice(0, 8)}... (${enginesStopped} engines stopped)`);
 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({
                     success: true,
-                    message: '24/7 ORBIT session revoked. Auto-claim stopped.'
+                    enginesStopped,
+                    message: `24/7 ORBIT session revoked. ${enginesStopped} engine(s) stopped.`
                 }));
             } catch (e) {
                 res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -8119,8 +8321,12 @@ server.listen(PORT, async () => {
 
             // Start price updates every 10s
             priceUpdateInterval = setInterval(async () => {
-                if (engine) {
-                    await engine.updatePrice();
+                try {
+                    if (engine) {
+                        await engine.updatePrice();
+                    }
+                } catch (e) {
+                    // Silent fail - don't crash on price update errors
                 }
             }, 10000);
 
