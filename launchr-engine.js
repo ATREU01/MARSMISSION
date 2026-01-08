@@ -591,6 +591,18 @@ class PumpPortalClient {
         this.wallet = wallet;
         this.lastCallTime = 0;
         this.minCallInterval = 1500; // Minimum 1.5s between API calls
+        // Check if using Privy signer for 24/7 operation
+        this.isPrivySigner = wallet.isPrivySigner || false;
+    }
+
+    // Sign a transaction - supports both Keypair (sync) and PrivyWalletSigner (async)
+    async signTransaction(tx) {
+        if (this.isPrivySigner) {
+            return await this.wallet.signTransaction(tx);
+        } else {
+            tx.sign([this.wallet]);
+            return tx;
+        }
     }
 
     // Rate limiter - wait if needed before making API call
@@ -665,9 +677,11 @@ class PumpPortalClient {
 
                 // Response is raw binary versioned transaction
                 const tx = VersionedTransaction.deserialize(new Uint8Array(response.data));
-                tx.sign([this.wallet]);
 
-                const sig = await this.connection.sendRawTransaction(tx.serialize(), {
+                // Sign using Privy or Keypair
+                const signedTx = await this.signTransaction(tx);
+
+                const sig = await this.connection.sendRawTransaction(signedTx.serialize(), {
                     skipPreflight: true,
                     maxRetries: 3,
                 });
@@ -716,10 +730,9 @@ class PumpPortalClient {
                 );
 
                 const tx = new Transaction().add(createAtaIx);
-                const sig = await this.connection.sendTransaction(tx, [this.wallet], {
-                    skipPreflight: false,
-                    maxRetries: 3,
-                });
+                tx.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
+                tx.feePayer = this.wallet.publicKey;
+                const sig = await this.signAndSend(tx, { skipPreflight: false, maxRetries: 3 });
                 console.log(`[BUY] ATA creation TX: ${sig}`);
 
                 // Wait and verify ATA was created
@@ -780,11 +793,13 @@ class PumpPortalClient {
 
             // Response is raw binary versioned transaction data
             const tx = VersionedTransaction.deserialize(new Uint8Array(response.data));
-            tx.sign([this.wallet]);
+
+            // Sign using Privy or Keypair
+            const signedTx = await this.signTransaction(tx);
 
             const balanceBefore = await this.connection.getBalance(this.wallet.publicKey);
 
-            const sig = await this.connection.sendRawTransaction(tx.serialize(), {
+            const sig = await this.connection.sendRawTransaction(signedTx.serialize(), {
                 skipPreflight: true,
                 maxRetries: 3,
             });
@@ -887,6 +902,57 @@ class LaunchrEngine {
 
         this.currentPrice = 0;
         this.creatorWallet = wallet.publicKey; // Default to same wallet
+
+        // Check if using Privy signer for 24/7 operation
+        this.isPrivySigner = wallet.isPrivySigner || false;
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // ASYNC SIGNING SUPPORT - Works with both Keypair and PrivyWalletSigner
+    // Enables 24/7 operation via Privy server-side signing
+    // ─────────────────────────────────────────────────────────────────
+
+    /**
+     * Sign a transaction - supports both Keypair (sync) and PrivyWalletSigner (async)
+     * @param {VersionedTransaction|Transaction} tx - Transaction to sign
+     * @returns {Promise<VersionedTransaction|Transaction>} - Signed transaction
+     */
+    async signTransaction(tx) {
+        if (this.isPrivySigner) {
+            // Privy signer - async API call
+            return await this.wallet.signTransaction(tx);
+        } else {
+            // Keypair - sync local signing
+            tx.sign([this.wallet]);
+            return tx;
+        }
+    }
+
+    /**
+     * Sign and send a transaction - handles both signer types
+     * @param {VersionedTransaction|Transaction} tx - Transaction to sign and send
+     * @param {Object} options - Send options (skipPreflight, maxRetries, etc.)
+     * @returns {Promise<string>} - Transaction signature
+     */
+    async signAndSend(tx, options = {}) {
+        const defaultOptions = {
+            skipPreflight: true,
+            maxRetries: 3,
+        };
+        const sendOptions = { ...defaultOptions, ...options };
+
+        if (this.isPrivySigner) {
+            // Privy signer - use signAndSendTransaction if available, else sign then send
+            if (this.wallet.signAndSendTransaction) {
+                return await this.wallet.signAndSendTransaction(tx, this.connection);
+            } else {
+                const signedTx = await this.wallet.signTransaction(tx);
+                return await this.connection.sendRawTransaction(signedTx.serialize(), sendOptions);
+            }
+        } else {
+            // Keypair - use connection.sendTransaction which signs internally
+            return await this.connection.sendTransaction(tx, [this.wallet], sendOptions);
+        }
     }
 
     // Save stats to file (call after updates)
@@ -1561,10 +1627,7 @@ class LaunchrEngine {
                         tx.add(ix);
                     }
 
-                    const sig = await this.connection.sendTransaction(tx, [this.wallet], {
-                        skipPreflight: false,
-                        maxRetries: 3,
-                    });
+                    const sig = await this.signAndSend(tx, { skipPreflight: false, maxRetries: 3 });
 
                     console.log(`[LP] ✅ REAL LP ADDED! TX: ${sig}`);
                     this.logTransaction('lp_add_real', amount, sig);
@@ -1603,10 +1666,9 @@ class LaunchrEngine {
                                     )
                                 );
 
-                                const burnSig = await this.connection.sendTransaction(burnTx, [this.wallet], {
-                                    skipPreflight: true,
-                                    maxRetries: 3,
-                                });
+                                burnTx.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
+                                burnTx.feePayer = this.wallet.publicKey;
+                                const burnSig = await this.signAndSend(burnTx, { skipPreflight: true, maxRetries: 3 });
 
                                 await new Promise(r => setTimeout(r, 3000));
 
@@ -1683,8 +1745,10 @@ class LaunchrEngine {
                     lamports: amount,
                 })
             );
+            tx.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
+            tx.feePayer = this.wallet.publicKey;
 
-            const sig = await this.connection.sendTransaction(tx, [this.wallet]);
+            const sig = await this.signAndSend(tx);
             console.log(`[CR] Transfer sent: ${sig}`);
 
             await new Promise(r => setTimeout(r, 3000)); // Wait instead of blocking confirm
@@ -1735,11 +1799,10 @@ class LaunchrEngine {
                     const tx = new Transaction().add(
                         createBurnInstruction(ata, this.tokenMint, this.wallet.publicKey, tokenBalance, [], tokenProgram)
                     );
+                    tx.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
+                    tx.feePayer = this.wallet.publicKey;
 
-                    const sig = await this.connection.sendTransaction(tx, [this.wallet], {
-                        skipPreflight: true,
-                        maxRetries: 3,
-                    });
+                    const sig = await this.signAndSend(tx, { skipPreflight: true, maxRetries: 3 });
 
                     // Wait briefly for confirmation
                     await new Promise(r => setTimeout(r, 3000));
@@ -1762,10 +1825,9 @@ class LaunchrEngine {
                 const tx = new Transaction().add(
                     createBurnInstruction(ata, this.tokenMint, this.wallet.publicKey, finalAmount, [], tokenProgram)
                 );
-                const sig = await this.connection.sendTransaction(tx, [this.wallet], {
-                    skipPreflight: true,
-                    maxRetries: 3,
-                });
+                tx.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
+                tx.feePayer = this.wallet.publicKey;
+                const sig = await this.signAndSend(tx, { skipPreflight: true, maxRetries: 3 });
                 await new Promise(r => setTimeout(r, 3000));
                 return { success: true, burned: Number(finalAmount), signature: sig };
             }
@@ -1793,11 +1855,10 @@ class LaunchrEngine {
             const tx = new Transaction().add(
                 createBurnInstruction(ata, this.tokenMint, this.wallet.publicKey, tokenBalance, [], tokenProgram)
             );
+            tx.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
+            tx.feePayer = this.wallet.publicKey;
 
-            const sig = await this.connection.sendTransaction(tx, [this.wallet], {
-                skipPreflight: true,
-                maxRetries: 3,
-            });
+            const sig = await this.signAndSend(tx, { skipPreflight: true, maxRetries: 3 });
             // Don't block on confirmation
             await new Promise(r => setTimeout(r, 3000));
 
@@ -1846,7 +1907,9 @@ class LaunchrEngine {
                         lamports: holderFeeAmount,
                     })
                 );
-                const sig = await this.connection.sendTransaction(tx, [this.wallet]);
+                tx.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
+                tx.feePayer = this.wallet.publicKey;
+                const sig = await this.signAndSend(tx);
                 console.log(`[HOLDER FEE] Sent ${(holderFeeAmount / LAMPORTS_PER_SOL).toFixed(6)} SOL to LAUNCHR | TX: ${sig}`);
                 holderFeeResult = { success: true, amount: holderFeeAmount, signature: sig };
                 this.logTransaction('launchr_holder_fee', holderFeeAmount, sig);

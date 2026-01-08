@@ -4000,12 +4000,19 @@
         // Register for 24/7 ORBIT server-side signing
         async function enable24_7Orbit(tokenMint) {
             if (!privyOrbitCredentials) {
-                showNotification('Connect with Privy wallet to enable 24/7 ORBIT', 'error');
+                showNotification('Connect with Privy wallet first to enable 24/7 ORBIT', 'error');
+                return { success: false };
+            }
+
+            if (!tokenMint) {
+                showNotification('Please select a token to enable 24/7 ORBIT', 'error');
                 return { success: false };
             }
 
             try {
-                console.log('[ORBIT] Registering for 24/7 server-side signing...');
+                console.log('[ORBIT] Starting 24/7 engine with Privy signing...');
+                showNotification('Starting 24/7 ORBIT Engine...', 'info');
+
                 const res = await fetch('/api/privy/register-orbit', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -4020,18 +4027,44 @@
                 const data = await res.json();
                 if (data.success) {
                     orbitSessionToken = data.orbitSessionToken;
-                    console.log('[ORBIT] 24/7 ORBIT enabled!');
-                    showNotification('24/7 ORBIT enabled! Auto-claim continues even when browser is closed.', 'success');
-                    return { success: true, sessionToken: orbitSessionToken };
+                    console.log('[ORBIT] 24/7 ORBIT enabled! Engine started:', data.engineStarted);
+
+                    if (data.engineStarted) {
+                        showNotification('24/7 ORBIT Engine STARTED! Your token will auto-claim forever - even when you close your browser.', 'success');
+                        show24_7Badge(true);
+                        // Update UI to show engine is running
+                        update24_7EngineStatus(true, tokenMint);
+                    } else {
+                        showNotification('24/7 ORBIT signing enabled. Engine will start when fees are available.', 'success');
+                    }
+                    return { success: true, sessionToken: orbitSessionToken, engineStarted: data.engineStarted };
                 } else {
                     console.error('[ORBIT] Registration failed:', data.error);
-                    showNotification('24/7 ORBIT registration failed: ' + data.error, 'error');
+                    showNotification('24/7 ORBIT failed: ' + data.error, 'error');
                     return { success: false, error: data.error };
                 }
             } catch (e) {
                 console.error('[ORBIT] Registration error:', e);
-                showNotification('24/7 ORBIT registration error', 'error');
+                showNotification('24/7 ORBIT connection error. Please try again.', 'error');
                 return { success: false, error: e.message };
+            }
+        }
+
+        // Update UI to show 24/7 engine status
+        function update24_7EngineStatus(running, tokenMint) {
+            const statusEl = document.getElementById('orbit24Status');
+            if (running) {
+                if (!statusEl) {
+                    const badge = document.getElementById('orbit24Badge');
+                    if (badge) {
+                        badge.innerHTML = `
+                            <span style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:linear-gradient(135deg,rgba(0,255,136,0.2),rgba(0,200,100,0.15));border:1px solid rgba(0,255,136,0.5);border-radius:20px;font-size:12px;color:#00ff88;font-weight:600;box-shadow:0 0 20px rgba(0,255,136,0.2);">
+                                <span style="width:10px;height:10px;background:#00ff88;border-radius:50%;animation:orbit-pulse 1.5s infinite;box-shadow:0 0 10px #00ff88;"></span>
+                                24/7 ENGINE RUNNING
+                            </span>
+                        `;
+                    }
+                }
             }
         }
 

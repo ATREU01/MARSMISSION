@@ -920,6 +920,14 @@
             </div>
 
             <div class="sidebar-section">
+                <div class="sidebar-title">24/7 ORBIT Engine</div>
+                <a href="#tek-engine" class="sidebar-link">Token Engine Kit (TEK)</a>
+                <a href="#tek-how-it-works" class="sidebar-link">How 24/7 Works</a>
+                <a href="#tek-privy" class="sidebar-link">Privy Wallet Setup</a>
+                <a href="#tek-faq" class="sidebar-link">TEK FAQ</a>
+            </div>
+
+            <div class="sidebar-section">
                 <div class="sidebar-title">Advanced</div>
                 <a href="#smart-optimizer" class="sidebar-link">Smart Optimizer</a>
                 <a href="#api-reference" class="sidebar-link">API Reference</a>
@@ -1587,6 +1595,162 @@
                                 Transparency Note
                             </div>
                             <p>High creator revenue allocation is visible to your community. Consider balancing allocations for sustainable token operations.</p>
+                        </div>
+                    </section>
+
+                    <!-- TEK ENGINE - 24/7 ORBIT -->
+                    <section id="tek-engine">
+                        <h2>Token Engine Kit (TEK)</h2>
+                        <p>The <strong>Token Engine Kit (TEK)</strong> is your AI-powered fee distribution engine. It automatically claims and distributes your creator fees 24/7 &mdash; even when you close your browser.</p>
+
+                        <div class="callout callout-success" style="background: linear-gradient(135deg, rgba(0,255,136,0.1), rgba(0,200,100,0.05)); border-color: rgba(0,255,136,0.3);">
+                            <div class="callout-header" style="color: #00ff88;">
+                                <svg class="callout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 3V7M12 17V21M3 12H7M17 12H21" stroke-linecap="round"/></svg>
+                                24/7 ORBIT Engine
+                            </div>
+                            <p>With Privy wallet integration, TEK runs on our secure servers continuously. Your token auto-claims every minute, distributes fees to your allocations, and executes market operations &mdash; all while you sleep.</p>
+                        </div>
+
+                        <h3>Key Features</h3>
+                        <ul>
+                            <li><strong>Auto-Claim</strong> &mdash; Automatically claims available creator fees every minute</li>
+                            <li><strong>Smart Distribution</strong> &mdash; Distributes fees according to your allocation settings</li>
+                            <li><strong>Market Making</strong> &mdash; RSI-based buy/sell to reduce volatility</li>
+                            <li><strong>Buyback & Burn</strong> &mdash; Accumulates SOL and executes burns</li>
+                            <li><strong>Liquidity Operations</strong> &mdash; Adds LP and burns LP tokens (unruggable)</li>
+                            <li><strong>Real-Time Analytics</strong> &mdash; Track everything via ORBIT transparency dashboard</li>
+                        </ul>
+                    </section>
+
+                    <section id="tek-how-it-works">
+                        <h2>How 24/7 ORBIT Works</h2>
+                        <p>Understanding the engine architecture helps you get the most out of TEK.</p>
+
+                        <h3>The Flow</h3>
+                        <div class="code-block" style="background: var(--surface-2); padding: 20px; border-radius: 8px; font-size: 13px; line-height: 2;">
+                            <pre style="margin:0;color:var(--text-secondary);">
+1. You connect with Privy wallet
+2. Privy securely stores your signing keys
+3. TEK Engine starts on our server
+4. Every 60 seconds, the engine:
+   ├─ Claims available creator fees
+   ├─ Takes 1% for LAUNCHR holders
+   ├─ Distributes 99% to your allocations:
+   │   ├─ Market Making (RSI-based trades)
+   │   ├─ Buyback & Burn (accumulate + burn)
+   │   ├─ Liquidity (add LP + burn LP tokens)
+   │   └─ Creator Revenue (direct to wallet)
+   └─ Updates ORBIT transparency log
+5. You close browser &mdash; ENGINE KEEPS RUNNING
+6. Server persists state, recovers on restart
+                            </pre>
+                        </div>
+
+                        <h3>Why Privy?</h3>
+                        <p>Traditional wallets (Phantom, Solflare) require your browser to sign transactions. When you close the browser, signing stops.</p>
+                        <p><strong>Privy solves this</strong> by enabling server-side signing. Your keys are securely stored with Privy's infrastructure, allowing our server to sign transactions on your behalf 24/7.</p>
+
+                        <div class="callout callout-info">
+                            <div class="callout-header">
+                                <svg class="callout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                Security Note
+                            </div>
+                            <p>Privy uses enterprise-grade security with HSMs (Hardware Security Modules). Your keys never touch our servers directly &mdash; we only request Privy to sign specific transactions.</p>
+                        </div>
+
+                        <h3>What Happens When...</h3>
+                        <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+                            <tr style="border-bottom:1px solid var(--border);">
+                                <td style="padding:12px 16px;color:var(--text-secondary);">You close your browser</td>
+                                <td style="padding:12px 16px;color:var(--emerald);">Engine keeps running on server</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid var(--border);">
+                                <td style="padding:12px 16px;color:var(--text-secondary);">Server restarts</td>
+                                <td style="padding:12px 16px;color:var(--emerald);">Engine auto-recovers from saved state</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid var(--border);">
+                                <td style="padding:12px 16px;color:var(--text-secondary);">No fees to claim</td>
+                                <td style="padding:12px 16px;color:var(--text-secondary);">Engine waits, checks again in 60s</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid var(--border);">
+                                <td style="padding:12px 16px;color:var(--text-secondary);">You want to stop</td>
+                                <td style="padding:12px 16px;color:var(--gold);">Click STOP in dashboard or revoke session</td>
+                            </tr>
+                        </table>
+                    </section>
+
+                    <section id="tek-privy">
+                        <h2>Setting Up Privy for 24/7</h2>
+                        <p>Follow these steps to enable 24/7 ORBIT for your token.</p>
+
+                        <h3>Step 1: Connect with Privy</h3>
+                        <ol>
+                            <li>Go to the <a href="/dashboard" class="inline-link">Creator Dashboard</a></li>
+                            <li>Click <strong>Connect Wallet</strong></li>
+                            <li>Select <strong>Privy</strong> from the wallet options</li>
+                            <li>Complete the Privy authentication flow</li>
+                        </ol>
+
+                        <h3>Step 2: Configure Your Token</h3>
+                        <ol>
+                            <li>Select your token from "MY LAUNCHES"</li>
+                            <li>Set your allocation percentages (must total 100%)</li>
+                            <li>Toggle features ON/OFF as needed</li>
+                        </ol>
+
+                        <h3>Step 3: Enable 24/7 ORBIT</h3>
+                        <ol>
+                            <li>In the TEK section, click <strong>START</strong></li>
+                            <li>Confirm the 24/7 ORBIT registration</li>
+                            <li>You'll see "24/7 ENGINE RUNNING" badge</li>
+                            <li>Close your browser &mdash; engine keeps running!</li>
+                        </ol>
+
+                        <div class="callout callout-success" style="background: linear-gradient(135deg, rgba(0,255,136,0.1), rgba(0,200,100,0.05)); border-color: rgba(0,255,136,0.3);">
+                            <div class="callout-header" style="color: #00ff88;">
+                                <svg class="callout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                                You're All Set!
+                            </div>
+                            <p>Your token is now running 24/7 on autopilot. Check the ORBIT transparency dashboard anytime to see live activity, claims, and distributions.</p>
+                        </div>
+                    </section>
+
+                    <section id="tek-faq">
+                        <h2>TEK Frequently Asked Questions</h2>
+
+                        <div style="margin: 24px 0;">
+                            <h4 style="color: var(--gold); margin-bottom: 8px;">Q: Do I need to keep my browser open?</h4>
+                            <p>No! That's the whole point of 24/7 ORBIT. Once you connect with Privy and start the engine, it runs on our servers indefinitely. You can close your browser, turn off your computer, go on vacation &mdash; your token keeps operating.</p>
+                        </div>
+
+                        <div style="margin: 24px 0;">
+                            <h4 style="color: var(--gold); margin-bottom: 8px;">Q: How do I stop the engine?</h4>
+                            <p>Return to the dashboard and click <strong>STOP</strong> in the TEK section. You can also revoke your Privy session from the wallet menu. The engine only stops when YOU explicitly turn it off.</p>
+                        </div>
+
+                        <div style="margin: 24px 0;">
+                            <h4 style="color: var(--gold); margin-bottom: 8px;">Q: Is my wallet safe with Privy?</h4>
+                            <p>Yes. Privy is a trusted Web3 authentication provider used by major protocols. Your keys are stored in HSMs (Hardware Security Modules) with enterprise-grade security. We never have direct access to your keys &mdash; we can only request Privy to sign specific transactions.</p>
+                        </div>
+
+                        <div style="margin: 24px 0;">
+                            <h4 style="color: var(--gold); margin-bottom: 8px;">Q: What if the server restarts?</h4>
+                            <p>Your engine state is persisted to disk. When the server restarts, all active Privy engines are automatically recovered and resume operation within seconds.</p>
+                        </div>
+
+                        <div style="margin: 24px 0;">
+                            <h4 style="color: var(--gold); margin-bottom: 8px;">Q: Can I use a regular wallet instead of Privy?</h4>
+                            <p>Yes, but with limitations. Regular wallets (Phantom, Solflare) require your browser to stay open for signing. When you close the browser, the engine stops until you reconnect. For true 24/7 operation, Privy is required.</p>
+                        </div>
+
+                        <div style="margin: 24px 0;">
+                            <h4 style="color: var(--gold); margin-bottom: 8px;">Q: How often does it claim fees?</h4>
+                            <p>Every 60 seconds. The engine checks for available creator fees, claims them if present, and distributes according to your allocations. Price data updates every 10 seconds for RSI calculations.</p>
+                        </div>
+
+                        <div style="margin: 24px 0;">
+                            <h4 style="color: var(--gold); margin-bottom: 8px;">Q: Where can I see what the engine is doing?</h4>
+                            <p>Check the <strong>ORBIT transparency dashboard</strong>. It shows real-time stats: total claimed, total distributed, last activity, and a full activity log of all operations. This is public &mdash; anyone can verify your token's operations.</p>
                         </div>
                     </section>
 
