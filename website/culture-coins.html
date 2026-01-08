@@ -5436,17 +5436,19 @@
             setPosts(prev => prev.filter(p => p.authorWallet !== walletToBlock));
           };
 
-          // Load posts from SERVER ONLY - single source of truth for ALL users
+          // Load posts from SERVER + localStorage fallback
           useEffect(() => {
             const loadPosts = async () => {
               try {
-                // SERVER IS SINGLE SOURCE OF TRUTH
+                // Try server first (single source of truth for shared posts)
                 const apiRes = await fetch('/api/posts?limit=200');
                 if (!apiRes.ok) throw new Error(`HTTP ${apiRes.status}`);
                 const apiData = await apiRes.json();
                 console.log('[FEED] Server returned', apiData.posts?.length || 0, 'posts');
 
-                if (apiData.success && apiData.posts) {
+                let allPosts = [];
+
+                if (apiData.success && apiData.posts && apiData.posts.length > 0) {
                   const serverPosts = apiData.posts.map(p => {
                     const wallet = p.authorWallet || p.author_wallet || '';
                     // Get display name - check server first, then try to enrich from localStorage
@@ -5484,18 +5486,41 @@
                       cultureId: p.cultureId || p.culture_id
                     };
                   });
-
-                  // Filter out blocked users
-                  const blocked = JSON.parse(localStorage.getItem('blocked_users') || '[]');
-                  const filteredPosts = serverPosts.filter(p => !blocked.includes(p.authorWallet));
-
-                  // Sort by newest first
-                  filteredPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-                  console.log('[FEED] Displaying', filteredPosts.length, 'posts after filtering');
-                  setPosts(filteredPosts);
+                  allPosts = serverPosts;
                 }
+
+                // Also check localStorage for any posts (backward compat + offline posts)
+                try {
+                  const localPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
+                  if (localPosts.length > 0) {
+                    console.log('[FEED] Found', localPosts.length, 'posts in localStorage');
+                    // Merge: add local posts that aren't already in server posts
+                    const serverIds = new Set(allPosts.map(p => String(p.id)));
+                    const newLocalPosts = localPosts.filter(p => !serverIds.has(String(p.id)));
+                    allPosts = [...allPosts, ...newLocalPosts];
+                  }
+                } catch (e) {
+                  console.error('[FEED] localStorage parse error:', e);
+                }
+
+                // Filter out blocked users
+                const blocked = JSON.parse(localStorage.getItem('blocked_users') || '[]');
+                const filteredPosts = allPosts.filter(p => !blocked.includes(p.authorWallet));
+
+                // Sort by newest first
+                filteredPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                console.log('[FEED] Displaying', filteredPosts.length, 'total posts');
+                setPosts(filteredPosts);
               } catch (e) {
                 console.error('[FEED] Error loading posts:', e);
+                // On error, try localStorage only
+                try {
+                  const localPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
+                  if (localPosts.length > 0) {
+                    console.log('[FEED] Fallback to localStorage:', localPosts.length, 'posts');
+                    setPosts(localPosts);
+                  }
+                } catch (le) {}
               } finally {
                 setLoading(false);
               }
