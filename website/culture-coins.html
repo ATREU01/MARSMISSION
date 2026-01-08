@@ -2644,8 +2644,9 @@
                     gap: isMobile ? '16px' : '20px'
                   }}>
                     {filteredCultures.map((culture, index) => {
-                      // Minimal professional accent - consistent throughout
-                      const accentColor = '#888888';
+                      // Elegant coral/peach/gold accent colors by index
+                      const accentColors = ['#FF6B6B', '#FFAB91', '#FFD966'];
+                      const accentColor = accentColors[index % 3];
 
                       return (
                       <div
@@ -2654,23 +2655,28 @@
                         style={{
                           background: colors.cardBg,
                           border: `1px solid ${colors.border}`,
+                          borderLeft: `3px solid ${accentColor}`,
                           padding: '28px',
                           cursor: 'pointer',
                           transition: 'all 0.3s',
                           position: 'relative',
-                          overflow: 'hidden'
+                          overflow: 'hidden',
+                          boxShadow: `0 2px 12px rgba(${accentColor === '#FF6B6B' ? '255,107,107' : accentColor === '#FFAB91' ? '255,171,145' : '255,217,102'}, 0.05)`
                         }}
                         onMouseEnter={e => {
-                          e.currentTarget.style.borderColor = '#333';
-                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.borderColor = accentColor;
+                          e.currentTarget.style.transform = 'translateY(-3px)';
+                          e.currentTarget.style.boxShadow = `0 8px 24px rgba(${accentColor === '#FF6B6B' ? '255,107,107' : accentColor === '#FFAB91' ? '255,171,145' : '255,217,102'}, 0.15)`;
                         }}
                         onMouseLeave={e => {
                           e.currentTarget.style.borderColor = colors.border;
+                          e.currentTarget.style.borderLeft = `3px solid ${accentColor}`;
                           e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = `0 2px 12px rgba(${accentColor === '#FF6B6B' ? '255,107,107' : accentColor === '#FFAB91' ? '255,171,145' : '255,217,102'}, 0.05)`;
                         }}
                       >
 
-                        {/* Category Tag */}
+                        {/* Category Tag - Elegant */}
                         <div style={{
                           display: 'flex',
                           alignItems: 'center',
@@ -2680,8 +2686,9 @@
                           <div style={{
                             fontSize: '9px',
                             letterSpacing: '0.15em',
-                            color: '#666',
-                            fontFamily: "'IBM Plex Mono', monospace"
+                            color: accentColor,
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            fontWeight: 600
                           }}>
                             {culture.category?.toUpperCase() || 'CULTURE'}
                           </div>
@@ -2747,49 +2754,51 @@
                           "{culture.ethos}"
                         </p>
 
-                        {/* Core Pillar Preview */}
+                        {/* Core Pillar Preview - Elegant */}
                         {culture.pillars && culture.pillars.length > 0 && (
                           <div style={{
-                            background: 'rgba(255,255,255,0.03)',
-                            border: '1px solid #222',
-                            padding: '12px',
-                            marginBottom: '16px'
+                            background: `rgba(${accentColor === '#FF6B6B' ? '255,107,107' : accentColor === '#FFAB91' ? '255,171,145' : '255,217,102'}, 0.05)`,
+                            border: `1px solid rgba(${accentColor === '#FF6B6B' ? '255,107,107' : accentColor === '#FFAB91' ? '255,171,145' : '255,217,102'}, 0.15)`,
+                            padding: '14px',
+                            marginBottom: '16px',
+                            borderRadius: '4px'
                           }}>
                             <div style={{
                               fontSize: '8px',
-                              color: '#666',
+                              color: accentColor,
                               letterSpacing: '0.15em',
-                              marginBottom: '6px',
+                              marginBottom: '8px',
                               fontFamily: "'IBM Plex Mono', monospace"
                             }}>
                               CORE BELIEF
                             </div>
                             <div style={{
                               fontSize: '12px',
-                              color: colors.textSecondary,
+                              color: '#ccc',
                               fontFamily: "'IBM Plex Mono', monospace",
-                              lineHeight: 1.5
+                              lineHeight: 1.6,
+                              fontStyle: 'italic'
                             }}>
                               "{culture.pillars[0]}"
                             </div>
                           </div>
                         )}
 
-                        {/* Stats Grid */}
+                        {/* Stats Grid - Coral/Peach/Gold */}
                         <div style={{
                           display: 'grid',
                           gridTemplateColumns: 'repeat(3, 1fr)',
                           gap: '12px',
-                          borderTop: `1px solid ${colors.border}`,
+                          borderTop: `1px solid rgba(${accentColor === '#FF6B6B' ? '255,107,107' : accentColor === '#FFAB91' ? '255,171,145' : '255,217,102'}, 0.2)`,
                           paddingTop: '16px'
                         }}>
                           <div>
                             <div style={{
-                              fontSize: '16px',
-                              color: colors.text,
+                              fontSize: '17px',
+                              color: '#FF6B6B',
                               fontFamily: "'IBM Plex Mono', monospace",
                               marginBottom: '4px',
-                              fontWeight: 600
+                              fontWeight: 700
                             }}>
                               {culture.marketCap
                                 ? (culture.marketCap >= 1000000
@@ -2799,17 +2808,17 @@
                                       : `$${culture.marketCap.toFixed(0)}`)
                                 : '—'}
                             </div>
-                            <div style={{ fontSize: '8px', color: colors.textMuted, letterSpacing: '0.1em', fontFamily: "'IBM Plex Mono', monospace" }}>
+                            <div style={{ fontSize: '8px', color: '#888', letterSpacing: '0.1em', fontFamily: "'IBM Plex Mono', monospace" }}>
                               MCAP
                             </div>
                           </div>
                           <div>
                             <div style={{
-                              fontSize: '16px',
-                              color: colors.text,
+                              fontSize: '17px',
+                              color: '#FFAB91',
                               fontFamily: "'IBM Plex Mono', monospace",
                               marginBottom: '4px',
-                              fontWeight: 600
+                              fontWeight: 700
                             }}>
                               {culture.volume
                                 ? (culture.volume >= 1000000
@@ -2819,21 +2828,21 @@
                                       : `$${culture.volume.toFixed(0)}`)
                                 : '—'}
                             </div>
-                            <div style={{ fontSize: '8px', color: colors.textMuted, letterSpacing: '0.1em', fontFamily: "'IBM Plex Mono', monospace" }}>
+                            <div style={{ fontSize: '8px', color: '#888', letterSpacing: '0.1em', fontFamily: "'IBM Plex Mono', monospace" }}>
                               VOLUME
                             </div>
                           </div>
                           <div>
                             <div style={{
-                              fontSize: '16px',
-                              color: colors.text,
+                              fontSize: '17px',
+                              color: '#FFD966',
                               fontFamily: "'IBM Plex Mono', monospace",
                               marginBottom: '4px',
-                              fontWeight: 600
+                              fontWeight: 700
                             }}>
                               {(culture.holders || 0).toLocaleString()}
                             </div>
-                            <div style={{ fontSize: '8px', color: colors.textMuted, letterSpacing: '0.1em', fontFamily: "'IBM Plex Mono', monospace" }}>
+                            <div style={{ fontSize: '8px', color: '#888', letterSpacing: '0.1em', fontFamily: "'IBM Plex Mono', monospace" }}>
                               HOLDERS
                             </div>
                           </div>
