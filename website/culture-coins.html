@@ -249,6 +249,18 @@
         const { useState, useEffect, createContext, useContext, useRef } = React;
 
         // ═══════════════════════════════════════════════════════════════════
+        // SAFE FETCH HELPER - Properly checks response.ok before parsing JSON
+        // ═══════════════════════════════════════════════════════════════════
+        async function safeFetch(url, options = {}) {
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                const errorText = await response.text().catch(() => 'Unknown error');
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
+            }
+            return response.json();
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
         // CIA-LEVEL CLIENT SECURITY - Anti-Tampering & Verification
         // ═══════════════════════════════════════════════════════════════════
         const CultureSecurity = {
@@ -541,12 +553,12 @@
             const skin = skinTones[h % skinTones.length];
             const skinDark = skin.replace(/[0-9a-f]{2}$/i, m => Math.max(0, parseInt(m, 16) - 40).toString(16).padStart(2, '0'));
 
-            // Hair colors
-            const hairColors = ['#2c1810', '#4a3728', '#8b4513', '#d4a574', '#ffd700', '#ff6b6b', '#a855f7', '#3b82f6', '#22c55e', '#ec4899'];
+            // Hair colors (brand purple/cyan instead of gold/coral)
+            const hairColors = ['#2c1810', '#4a3728', '#8b4513', '#d4a574', '#8b5cf6', '#06b6d4', '#a855f7', '#3b82f6', '#22c55e', '#ec4899'];
             const hair = hairColors[(h >> 4) % hairColors.length];
 
-            // Eye colors
-            const eyeColors = ['#3b82f6', '#22c55e', '#8b4513', '#6b7280', '#a855f7', '#ec4899', '#ffd966'];
+            // Eye colors (brand purple instead of gold)
+            const eyeColors = ['#3b82f6', '#22c55e', '#8b4513', '#6b7280', '#a855f7', '#ec4899', '#8b5cf6'];
             const eyes = eyeColors[(h >> 8) % eyeColors.length];
 
             // Draw background
@@ -579,15 +591,15 @@
               for (let y = 1; y <= 3; y++) for (let x = 2; x <= 10; x++) svg.push(`<rect x="${x*p}" y="${y*p}" width="${p}" height="${p}" fill="${hair}"/>`);
               svg.push(`<rect x="${2*p}" y="${4*p}" width="${p}" height="${p}" fill="${hair}"/>`);
               svg.push(`<rect x="${10*p}" y="${4*p}" width="${p}" height="${p}" fill="${hair}"/>`);
-            } else if (hairStyle === 5) { // Cap
-              for (let x = 2; x <= 10; x++) svg.push(`<rect x="${x*p}" y="${2*p}" width="${p}" height="${p}" fill="#ffd966"/>`);
-              for (let x = 3; x <= 9; x++) svg.push(`<rect x="${x*p}" y="${1*p}" width="${p}" height="${p}" fill="#ffd966"/>`);
-              svg.push(`<rect x="${2*p}" y="${3*p}" width="${10*p}" height="${p}" fill="#ffd966"/>`);
-            } else if (hairStyle === 6) { // Horns (demon)
-              svg.push(`<rect x="${3*p}" y="${1*p}" width="${p}" height="${2*p}" fill="#ef4444"/>`);
-              svg.push(`<rect x="${9*p}" y="${1*p}" width="${p}" height="${2*p}" fill="#ef4444"/>`);
-            } else { // Halo
-              for (let x = 4; x <= 8; x++) svg.push(`<rect x="${x*p}" y="${1*p}" width="${p}" height="${p}" fill="#ffd966"/>`);
+            } else if (hairStyle === 5) { // Cap (purple brand color)
+              for (let x = 2; x <= 10; x++) svg.push(`<rect x="${x*p}" y="${2*p}" width="${p}" height="${p}" fill="#8b5cf6"/>`);
+              for (let x = 3; x <= 9; x++) svg.push(`<rect x="${x*p}" y="${1*p}" width="${p}" height="${p}" fill="#8b5cf6"/>`);
+              svg.push(`<rect x="${2*p}" y="${3*p}" width="${10*p}" height="${p}" fill="#8b5cf6"/>`);
+            } else if (hairStyle === 6) { // Horns (demon - cyan)
+              svg.push(`<rect x="${3*p}" y="${1*p}" width="${p}" height="${2*p}" fill="#06b6d4"/>`);
+              svg.push(`<rect x="${9*p}" y="${1*p}" width="${p}" height="${2*p}" fill="#06b6d4"/>`);
+            } else { // Halo (purple brand color)
+              for (let x = 4; x <= 8; x++) svg.push(`<rect x="${x*p}" y="${1*p}" width="${p}" height="${p}" fill="#8b5cf6"/>`);
             }
 
             // Eyes (row 5-6)
@@ -680,8 +692,8 @@
               try {
                 // Use our trending API that fetches real DexScreener data
                 const res = await fetch('/api/trending-tokens');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
-                console.log('[TOKENS] Trending API response:', data);
 
                 if (data.success && data.tokens && data.tokens.length > 0) {
                   const tokens = data.tokens.map(token => ({
@@ -2126,6 +2138,7 @@
             const fetchCultures = async () => {
               try {
                 const res = await fetch('/api/cultures');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
                 if (data.success && data.cultures) {
                   // Merge API cultures with base cultures (API cultures take priority)
@@ -5129,6 +5142,7 @@
               try {
                 // SERVER IS SINGLE SOURCE OF TRUTH
                 const apiRes = await fetch('/api/posts?limit=200');
+                if (!apiRes.ok) throw new Error(`HTTP ${apiRes.status}`);
                 const apiData = await apiRes.json();
                 console.log('[FEED] Server returned', apiData.posts?.length || 0, 'posts');
 
@@ -5948,9 +5962,11 @@
             textMuted: '#737373',
             accent: '#8b5cf6',
             accentAlt: '#06b6d4',
-            coral: '#06b6d4',
+            cyan: '#06b6d4',
+            coral: '#06b6d4', // Alias for backwards compat
             peach: '#FFAB91',
-            gold: '#8b5cf6',
+            purple: '#8b5cf6',
+            gold: '#8b5cf6', // Alias for backwards compat
             inputBg: '#ffffff',
             inputBorder: '#d4d4d4',
             gradient: 'linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%)',
@@ -5964,9 +5980,11 @@
             textMuted: '#666666',
             accent: '#8b5cf6',
             accentAlt: '#06b6d4',
-            coral: '#06b6d4',
+            cyan: '#06b6d4',
+            coral: '#06b6d4', // Alias for backwards compat
             peach: '#FFAB91',
-            gold: '#8b5cf6',
+            purple: '#8b5cf6',
+            gold: '#8b5cf6', // Alias for backwards compat
             inputBg: '#111111',
             inputBorder: '#333333',
             gradient: 'linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%)',
@@ -7667,10 +7685,10 @@
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                           {[
-                            { key: 'marketMaking', label: 'Market Making', color: '#4ade80', icon: '📈' },
-                            { key: 'buybackBurn', label: 'Buyback & Burn', color: '#f97316', icon: '🔥' },
-                            { key: 'liquidity', label: 'Liquidity', color: '#3b82f6', icon: '💧' },
-                            { key: 'creatorRevenue', label: 'Creator Revenue', color: '#a855f7', icon: '💰' }
+                            { key: 'marketMaking', label: 'Market Making', color: '#4ade80', svg: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>' },
+                            { key: 'buybackBurn', label: 'Buyback & Burn', color: '#f97316', svg: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 2.5z"/></svg>' },
+                            { key: 'liquidity', label: 'Liquidity', color: '#3b82f6', svg: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/></svg>' },
+                            { key: 'creatorRevenue', label: 'Creator Revenue', color: '#a855f7', svg: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>' }
                           ].map(item => (
                             <div key={item.key} style={{
                               display: 'flex',
@@ -7680,7 +7698,7 @@
                               background: `${item.color}08`,
                               border: `1px solid ${item.color}30`
                             }}>
-                              <span style={{ fontSize: '14px' }}>{item.icon}</span>
+                              <span style={{ color: item.color }} dangerouslySetInnerHTML={{ __html: item.svg }} />
                               <div style={{ flex: 1 }}>
                                 <div style={{
                                   fontSize: '11px',
@@ -7762,7 +7780,8 @@
                               gap: '8px',
                               fontFamily: "'IBM Plex Mono', monospace"
                             }}>
-                              <span>🔥</span> LP BURN
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2"><path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 2.5z"/></svg>
+                              LP BURN
                             </div>
                             <div style={{ fontSize: '10px', color: '#666', marginTop: '4px' }}>
                               Lock liquidity forever
@@ -7820,7 +7839,8 @@
                               gap: '8px',
                               fontFamily: "'IBM Plex Mono', monospace"
                             }}>
-                              <span>⚡</span> AUTO-REBALANCE
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                              AUTO-REBALANCE
                             </div>
                             <div style={{ fontSize: '10px', color: '#666', marginTop: '4px' }}>
                               Automatically adjust allocations
