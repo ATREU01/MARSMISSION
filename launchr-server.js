@@ -4861,6 +4861,19 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                     website
                 });
 
+                // ALSO sync to SQLite profileDB so posts can JOIN with display_name
+                try {
+                    profileDB.upsert(wallet, {
+                        displayName: displayName || username || '',
+                        bio: bio || '',
+                        pfpUrl: avatar || null,
+                        bannerUrl: null
+                    });
+                    console.log('[PROFILE] Synced to SQLite:', wallet.slice(0, 8) + '...', 'displayName:', displayName || username);
+                } catch (syncErr) {
+                    console.error('[PROFILE] SQLite sync error:', syncErr);
+                }
+
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ profile: updatedProfile }));
             } catch (e) {
@@ -4972,6 +4985,21 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 return;
             }
 
+            // Ensure author profile exists in SQLite for posts JOIN
+            const authorProfile = profiles.getProfile(authorWallet);
+            if (authorProfile) {
+                try {
+                    profileDB.upsert(authorWallet, {
+                        displayName: authorProfile.displayName || authorProfile.username || '',
+                        bio: authorProfile.bio || '',
+                        pfpUrl: authorProfile.avatar || null,
+                        bannerUrl: null
+                    });
+                } catch (syncErr) {
+                    console.error('[POSTS] Profile sync error:', syncErr);
+                }
+            }
+
             const post = postDB.create({
                 authorWallet,
                 cultureId: cultureId || null,
@@ -4979,7 +5007,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 mediaUrls: mediaUrls || []
             });
 
-            console.log(`[POSTS] Created post ${post.id} by ${authorWallet.slice(0, 8)}...`);
+            console.log(`[POSTS] Created post ${post.id} by ${authorWallet.slice(0, 8)}... (name: ${authorProfile?.displayName || 'none'})`);
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: true, post }));
         } catch (e) {
