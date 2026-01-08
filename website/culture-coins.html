@@ -5557,10 +5557,12 @@
             creatorRevenue: 25
           });
           const [lpBurnEnabled, setLpBurnEnabled] = useState(true);
+          const [autoRebalance, setAutoRebalance] = useState(false);
           const [tekAutomationRunning, setTekAutomationRunning] = useState(false);
           const [tekLoading, setTekLoading] = useState(false);
           const [tekStatus, setTekStatus] = useState('');
           const [selectedTekCulture, setSelectedTekCulture] = useState(null);
+          const [tekStats, setTekStats] = useState({ claimed: 0, distributed: 0, pending: 0, holderPool: 0 });
 
           // PK + CA Ownership Verification (like main dashboard)
           const [showVerifyModal, setShowVerifyModal] = useState(false);
@@ -5689,6 +5691,51 @@
               setLpBurnEnabled(!enabled);
             }
           };
+
+          const toggleTekAutoRebalance = async (enabled) => {
+            if (!selectedTekCulture?.tokenAddress) return;
+            setAutoRebalance(enabled);
+            try {
+              await fetch('/api/feature', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  mint: selectedTekCulture.tokenAddress,
+                  wallet: wallet?.address,
+                  feature: 'autoRebalance',
+                  enabled
+                })
+              });
+              setTekStatus(enabled ? 'Auto-rebalance enabled' : 'Auto-rebalance disabled');
+            } catch (e) {
+              setTekStatus('Error: ' + e.message);
+              setAutoRebalance(!enabled);
+            }
+          };
+
+          // Fetch TEK stats when token is selected
+          useEffect(() => {
+            const fetchTekStats = async () => {
+              if (!selectedTekCulture?.tokenAddress) return;
+              try {
+                const res = await fetch(`/api/stats?mint=${selectedTekCulture.tokenAddress}`);
+                const data = await res.json();
+                if (data.success) {
+                  setTekStats({
+                    claimed: data.totalClaimed || 0,
+                    distributed: data.totalDistributed || 0,
+                    pending: data.pending || 0,
+                    holderPool: data.holderPool || 0
+                  });
+                }
+              } catch (e) {
+                console.log('[TEK] Stats fetch failed:', e);
+              }
+            };
+            fetchTekStats();
+            const interval = setInterval(fetchTekStats, 30000);
+            return () => clearInterval(interval);
+          }, [selectedTekCulture?.tokenAddress]);
 
           const startTekAutomation = async () => {
             if (!selectedTekCulture?.tokenAddress) {
@@ -7477,6 +7524,57 @@
                   </div>
 
                   {selectedTekCulture ? (
+                    <>
+                    {/* Stats Grid - Culture Coins Style */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(4, 1fr)',
+                      gap: '16px',
+                      marginBottom: '24px'
+                    }}>
+                      {[
+                        { label: 'Total Claimed', value: tekStats.claimed, color: dashColors.accent, suffix: ' SOL' },
+                        { label: 'To Holder Pool', value: tekStats.holderPool, color: dashColors.coral, suffix: ' SOL', sub: '1% of fees' },
+                        { label: 'Distributed', value: tekStats.distributed, color: '#4ade80', suffix: ' SOL', sub: '99% to allocation' },
+                        { label: 'Pending', value: tekStats.pending, color: dashColors.peach, suffix: ' SOL', sub: 'Auto-claims every 10m' }
+                      ].map((stat, i) => (
+                        <div key={i} style={{
+                          background: dashColors.cardBg,
+                          border: `1px solid ${dashColors.border}`,
+                          padding: '20px',
+                          textAlign: 'center'
+                        }}>
+                          <div style={{
+                            fontSize: '10px',
+                            letterSpacing: '0.1em',
+                            color: dashColors.textMuted,
+                            marginBottom: '8px',
+                            fontFamily: "'IBM Plex Mono', monospace"
+                          }}>
+                            {stat.label}
+                          </div>
+                          <div style={{
+                            fontSize: '24px',
+                            fontWeight: 700,
+                            color: stat.color,
+                            fontFamily: "'IBM Plex Mono', monospace"
+                          }}>
+                            {typeof stat.value === 'number' ? stat.value.toFixed(4) : stat.value}{stat.suffix}
+                          </div>
+                          {stat.sub && (
+                            <div style={{
+                              fontSize: '10px',
+                              color: dashColors.textMuted,
+                              marginTop: '4px',
+                              fontFamily: "'IBM Plex Mono', monospace"
+                            }}>
+                              {stat.sub}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                       {/* Left Column - Fee Allocations */}
                       <div style={{
@@ -7742,7 +7840,7 @@
                           </button>
                         </div>
 
-                        {/* TEK Status */}
+                        {/* TEK Status & Actions */}
                         <div style={{
                           background: '#0a0a0a',
                           border: '1px solid #1a1a1a',
@@ -7757,23 +7855,141 @@
                           }}>
                             TEK STATUS
                           </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                               <span style={{ color: '#666', fontSize: '11px', fontFamily: "'IBM Plex Mono', monospace" }}>Engine Status</span>
-                              <span style={{ color: '#4ade80', fontSize: '11px', fontFamily: "'IBM Plex Mono', monospace" }}>● ACTIVE</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <span style={{ color: '#666', fontSize: '11px', fontFamily: "'IBM Plex Mono', monospace" }}>Last Distribution</span>
-                              <span style={{ color: '#fff', fontSize: '11px', fontFamily: "'IBM Plex Mono', monospace" }}>--</span>
+                              <span style={{ color: tekAutomationRunning ? '#4ade80' : '#ef4444', fontSize: '11px', fontFamily: "'IBM Plex Mono', monospace" }}>
+                                ● {tekAutomationRunning ? 'RUNNING' : 'STOPPED'}
+                              </span>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                               <span style={{ color: '#666', fontSize: '11px', fontFamily: "'IBM Plex Mono', monospace" }}>Total Distributed</span>
-                              <span style={{ color: '#FFD966', fontSize: '11px', fontFamily: "'IBM Plex Mono', monospace" }}>$0.00</span>
+                              <span style={{ color: dashColors.accent, fontSize: '11px', fontFamily: "'IBM Plex Mono', monospace" }}>{tekStats.distributed.toFixed(4)} SOL</span>
                             </div>
+                            {tekStatus && (
+                              <div style={{
+                                fontSize: '10px',
+                                color: tekStatus.includes('Error') ? '#ef4444' : '#4ade80',
+                                fontFamily: "'IBM Plex Mono', monospace",
+                                padding: '8px',
+                                background: tekStatus.includes('Error') ? 'rgba(239,68,68,0.1)' : 'rgba(74,222,128,0.1)',
+                                border: `1px solid ${tekStatus.includes('Error') ? 'rgba(239,68,68,0.3)' : 'rgba(74,222,128,0.3)'}`
+                              }}>
+                                {tekStatus}
+                              </div>
+                            )}
                           </div>
+
+                          {/* Action Buttons */}
+                          <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                            <button
+                              onClick={startTekAutomation}
+                              disabled={tekLoading || tekAutomationRunning}
+                              style={{
+                                flex: 1,
+                                padding: '10px',
+                                background: tekAutomationRunning ? '#1a1a1a' : dashColors.accent,
+                                border: 'none',
+                                color: tekAutomationRunning ? '#666' : '#0a0a0a',
+                                fontSize: '10px',
+                                fontWeight: 700,
+                                fontFamily: "'IBM Plex Mono', monospace",
+                                letterSpacing: '0.08em',
+                                cursor: tekAutomationRunning ? 'not-allowed' : 'pointer'
+                              }}
+                            >
+                              START
+                            </button>
+                            <button
+                              onClick={stopTekAutomation}
+                              disabled={tekLoading || !tekAutomationRunning}
+                              style={{
+                                flex: 1,
+                                padding: '10px',
+                                background: !tekAutomationRunning ? '#1a1a1a' : dashColors.coral,
+                                border: 'none',
+                                color: !tekAutomationRunning ? '#666' : '#fff',
+                                fontSize: '10px',
+                                fontWeight: 700,
+                                fontFamily: "'IBM Plex Mono', monospace",
+                                letterSpacing: '0.08em',
+                                cursor: !tekAutomationRunning ? 'not-allowed' : 'pointer'
+                              }}
+                            >
+                              STOP
+                            </button>
+                          </div>
+
+                          <button
+                            onClick={async () => {
+                              if (!selectedTekCulture?.tokenAddress) return;
+                              setTekLoading(true);
+                              setTekStatus('Claiming fees...');
+                              try {
+                                const res = await fetch('/api/claim', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ mint: selectedTekCulture.tokenAddress, wallet: wallet?.address })
+                                });
+                                const data = await res.json();
+                                setTekStatus(data.success ? `Claimed ${data.amount || 0} SOL!` : 'Error: ' + (data.error || 'Failed'));
+                              } catch (e) { setTekStatus('Error: ' + e.message); }
+                              setTekLoading(false);
+                            }}
+                            disabled={tekLoading}
+                            style={{
+                              width: '100%',
+                              padding: '12px',
+                              background: dashColors.gradient,
+                              border: 'none',
+                              color: '#0a0a0a',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              letterSpacing: '0.1em',
+                              cursor: 'pointer',
+                              marginBottom: '8px'
+                            }}
+                          >
+                            {tekLoading ? 'PROCESSING...' : 'CLAIM NOW'}
+                          </button>
+
+                          <button
+                            onClick={async () => {
+                              if (!selectedTekCulture?.tokenAddress) return;
+                              setTekLoading(true);
+                              setTekStatus('Distributing...');
+                              try {
+                                const res = await fetch('/api/distribute', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ mint: selectedTekCulture.tokenAddress, wallet: wallet?.address, allocations: tekAllocations })
+                                });
+                                const data = await res.json();
+                                setTekStatus(data.success ? 'Distribution complete!' : 'Error: ' + (data.error || 'Failed'));
+                              } catch (e) { setTekStatus('Error: ' + e.message); }
+                              setTekLoading(false);
+                            }}
+                            disabled={tekLoading}
+                            style={{
+                              width: '100%',
+                              padding: '12px',
+                              background: dashColors.coral,
+                              border: 'none',
+                              color: '#fff',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              letterSpacing: '0.1em',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            DISTRIBUTE NOW
+                          </button>
                         </div>
                       </div>
                     </div>
+                    </>
                   ) : (
                     <div style={{
                       padding: '60px 40px',
