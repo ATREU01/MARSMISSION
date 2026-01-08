@@ -4065,6 +4065,113 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // TOKEN DATA API - Real on-chain data via Helius DAS + DexScreener
+    // Returns marketCap, volume, holders, price for any Solana token
+    // ═══════════════════════════════════════════════════════════════════════════
+    if (url.pathname.startsWith('/api/token/') && req.method === 'GET') {
+        const mint = url.pathname.replace('/api/token/', '');
+        if (!mint || mint.length < 30) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Invalid mint address' }));
+            return;
+        }
+
+        const CACHE_TTL = 60000; // 1 minute cache
+        const cacheKey = `token_data_${mint}`;
+        if (!global.tokenDataCache) global.tokenDataCache = new Map();
+
+        const cached = global.tokenDataCache.get(cacheKey);
+        if (cached && Date.now() - cached.ts < CACHE_TTL) {
+            res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'HIT' });
+            res.end(JSON.stringify(cached.data));
+            return;
+        }
+
+        try {
+            const HELIUS_RPC = PRODUCTION_CONFIG.HELIUS_RPC;
+            let tokenData = { mint, marketCap: 0, volume: 0, holders: 0, price: 0 };
+
+            // Get metadata from Helius DAS API
+            if (HELIUS_RPC && HELIUS_RPC.includes('helius')) {
+                try {
+                    const heliusRes = await fetch(HELIUS_RPC, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            jsonrpc: '2.0',
+                            id: 'get-token-data',
+                            method: 'getAsset',
+                            params: { id: mint, displayOptions: { showFungible: true } }
+                        })
+                    });
+                    const heliusData = await heliusRes.json();
+                    if (heliusData.result) {
+                        const asset = heliusData.result;
+                        tokenData.name = asset.content?.metadata?.name || '';
+                        tokenData.symbol = asset.content?.metadata?.symbol || '';
+                        tokenData.image = asset.content?.links?.image || '';
+                        tokenData.decimals = asset.token_info?.decimals || 9;
+                        tokenData.supply = asset.token_info?.supply || 0;
+                        // Price info from Helius if available
+                        if (asset.token_info?.price_info) {
+                            tokenData.price = asset.token_info.price_info.price_per_token || 0;
+                            tokenData.marketCap = tokenData.supply * tokenData.price / Math.pow(10, tokenData.decimals);
+                        }
+                    }
+                } catch (e) {
+                    log(`[TOKEN API] Helius error: ${e.message}`);
+                }
+            }
+
+            // Get price/volume data from DexScreener (more reliable for market data)
+            try {
+                const dexRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`);
+                if (dexRes.ok) {
+                    const dexData = await dexRes.json();
+                    const solPair = dexData.pairs?.find(p => p.chainId === 'solana' && p.quoteToken?.symbol === 'SOL');
+                    if (solPair) {
+                        tokenData.price = parseFloat(solPair.priceUsd) || tokenData.price;
+                        tokenData.marketCap = solPair.marketCap || solPair.fdv || tokenData.marketCap;
+                        tokenData.volume = solPair.volume?.h24 || 0;
+                        tokenData.liquidity = solPair.liquidity?.usd || 0;
+                        tokenData.priceChange24h = solPair.priceChange?.h24 || 0;
+                        if (!tokenData.name) tokenData.name = solPair.baseToken?.name;
+                        if (!tokenData.symbol) tokenData.symbol = solPair.baseToken?.symbol;
+                    }
+                }
+            } catch (e) {
+                log(`[TOKEN API] DexScreener error: ${e.message}`);
+            }
+
+            // Try pump.fun for holder count
+            try {
+                const pumpRes = await fetch(`https://frontend-api.pump.fun/coins/${mint}`);
+                if (pumpRes.ok) {
+                    const pumpData = await pumpRes.json();
+                    if (pumpData) {
+                        tokenData.holders = pumpData.holder_count || tokenData.holders;
+                        if (!tokenData.marketCap && pumpData.usd_market_cap) {
+                            tokenData.marketCap = pumpData.usd_market_cap;
+                        }
+                    }
+                }
+            } catch (e) {}
+
+            // Cache the result
+            global.tokenDataCache.set(cacheKey, { data: tokenData, ts: Date.now() });
+
+            log(`[TOKEN API] ${mint.slice(0,8)}... - MC: $${tokenData.marketCap?.toLocaleString() || 0}, Vol: $${tokenData.volume?.toLocaleString() || 0}`);
+            res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'MISS' });
+            res.end(JSON.stringify(tokenData));
+        } catch (e) {
+            console.error('[TOKEN API] Error:', e.message);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: e.message }));
+        }
+        return;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // TOKEN OWNERSHIP VERIFICATION - Uses Helius DAS API (CIA-Level)
     // Verifies if wallet is creator/authority of a token before allowing edits
     // ═══════════════════════════════════════════════════════════════════════════
