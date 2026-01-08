@@ -4055,10 +4055,10 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
         return;
     }
 
-    // API: Get REAL trending Solana tokens from DexScreener
+    // API: Get REAL trending Solana meme coins from DexScreener
     if (url.pathname === '/api/trending-tokens' && req.method === 'GET') {
         const CACHE_TTL = 60000; // 1 minute cache
-        const cacheKey = 'trending_tokens';
+        const cacheKey = 'trending_tokens_v2';
 
         if (!global.trendingCache) global.trendingCache = {};
         const cached = global.trendingCache[cacheKey];
@@ -4068,84 +4068,111 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             return;
         }
 
+        // Tokens to EXCLUDE (not meme coins)
+        const EXCLUDED = new Set([
+            'So11111111111111111111111111111111111111112', // Wrapped SOL
+            'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+            'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', // USDT
+            'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So', // mSOL
+            'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn', // jitoSOL
+            'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', // BONK (already established)
+        ]);
+
         try {
-            // Fetch trending/boosted Solana tokens from DexScreener
-            const [boostRes, gainersRes] = await Promise.all([
-                fetch('https://api.dexscreener.com/token-boosts/top/v1'),
-                fetch('https://api.dexscreener.com/latest/dex/tokens/So11111111111111111111111111111111111111112')
-            ]);
-
-            const boostData = await boostRes.json();
-            const gainersData = await gainersRes.json();
-
             let tokens = [];
 
-            // Get boosted Solana tokens
+            // Method 1: Get boosted/promoted Solana tokens (these are ACTUAL trending)
+            const boostRes = await fetch('https://api.dexscreener.com/token-boosts/top/v1');
+            const boostData = await boostRes.json();
+
             if (Array.isArray(boostData)) {
-                const solBoosted = boostData.filter(t => t.chainId === 'solana').slice(0, 10);
+                const solBoosted = boostData
+                    .filter(t => t.chainId === 'solana' && !EXCLUDED.has(t.tokenAddress))
+                    .slice(0, 15);
+
+                // Fetch details for each boosted token
                 for (const token of solBoosted) {
                     try {
                         const pairRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${token.tokenAddress}`);
                         const pairData = await pairRes.json();
-                        if (pairData.pairs && pairData.pairs[0]) {
-                            const pair = pairData.pairs[0];
-                            if ((pair.liquidity?.usd || 0) > 5000) {
+
+                        if (pairData.pairs && pairData.pairs.length > 0) {
+                            // Find the best SOL pair (highest liquidity)
+                            const solPair = pairData.pairs
+                                .filter(p => p.quoteToken?.symbol === 'SOL' || p.quoteToken?.symbol === 'WSOL')
+                                .sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0]
+                                || pairData.pairs[0];
+
+                            if ((solPair.liquidity?.usd || 0) > 1000) {
                                 tokens.push({
                                     mint: token.tokenAddress,
-                                    name: pair.baseToken?.name || 'Unknown',
-                                    symbol: pair.baseToken?.symbol || '???',
-                                    image: pair.info?.imageUrl || token.icon || `https://dd.dexscreener.com/ds-data/tokens/solana/${token.tokenAddress}.png`,
-                                    marketCap: pair.marketCap || pair.fdv || 0,
-                                    price: parseFloat(pair.priceUsd) || 0,
-                                    priceChange: pair.priceChange?.h24 || 0,
-                                    priceChange5m: pair.priceChange?.m5 || 0,
-                                    priceChange1h: pair.priceChange?.h1 || 0,
-                                    volume24h: pair.volume?.h24 || 0,
-                                    liquidity: pair.liquidity?.usd || 0,
+                                    name: solPair.baseToken?.name || token.description || 'Unknown',
+                                    symbol: solPair.baseToken?.symbol || '???',
+                                    image: solPair.info?.imageUrl || token.icon || `https://dd.dexscreener.com/ds-data/tokens/solana/${token.tokenAddress}.png`,
+                                    marketCap: solPair.marketCap || solPair.fdv || 0,
+                                    price: parseFloat(solPair.priceUsd) || 0,
+                                    priceChange: solPair.priceChange?.h24 || 0,
+                                    priceChange5m: solPair.priceChange?.m5 || 0,
+                                    priceChange1h: solPair.priceChange?.h1 || 0,
+                                    volume24h: solPair.volume?.h24 || 0,
+                                    liquidity: solPair.liquidity?.usd || 0,
                                     source: 'trending'
                                 });
                             }
                         }
-                    } catch (e) { /* skip */ }
+                    } catch (e) { /* skip failed token */ }
                 }
             }
 
-            // Add top gainers from SOL pairs
-            if (gainersData.pairs && tokens.length < 15) {
-                const seenMints = new Set(tokens.map(t => t.mint));
-                const topPairs = gainersData.pairs
-                    .filter(p => !seenMints.has(p.baseToken?.address) && (p.liquidity?.usd || 0) > 10000 && (p.volume?.h24 || 0) > 5000)
-                    .sort((a, b) => (b.priceChange?.h24 || 0) - (a.priceChange?.h24 || 0))
-                    .slice(0, 10);
+            // Method 2: Search for recent pump.fun tokens if we need more
+            if (tokens.length < 10) {
+                try {
+                    const searchRes = await fetch('https://api.dexscreener.com/latest/dex/search?q=pump');
+                    const searchData = await searchRes.json();
 
-                for (const pair of topPairs) {
-                    tokens.push({
-                        mint: pair.baseToken?.address,
-                        name: pair.baseToken?.name || 'Unknown',
-                        symbol: pair.baseToken?.symbol || '???',
-                        image: pair.info?.imageUrl || `https://dd.dexscreener.com/ds-data/tokens/solana/${pair.baseToken?.address}.png`,
-                        marketCap: pair.marketCap || pair.fdv || 0,
-                        price: parseFloat(pair.priceUsd) || 0,
-                        priceChange: pair.priceChange?.h24 || 0,
-                        priceChange5m: pair.priceChange?.m5 || 0,
-                        priceChange1h: pair.priceChange?.h1 || 0,
-                        volume24h: pair.volume?.h24 || 0,
-                        liquidity: pair.liquidity?.usd || 0,
-                        source: 'gainers'
-                    });
-                }
+                    if (searchData.pairs) {
+                        const seenMints = new Set(tokens.map(t => t.mint));
+                        const pumpPairs = searchData.pairs
+                            .filter(p =>
+                                p.chainId === 'solana' &&
+                                !seenMints.has(p.baseToken?.address) &&
+                                !EXCLUDED.has(p.baseToken?.address) &&
+                                (p.liquidity?.usd || 0) > 5000 &&
+                                (p.volume?.h24 || 0) > 10000
+                            )
+                            .sort((a, b) => (b.volume?.h24 || 0) - (a.volume?.h24 || 0))
+                            .slice(0, 10 - tokens.length);
+
+                        for (const pair of pumpPairs) {
+                            tokens.push({
+                                mint: pair.baseToken?.address,
+                                name: pair.baseToken?.name || 'Unknown',
+                                symbol: pair.baseToken?.symbol || '???',
+                                image: pair.info?.imageUrl || `https://dd.dexscreener.com/ds-data/tokens/solana/${pair.baseToken?.address}.png`,
+                                marketCap: pair.marketCap || pair.fdv || 0,
+                                price: parseFloat(pair.priceUsd) || 0,
+                                priceChange: pair.priceChange?.h24 || 0,
+                                priceChange5m: pair.priceChange?.m5 || 0,
+                                priceChange1h: pair.priceChange?.h1 || 0,
+                                volume24h: pair.volume?.h24 || 0,
+                                liquidity: pair.liquidity?.usd || 0,
+                                source: 'pump'
+                            });
+                        }
+                    }
+                } catch (e) { /* skip */ }
             }
 
-            // Sort by 24h volume (most active first)
+            // Sort by 24h volume and take top 10
             tokens.sort((a, b) => (b.volume24h || 0) - (a.volume24h || 0));
-            tokens = tokens.slice(0, 15);
+            tokens = tokens.slice(0, 10);
 
             // Cache result
-            global.trendingCache[cacheKey] = { data: { success: true, tokens }, ts: Date.now() };
+            global.trendingCache[cacheKey] = { data: { success: true, tokens, count: tokens.length }, ts: Date.now() };
 
-            log(`[TRENDING] Fetched ${tokens.length} real trending tokens`);
+            log(`[TRENDING] Fetched ${tokens.length} real meme coins`);
             res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'MISS' });
-            res.end(JSON.stringify({ success: true, tokens }));
+            res.end(JSON.stringify({ success: true, tokens, count: tokens.length }));
         } catch (e) {
             console.error('[TRENDING] Error:', e.message);
             res.writeHead(200, { 'Content-Type': 'application/json' });
