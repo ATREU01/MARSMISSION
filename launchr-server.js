@@ -4635,63 +4635,337 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
         return;
     }
 
-    // Generate unique 8x8 pixel art PFP based on wallet address
+    // ═══════════════════════════════════════════════════════════════════════════
+    // NFT-WORTHY PIXEL PFP GENERATOR - High Quality 512x512 Character Avatars
+    // CIA-Level Quality - Layered, Detailed, Unique
+    // ═══════════════════════════════════════════════════════════════════════════
     function generatePixelPfp(wallet, customSeed = null) {
-        // Create deterministic seed from wallet
         const seedStr = customSeed ? `${wallet}${customSeed}` : wallet;
         const hash = crypto.createHash('sha256').update(seedStr).digest('hex');
+        const hash2 = crypto.createHash('sha256').update(hash + 'layer2').digest('hex');
+        const hash3 = crypto.createHash('sha256').update(hash + 'layer3').digest('hex');
 
-        // Color palettes - 2-bit style (4 colors each)
+        // Helper to get deterministic values from hash
+        const getVal = (h, start, mod) => parseInt(h.slice(start, start + 2), 16) % mod;
+        const getValRange = (h, start, min, max) => min + (parseInt(h.slice(start, start + 2), 16) % (max - min));
+
+        // Premium color palettes - NFT-worthy combinations
         const palettes = [
-            ['#1a1a2e', '#16213e', '#0f3460', '#e94560'], // Cyberpunk
-            ['#0d1b2a', '#1b263b', '#415a77', '#778da9'], // Navy
-            ['#2d3436', '#636e72', '#b2bec3', '#dfe6e9'], // Grayscale
-            ['#1e3a5f', '#3d5a80', '#98c1d9', '#e0fbfc'], // Ocean
-            ['#2c061f', '#512b58', '#89a1ef', '#9ee493'], // Aurora
-            ['#0a0908', '#22333b', '#eae0d5', '#c6ac8f'], // Earth
-            ['#10002b', '#240046', '#5a189a', '#9d4edd'], // Purple
-            ['#03071e', '#370617', '#6a040f', '#d00000'], // Fire
-            ['#0b132b', '#1c2541', '#3a506b', '#5bc0be'], // Teal
-            ['#0a0a0a', '#1a1a1a', '#FFD966', '#FF3D8E'], // Culture Coins
+            { name: 'Cyberpunk', bg: ['#0a0a12', '#12121f'], skin: ['#f5d0c5', '#e8b4a8'], accent: '#ff2d75', highlight: '#00f0ff', shadow: '#1a0a20' },
+            { name: 'Golden', bg: ['#0f0f0f', '#1a1510'], skin: ['#f5d0c5', '#deb887'], accent: '#FFD966', highlight: '#fff4d4', shadow: '#2a1f0a' },
+            { name: 'Cosmic', bg: ['#0a0a1a', '#1a0a2e'], skin: ['#e8d0f0', '#c8a0d8'], accent: '#9d4edd', highlight: '#e0aaff', shadow: '#10051a' },
+            { name: 'Ocean', bg: ['#051015', '#0a1f2a'], skin: ['#d0e8f5', '#a0c8d8'], accent: '#00b4d8', highlight: '#90e0ef', shadow: '#03161f' },
+            { name: 'Fire', bg: ['#150505', '#2a0a0a'], skin: ['#f5d5c5', '#e8a088'], accent: '#ff4500', highlight: '#ffaa00', shadow: '#1a0505' },
+            { name: 'Matrix', bg: ['#000a00', '#001a00'], skin: ['#c5f5d0', '#88d8a8'], accent: '#00ff41', highlight: '#80ff80', shadow: '#001500' },
+            { name: 'Arctic', bg: ['#0a0f15', '#101520'], skin: ['#e8f0f5', '#c0d0e0'], accent: '#7dd3fc', highlight: '#ffffff', shadow: '#050a10' },
+            { name: 'Lava', bg: ['#1a0500', '#2a0a00'], skin: ['#f5c5a0', '#e0a070'], accent: '#ff6b35', highlight: '#ffc078', shadow: '#150500' },
+            { name: 'Royal', bg: ['#0a051a', '#150a2a'], skin: ['#f0d8e8', '#d0a8c8'], accent: '#c77dff', highlight: '#e0b0ff', shadow: '#0a0515' },
+            { name: 'Culture', bg: ['#0a0a0a', '#151510'], skin: ['#f5e0c5', '#e0c8a0'], accent: '#FFD966', highlight: '#FF6B6B', shadow: '#1a1505' },
         ];
 
-        // Select palette based on hash
-        const paletteIdx = parseInt(hash.slice(0, 2), 16) % palettes.length;
-        const palette = palettes[paletteIdx];
+        // Select palette
+        const palette = palettes[getVal(hash, 0, palettes.length)];
 
-        // Generate 8x8 symmetrical pattern (only generate left half, mirror it)
-        const size = 8;
-        const pixels = [];
+        // Canvas settings - 512x512 NFT standard
+        const size = 512;
+        const gridSize = 24; // 24x24 pixel grid
+        const pixelSize = Math.floor(size / gridSize);
 
-        for (let y = 0; y < size; y++) {
-            const row = [];
-            for (let x = 0; x < size / 2; x++) {
-                // Use hash to determine if pixel is filled and which color
-                const idx = y * 4 + x;
-                const hashChar = parseInt(hash.slice(idx * 2 + 2, idx * 2 + 4), 16);
-                const filled = hashChar > 100; // ~60% fill rate
-                const colorIdx = filled ? (hashChar % 3) + 1 : 0; // 0 is background
-                row.push(colorIdx);
+        // Character traits from hash
+        const traits = {
+            headShape: getVal(hash, 2, 4),      // 0: round, 1: square, 2: tall, 3: wide
+            eyeStyle: getVal(hash, 4, 6),       // Different eye shapes
+            eyeColor: getVal(hash, 6, 8),       // Eye color variants
+            mouthStyle: getVal(hash, 8, 5),     // Mouth expressions
+            hairStyle: getVal(hash, 10, 8),     // Hair styles
+            hairColor: getVal(hash, 12, 6),     // Hair colors
+            accessory: getVal(hash, 14, 10),    // Accessories (glasses, earrings, etc.)
+            bgPattern: getVal(hash, 16, 5),     // Background pattern
+            glowEffect: getVal(hash, 18, 3),    // Glow intensity
+            skinTone: getVal(hash2, 0, 4),      // Skin tone variant
+            expression: getVal(hash2, 2, 4),    // Expression modifier
+            rare: getVal(hash3, 0, 100) < 5,    // 5% chance of rare trait
+        };
+
+        // Start SVG
+        let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`;
+
+        // Defs for gradients and filters
+        svg += `<defs>`;
+        svg += `<linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">`;
+        svg += `<stop offset="0%" style="stop-color:${palette.bg[0]}"/>`;
+        svg += `<stop offset="100%" style="stop-color:${palette.bg[1]}"/>`;
+        svg += `</linearGradient>`;
+        svg += `<linearGradient id="skinGrad" x1="0%" y1="0%" x2="0%" y2="100%">`;
+        svg += `<stop offset="0%" style="stop-color:${palette.skin[0]}"/>`;
+        svg += `<stop offset="100%" style="stop-color:${palette.skin[1]}"/>`;
+        svg += `</linearGradient>`;
+        svg += `<filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`;
+        svg += `<filter id="shadow"><feDropShadow dx="2" dy="4" stdDeviation="3" flood-color="${palette.shadow}" flood-opacity="0.5"/></filter>`;
+        svg += `</defs>`;
+
+        // Background with gradient
+        svg += `<rect width="${size}" height="${size}" fill="url(#bgGrad)"/>`;
+
+        // Background pattern
+        if (traits.bgPattern === 1) {
+            // Grid pattern
+            for (let i = 0; i < size; i += 32) {
+                svg += `<line x1="${i}" y1="0" x2="${i}" y2="${size}" stroke="${palette.accent}15" stroke-width="1"/>`;
+                svg += `<line x1="0" y1="${i}" x2="${size}" y2="${i}" stroke="${palette.accent}15" stroke-width="1"/>`;
             }
-            // Mirror the row for symmetry
-            const fullRow = [...row, ...row.reverse()];
-            pixels.push(fullRow);
+        } else if (traits.bgPattern === 2) {
+            // Dots pattern
+            for (let x = 16; x < size; x += 32) {
+                for (let y = 16; y < size; y += 32) {
+                    svg += `<circle cx="${x}" cy="${y}" r="2" fill="${palette.accent}20"/>`;
+                }
+            }
+        } else if (traits.bgPattern === 3) {
+            // Diagonal lines
+            for (let i = -size; i < size * 2; i += 24) {
+                svg += `<line x1="${i}" y1="0" x2="${i + size}" y2="${size}" stroke="${palette.accent}10" stroke-width="1"/>`;
+            }
         }
 
-        // Generate SVG
-        const pixelSize = 16;
-        const svgSize = size * pixelSize;
-        let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgSize}" height="${svgSize}" viewBox="0 0 ${svgSize} ${svgSize}">`;
-        svg += `<rect width="${svgSize}" height="${svgSize}" fill="${palette[0]}"/>`;
+        // Glow effect behind head
+        if (traits.glowEffect > 0) {
+            const glowOpacity = traits.glowEffect === 2 ? '30' : '15';
+            svg += `<circle cx="${size/2}" cy="${size/2 - 20}" r="140" fill="${palette.accent}${glowOpacity}" filter="url(#glow)"/>`;
+        }
 
-        for (let y = 0; y < size; y++) {
-            for (let x = 0; x < size; x++) {
-                const colorIdx = pixels[y][x];
-                if (colorIdx > 0) {
-                    svg += `<rect x="${x * pixelSize}" y="${y * pixelSize}" width="${pixelSize}" height="${pixelSize}" fill="${palette[colorIdx]}"/>`;
+        // Helper to draw pixel
+        const px = (x, y, color, opacity = 1) => {
+            const rx = x * pixelSize;
+            const ry = y * pixelSize;
+            const op = opacity < 1 ? ` opacity="${opacity}"` : '';
+            return `<rect x="${rx}" y="${ry}" width="${pixelSize}" height="${pixelSize}" fill="${color}"${op}/>`;
+        };
+
+        // Character group with shadow
+        svg += `<g filter="url(#shadow)">`;
+
+        // NECK (below head)
+        for (let x = 10; x <= 13; x++) {
+            for (let y = 18; y <= 20; y++) {
+                svg += px(x, y, 'url(#skinGrad)');
+            }
+        }
+
+        // BODY/SHOULDERS
+        for (let x = 6; x <= 17; x++) {
+            for (let y = 21; y <= 24; y++) {
+                if (x >= 8 && x <= 15) {
+                    svg += px(x, y, palette.accent);
+                } else if (y >= 22) {
+                    svg += px(x, y, palette.accent);
                 }
             }
         }
+
+        // HEAD - Different shapes based on trait
+        const headPixels = [];
+        const headTop = 4;
+        const headBottom = 18;
+        const headLeft = 6;
+        const headRight = 17;
+
+        // Generate head shape
+        for (let y = headTop; y <= headBottom; y++) {
+            for (let x = headLeft; x <= headRight; x++) {
+                const centerX = (headLeft + headRight) / 2;
+                const centerY = (headTop + headBottom) / 2;
+                const dx = Math.abs(x - centerX);
+                const dy = Math.abs(y - centerY);
+
+                let inHead = false;
+                if (traits.headShape === 0) { // Round
+                    inHead = (dx * dx / 36 + dy * dy / 49) <= 1;
+                } else if (traits.headShape === 1) { // Square-ish
+                    inHead = dx <= 5 && dy <= 6;
+                } else if (traits.headShape === 2) { // Tall
+                    inHead = (dx * dx / 25 + dy * dy / 56) <= 1;
+                } else { // Wide
+                    inHead = (dx * dx / 42 + dy * dy / 42) <= 1;
+                }
+
+                if (inHead) {
+                    headPixels.push({x, y});
+                    svg += px(x, y, 'url(#skinGrad)');
+                }
+            }
+        }
+
+        // HAIR - Different styles
+        const hairColors = ['#1a1a1a', '#4a3728', '#8b4513', '#d4a574', '#ff6b6b', '#9d4edd'];
+        const hairColor = hairColors[traits.hairColor];
+
+        if (traits.hairStyle === 0) { // Short spiky
+            for (let x = 7; x <= 16; x++) {
+                const spikeHeight = 2 + (x % 2);
+                for (let y = headTop - spikeHeight; y <= headTop + 2; y++) {
+                    svg += px(x, y, hairColor);
+                }
+            }
+        } else if (traits.hairStyle === 1) { // Long flowing
+            for (let x = 5; x <= 18; x++) {
+                for (let y = 2; y <= headTop + 3; y++) {
+                    svg += px(x, y, hairColor);
+                }
+                // Side hair
+                if (x <= 6 || x >= 17) {
+                    for (let y = headTop + 3; y <= 16; y++) {
+                        svg += px(x, y, hairColor);
+                    }
+                }
+            }
+        } else if (traits.hairStyle === 2) { // Mohawk
+            for (let x = 10; x <= 13; x++) {
+                for (let y = 0; y <= headTop + 2; y++) {
+                    svg += px(x, y, hairColor);
+                }
+            }
+        } else if (traits.hairStyle === 3) { // Bald with shine
+            svg += `<ellipse cx="${size/2 - 20}" cy="${(headTop + 2) * pixelSize}" rx="15" ry="10" fill="${palette.highlight}40"/>`;
+        } else if (traits.hairStyle === 4) { // Afro
+            for (let x = 4; x <= 19; x++) {
+                for (let y = 1; y <= headTop + 4; y++) {
+                    const dx = Math.abs(x - 11.5);
+                    const dy = Math.abs(y - 4);
+                    if (dx * dx / 64 + dy * dy / 16 <= 1) {
+                        svg += px(x, y, hairColor);
+                    }
+                }
+            }
+        } else if (traits.hairStyle === 5) { // Undercut
+            for (let x = 7; x <= 16; x++) {
+                for (let y = headTop - 1; y <= headTop + 1; y++) {
+                    svg += px(x, y, hairColor);
+                }
+            }
+        } else if (traits.hairStyle === 6) { // Ponytail
+            for (let x = 8; x <= 15; x++) {
+                for (let y = headTop - 1; y <= headTop + 2; y++) {
+                    svg += px(x, y, hairColor);
+                }
+            }
+            // Ponytail
+            for (let y = headTop; y <= headTop + 8; y++) {
+                svg += px(17, y, hairColor);
+                svg += px(18, y + 1, hairColor);
+            }
+        } else { // Bangs
+            for (let x = 7; x <= 16; x++) {
+                for (let y = headTop - 1; y <= headTop + 3; y++) {
+                    svg += px(x, y, hairColor);
+                }
+            }
+        }
+
+        // EYES
+        const eyeY = 10;
+        const leftEyeX = 8;
+        const rightEyeX = 13;
+        const eyeColors = ['#1a1a1a', '#4169e1', '#228b22', '#8b4513', palette.accent, '#9d4edd', '#00bcd4', '#ff6b6b'];
+        const eyeColor = eyeColors[traits.eyeColor];
+
+        if (traits.eyeStyle === 0) { // Normal
+            svg += px(leftEyeX, eyeY, '#ffffff');
+            svg += px(leftEyeX + 1, eyeY, eyeColor);
+            svg += px(rightEyeX, eyeY, '#ffffff');
+            svg += px(rightEyeX + 1, eyeY, eyeColor);
+        } else if (traits.eyeStyle === 1) { // Big
+            for (let dy = -1; dy <= 0; dy++) {
+                svg += px(leftEyeX, eyeY + dy, '#ffffff');
+                svg += px(leftEyeX + 1, eyeY + dy, '#ffffff');
+                svg += px(rightEyeX, eyeY + dy, '#ffffff');
+                svg += px(rightEyeX + 1, eyeY + dy, '#ffffff');
+            }
+            svg += px(leftEyeX + 1, eyeY, eyeColor);
+            svg += px(rightEyeX + 1, eyeY, eyeColor);
+        } else if (traits.eyeStyle === 2) { // Narrow
+            svg += px(leftEyeX, eyeY, eyeColor);
+            svg += px(leftEyeX + 1, eyeY, eyeColor);
+            svg += px(rightEyeX, eyeY, eyeColor);
+            svg += px(rightEyeX + 1, eyeY, eyeColor);
+        } else if (traits.eyeStyle === 3) { // Glowing
+            svg += `<rect x="${leftEyeX * pixelSize}" y="${eyeY * pixelSize}" width="${pixelSize * 2}" height="${pixelSize}" fill="${palette.accent}" filter="url(#glow)"/>`;
+            svg += `<rect x="${rightEyeX * pixelSize}" y="${eyeY * pixelSize}" width="${pixelSize * 2}" height="${pixelSize}" fill="${palette.accent}" filter="url(#glow)"/>`;
+        } else if (traits.eyeStyle === 4) { // Cyber
+            svg += px(leftEyeX, eyeY, '#ff0000');
+            svg += px(leftEyeX + 1, eyeY, '#ff0000');
+            svg += px(rightEyeX, eyeY, '#00ff00');
+            svg += px(rightEyeX + 1, eyeY, '#00ff00');
+        } else { // Anime style
+            for (let dy = -1; dy <= 1; dy++) {
+                svg += px(leftEyeX, eyeY + dy, '#ffffff');
+                svg += px(leftEyeX + 1, eyeY + dy, dy === 1 ? eyeColor : '#ffffff');
+                svg += px(rightEyeX, eyeY + dy, '#ffffff');
+                svg += px(rightEyeX + 1, eyeY + dy, dy === 1 ? eyeColor : '#ffffff');
+            }
+            // Highlight
+            svg += px(leftEyeX, eyeY - 1, palette.highlight, 0.8);
+            svg += px(rightEyeX, eyeY - 1, palette.highlight, 0.8);
+        }
+
+        // MOUTH
+        const mouthY = 14;
+        if (traits.mouthStyle === 0) { // Smile
+            svg += px(9, mouthY, palette.shadow);
+            svg += px(10, mouthY + 1, palette.shadow);
+            svg += px(11, mouthY + 1, palette.shadow);
+            svg += px(12, mouthY + 1, palette.shadow);
+            svg += px(13, mouthY, palette.shadow);
+        } else if (traits.mouthStyle === 1) { // Neutral
+            svg += px(10, mouthY, palette.shadow);
+            svg += px(11, mouthY, palette.shadow);
+            svg += px(12, mouthY, palette.shadow);
+        } else if (traits.mouthStyle === 2) { // Grin
+            svg += px(9, mouthY, palette.shadow);
+            svg += px(10, mouthY + 1, '#ffffff');
+            svg += px(11, mouthY + 1, '#ffffff');
+            svg += px(12, mouthY + 1, '#ffffff');
+            svg += px(13, mouthY, palette.shadow);
+        } else if (traits.mouthStyle === 3) { // Smirk
+            svg += px(10, mouthY, palette.shadow);
+            svg += px(11, mouthY, palette.shadow);
+            svg += px(12, mouthY - 1, palette.shadow);
+        } else { // Open
+            svg += px(10, mouthY, '#1a0a0a');
+            svg += px(11, mouthY, '#1a0a0a');
+            svg += px(12, mouthY, '#1a0a0a');
+            svg += px(10, mouthY + 1, '#ff6b6b');
+        }
+
+        // ACCESSORIES
+        if (traits.accessory === 1) { // Glasses
+            svg += `<rect x="${(leftEyeX - 1) * pixelSize}" y="${(eyeY - 1) * pixelSize}" width="${pixelSize * 4}" height="${pixelSize * 3}" fill="none" stroke="${palette.accent}" stroke-width="2" rx="4"/>`;
+            svg += `<rect x="${(rightEyeX - 1) * pixelSize}" y="${(eyeY - 1) * pixelSize}" width="${pixelSize * 4}" height="${pixelSize * 3}" fill="none" stroke="${palette.accent}" stroke-width="2" rx="4"/>`;
+            svg += `<line x1="${(leftEyeX + 3) * pixelSize}" y1="${eyeY * pixelSize}" x2="${(rightEyeX - 1) * pixelSize}" y2="${eyeY * pixelSize}" stroke="${palette.accent}" stroke-width="2"/>`;
+        } else if (traits.accessory === 2) { // Earring
+            svg += `<circle cx="${6 * pixelSize}" cy="${12 * pixelSize}" r="6" fill="${palette.accent}"/>`;
+        } else if (traits.accessory === 3) { // Scar
+            svg += `<line x1="${14 * pixelSize}" y1="${8 * pixelSize}" x2="${16 * pixelSize}" y2="${12 * pixelSize}" stroke="${palette.shadow}" stroke-width="3"/>`;
+        } else if (traits.accessory === 4) { // Headband
+            svg += `<rect x="${6 * pixelSize}" y="${(headTop + 1) * pixelSize}" width="${12 * pixelSize}" height="${pixelSize}" fill="${palette.accent}"/>`;
+        } else if (traits.accessory === 5) { // Tattoo
+            svg += `<text x="${15 * pixelSize}" y="${16 * pixelSize}" font-size="12" fill="${palette.accent}">◈</text>`;
+        } else if (traits.accessory === 6) { // Visor
+            svg += `<rect x="${7 * pixelSize}" y="${(eyeY - 1) * pixelSize}" width="${10 * pixelSize}" height="${pixelSize * 2}" fill="${palette.accent}90" rx="4"/>`;
+        } else if (traits.accessory === 7) { // Crown (rare)
+            svg += `<polygon points="${9 * pixelSize},${(headTop - 1) * pixelSize} ${10 * pixelSize},${(headTop - 3) * pixelSize} ${11 * pixelSize},${(headTop - 1) * pixelSize} ${12 * pixelSize},${(headTop - 4) * pixelSize} ${13 * pixelSize},${(headTop - 1) * pixelSize} ${14 * pixelSize},${(headTop - 3) * pixelSize} ${15 * pixelSize},${(headTop - 1) * pixelSize}" fill="${palette.accent}" filter="url(#glow)"/>`;
+        }
+
+        // RARE TRAIT - Glowing aura
+        if (traits.rare) {
+            svg += `<circle cx="${size/2}" cy="${size/2 - 20}" r="160" fill="none" stroke="${palette.accent}" stroke-width="3" opacity="0.6" filter="url(#glow)"/>`;
+            svg += `<circle cx="${size/2}" cy="${size/2 - 20}" r="180" fill="none" stroke="${palette.highlight}" stroke-width="2" opacity="0.3" filter="url(#glow)"/>`;
+        }
+
+        svg += `</g>`; // End character group
+
+        // Signature/watermark
+        svg += `<text x="${size - 10}" y="${size - 10}" font-family="monospace" font-size="8" fill="${palette.accent}40" text-anchor="end">CULTURE</text>`;
 
         svg += '</svg>';
         return svg;
@@ -5035,10 +5309,39 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 posts = postDB.getAll(limit, offset);
             }
 
-            // Posts already come with authorName/authorPfp from database JOIN
-            // Just pass through - no need to re-enrich
+            // CRITICAL: Enrich posts with profile data from both SQLite and profiles.js
+            // This ensures usernames always show correctly even if SQLite profile is missing
+            const enrichedPosts = posts.map(post => {
+                // If authorName is still a wallet address (fallback), try to get from profiles.js
+                const isWalletFallback = !post.authorName ||
+                    (post.authorWallet && post.authorName === post.authorWallet.slice(0, 6) + '...' + post.authorWallet.slice(-4));
+
+                if (isWalletFallback && post.authorWallet) {
+                    // Try profiles.js module
+                    const profileFromJson = profiles.getProfile(post.authorWallet);
+                    if (profileFromJson?.displayName) {
+                        // Also sync to SQLite for future queries
+                        try {
+                            profileDB.upsert(post.authorWallet, {
+                                displayName: profileFromJson.displayName,
+                                bio: profileFromJson.bio || '',
+                                pfpUrl: profileFromJson.avatar || null,
+                                bannerUrl: null
+                            });
+                        } catch (e) { /* ignore sync errors */ }
+
+                        return {
+                            ...post,
+                            authorName: profileFromJson.displayName,
+                            authorPfp: profileFromJson.avatar || post.authorPfp
+                        };
+                    }
+                }
+                return post;
+            });
+
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true, posts }));
+            res.end(JSON.stringify({ success: true, posts: enrichedPosts }));
         } catch (e) {
             console.error('[POSTS] Get error:', e);
             res.writeHead(500, { 'Content-Type': 'application/json' });
