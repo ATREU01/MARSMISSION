@@ -2644,9 +2644,9 @@
                     gap: isMobile ? '16px' : '20px'
                   }}>
                     {filteredCultures.map((culture, index) => {
-                      // Elegant coral/peach/gold accent colors by index
-                      const accentColors = ['#FF6B6B', '#FFAB91', '#FFD966'];
-                      const accentColor = accentColors[index % 3];
+                      // Vibrant accent colors like the reference design
+                      const accentColors = ['#FF6B6B', '#4ECDC4', '#FF6B9D', '#FFD93D', '#6BCB77', '#9B59B6'];
+                      const accentColor = accentColors[index % accentColors.length];
 
                       return (
                       <div
@@ -2655,40 +2655,55 @@
                         style={{
                           background: colors.cardBg,
                           border: `1px solid ${colors.border}`,
-                          borderLeft: `3px solid ${accentColor}`,
-                          padding: '28px',
+                          borderTop: `4px solid ${accentColor}`,
+                          padding: '24px',
+                          paddingTop: '20px',
                           cursor: 'pointer',
                           transition: 'all 0.3s',
                           position: 'relative',
-                          overflow: 'hidden',
-                          boxShadow: `0 2px 12px rgba(${accentColor === '#FF6B6B' ? '255,107,107' : accentColor === '#FFAB91' ? '255,171,145' : '255,217,102'}, 0.05)`
+                          overflow: 'hidden'
                         }}
                         onMouseEnter={e => {
-                          e.currentTarget.style.borderColor = accentColor;
-                          e.currentTarget.style.transform = 'translateY(-3px)';
-                          e.currentTarget.style.boxShadow = `0 8px 24px rgba(${accentColor === '#FF6B6B' ? '255,107,107' : accentColor === '#FFAB91' ? '255,171,145' : '255,217,102'}, 0.15)`;
+                          e.currentTarget.style.transform = 'translateY(-4px)';
+                          e.currentTarget.style.boxShadow = `0 12px 32px rgba(0,0,0,0.3)`;
                         }}
                         onMouseLeave={e => {
-                          e.currentTarget.style.borderColor = colors.border;
-                          e.currentTarget.style.borderLeft = `3px solid ${accentColor}`;
                           e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = `0 2px 12px rgba(${accentColor === '#FF6B6B' ? '255,107,107' : accentColor === '#FFAB91' ? '255,171,145' : '255,217,102'}, 0.05)`;
+                          e.currentTarget.style.boxShadow = 'none';
                         }}
                       >
+                        {/* Card Number Badge */}
+                        {index < 3 && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '-4px',
+                            left: '0',
+                            background: accentColor,
+                            color: '#000',
+                            padding: '8px 12px',
+                            fontSize: '14px',
+                            fontWeight: 700,
+                            fontFamily: "'IBM Plex Mono', monospace"
+                          }}>
+                            {index + 1}
+                          </div>
+                        )}
 
-                        {/* Category Tag - Elegant */}
+                        {/* Category Tag + LIVE Badge */}
                         <div style={{
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          marginBottom: '16px'
+                          marginBottom: '12px',
+                          marginTop: index < 3 ? '24px' : '0'
                         }}>
                           <div style={{
                             fontSize: '9px',
-                            letterSpacing: '0.15em',
+                            letterSpacing: '0.12em',
                             color: accentColor,
                             fontFamily: "'IBM Plex Mono', monospace",
-                            fontWeight: 600
+                            fontWeight: 700,
+                            textTransform: 'uppercase'
                           }}>
                             {culture.category?.toUpperCase() || 'CULTURE'}
                           </div>
@@ -2696,21 +2711,21 @@
                             <div style={{
                               display: 'flex',
                               alignItems: 'center',
-                              gap: '6px',
-                              padding: '4px 10px',
-                              background: 'rgba(255, 217, 102, 0.1)',
-                              borderRadius: '12px'
+                              gap: '5px',
+                              padding: '3px 8px',
+                              background: `${accentColor}20`,
+                              borderRadius: '10px'
                             }}>
                               <div style={{
                                 width: '6px',
                                 height: '6px',
                                 borderRadius: '50%',
-                                background: '#FFD966',
+                                background: accentColor,
                                 animation: 'pulse 2s infinite'
                               }} />
                               <span style={{
                                 fontSize: '9px',
-                                color: '#FFD966',
+                                color: accentColor,
                                 fontFamily: "'IBM Plex Mono', monospace",
                                 fontWeight: 600
                               }}>
@@ -2754,51 +2769,49 @@
                           "{culture.ethos}"
                         </p>
 
-                        {/* Core Pillar Preview - Elegant */}
+                        {/* Core Pillar Preview - Vibrant Style */}
                         {culture.pillars && culture.pillars.length > 0 && (
                           <div style={{
-                            background: `rgba(${accentColor === '#FF6B6B' ? '255,107,107' : accentColor === '#FFAB91' ? '255,171,145' : '255,217,102'}, 0.05)`,
-                            border: `1px solid rgba(${accentColor === '#FF6B6B' ? '255,107,107' : accentColor === '#FFAB91' ? '255,171,145' : '255,217,102'}, 0.15)`,
+                            background: `${accentColor}15`,
                             padding: '14px',
-                            marginBottom: '16px',
-                            borderRadius: '4px'
+                            marginBottom: '16px'
                           }}>
                             <div style={{
                               fontSize: '8px',
                               color: accentColor,
-                              letterSpacing: '0.15em',
+                              letterSpacing: '0.12em',
                               marginBottom: '8px',
-                              fontFamily: "'IBM Plex Mono', monospace"
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontWeight: 700
                             }}>
                               CORE BELIEF
                             </div>
                             <div style={{
                               fontSize: '12px',
-                              color: '#ccc',
+                              color: '#fff',
                               fontFamily: "'IBM Plex Mono', monospace",
-                              lineHeight: 1.6,
-                              fontStyle: 'italic'
+                              lineHeight: 1.5
                             }}>
                               "{culture.pillars[0]}"
                             </div>
                           </div>
                         )}
 
-                        {/* Stats Grid - Coral/Peach/Gold */}
+                        {/* Stats Grid - Clean */}
                         <div style={{
                           display: 'grid',
                           gridTemplateColumns: 'repeat(3, 1fr)',
                           gap: '12px',
-                          borderTop: `1px solid rgba(${accentColor === '#FF6B6B' ? '255,107,107' : accentColor === '#FFAB91' ? '255,171,145' : '255,217,102'}, 0.2)`,
+                          borderTop: `1px solid ${colors.border}`,
                           paddingTop: '16px'
                         }}>
                           <div>
                             <div style={{
-                              fontSize: '17px',
-                              color: '#FF6B6B',
+                              fontSize: '16px',
+                              color: '#fff',
                               fontFamily: "'IBM Plex Mono', monospace",
                               marginBottom: '4px',
-                              fontWeight: 700
+                              fontWeight: 600
                             }}>
                               {culture.marketCap
                                 ? (culture.marketCap >= 1000000
@@ -2808,17 +2821,17 @@
                                       : `$${culture.marketCap.toFixed(0)}`)
                                 : '—'}
                             </div>
-                            <div style={{ fontSize: '8px', color: '#888', letterSpacing: '0.1em', fontFamily: "'IBM Plex Mono', monospace" }}>
+                            <div style={{ fontSize: '8px', color: '#666', letterSpacing: '0.1em', fontFamily: "'IBM Plex Mono', monospace" }}>
                               MCAP
                             </div>
                           </div>
                           <div>
                             <div style={{
-                              fontSize: '17px',
-                              color: '#FFAB91',
+                              fontSize: '16px',
+                              color: '#fff',
                               fontFamily: "'IBM Plex Mono', monospace",
                               marginBottom: '4px',
-                              fontWeight: 700
+                              fontWeight: 600
                             }}>
                               {culture.volume
                                 ? (culture.volume >= 1000000
@@ -2828,21 +2841,21 @@
                                       : `$${culture.volume.toFixed(0)}`)
                                 : '—'}
                             </div>
-                            <div style={{ fontSize: '8px', color: '#888', letterSpacing: '0.1em', fontFamily: "'IBM Plex Mono', monospace" }}>
+                            <div style={{ fontSize: '8px', color: '#666', letterSpacing: '0.1em', fontFamily: "'IBM Plex Mono', monospace" }}>
                               VOLUME
                             </div>
                           </div>
                           <div>
                             <div style={{
-                              fontSize: '17px',
-                              color: '#FFD966',
+                              fontSize: '16px',
+                              color: accentColor,
                               fontFamily: "'IBM Plex Mono', monospace",
                               marginBottom: '4px',
                               fontWeight: 700
                             }}>
                               {(culture.holders || 0).toLocaleString()}
                             </div>
-                            <div style={{ fontSize: '8px', color: '#888', letterSpacing: '0.1em', fontFamily: "'IBM Plex Mono', monospace" }}>
+                            <div style={{ fontSize: '8px', color: '#666', letterSpacing: '0.1em', fontFamily: "'IBM Plex Mono', monospace" }}>
                               HOLDERS
                             </div>
                           </div>
@@ -6728,7 +6741,7 @@
                             onClick={() => handleEditCulture(selectedTekCulture)}
                             style={{
                               padding: '10px 16px',
-                              background: 'linear-gradient(135deg, #FFD966, #FF6B6B)',
+                              background: '#FFD966',
                               border: 'none',
                               color: '#000',
                               fontSize: '10px',
@@ -6738,8 +6751,7 @@
                               fontWeight: 700,
                               display: 'flex',
                               alignItems: 'center',
-                              gap: '6px',
-                              boxShadow: '0 4px 12px rgba(255, 107, 107, 0.3)'
+                              gap: '6px'
                             }}
                           >
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -7786,22 +7798,21 @@
                         </div>
                       </div>
 
-                      {/* Action Buttons - PK+CA Verification Required */}
+                      {/* Action Buttons - Clean Style */}
                       <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                         {culture.needsCultureSetup ? (
                           <button
                             onClick={() => handleEditCulture(culture)}
                             style={{
                               padding: '14px 28px',
-                              background: 'linear-gradient(135deg, #f59e0b, #FF6B6B)',
+                              background: '#f59e0b',
                               border: 'none',
                               color: '#000',
                               fontSize: '11px',
                               fontFamily: "'IBM Plex Mono', monospace",
                               letterSpacing: '0.1em',
                               cursor: 'pointer',
-                              fontWeight: 700,
-                              boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)'
+                              fontWeight: 700
                             }}
                           >
                             SETUP CULTURE PAGE
@@ -7811,15 +7822,14 @@
                             onClick={() => handleEditCulture(culture)}
                             style={{
                               padding: '14px 28px',
-                              background: 'linear-gradient(135deg, #FFD966, #FF6B6B)',
+                              background: '#FFD966',
                               border: 'none',
                               color: '#000',
                               fontSize: '11px',
                               fontFamily: "'IBM Plex Mono', monospace",
                               letterSpacing: '0.1em',
                               cursor: 'pointer',
-                              fontWeight: 700,
-                              boxShadow: '0 4px 12px rgba(255, 107, 107, 0.3)'
+                              fontWeight: 700
                             }}
                           >
                             EDIT CULTURE
@@ -8468,7 +8478,7 @@
                       style={{
                         width: '100%',
                         padding: '14px',
-                        background: (verifyPrivateKey.trim() && verifyTokenMint.trim()) ? 'linear-gradient(135deg, #FFD966, #FF6B6B)' : '#333',
+                        background: (verifyPrivateKey.trim() && verifyTokenMint.trim()) ? '#FFD966' : '#333',
                         border: 'none',
                         color: (verifyPrivateKey.trim() && verifyTokenMint.trim()) ? '#000' : '#666',
                         fontSize: '11px',
