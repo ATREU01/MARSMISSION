@@ -541,12 +541,12 @@
             const skin = skinTones[h % skinTones.length];
             const skinDark = skin.replace(/[0-9a-f]{2}$/i, m => Math.max(0, parseInt(m, 16) - 40).toString(16).padStart(2, '0'));
 
-            // Hair colors
-            const hairColors = ['#2c1810', '#4a3728', '#8b4513', '#d4a574', '#ffd700', '#ff6b6b', '#a855f7', '#3b82f6', '#22c55e', '#ec4899'];
+            // Hair colors (brand purple/cyan instead of gold/coral)
+            const hairColors = ['#2c1810', '#4a3728', '#8b4513', '#d4a574', '#8b5cf6', '#06b6d4', '#a855f7', '#3b82f6', '#22c55e', '#ec4899'];
             const hair = hairColors[(h >> 4) % hairColors.length];
 
-            // Eye colors
-            const eyeColors = ['#3b82f6', '#22c55e', '#8b4513', '#6b7280', '#a855f7', '#ec4899', '#ffd966'];
+            // Eye colors (brand purple instead of gold)
+            const eyeColors = ['#3b82f6', '#22c55e', '#8b4513', '#6b7280', '#a855f7', '#ec4899', '#8b5cf6'];
             const eyes = eyeColors[(h >> 8) % eyeColors.length];
 
             // Draw background
@@ -579,15 +579,15 @@
               for (let y = 1; y <= 3; y++) for (let x = 2; x <= 10; x++) svg.push(`<rect x="${x*p}" y="${y*p}" width="${p}" height="${p}" fill="${hair}"/>`);
               svg.push(`<rect x="${2*p}" y="${4*p}" width="${p}" height="${p}" fill="${hair}"/>`);
               svg.push(`<rect x="${10*p}" y="${4*p}" width="${p}" height="${p}" fill="${hair}"/>`);
-            } else if (hairStyle === 5) { // Cap
-              for (let x = 2; x <= 10; x++) svg.push(`<rect x="${x*p}" y="${2*p}" width="${p}" height="${p}" fill="#ffd966"/>`);
-              for (let x = 3; x <= 9; x++) svg.push(`<rect x="${x*p}" y="${1*p}" width="${p}" height="${p}" fill="#ffd966"/>`);
-              svg.push(`<rect x="${2*p}" y="${3*p}" width="${10*p}" height="${p}" fill="#ffd966"/>`);
-            } else if (hairStyle === 6) { // Horns (demon)
-              svg.push(`<rect x="${3*p}" y="${1*p}" width="${p}" height="${2*p}" fill="#ef4444"/>`);
-              svg.push(`<rect x="${9*p}" y="${1*p}" width="${p}" height="${2*p}" fill="#ef4444"/>`);
-            } else { // Halo
-              for (let x = 4; x <= 8; x++) svg.push(`<rect x="${x*p}" y="${1*p}" width="${p}" height="${p}" fill="#ffd966"/>`);
+            } else if (hairStyle === 5) { // Cap (purple brand color)
+              for (let x = 2; x <= 10; x++) svg.push(`<rect x="${x*p}" y="${2*p}" width="${p}" height="${p}" fill="#8b5cf6"/>`);
+              for (let x = 3; x <= 9; x++) svg.push(`<rect x="${x*p}" y="${1*p}" width="${p}" height="${p}" fill="#8b5cf6"/>`);
+              svg.push(`<rect x="${2*p}" y="${3*p}" width="${10*p}" height="${p}" fill="#8b5cf6"/>`);
+            } else if (hairStyle === 6) { // Horns (demon - cyan)
+              svg.push(`<rect x="${3*p}" y="${1*p}" width="${p}" height="${2*p}" fill="#06b6d4"/>`);
+              svg.push(`<rect x="${9*p}" y="${1*p}" width="${p}" height="${2*p}" fill="#06b6d4"/>`);
+            } else { // Halo (purple brand color)
+              for (let x = 4; x <= 8; x++) svg.push(`<rect x="${x*p}" y="${1*p}" width="${p}" height="${p}" fill="#8b5cf6"/>`);
             }
 
             // Eyes (row 5-6)
@@ -5948,9 +5948,11 @@
             textMuted: '#737373',
             accent: '#8b5cf6',
             accentAlt: '#06b6d4',
-            coral: '#06b6d4',
+            cyan: '#06b6d4',
+            coral: '#06b6d4', // Alias for backwards compat
             peach: '#FFAB91',
-            gold: '#8b5cf6',
+            purple: '#8b5cf6',
+            gold: '#8b5cf6', // Alias for backwards compat
             inputBg: '#ffffff',
             inputBorder: '#d4d4d4',
             gradient: 'linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%)',
@@ -5964,9 +5966,11 @@
             textMuted: '#666666',
             accent: '#8b5cf6',
             accentAlt: '#06b6d4',
-            coral: '#06b6d4',
+            cyan: '#06b6d4',
+            coral: '#06b6d4', // Alias for backwards compat
             peach: '#FFAB91',
-            gold: '#8b5cf6',
+            purple: '#8b5cf6',
+            gold: '#8b5cf6', // Alias for backwards compat
             inputBg: '#111111',
             inputBorder: '#333333',
             gradient: 'linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%)',

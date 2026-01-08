@@ -1433,6 +1433,57 @@ function getBody(req) {
     });
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// CACHE CLEANUP - Prevent memory leaks by periodically cleaning expired entries
+// ═══════════════════════════════════════════════════════════════════════════
+function cleanupCaches() {
+    const now = Date.now();
+    const MAX_CACHE_AGE = 300000; // 5 minutes max
+    const MAX_CACHE_SIZE = 500; // Max entries per cache
+
+    // Clean Map-based caches
+    const mapCaches = [
+        { cache: global.pumpCache, name: 'pumpCache' },
+        { cache: global.pumpCreatorCache, name: 'pumpCreatorCache' },
+        { cache: global.tokenDataCache, name: 'tokenDataCache' }
+    ];
+
+    for (const { cache, name } of mapCaches) {
+        if (cache instanceof Map) {
+            let deleted = 0;
+            for (const [key, value] of cache) {
+                if (now - (value.ts || 0) > MAX_CACHE_AGE) {
+                    cache.delete(key);
+                    deleted++;
+                }
+            }
+            // Also limit size
+            if (cache.size > MAX_CACHE_SIZE) {
+                const excess = cache.size - MAX_CACHE_SIZE;
+                const keys = Array.from(cache.keys()).slice(0, excess);
+                keys.forEach(k => cache.delete(k));
+                deleted += excess;
+            }
+            if (deleted > 0) console.log(`[CACHE] Cleaned ${deleted} entries from ${name}`);
+        }
+    }
+
+    // Clean object-based cache (trendingCache)
+    if (global.trendingCache && typeof global.trendingCache === 'object') {
+        let deleted = 0;
+        for (const key of Object.keys(global.trendingCache)) {
+            if (now - (global.trendingCache[key]?.ts || 0) > MAX_CACHE_AGE) {
+                delete global.trendingCache[key];
+                deleted++;
+            }
+        }
+        if (deleted > 0) console.log(`[CACHE] Cleaned ${deleted} entries from trendingCache`);
+    }
+}
+
+// Run cache cleanup every 5 minutes
+setInterval(cleanupCaches, 300000);
+
 const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
 
@@ -2110,6 +2161,10 @@ const server = http.createServer(async (req, res) => {
     // API: Verify tier access for a culture
     if (url.pathname === '/api/culture/verify-access' && req.method === 'POST') {
         try {
+            // Get client IP for rate limiting
+            const clientIP = req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+                           req.socket?.remoteAddress ||
+                           'unknown';
             // Rate limit
             const rateCheck = checkRateLimit(clientIP, 'sensitive');
             if (!rateCheck.allowed) {
@@ -2248,10 +2303,26 @@ const server = http.createServer(async (req, res) => {
     // Serve static files from frontend/dist or website folder
     if ((url.pathname.startsWith('/assets/') || url.pathname.startsWith('/website/')) && req.method === 'GET') {
         // /website/ serves from website/ folder, /assets/ from frontend/dist/
-        const basePath = url.pathname.startsWith('/website/')
-            ? path.join(__dirname, 'website', url.pathname.replace('/website/', ''))
-            : path.join(__dirname, 'frontend', 'dist', url.pathname);
-        const ext = path.extname(basePath).toLowerCase();
+        const isWebsite = url.pathname.startsWith('/website/');
+        const baseDir = isWebsite
+            ? path.join(__dirname, 'website')
+            : path.join(__dirname, 'frontend', 'dist');
+        const requestedPath = isWebsite
+            ? url.pathname.replace('/website/', '')
+            : url.pathname;
+
+        // SECURITY: Normalize and validate path to prevent directory traversal
+        const normalizedPath = path.normalize(requestedPath).replace(/^(\.\.(\/|\\|$))+/, '');
+        const fullPath = path.join(baseDir, normalizedPath);
+
+        // Ensure the resolved path is still within the allowed directory
+        if (!fullPath.startsWith(baseDir)) {
+            res.writeHead(403);
+            res.end('Forbidden');
+            return;
+        }
+
+        const ext = path.extname(fullPath).toLowerCase();
         const mimeTypes = {
             '.jpg': 'image/jpeg',
             '.jpeg': 'image/jpeg',
@@ -2264,7 +2335,7 @@ const server = http.createServer(async (req, res) => {
         const contentType = mimeTypes[ext] || 'application/octet-stream';
 
         try {
-            const data = fs.readFileSync(basePath);
+            const data = fs.readFileSync(fullPath);
             res.writeHead(200, { 'Content-Type': contentType, 'Cache-Control': 'public, max-age=86400' });
             res.end(data);
             return;
