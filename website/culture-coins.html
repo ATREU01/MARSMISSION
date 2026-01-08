@@ -518,52 +518,129 @@
           const [hoveredItem, setHoveredItem] = useState(null);
           // Removed inner collapse - using outer trendingCollapsed instead
 
-          // Custom Pixel Art Generator - Unique to Launchr
+          // Launchr Pixel Character Generator - CryptoPunk style faces
           const generatePixelArt = (seed) => {
-            // Hash function for consistent randomness
             const hash = (str) => {
               let h = 0;
-              for (let i = 0; i < str.length; i++) {
-                h = ((h << 5) - h + str.charCodeAt(i)) | 0;
-              }
+              for (let i = 0; i < str.length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0;
               return Math.abs(h);
             };
-
             const h = hash(seed);
-            const size = 8;
-            const pixelSize = 6;
+            const rand = (n) => hash(seed + n.toString()) % 1000 / 1000;
 
-            // Generate vibrant color palette based on seed
-            const palettes = [
-              ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96E6A1'], // Coral + Teal
-              ['#A855F7', '#EC4899', '#F59E0B', '#10B981'], // Purple + Pink + Gold
-              ['#3B82F6', '#8B5CF6', '#EC4899', '#06B6D4'], // Blue + Purple + Cyan
-              ['#F97316', '#EF4444', '#FBBF24', '#84CC16'], // Orange + Fire
-              ['#06B6D4', '#22D3EE', '#A855F7', '#F472B6'], // Cyan + Purple
-              ['#10B981', '#34D399', '#6EE7B7', '#FFD966'], // Green + Gold
-              ['#FF3D8E', '#FFD966', '#A855F7', '#3B82F6'], // Launchr colors
-            ];
-            const palette = palettes[h % palettes.length];
+            // 12x12 pixel canvas
+            const p = 4; // pixel size
+            let svg = [];
 
-            // Generate symmetric pixel pattern (mirrored for cool look)
-            let pixels = [];
-            for (let y = 0; y < size; y++) {
-              for (let x = 0; x < size / 2; x++) {
-                const idx = y * size + x;
-                const rand = hash(seed + idx.toString());
-                const filled = (rand % 3) !== 0; // 66% fill rate
-                if (filled) {
-                  const color = palette[rand % palette.length];
-                  // Original pixel
-                  pixels.push(`<rect x="${x * pixelSize}" y="${y * pixelSize}" width="${pixelSize}" height="${pixelSize}" fill="${color}"/>`);
-                  // Mirrored pixel
-                  pixels.push(`<rect x="${(size - 1 - x) * pixelSize}" y="${y * pixelSize}" width="${pixelSize}" height="${pixelSize}" fill="${color}"/>`);
-                }
+            // Background gradient colors (Launchr vibes)
+            const bgColors = ['#1a1a2e', '#16213e', '#0f0f23', '#1e1e3f', '#2d1b4e', '#1b2838'];
+            const bg = bgColors[h % bgColors.length];
+
+            // Skin tones
+            const skinTones = ['#ffdbac', '#f1c27d', '#e0ac69', '#c68642', '#8d5524', '#6b4423', '#a855f7', '#3b82f6', '#10b981', '#f97316'];
+            const skin = skinTones[h % skinTones.length];
+            const skinDark = skin.replace(/[0-9a-f]{2}$/i, m => Math.max(0, parseInt(m, 16) - 40).toString(16).padStart(2, '0'));
+
+            // Hair colors
+            const hairColors = ['#2c1810', '#4a3728', '#8b4513', '#d4a574', '#ffd700', '#ff6b6b', '#a855f7', '#3b82f6', '#22c55e', '#ec4899'];
+            const hair = hairColors[(h >> 4) % hairColors.length];
+
+            // Eye colors
+            const eyeColors = ['#3b82f6', '#22c55e', '#8b4513', '#6b7280', '#a855f7', '#ec4899', '#ffd966'];
+            const eyes = eyeColors[(h >> 8) % eyeColors.length];
+
+            // Draw background
+            svg.push(`<rect width="48" height="48" fill="${bg}"/>`);
+
+            // Face shape (rows 3-10, cols 3-9)
+            for (let y = 3; y <= 10; y++) {
+              for (let x = 3; x <= 9; x++) {
+                if (y === 3 && (x === 3 || x === 9)) continue; // rounded corners
+                if (y === 10 && (x === 3 || x === 9)) continue;
+                svg.push(`<rect x="${x*p}" y="${y*p}" width="${p}" height="${p}" fill="${skin}"/>`);
               }
             }
 
-            const svgSize = size * pixelSize;
-            return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgSize} ${svgSize}" shape-rendering="crispEdges"><rect width="${svgSize}" height="${svgSize}" fill="#0a0a0a"/>${pixels.join('')}</svg>`)}`;
+            // Hair styles based on seed
+            const hairStyle = h % 8;
+            if (hairStyle === 0) { // Spiky
+              for (let x = 3; x <= 9; x++) {
+                svg.push(`<rect x="${x*p}" y="${(2 - (x % 2))*p}" width="${p}" height="${p}" fill="${hair}"/>`);
+                svg.push(`<rect x="${x*p}" y="${2*p}" width="${p}" height="${p}" fill="${hair}"/>`);
+              }
+            } else if (hairStyle === 1) { // Mohawk
+              for (let y = 0; y <= 3; y++) svg.push(`<rect x="${6*p}" y="${y*p}" width="${p}" height="${p}" fill="${hair}"/>`);
+            } else if (hairStyle === 2) { // Side part
+              for (let x = 2; x <= 9; x++) svg.push(`<rect x="${x*p}" y="${2*p}" width="${p}" height="${p}" fill="${hair}"/>`);
+              for (let y = 2; y <= 5; y++) svg.push(`<rect x="${2*p}" y="${y*p}" width="${p}" height="${p}" fill="${hair}"/>`);
+            } else if (hairStyle === 3) { // Bald with headband
+              svg.push(`<rect x="${2*p}" y="${3*p}" width="${9*p}" height="${p}" fill="#ff3d8e"/>`);
+            } else if (hairStyle === 4) { // Afro
+              for (let y = 1; y <= 3; y++) for (let x = 2; x <= 10; x++) svg.push(`<rect x="${x*p}" y="${y*p}" width="${p}" height="${p}" fill="${hair}"/>`);
+              svg.push(`<rect x="${2*p}" y="${4*p}" width="${p}" height="${p}" fill="${hair}"/>`);
+              svg.push(`<rect x="${10*p}" y="${4*p}" width="${p}" height="${p}" fill="${hair}"/>`);
+            } else if (hairStyle === 5) { // Cap
+              for (let x = 2; x <= 10; x++) svg.push(`<rect x="${x*p}" y="${2*p}" width="${p}" height="${p}" fill="#ffd966"/>`);
+              for (let x = 3; x <= 9; x++) svg.push(`<rect x="${x*p}" y="${1*p}" width="${p}" height="${p}" fill="#ffd966"/>`);
+              svg.push(`<rect x="${2*p}" y="${3*p}" width="${10*p}" height="${p}" fill="#ffd966"/>`);
+            } else if (hairStyle === 6) { // Horns (demon)
+              svg.push(`<rect x="${3*p}" y="${1*p}" width="${p}" height="${2*p}" fill="#ef4444"/>`);
+              svg.push(`<rect x="${9*p}" y="${1*p}" width="${p}" height="${2*p}" fill="#ef4444"/>`);
+            } else { // Halo
+              for (let x = 4; x <= 8; x++) svg.push(`<rect x="${x*p}" y="${1*p}" width="${p}" height="${p}" fill="#ffd966"/>`);
+            }
+
+            // Eyes (row 5-6)
+            svg.push(`<rect x="${4*p}" y="${5*p}" width="${2*p}" height="${2*p}" fill="white"/>`);
+            svg.push(`<rect x="${7*p}" y="${5*p}" width="${2*p}" height="${2*p}" fill="white"/>`);
+            // Pupils
+            const lookDir = h % 3; // 0=left, 1=center, 2=right
+            svg.push(`<rect x="${(4 + lookDir)*p}" y="${6*p}" width="${p}" height="${p}" fill="${eyes}"/>`);
+            svg.push(`<rect x="${(7 + lookDir)*p}" y="${6*p}" width="${p}" height="${p}" fill="${eyes}"/>`);
+
+            // Eyebrows
+            if (rand(100) > 0.3) {
+              const browColor = hair;
+              svg.push(`<rect x="${4*p}" y="${4*p}" width="${2*p}" height="${p}" fill="${browColor}"/>`);
+              svg.push(`<rect x="${7*p}" y="${4*p}" width="${2*p}" height="${p}" fill="${browColor}"/>`);
+            }
+
+            // Nose
+            svg.push(`<rect x="${6*p}" y="${7*p}" width="${p}" height="${p}" fill="${skinDark}"/>`);
+
+            // Mouth styles
+            const mouthStyle = (h >> 12) % 5;
+            if (mouthStyle === 0) { // Smile
+              svg.push(`<rect x="${5*p}" y="${9*p}" width="${3*p}" height="${p}" fill="#1a1a1a"/>`);
+            } else if (mouthStyle === 1) { // Grin
+              svg.push(`<rect x="${4*p}" y="${9*p}" width="${5*p}" height="${p}" fill="#1a1a1a"/>`);
+              svg.push(`<rect x="${5*p}" y="${9*p}" width="${3*p}" height="${p}" fill="#ef4444"/>`);
+            } else if (mouthStyle === 2) { // Cigarette
+              svg.push(`<rect x="${5*p}" y="${9*p}" width="${2*p}" height="${p}" fill="#1a1a1a"/>`);
+              svg.push(`<rect x="${9*p}" y="${8*p}" width="${3*p}" height="${p}" fill="#f5f5dc"/>`);
+              svg.push(`<rect x="${11*p}" y="${7*p}" width="${p}" height="${p}" fill="#f97316"/>`);
+            } else if (mouthStyle === 3) { // Tongue out
+              svg.push(`<rect x="${5*p}" y="${9*p}" width="${3*p}" height="${p}" fill="#1a1a1a"/>`);
+              svg.push(`<rect x="${6*p}" y="${10*p}" width="${p}" height="${p}" fill="#ec4899"/>`);
+            } else { // Neutral
+              svg.push(`<rect x="${5*p}" y="${9*p}" width="${3*p}" height="${p}" fill="#1a1a1a"/>`);
+            }
+
+            // Accessories based on seed
+            if (rand(200) > 0.7) { // Sunglasses
+              svg.push(`<rect x="${3*p}" y="${5*p}" width="${7*p}" height="${2*p}" fill="#1a1a1a"/>`);
+              svg.push(`<rect x="${4*p}" y="${5*p}" width="${2*p}" height="${2*p}" fill="#3b82f6" fill-opacity="0.5"/>`);
+              svg.push(`<rect x="${7*p}" y="${5*p}" width="${2*p}" height="${2*p}" fill="#3b82f6" fill-opacity="0.5"/>`);
+            }
+            if (rand(300) > 0.85) { // Earring
+              svg.push(`<rect x="${2*p}" y="${6*p}" width="${p}" height="${p}" fill="#ffd966"/>`);
+            }
+            if (rand(400) > 0.9) { // Laser eyes
+              svg.push(`<rect x="${5*p}" y="${6*p}" width="${7*p}" height="${p}" fill="#ef4444" fill-opacity="0.8"/>`);
+              svg.push(`<rect x="${8*p}" y="${6*p}" width="${4*p}" height="${p}" fill="#ef4444" fill-opacity="0.8"/>`);
+            }
+
+            return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" shape-rendering="crispEdges">${svg.join('')}</svg>`)}`;
           };
 
           // Colors based on light/dark mode - GOLD ACCENT ONLY
