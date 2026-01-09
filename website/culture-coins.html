@@ -5382,16 +5382,15 @@
               marginBottom: '24px',
               overflow: 'hidden'
             }}>
-              {/* Banner - Shows full image without cropping */}
+              {/* Banner - Full width edge-to-edge like Twitter/X */}
               <div
                 style={{
-                  height: profile?.banner ? '300px' : '200px',
+                  height: '200px',
                   width: '100%',
                   backgroundImage: profile?.banner ? `url(${profile.banner})` : 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%)',
-                  backgroundSize: 'contain',
+                  backgroundSize: 'cover',
                   backgroundPosition: 'center center',
                   backgroundRepeat: 'no-repeat',
-                  backgroundColor: '#0a0a0a',
                   position: 'relative'
                 }}
               >
