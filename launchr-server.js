@@ -4509,7 +4509,10 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 log(`[TOKEN API] DexScreener error: ${e.message}`);
             }
 
-            // Try pump.fun for holder count
+            // Get holder count from multiple sources (same approach as working dashboard)
+            // Fallback chain: Pump.fun -> Jupiter -> GMGN -> Helius RPC -> Birdeye
+
+            // 1. Try pump.fun for holder count
             try {
                 const pumpRes = await fetch(`https://frontend-api.pump.fun/coins/${mint}`);
                 if (pumpRes.ok) {
@@ -4519,18 +4522,48 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                         if (!tokenData.marketCap && pumpData.usd_market_cap) {
                             tokenData.marketCap = pumpData.usd_market_cap;
                         }
+                        if (tokenData.holders > 0) {
+                            log(`[TOKEN API] Got ${tokenData.holders} holders from Pump.fun for ${mint.slice(0,8)}`);
+                        }
                     }
                 }
             } catch (e) {}
 
-            // FALLBACK: If pump.fun didn't have holder count, get it from Helius RPC
-            // Uses getTokenAccounts to count unique token holders
+            // 2. FALLBACK: Jupiter API for holder count (same as working dashboard)
+            if (!tokenData.holders || tokenData.holders <= 1) {
+                try {
+                    const jupRes = await fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${mint}`);
+                    if (jupRes.ok) {
+                        const jupArr = await jupRes.json();
+                        const jupToken = Array.isArray(jupArr) ? jupArr.find(t => t.id === mint || t.address === mint) : null;
+                        if (jupToken?.holderCount > 0) {
+                            tokenData.holders = jupToken.holderCount;
+                            log(`[TOKEN API] Got ${tokenData.holders} holders from Jupiter for ${mint.slice(0,8)}`);
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            // 3. FALLBACK: GMGN API for holder count (same as working dashboard)
+            if (!tokenData.holders || tokenData.holders <= 1) {
+                try {
+                    const gmgnRes = await fetch(`https://gmgn.ai/defi/quotation/v1/tokens/sol/${mint}`);
+                    if (gmgnRes.ok) {
+                        const gmgnData = await gmgnRes.json();
+                        const gmgnHolders = gmgnData?.data?.token?.holder_count || gmgnData?.data?.token?.holders || 0;
+                        if (gmgnHolders > 0) {
+                            tokenData.holders = gmgnHolders;
+                            log(`[TOKEN API] Got ${tokenData.holders} holders from GMGN for ${mint.slice(0,8)}`);
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            // 4. FALLBACK: Helius RPC to count token accounts directly
             if ((!tokenData.holders || tokenData.holders <= 1) && HELIUS_RPC) {
                 try {
-                    log(`[TOKEN API] Fetching holder count from RPC for ${mint.slice(0,8)}...`);
-                    const TOKEN_PROGRAM_ID = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+                    log(`[TOKEN API] Fetching holder count from Helius RPC for ${mint.slice(0,8)}...`);
 
-                    // Get token accounts for this mint using Helius DAS
                     const holderRes = await fetch(HELIUS_RPC, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -4540,7 +4573,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                             method: 'getTokenAccounts',
                             params: {
                                 mint: mint,
-                                limit: 1000, // Get up to 1000 accounts
+                                limit: 1000,
                                 options: { showZeroBalance: false }
                             }
                         })
@@ -4549,26 +4582,25 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                     if (holderRes.ok) {
                         const holderData = await holderRes.json();
                         if (holderData.result && holderData.result.token_accounts) {
-                            // Count unique owners
                             const uniqueOwners = new Set(
                                 holderData.result.token_accounts
                                     .filter(acc => acc.amount > 0)
                                     .map(acc => acc.owner)
                             );
                             const holderCount = uniqueOwners.size;
-                            log(`[TOKEN API] Found ${holderCount} holders via RPC for ${mint.slice(0,8)}`);
+                            log(`[TOKEN API] Found ${holderCount} holders via Helius RPC for ${mint.slice(0,8)}`);
                             if (holderCount > tokenData.holders) {
                                 tokenData.holders = holderCount;
                             }
                         }
                     }
                 } catch (e) {
-                    log(`[TOKEN API] RPC holder fetch failed: ${e.message}`);
+                    log(`[TOKEN API] Helius RPC holder fetch failed: ${e.message}`);
                 }
             }
 
-            // FALLBACK 2: Try Birdeye API for holder count
-            if ((!tokenData.holders || tokenData.holders <= 1)) {
+            // 5. FALLBACK: Birdeye API
+            if (!tokenData.holders || tokenData.holders <= 1) {
                 try {
                     const birdeyeRes = await fetch(`https://public-api.birdeye.so/defi/token_overview?address=${mint}`, {
                         headers: { 'X-API-KEY': 'public' }
