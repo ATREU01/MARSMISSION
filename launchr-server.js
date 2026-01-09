@@ -10,7 +10,7 @@ const profiles = require('./profiles');
 const { LaunchrBot } = require('./telegram-bot');
 
 // Production Database Module
-const { cultureDB, profileDB, postDB, mediaDB, rateLimiter, MEDIA_DIR } = require('./database');
+const { cultureDB, profileDB, postDB, mediaDB, auctionDB, rateLimiter, MEDIA_DIR } = require('./database');
 
 // Culture Coins Security Module - CIA-Level Protection (optional - graceful fallback)
 let CultureSecurityController = null;
@@ -6277,6 +6277,295 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: true }));
         } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // AUCTION API - Production auction system for culture content
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // API: Get all active auctions
+    if (url.pathname === '/api/auctions' && req.method === 'GET') {
+        try {
+            const cultureId = url.searchParams.get('cultureId');
+            const creatorWallet = url.searchParams.get('creator');
+            const limit = parseInt(url.searchParams.get('limit')) || 50;
+
+            let auctions;
+            if (cultureId) {
+                auctions = auctionDB.getByCulture(cultureId, limit);
+            } else if (creatorWallet) {
+                auctions = auctionDB.getByCreator(creatorWallet, limit);
+            } else {
+                auctions = auctionDB.getActive(limit);
+            }
+
+            // Calculate time remaining for each auction
+            const now = new Date();
+            const enrichedAuctions = auctions.map(a => {
+                const endsAt = new Date(a.ends_at);
+                const msRemaining = endsAt - now;
+                const hours = Math.floor(msRemaining / 3600000);
+                const minutes = Math.floor((msRemaining % 3600000) / 60000);
+                return {
+                    ...a,
+                    endsIn: msRemaining > 0 ? `${hours}h ${minutes}m` : 'Ended',
+                    isActive: msRemaining > 0 && a.status === 'active'
+                };
+            });
+
+            console.log(`[AUCTIONS] Returning ${enrichedAuctions.length} auctions`);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, auctions: enrichedAuctions }));
+        } catch (e) {
+            console.error('[AUCTIONS] Get error:', e.message);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Get single auction by ID
+    if (url.pathname.match(/^\/api\/auctions\/[a-zA-Z0-9-]+$/) && req.method === 'GET') {
+        try {
+            const auctionId = url.pathname.split('/').pop();
+            const auction = auctionDB.getById(auctionId);
+
+            if (!auction) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Auction not found' }));
+                return;
+            }
+
+            // Get bid history
+            const bids = auctionDB.getBids(auctionId);
+
+            // Calculate time remaining
+            const now = new Date();
+            const endsAt = new Date(auction.ends_at);
+            const msRemaining = endsAt - now;
+            const hours = Math.floor(msRemaining / 3600000);
+            const minutes = Math.floor((msRemaining % 3600000) / 60000);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                auction: {
+                    ...auction,
+                    endsIn: msRemaining > 0 ? `${hours}h ${minutes}m` : 'Ended',
+                    isActive: msRemaining > 0 && auction.status === 'active'
+                },
+                bids
+            }));
+        } catch (e) {
+            console.error('[AUCTIONS] Get by ID error:', e.message);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Create a new auction (creator only)
+    if (url.pathname === '/api/auctions' && req.method === 'POST') {
+        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        try {
+            const rateCheck = rateLimiter.check(clientIP, 'create');
+            if (!rateCheck.allowed) {
+                res.writeHead(429, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Rate limit exceeded' }));
+                return;
+            }
+
+            const body = await parseBody(req);
+            const { cultureId, tokenAddress, creatorWallet, title, description, contentType, contentUrl, minBid, outcome, durationHours } = body;
+
+            if (!cultureId || !tokenAddress || !creatorWallet || !title) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'cultureId, tokenAddress, creatorWallet, and title are required' }));
+                return;
+            }
+
+            // Verify creator owns the culture
+            const culture = cultureDB.getById(cultureId);
+            if (!culture) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Culture not found' }));
+                return;
+            }
+
+            if (culture.creator_wallet !== creatorWallet) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Only the culture creator can create auctions' }));
+                return;
+            }
+
+            // Calculate end time (default 24 hours)
+            const hours = Math.min(Math.max(parseInt(durationHours) || 24, 1), 168); // 1 hour to 7 days
+            const endsAt = new Date(Date.now() + hours * 3600000).toISOString();
+
+            const auction = auctionDB.create({
+                cultureId,
+                tokenAddress,
+                creatorWallet,
+                title: title.trim().slice(0, 200),
+                description: (description || '').trim().slice(0, 2000),
+                contentType: contentType || 'essay',
+                contentUrl: contentUrl || null,
+                minBid: Math.max(parseFloat(minBid) || 0.1, 0.01),
+                outcome: outcome === 'treasury' ? 'treasury' : 'burn',
+                endsAt
+            });
+
+            console.log(`[AUCTIONS] Created auction "${title}" for culture ${culture.name} by ${creatorWallet.slice(0, 8)}...`);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, auction }));
+        } catch (e) {
+            console.error('[AUCTIONS] Create error:', e.message);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Place a bid on an auction
+    if (url.pathname.match(/^\/api\/auctions\/[a-zA-Z0-9-]+\/bid$/) && req.method === 'POST') {
+        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        try {
+            const rateCheck = rateLimiter.check(clientIP, 'bid');
+            if (!rateCheck.allowed) {
+                res.writeHead(429, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Rate limit exceeded' }));
+                return;
+            }
+
+            const auctionId = url.pathname.split('/')[3];
+            const body = await parseBody(req);
+            const { bidderWallet, amount, txSignature } = body;
+
+            if (!bidderWallet || !amount) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'bidderWallet and amount are required' }));
+                return;
+            }
+
+            const result = auctionDB.placeBid(auctionId, bidderWallet, parseFloat(amount), txSignature);
+
+            if (!result.success) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(result));
+                return;
+            }
+
+            console.log(`[AUCTIONS] Bid ${amount} SOL on auction ${auctionId} by ${bidderWallet.slice(0, 8)}...`);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(result));
+        } catch (e) {
+            console.error('[AUCTIONS] Bid error:', e.message);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Cancel an auction (creator only, no bids)
+    if (url.pathname.match(/^\/api\/auctions\/[a-zA-Z0-9-]+\/cancel$/) && req.method === 'POST') {
+        try {
+            const auctionId = url.pathname.split('/')[3];
+            const body = await parseBody(req);
+            const { creatorWallet } = body;
+
+            if (!creatorWallet) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'creatorWallet is required' }));
+                return;
+            }
+
+            const result = auctionDB.cancel(auctionId, creatorWallet);
+
+            if (!result.success) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(result));
+                return;
+            }
+
+            console.log(`[AUCTIONS] Auction ${auctionId} cancelled by ${creatorWallet.slice(0, 8)}...`);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(result));
+        } catch (e) {
+            console.error('[AUCTIONS] Cancel error:', e.message);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: End/settle an auction (creator only, after auction expires)
+    if (url.pathname.match(/^\/api\/auctions\/[a-zA-Z0-9-]+\/settle$/) && req.method === 'POST') {
+        try {
+            const auctionId = url.pathname.split('/')[3];
+            const body = await parseBody(req);
+            const { creatorWallet, txSignature } = body;
+
+            const auction = auctionDB.getById(auctionId);
+            if (!auction) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Auction not found' }));
+                return;
+            }
+
+            if (auction.creator_wallet !== creatorWallet) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Only the creator can settle this auction' }));
+                return;
+            }
+
+            // Check if auction has ended
+            if (new Date(auction.ends_at) > new Date()) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Auction has not ended yet' }));
+                return;
+            }
+
+            const result = auctionDB.endAuction(auctionId, txSignature);
+
+            if (!result.success) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(result));
+                return;
+            }
+
+            // Log the outcome for tracking
+            console.log(`[AUCTIONS] Auction ${auctionId} settled - Winner: ${auction.highest_bidder || 'none'}, Amount: ${auction.current_bid} SOL, Outcome: ${auction.outcome}`);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                winner: auction.highest_bidder,
+                finalAmount: auction.current_bid,
+                outcome: auction.outcome,
+                message: auction.bid_count > 0
+                    ? `Auction settled! ${auction.current_bid} SOL ${auction.outcome === 'burn' ? 'will be burned' : 'sent to treasury'}`
+                    : 'Auction ended with no bids'
+            }));
+        } catch (e) {
+            console.error('[AUCTIONS] Settle error:', e.message);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Get expired auctions that need settlement (admin/cron)
+    if (url.pathname === '/api/auctions/expired' && req.method === 'GET') {
+        try {
+            const expired = auctionDB.getExpired();
+            console.log(`[AUCTIONS] Found ${expired.length} expired auctions needing settlement`);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, auctions: expired }));
+        } catch (e) {
+            console.error('[AUCTIONS] Get expired error:', e.message);
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: false, error: e.message }));
         }

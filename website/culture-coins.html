@@ -6073,235 +6073,428 @@
           );
         };
 
-        // Auctions View - Mobile Responsive
+        // Auctions View - Production Auction System
         const AuctionsView = ({ lightMode, setLightMode }) => {
           const { isMobile } = useMobile();
+          const wallet = useContext(WalletContext);
           const [searchQuery, setSearchQuery] = useState('');
+          const [auctions, setAuctions] = useState([]);
+          const [loading, setLoading] = useState(true);
+          const [myCultures, setMyCultures] = useState([]);
+
+          // Create Auction Modal State
+          const [showCreateModal, setShowCreateModal] = useState(false);
+          const [createForm, setCreateForm] = useState({
+            cultureId: '',
+            title: '',
+            description: '',
+            contentType: 'essay',
+            contentUrl: '',
+            minBid: '0.1',
+            outcome: 'burn',
+            durationHours: '24'
+          });
+          const [createLoading, setCreateLoading] = useState(false);
+          const [createError, setCreateError] = useState('');
+
+          // Bid Modal State
+          const [showBidModal, setShowBidModal] = useState(false);
+          const [selectedAuction, setSelectedAuction] = useState(null);
+          const [bidAmount, setBidAmount] = useState('');
+          const [bidLoading, setBidLoading] = useState(false);
+          const [bidError, setBidError] = useState('');
 
           // Colors based on light/dark mode
           const colors = lightMode ? {
-            bg: '#fafafa',
-            cardBg: '#ffffff',
-            border: '#e5e5e5',
-            text: '#171717',
-            textSecondary: '#404040',
-            textMuted: '#737373',
-            accent: '#8b5cf6',
-            inputBg: '#ffffff',
-            inputBorder: '#d4d4d4'
+            bg: '#fafafa', cardBg: '#ffffff', border: '#e5e5e5', text: '#171717',
+            textSecondary: '#404040', textMuted: '#737373', accent: '#8b5cf6',
+            inputBg: '#ffffff', inputBorder: '#d4d4d4', green: '#22c55e', red: '#ef4444'
           } : {
-            bg: '#0a0a0a',
-            cardBg: '#0f0f0f',
-            border: '#1a1a1a',
-            text: '#ffffff',
-            textSecondary: '#a0a0a0',
-            textMuted: '#666666',
-            accent: '#8b5cf6',
-            inputBg: '#111111',
-            inputBorder: '#333333'
+            bg: '#0a0a0a', cardBg: '#0f0f0f', border: '#1a1a1a', text: '#ffffff',
+            textSecondary: '#a0a0a0', textMuted: '#666666', accent: '#8b5cf6',
+            inputBg: '#111111', inputBorder: '#333333', green: '#22c55e', red: '#ef4444'
           };
 
-          // Filter auctions by culture name, title, or type
-          const filteredAuctions = AUCTIONS.filter(auction => {
+          // Fetch auctions from API
+          const fetchAuctions = async () => {
+            try {
+              const res = await fetch('/api/auctions');
+              const data = await res.json();
+              if (data.success) {
+                setAuctions(data.auctions || []);
+              }
+            } catch (e) {
+              console.error('[AUCTIONS] Fetch error:', e);
+            } finally {
+              setLoading(false);
+            }
+          };
+
+          // Fetch user's cultures for creating auctions
+          const fetchMyCultures = async () => {
+            if (!wallet?.address) return;
+            try {
+              const res = await fetch(`/api/cultures/by-wallet?wallet=${wallet.address}`);
+              const data = await res.json();
+              if (data.success) {
+                setMyCultures(data.cultures || []);
+              }
+            } catch (e) {
+              console.error('[AUCTIONS] Fetch cultures error:', e);
+            }
+          };
+
+          useEffect(() => {
+            fetchAuctions();
+            const interval = setInterval(fetchAuctions, 30000); // Refresh every 30s
+            return () => clearInterval(interval);
+          }, []);
+
+          useEffect(() => {
+            if (wallet?.address) fetchMyCultures();
+          }, [wallet?.address]);
+
+          // Create auction handler
+          const handleCreateAuction = async () => {
+            if (!wallet?.address) {
+              setCreateError('Please connect your wallet');
+              return;
+            }
+            if (!createForm.cultureId || !createForm.title.trim()) {
+              setCreateError('Culture and title are required');
+              return;
+            }
+
+            setCreateLoading(true);
+            setCreateError('');
+
+            try {
+              const culture = myCultures.find(c => c.id === createForm.cultureId);
+              const res = await fetch('/api/auctions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  cultureId: createForm.cultureId,
+                  tokenAddress: culture?.tokenAddress || culture?.token_address || '',
+                  creatorWallet: wallet.address,
+                  title: createForm.title.trim(),
+                  description: createForm.description.trim(),
+                  contentType: createForm.contentType,
+                  contentUrl: createForm.contentUrl.trim(),
+                  minBid: parseFloat(createForm.minBid) || 0.1,
+                  outcome: createForm.outcome,
+                  durationHours: parseInt(createForm.durationHours) || 24
+                })
+              });
+
+              const data = await res.json();
+              if (data.success) {
+                setShowCreateModal(false);
+                setCreateForm({ cultureId: '', title: '', description: '', contentType: 'essay', contentUrl: '', minBid: '0.1', outcome: 'burn', durationHours: '24' });
+                fetchAuctions();
+              } else {
+                setCreateError(data.error || 'Failed to create auction');
+              }
+            } catch (e) {
+              setCreateError(e.message);
+            } finally {
+              setCreateLoading(false);
+            }
+          };
+
+          // Place bid handler
+          const handlePlaceBid = async () => {
+            if (!wallet?.address) {
+              setBidError('Please connect your wallet');
+              return;
+            }
+            if (!bidAmount || parseFloat(bidAmount) <= 0) {
+              setBidError('Please enter a valid bid amount');
+              return;
+            }
+            if (parseFloat(bidAmount) <= (selectedAuction?.current_bid || 0)) {
+              setBidError('Bid must be higher than current bid');
+              return;
+            }
+
+            setBidLoading(true);
+            setBidError('');
+
+            try {
+              const res = await fetch(`/api/auctions/${selectedAuction.id}/bid`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  bidderWallet: wallet.address,
+                  amount: parseFloat(bidAmount)
+                })
+              });
+
+              const data = await res.json();
+              if (data.success) {
+                setShowBidModal(false);
+                setBidAmount('');
+                setSelectedAuction(null);
+                fetchAuctions();
+              } else {
+                setBidError(data.error || 'Failed to place bid');
+              }
+            } catch (e) {
+              setBidError(e.message);
+            } finally {
+              setBidLoading(false);
+            }
+          };
+
+          // Settle auction handler (for creators after auction ends)
+          const handleSettleAuction = async (auction) => {
+            if (!wallet?.address || wallet.address !== auction.creator_wallet) {
+              alert('Only the auction creator can settle this auction');
+              return;
+            }
+
+            if (auction.isActive) {
+              alert('Auction has not ended yet');
+              return;
+            }
+
+            try {
+              const res = await fetch(`/api/auctions/${auction.id}/settle`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  creatorWallet: wallet.address
+                })
+              });
+
+              const data = await res.json();
+              if (data.success) {
+                alert(data.message || 'Auction settled successfully!');
+                fetchAuctions();
+              } else {
+                alert(data.error || 'Failed to settle auction');
+              }
+            } catch (e) {
+              alert('Error settling auction: ' + e.message);
+            }
+          };
+
+          // Filter auctions
+          const filteredAuctions = auctions.filter(auction => {
             if (!searchQuery.trim()) return true;
             const query = searchQuery.toLowerCase().trim();
             return (
-              (auction.cultureName && auction.cultureName.toLowerCase().includes(query)) ||
+              (auction.culture_name && auction.culture_name.toLowerCase().includes(query)) ||
               (auction.title && auction.title.toLowerCase().includes(query)) ||
-              (auction.type && auction.type.toLowerCase().includes(query)) ||
-              (auction.description && auction.description.toLowerCase().includes(query))
+              (auction.content_type && auction.content_type.toLowerCase().includes(query))
             );
           });
 
           return (
-            <div style={{ padding: isMobile ? '110px 16px 80px' : '136px 40px 60px', background: colors.bg, minHeight: '100vh', transition: 'all 0.3s ease' }}>
+            <div style={{ padding: isMobile ? '110px 16px 80px' : '136px 40px 60px', background: colors.bg, minHeight: '100vh' }}>
               {/* Light/Dark Mode Toggle */}
-              <button
-                onClick={() => setLightMode(!lightMode)}
-                style={{
-                  position: 'fixed',
-                  top: isMobile ? '104px' : '100px',
-                  right: isMobile ? '16px' : '40px',
-                  zIndex: 100,
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: '50%',
-                  background: lightMode ? '#1a1a1a' : '#ffffff',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
-                  transition: 'all 0.3s'
-                }}
-                title={lightMode ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
-              >
+              <button onClick={() => setLightMode(!lightMode)} style={{ position: 'fixed', top: isMobile ? '104px' : '100px', right: isMobile ? '16px' : '40px', zIndex: 100, width: '44px', height: '44px', borderRadius: '50%', background: lightMode ? '#1a1a1a' : '#ffffff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 10px rgba(0,0,0,0.2)' }}>
                 <span style={{ fontSize: '20px' }}>{lightMode ? '🌙' : '☀️'}</span>
               </button>
 
-              <div style={{ marginBottom: isMobile ? '32px' : '48px' }}>
-                <h1
-                  className="page-title"
-                  style={{
-                    fontFamily: "'Playfair Display', serif",
-                    fontSize: isMobile ? '32px' : '48px',
-                    fontWeight: 400,
-                    color: colors.text,
-                    marginBottom: '16px'
-                  }}
-                >
-                  Open Bidding
-                </h1>
-                <p style={{
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  fontSize: isMobile ? '13px' : '14px',
-                  color: colors.textMuted,
-                  maxWidth: '600px',
-                  lineHeight: 1.7
-                }}>
-                  Content is not traded. It is bid on. Winning bids are burned or returned
-                  to the creator treasury - never resold.
-                </p>
+              {/* Header */}
+              <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+                <div>
+                  <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: isMobile ? '32px' : '48px', fontWeight: 400, color: colors.text, marginBottom: '12px' }}>Open Bidding</h1>
+                  <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', color: colors.textMuted, maxWidth: '500px', lineHeight: 1.6 }}>
+                    Bid on exclusive content from your favorite cultures. Winning bids are burned or sent to the creator treasury.
+                  </p>
+                </div>
+                {wallet?.address && myCultures.length > 0 && (
+                  <button onClick={() => setShowCreateModal(true)} style={{ padding: '14px 24px', background: colors.accent, color: '#fff', border: 'none', fontFamily: "'IBM Plex Mono', monospace", fontSize: '12px', letterSpacing: '0.1em', cursor: 'pointer' }}>
+                    + CREATE AUCTION
+                  </button>
+                )}
               </div>
 
               {/* Search */}
-              <div style={{ marginBottom: isMobile ? '24px' : '32px' }}>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  background: colors.inputBg,
-                  border: `1px solid ${colors.inputBorder}`,
-                  padding: '0 16px',
-                  borderRadius: isMobile ? '8px' : '0'
-                }}>
-                  <span style={{ color: colors.textMuted, marginRight: '12px', fontSize: '14px' }}>⌕</span>
-                  <input
-                    type="text"
-                    placeholder={isMobile ? "Search auctions..." : "Search by culture name, title, or type..."}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    style={{
-                      flex: 1,
-                      padding: isMobile ? '16px 0' : '14px 0',
-                      background: 'transparent',
-                      border: 'none',
-                      outline: 'none',
-                      color: colors.text,
-                      fontSize: isMobile ? '16px' : '13px',
-                      fontFamily: "'IBM Plex Mono', monospace"
-                    }}
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: colors.textMuted,
-                        cursor: 'pointer',
-                        fontSize: '18px',
-                        padding: '8px',
-                        minHeight: '44px',
-                        minWidth: '44px'
-                      }}
-                    >
-                      ✕
+              <div style={{ marginBottom: '24px' }}>
+                <input type="text" placeholder="Search auctions..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ width: '100%', maxWidth: '400px', padding: '14px 16px', background: colors.inputBg, border: `1px solid ${colors.inputBorder}`, color: colors.text, fontSize: '14px', fontFamily: "'IBM Plex Mono', monospace", outline: 'none' }} />
+              </div>
+
+              {/* Loading State */}
+              {loading ? (
+                <div style={{ textAlign: 'center', padding: '60px', color: colors.textMuted }}>Loading auctions...</div>
+              ) : filteredAuctions.length === 0 ? (
+                /* Empty State */
+                <div style={{ textAlign: 'center', padding: '80px 20px', background: colors.cardBg, border: `1px solid ${colors.border}` }}>
+                  <div style={{ fontSize: '48px', marginBottom: '20px', opacity: 0.6 }}>🔨</div>
+                  <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '28px', color: colors.text, marginBottom: '12px' }}>No Active Auctions</h2>
+                  <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', color: colors.textMuted, marginBottom: '24px' }}>
+                    {myCultures.length > 0 ? 'Create the first auction for your culture!' : 'Check back soon for exclusive content drops.'}
+                  </p>
+                  {myCultures.length > 0 && (
+                    <button onClick={() => setShowCreateModal(true)} style={{ padding: '14px 28px', background: colors.accent, color: '#fff', border: 'none', fontFamily: "'IBM Plex Mono', monospace", fontSize: '12px', letterSpacing: '0.1em', cursor: 'pointer' }}>
+                      CREATE YOUR FIRST AUCTION
                     </button>
                   )}
                 </div>
-              </div>
+              ) : (
+                /* Auction Grid */
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(380px, 1fr))', gap: '20px' }}>
+                  {filteredAuctions.map(auction => (
+                    <div key={auction.id} style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, padding: '24px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                        <div>
+                          <span style={{ fontSize: '10px', color: colors.textMuted, letterSpacing: '0.1em', fontFamily: "'IBM Plex Mono', monospace" }}>
+                            {auction.content_type?.toUpperCase()} • {auction.culture_name || 'Unknown Culture'}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '11px', color: auction.isActive ? colors.green : colors.red, fontFamily: "'IBM Plex Mono', monospace", background: auction.isActive ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', padding: '4px 8px' }}>
+                          {auction.endsIn}
+                        </span>
+                      </div>
+                      <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '20px', color: colors.text, marginBottom: '12px' }}>{auction.title}</h3>
+                      <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '12px', color: colors.textMuted, lineHeight: 1.6, marginBottom: '20px', minHeight: '40px' }}>
+                        {auction.description?.slice(0, 120)}{auction.description?.length > 120 ? '...' : ''}
+                      </p>
+                      <div style={{ display: 'flex', gap: '24px', marginBottom: '16px' }}>
+                        <div>
+                          <div style={{ fontSize: '20px', fontFamily: "'IBM Plex Mono', monospace", color: colors.text, fontWeight: 600 }}>{(auction.current_bid || auction.min_bid || 0).toFixed(2)}</div>
+                          <div style={{ fontSize: '9px', color: colors.textMuted, letterSpacing: '0.1em' }}>{auction.current_bid > 0 ? 'CURRENT BID' : 'MIN BID'}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '20px', fontFamily: "'IBM Plex Mono', monospace", color: colors.text }}>{auction.bid_count || 0}</div>
+                          <div style={{ fontSize: '9px', color: colors.textMuted, letterSpacing: '0.1em' }}>BIDS</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '14px', fontFamily: "'IBM Plex Mono', monospace", color: auction.outcome === 'burn' ? colors.red : colors.accent, fontWeight: 600 }}>{auction.outcome?.toUpperCase()}</div>
+                          <div style={{ fontSize: '9px', color: colors.textMuted, letterSpacing: '0.1em' }}>OUTCOME</div>
+                        </div>
+                      </div>
+                      <div style={{ background: lightMode ? '#f5f5f5' : '#0a0a0a', padding: '12px', marginBottom: '16px', fontSize: '11px', color: colors.textMuted, fontFamily: "'IBM Plex Mono', monospace" }}>
+                        {auction.outcome === 'burn' ? 'Winning bid is burned to strengthen the culture economy.' : 'Winning bid returns to creator treasury for future rewards.'}
+                      </div>
+                      {/* Auction action button - shows different states based on auction status and user role */}
+                      {!auction.isActive && wallet?.address === auction.creator_wallet && auction.status === 'active' ? (
+                        <button onClick={() => handleSettleAuction(auction)} style={{ width: '100%', padding: '14px', background: colors.green, color: '#fff', border: 'none', fontFamily: "'IBM Plex Mono', monospace", fontSize: '12px', letterSpacing: '0.1em', cursor: 'pointer' }}>
+                          SETTLE AUCTION
+                        </button>
+                      ) : (
+                        <button onClick={() => { setSelectedAuction(auction); setBidAmount(((auction.current_bid || auction.min_bid || 0.1) + 0.1).toFixed(2)); setShowBidModal(true); }} disabled={!auction.isActive} style={{ width: '100%', padding: '14px', background: auction.isActive ? colors.accent : colors.border, color: auction.isActive ? '#fff' : colors.textMuted, border: 'none', fontFamily: "'IBM Plex Mono', monospace", fontSize: '12px', letterSpacing: '0.1em', cursor: auction.isActive ? 'pointer' : 'not-allowed' }}>
+                          {auction.isActive ? 'SIGNAL VALUE' : (auction.status === 'ended' ? 'SETTLED' : 'AUCTION ENDED')}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
 
-              {/* Show Coming Soon when no auctions */}
-              {filteredAuctions.length === 0 ? (
-                <div style={{
-                  textAlign: 'center',
-                  padding: isMobile ? '60px 20px' : '100px 40px',
-                  background: colors.cardBg,
-                  border: `1px solid ${colors.border}`,
-                  borderRadius: isMobile ? '12px' : '0'
-                }}>
-                  <div style={{
-                    fontSize: isMobile ? '48px' : '64px',
-                    marginBottom: '24px',
-                    opacity: 0.6
-                  }}>
-                    🔨
-                  </div>
-                  <h2 style={{
-                    fontFamily: "'Playfair Display', serif",
-                    fontSize: isMobile ? '24px' : '32px',
-                    color: colors.text,
-                    marginBottom: '16px',
-                    fontWeight: 400
-                  }}>
-                    Auctions Coming Soon
-                  </h2>
-                  <p style={{
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    fontSize: isMobile ? '13px' : '14px',
-                    color: colors.textMuted,
-                    maxWidth: '500px',
-                    margin: '0 auto 32px',
-                    lineHeight: 1.7
-                  }}>
-                    Culture creators will be able to auction exclusive content to their community.
-                    Winning bids are burned to strengthen the culture economy.
-                  </p>
-                  <div style={{
-                    display: 'flex',
-                    flexDirection: isMobile ? 'column' : 'row',
-                    gap: '12px',
-                    justifyContent: 'center'
-                  }}>
-                    <a
-                      href="/culture-coins?view=discover"
-                      style={{
-                        padding: '14px 28px',
-                        background: colors.accent,
-                        color: '#fff',
-                        border: 'none',
-                        fontFamily: "'IBM Plex Mono', monospace",
-                        fontSize: '12px',
-                        letterSpacing: '0.1em',
-                        cursor: 'pointer',
-                        textDecoration: 'none',
-                        textAlign: 'center'
-                      }}
-                    >
-                      EXPLORE CULTURES
-                    </a>
-                    <a
-                      href="/culture-coins?view=create"
-                      style={{
-                        padding: '14px 28px',
-                        background: 'transparent',
-                        color: colors.text,
-                        border: `1px solid ${colors.border}`,
-                        fontFamily: "'IBM Plex Mono', monospace",
-                        fontSize: '12px',
-                        letterSpacing: '0.1em',
-                        cursor: 'pointer',
-                        textDecoration: 'none',
-                        textAlign: 'center'
-                      }}
-                    >
-                      CREATE A CULTURE
-                    </a>
+              {/* Create Auction Modal */}
+              {showCreateModal && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '20px' }}>
+                  <div style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, padding: '32px', maxWidth: '500px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+                    <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '24px', color: colors.text, marginBottom: '24px' }}>Create Auction</h2>
+
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', fontSize: '10px', color: colors.textMuted, letterSpacing: '0.1em', marginBottom: '8px' }}>SELECT CULTURE *</label>
+                      <select value={createForm.cultureId} onChange={(e) => setCreateForm({ ...createForm, cultureId: e.target.value })} style={{ width: '100%', padding: '12px', background: colors.inputBg, border: `1px solid ${colors.inputBorder}`, color: colors.text, fontSize: '14px' }}>
+                        <option value="">Choose a culture...</option>
+                        {myCultures.map(c => <option key={c.id} value={c.id}>{c.name} (${c.ticker})</option>)}
+                      </select>
+                    </div>
+
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', fontSize: '10px', color: colors.textMuted, letterSpacing: '0.1em', marginBottom: '8px' }}>TITLE *</label>
+                      <input type="text" value={createForm.title} onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })} placeholder="e.g. Exclusive Market Analysis" style={{ width: '100%', padding: '12px', background: colors.inputBg, border: `1px solid ${colors.inputBorder}`, color: colors.text, fontSize: '14px' }} />
+                    </div>
+
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', fontSize: '10px', color: colors.textMuted, letterSpacing: '0.1em', marginBottom: '8px' }}>DESCRIPTION</label>
+                      <textarea value={createForm.description} onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })} placeholder="What makes this content valuable?" rows={3} style={{ width: '100%', padding: '12px', background: colors.inputBg, border: `1px solid ${colors.inputBorder}`, color: colors.text, fontSize: '14px', resize: 'vertical' }} />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '10px', color: colors.textMuted, letterSpacing: '0.1em', marginBottom: '8px' }}>CONTENT TYPE</label>
+                        <select value={createForm.contentType} onChange={(e) => setCreateForm({ ...createForm, contentType: e.target.value })} style={{ width: '100%', padding: '12px', background: colors.inputBg, border: `1px solid ${colors.inputBorder}`, color: colors.text, fontSize: '14px' }}>
+                          <option value="essay">Essay</option>
+                          <option value="video">Video</option>
+                          <option value="live_session">Live Session</option>
+                          <option value="program">Program</option>
+                          <option value="exclusive">Exclusive Access</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '10px', color: colors.textMuted, letterSpacing: '0.1em', marginBottom: '8px' }}>DURATION</label>
+                        <select value={createForm.durationHours} onChange={(e) => setCreateForm({ ...createForm, durationHours: e.target.value })} style={{ width: '100%', padding: '12px', background: colors.inputBg, border: `1px solid ${colors.inputBorder}`, color: colors.text, fontSize: '14px' }}>
+                          <option value="1">1 Hour</option>
+                          <option value="6">6 Hours</option>
+                          <option value="12">12 Hours</option>
+                          <option value="24">24 Hours</option>
+                          <option value="48">48 Hours</option>
+                          <option value="72">3 Days</option>
+                          <option value="168">7 Days</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '10px', color: colors.textMuted, letterSpacing: '0.1em', marginBottom: '8px' }}>MIN BID (SOL)</label>
+                        <input type="number" step="0.01" value={createForm.minBid} onChange={(e) => setCreateForm({ ...createForm, minBid: e.target.value })} style={{ width: '100%', padding: '12px', background: colors.inputBg, border: `1px solid ${colors.inputBorder}`, color: colors.text, fontSize: '14px' }} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '10px', color: colors.textMuted, letterSpacing: '0.1em', marginBottom: '8px' }}>OUTCOME</label>
+                        <select value={createForm.outcome} onChange={(e) => setCreateForm({ ...createForm, outcome: e.target.value })} style={{ width: '100%', padding: '12px', background: colors.inputBg, border: `1px solid ${colors.inputBorder}`, color: colors.text, fontSize: '14px' }}>
+                          <option value="burn">🔥 Burn (Deflationary)</option>
+                          <option value="treasury">💰 Treasury (Creator Revenue)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {createError && <div style={{ color: colors.red, fontSize: '12px', marginBottom: '16px', padding: '12px', background: 'rgba(239,68,68,0.1)' }}>{createError}</div>}
+
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <button onClick={() => setShowCreateModal(false)} style={{ flex: 1, padding: '14px', background: 'transparent', color: colors.textMuted, border: `1px solid ${colors.border}`, fontFamily: "'IBM Plex Mono', monospace", fontSize: '12px', cursor: 'pointer' }}>CANCEL</button>
+                      <button onClick={handleCreateAuction} disabled={createLoading} style={{ flex: 1, padding: '14px', background: colors.accent, color: '#fff', border: 'none', fontFamily: "'IBM Plex Mono', monospace", fontSize: '12px', cursor: createLoading ? 'wait' : 'pointer' }}>{createLoading ? 'CREATING...' : 'CREATE AUCTION'}</button>
+                    </div>
                   </div>
                 </div>
-              ) : (
-                <div
-                  className="auction-grid"
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(380px, 1fr))',
-                    gap: isMobile ? '16px' : '24px'
-                  }}
-                >
-                  {filteredAuctions.map(auction => (
-                    <AuctionCard key={auction.id} auction={auction} lightMode={lightMode} />
-                  ))}
+              )}
+
+              {/* Bid Modal */}
+              {showBidModal && selectedAuction && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '20px' }}>
+                  <div style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, padding: '32px', maxWidth: '420px', width: '100%' }}>
+                    <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '24px', color: colors.text, marginBottom: '8px' }}>Place Your Bid</h2>
+                    <p style={{ fontSize: '12px', color: colors.textMuted, marginBottom: '24px' }}>{selectedAuction.title}</p>
+
+                    <div style={{ display: 'flex', gap: '20px', marginBottom: '24px' }}>
+                      <div>
+                        <div style={{ fontSize: '24px', fontWeight: 600, color: colors.text }}>{(selectedAuction.current_bid || selectedAuction.min_bid || 0).toFixed(2)} SOL</div>
+                        <div style={{ fontSize: '10px', color: colors.textMuted }}>{selectedAuction.current_bid > 0 ? 'CURRENT BID' : 'MIN BID'}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '24px', fontWeight: 600, color: colors.text }}>{selectedAuction.bid_count || 0}</div>
+                        <div style={{ fontSize: '10px', color: colors.textMuted }}>BIDS</div>
+                      </div>
+                    </div>
+
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', fontSize: '10px', color: colors.textMuted, letterSpacing: '0.1em', marginBottom: '8px' }}>YOUR BID (SOL)</label>
+                      <input type="number" step="0.01" value={bidAmount} onChange={(e) => setBidAmount(e.target.value)} style={{ width: '100%', padding: '14px', background: colors.inputBg, border: `1px solid ${colors.inputBorder}`, color: colors.text, fontSize: '18px', fontFamily: "'IBM Plex Mono', monospace" }} />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+                      {[0.1, 0.5, 1, 2].map(inc => (
+                        <button key={inc} onClick={() => setBidAmount(((parseFloat(bidAmount) || 0) + inc).toFixed(2))} style={{ flex: 1, padding: '10px', background: 'transparent', border: `1px solid ${colors.border}`, color: colors.textMuted, fontSize: '11px', cursor: 'pointer' }}>+{inc}</button>
+                      ))}
+                    </div>
+
+                    {bidError && <div style={{ color: colors.red, fontSize: '12px', marginBottom: '16px', padding: '12px', background: 'rgba(239,68,68,0.1)' }}>{bidError}</div>}
+
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <button onClick={() => { setShowBidModal(false); setSelectedAuction(null); setBidAmount(''); setBidError(''); }} style={{ flex: 1, padding: '14px', background: 'transparent', color: colors.textMuted, border: `1px solid ${colors.border}`, fontFamily: "'IBM Plex Mono', monospace", fontSize: '12px', cursor: 'pointer' }}>CANCEL</button>
+                      <button onClick={handlePlaceBid} disabled={bidLoading} style={{ flex: 1, padding: '14px', background: colors.green, color: '#000', border: 'none', fontFamily: "'IBM Plex Mono', monospace", fontSize: '12px', fontWeight: 600, cursor: bidLoading ? 'wait' : 'pointer' }}>{bidLoading ? 'PLACING BID...' : 'PLACE BID'}</button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

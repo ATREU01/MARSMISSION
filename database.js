@@ -112,6 +112,43 @@ db.exec(`
     PRIMARY KEY (ip, endpoint)
   );
 
+  -- Auctions table - Production auction system for culture content
+  CREATE TABLE IF NOT EXISTS auctions (
+    id TEXT PRIMARY KEY,
+    culture_id TEXT NOT NULL,
+    token_address TEXT NOT NULL,
+    creator_wallet TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    content_type TEXT DEFAULT 'essay', -- essay, video, live_session, program, exclusive, other
+    content_url TEXT, -- Optional link to content preview
+    min_bid REAL DEFAULT 0.1, -- Minimum bid in SOL
+    current_bid REAL DEFAULT 0,
+    bid_count INTEGER DEFAULT 0,
+    highest_bidder TEXT, -- Wallet address of current highest bidder
+    outcome TEXT DEFAULT 'burn', -- 'burn' or 'treasury'
+    status TEXT DEFAULT 'active', -- active, ended, cancelled
+    starts_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    ends_at TEXT NOT NULL,
+    winner_wallet TEXT,
+    final_amount REAL,
+    tx_signature TEXT, -- Transaction signature for payment/burn
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (culture_id) REFERENCES cultures(id)
+  );
+
+  -- Auction bids table - Track all bids
+  CREATE TABLE IF NOT EXISTS auction_bids (
+    id TEXT PRIMARY KEY,
+    auction_id TEXT NOT NULL,
+    bidder_wallet TEXT NOT NULL,
+    amount REAL NOT NULL,
+    tx_signature TEXT, -- Optional: on-chain bid verification
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (auction_id) REFERENCES auctions(id) ON DELETE CASCADE
+  );
+
   -- Create indexes for performance
   CREATE INDEX IF NOT EXISTS idx_cultures_creator ON cultures(creator_wallet);
   CREATE INDEX IF NOT EXISTS idx_cultures_token ON cultures(token_address);
@@ -119,6 +156,10 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_posts_culture ON posts(culture_id);
   CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_comments_post ON comments(post_id);
+  CREATE INDEX IF NOT EXISTS idx_auctions_culture ON auctions(culture_id);
+  CREATE INDEX IF NOT EXISTS idx_auctions_status ON auctions(status);
+  CREATE INDEX IF NOT EXISTS idx_auctions_ends ON auctions(ends_at);
+  CREATE INDEX IF NOT EXISTS idx_auction_bids_auction ON auction_bids(auction_id);
 `);
 
 console.log('[DATABASE] Schema initialized');
@@ -517,12 +558,179 @@ const mediaDB = {
 // ═══════════════════════════════════════════════════════════════════════════
 // RATE LIMITING
 // ═══════════════════════════════════════════════════════════════════════════
+// AUCTION OPERATIONS - Production auction system
+// ═══════════════════════════════════════════════════════════════════════════
+
+const auctionDB = {
+  // Create a new auction
+  create: (auction) => {
+    const id = auction.id || crypto.randomUUID();
+    const stmt = db.prepare(`
+      INSERT INTO auctions (id, culture_id, token_address, creator_wallet, title, description,
+        content_type, content_url, min_bid, outcome, ends_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(
+      id,
+      auction.cultureId,
+      auction.tokenAddress,
+      auction.creatorWallet,
+      auction.title,
+      auction.description || '',
+      auction.contentType || 'essay',
+      auction.contentUrl || null,
+      auction.minBid || 0.1,
+      auction.outcome || 'burn',
+      auction.endsAt
+    );
+
+    return { ...auction, id };
+  },
+
+  // Get auction by ID
+  getById: (id) => {
+    const stmt = db.prepare(`
+      SELECT a.*, c.name as culture_name, c.ticker as culture_ticker
+      FROM auctions a
+      LEFT JOIN cultures c ON a.culture_id = c.id
+      WHERE a.id = ?
+    `);
+    return stmt.get(id);
+  },
+
+  // Get all active auctions
+  getActive: (limit = 50) => {
+    const stmt = db.prepare(`
+      SELECT a.*, c.name as culture_name, c.ticker as culture_ticker
+      FROM auctions a
+      LEFT JOIN cultures c ON a.culture_id = c.id
+      WHERE a.status = 'active' AND a.ends_at > datetime('now')
+      ORDER BY a.ends_at ASC
+      LIMIT ?
+    `);
+    return stmt.all(limit);
+  },
+
+  // Get auctions by culture
+  getByCulture: (cultureId, limit = 50) => {
+    const stmt = db.prepare(`
+      SELECT a.*, c.name as culture_name, c.ticker as culture_ticker
+      FROM auctions a
+      LEFT JOIN cultures c ON a.culture_id = c.id
+      WHERE a.culture_id = ?
+      ORDER BY a.created_at DESC
+      LIMIT ?
+    `);
+    return stmt.all(cultureId, limit);
+  },
+
+  // Get auctions by creator
+  getByCreator: (wallet, limit = 50) => {
+    const stmt = db.prepare(`
+      SELECT a.*, c.name as culture_name, c.ticker as culture_ticker
+      FROM auctions a
+      LEFT JOIN cultures c ON a.culture_id = c.id
+      WHERE a.creator_wallet = ?
+      ORDER BY a.created_at DESC
+      LIMIT ?
+    `);
+    return stmt.all(wallet, limit);
+  },
+
+  // Place a bid
+  placeBid: (auctionId, bidderWallet, amount, txSignature = null) => {
+    const auction = db.prepare('SELECT * FROM auctions WHERE id = ?').get(auctionId);
+    if (!auction) return { success: false, error: 'Auction not found' };
+    if (auction.status !== 'active') return { success: false, error: 'Auction is not active' };
+    if (new Date(auction.ends_at) < new Date()) return { success: false, error: 'Auction has ended' };
+    if (amount <= auction.current_bid) return { success: false, error: 'Bid must be higher than current bid' };
+    if (amount < auction.min_bid) return { success: false, error: 'Bid must be at least minimum bid' };
+
+    // Record the bid
+    const bidId = crypto.randomUUID();
+    db.prepare(`
+      INSERT INTO auction_bids (id, auction_id, bidder_wallet, amount, tx_signature)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(bidId, auctionId, bidderWallet, amount, txSignature);
+
+    // Update auction
+    db.prepare(`
+      UPDATE auctions
+      SET current_bid = ?, highest_bidder = ?, bid_count = bid_count + 1, updated_at = datetime('now')
+      WHERE id = ?
+    `).run(amount, bidderWallet, auctionId);
+
+    return {
+      success: true,
+      bidId,
+      currentBid: amount,
+      bidCount: auction.bid_count + 1
+    };
+  },
+
+  // Get bids for an auction
+  getBids: (auctionId, limit = 100) => {
+    const stmt = db.prepare(`
+      SELECT * FROM auction_bids
+      WHERE auction_id = ?
+      ORDER BY amount DESC
+      LIMIT ?
+    `);
+    return stmt.all(auctionId, limit);
+  },
+
+  // End an auction (called by cron or manually)
+  endAuction: (auctionId, txSignature = null) => {
+    const auction = db.prepare('SELECT * FROM auctions WHERE id = ?').get(auctionId);
+    if (!auction) return { success: false, error: 'Auction not found' };
+    if (auction.status !== 'active') return { success: false, error: 'Auction already ended' };
+
+    db.prepare(`
+      UPDATE auctions
+      SET status = 'ended', winner_wallet = ?, final_amount = ?, tx_signature = ?, updated_at = datetime('now')
+      WHERE id = ?
+    `).run(auction.highest_bidder, auction.current_bid, txSignature, auctionId);
+
+    return {
+      success: true,
+      winner: auction.highest_bidder,
+      amount: auction.current_bid,
+      outcome: auction.outcome
+    };
+  },
+
+  // Cancel an auction (creator only)
+  cancel: (auctionId, creatorWallet) => {
+    const auction = db.prepare('SELECT * FROM auctions WHERE id = ?').get(auctionId);
+    if (!auction) return { success: false, error: 'Auction not found' };
+    if (auction.creator_wallet !== creatorWallet) return { success: false, error: 'Not authorized' };
+    if (auction.bid_count > 0) return { success: false, error: 'Cannot cancel auction with bids' };
+
+    db.prepare(`UPDATE auctions SET status = 'cancelled', updated_at = datetime('now') WHERE id = ?`).run(auctionId);
+    return { success: true };
+  },
+
+  // Get expired auctions that need to be ended
+  getExpired: () => {
+    const stmt = db.prepare(`
+      SELECT * FROM auctions
+      WHERE status = 'active' AND ends_at <= datetime('now')
+    `);
+    return stmt.all();
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RATE LIMITING
+// ═══════════════════════════════════════════════════════════════════════════
 
 const RATE_LIMITS = {
   'default': { requests: 100, windowMs: 60000 },      // 100 req/min default
   'create': { requests: 5, windowMs: 60000 },         // 5 creates/min
   'upload': { requests: 10, windowMs: 60000 },        // 10 uploads/min
   'post': { requests: 20, windowMs: 60000 },          // 20 posts/min
+  'bid': { requests: 30, windowMs: 60000 },           // 30 bids/min
 };
 
 const rateLimiter = {
@@ -618,6 +826,7 @@ module.exports = {
   profileDB,
   postDB,
   mediaDB,
+  auctionDB,
   rateLimiter,
   MEDIA_DIR,
   DATA_DIR
