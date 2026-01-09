@@ -5383,97 +5383,94 @@
             setPosts(prev => prev.filter(p => p.authorWallet !== walletToBlock));
           };
 
-          // Load posts from SERVER + localStorage fallback
-          useEffect(() => {
-            const loadPosts = async () => {
-              try {
-                // Try server first (single source of truth for shared posts)
-                const apiRes = await fetch('/api/posts?limit=200');
-                if (!apiRes.ok) throw new Error(`HTTP ${apiRes.status}`);
-                const apiData = await apiRes.json();
-                console.log('[FEED] Server returned', apiData.posts?.length || 0, 'posts');
+          // Load posts function - can be called by Refresh button
+          const loadPosts = async () => {
+            setLoading(true);
+            try {
+              // Try server first (single source of truth for shared posts)
+              const apiRes = await fetch('/api/posts?limit=200');
+              if (!apiRes.ok) throw new Error(`HTTP ${apiRes.status}`);
+              const apiData = await apiRes.json();
+              console.log('[FEED] Server returned', apiData.posts?.length || 0, 'posts');
 
-                let allPosts = [];
+              let allPosts = [];
 
-                if (apiData.success && apiData.posts && apiData.posts.length > 0) {
-                  const serverPosts = apiData.posts.map(p => {
-                    const wallet = p.authorWallet || p.author_wallet || '';
-                    // Get display name - check server first, then try to enrich from localStorage
-                    let name = p.authorName || p.author_name || p.display_name;
-                    let pfp = p.authorPfp || p.author_pfp || p.authorAvatar || p.pfp;
+              if (apiData.success && apiData.posts && apiData.posts.length > 0) {
+                const serverPosts = apiData.posts.map(p => {
+                  const wallet = p.authorWallet || p.author_wallet || '';
+                  let name = p.authorName || p.author_name || p.display_name;
+                  let pfp = p.authorPfp || p.author_pfp || p.authorAvatar || p.pfp;
 
-                    // If no name from server, try localStorage profile
-                    if (!name && wallet) {
-                      try {
-                        const profile = JSON.parse(localStorage.getItem('creator_profile_' + wallet) || 'null');
-                        if (profile?.displayName) {
-                          name = profile.displayName;
-                          pfp = profile.pfp || pfp;
-                        }
-                      } catch (e) {}
-                    }
-
-                    // Final fallback to truncated wallet
-                    if (!name) {
-                      name = wallet ? wallet.slice(0, 6) + '...' + wallet.slice(-4) : 'Anonymous';
-                    }
-
-                    return {
-                      id: p.id,
-                      authorWallet: wallet,
-                      authorName: name,
-                      authorPfp: pfp,
-                      content: p.content,
-                      media: p.mediaUrl ? [p.mediaUrl] : (p.media_urls ? JSON.parse(p.media_urls) : []),
-                      likes: Array.isArray(p.likes) ? p.likes : (p.liked_by ? JSON.parse(p.liked_by) : []),
-                      reposts: p.reposts || 0,
-                      repostedBy: Array.isArray(p.repostedBy) ? p.repostedBy : (p.reposted_by ? JSON.parse(p.reposted_by) : []),
-                      comments: p.comments || [],
-                      createdAt: p.createdAt || p.created_at,
-                      cultureId: p.cultureId || p.culture_id
-                    };
-                  });
-                  allPosts = serverPosts;
-                }
-
-                // Also check localStorage for any posts (backward compat + offline posts)
-                try {
-                  const localPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
-                  if (localPosts.length > 0) {
-                    console.log('[FEED] Found', localPosts.length, 'posts in localStorage');
-                    // Merge: add local posts that aren't already in server posts
-                    const serverIds = new Set(allPosts.map(p => String(p.id)));
-                    const newLocalPosts = localPosts.filter(p => !serverIds.has(String(p.id)));
-                    allPosts = [...allPosts, ...newLocalPosts];
+                  if (!name && wallet) {
+                    try {
+                      const profile = JSON.parse(localStorage.getItem('creator_profile_' + wallet) || 'null');
+                      if (profile?.displayName) {
+                        name = profile.displayName;
+                        pfp = profile.pfp || pfp;
+                      }
+                    } catch (e) {}
                   }
-                } catch (e) {
-                  console.error('[FEED] localStorage parse error:', e);
-                }
 
-                // Filter out blocked users
-                const blocked = JSON.parse(localStorage.getItem('blocked_users') || '[]');
-                const filteredPosts = allPosts.filter(p => !blocked.includes(p.authorWallet));
-
-                // Sort by newest first
-                filteredPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-                console.log('[FEED] Displaying', filteredPosts.length, 'total posts');
-                setPosts(filteredPosts);
-              } catch (e) {
-                console.error('[FEED] Error loading posts:', e);
-                // On error, try localStorage only
-                try {
-                  const localPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
-                  if (localPosts.length > 0) {
-                    console.log('[FEED] Fallback to localStorage:', localPosts.length, 'posts');
-                    setPosts(localPosts);
+                  if (!name) {
+                    name = wallet ? wallet.slice(0, 6) + '...' + wallet.slice(-4) : 'Anonymous';
                   }
-                } catch (le) {}
-              } finally {
-                setLoading(false);
+
+                  return {
+                    id: p.id,
+                    authorWallet: wallet,
+                    authorName: name,
+                    authorPfp: pfp,
+                    content: p.content,
+                    media: p.mediaUrl ? [p.mediaUrl] : (p.media_urls ? JSON.parse(p.media_urls) : []),
+                    likes: Array.isArray(p.likes) ? p.likes : (p.liked_by ? JSON.parse(p.liked_by) : []),
+                    reposts: p.reposts || 0,
+                    repostedBy: Array.isArray(p.repostedBy) ? p.repostedBy : (p.reposted_by ? JSON.parse(p.reposted_by) : []),
+                    comments: p.comments || [],
+                    createdAt: p.createdAt || p.created_at,
+                    cultureId: p.cultureId || p.culture_id
+                  };
+                });
+                allPosts = serverPosts;
               }
-            };
+
+              // Also check localStorage for any posts (backward compat + offline posts)
+              try {
+                const localPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
+                if (localPosts.length > 0) {
+                  console.log('[FEED] Found', localPosts.length, 'posts in localStorage');
+                  const serverIds = new Set(allPosts.map(p => String(p.id)));
+                  const newLocalPosts = localPosts.filter(p => !serverIds.has(String(p.id)));
+                  allPosts = [...allPosts, ...newLocalPosts];
+                }
+              } catch (e) {
+                console.error('[FEED] localStorage parse error:', e);
+              }
+
+              // Filter out blocked users
+              const blocked = JSON.parse(localStorage.getItem('blocked_users') || '[]');
+              const filteredPosts = allPosts.filter(p => !blocked.includes(p.authorWallet));
+
+              // Sort by newest first
+              filteredPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+              console.log('[FEED] Displaying', filteredPosts.length, 'total posts');
+              setPosts(filteredPosts);
+            } catch (e) {
+              console.error('[FEED] Error loading posts:', e);
+              try {
+                const localPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
+                if (localPosts.length > 0) {
+                  console.log('[FEED] Fallback to localStorage:', localPosts.length, 'posts');
+                  setPosts(localPosts);
+                }
+              } catch (le) {}
+            } finally {
+              setLoading(false);
+            }
+          };
+
+          // Load posts on mount and refresh every 15 seconds
+          useEffect(() => {
             loadPosts();
-            // Refresh every 15 seconds for real-time feel
             const interval = setInterval(loadPosts, 15000);
             return () => clearInterval(interval);
           }, []);
@@ -5713,19 +5710,21 @@
                     </span>
                   </div>
                   <button
-                    onClick={() => window.location.reload()}
+                    onClick={() => loadPosts()}
+                    disabled={loading}
                     style={{
                       background: 'none',
                       border: `1px solid ${colors.border}`,
-                      color: colors.textMuted,
+                      color: loading ? colors.accent : colors.textMuted,
                       fontSize: '10px',
                       fontFamily: "'IBM Plex Mono', monospace",
                       letterSpacing: '0.1em',
                       padding: '6px 12px',
-                      cursor: 'pointer'
+                      cursor: loading ? 'wait' : 'pointer',
+                      opacity: loading ? 0.7 : 1
                     }}
                   >
-                    REFRESH
+                    {loading ? 'LOADING...' : 'REFRESH'}
                   </button>
                 </div>
 

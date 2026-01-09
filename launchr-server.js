@@ -5715,15 +5715,18 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     // API: Create a new post
     if (url.pathname === '/api/posts' && req.method === 'POST') {
         const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        console.log('[POSTS] POST request received from:', clientIP);
         try {
             // Rate limit check
             if (!rateLimiter.checkLimit(clientIP, 'post')) {
+                console.log('[POSTS] Rate limited:', clientIP);
                 res.writeHead(429, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: false, error: 'Rate limit exceeded. Please wait before posting again.' }));
                 return;
             }
 
             const body = await parseBody(req, 100 * 1024); // 100KB max for post data
+            console.log('[POSTS] Received body:', JSON.stringify(body).slice(0, 200));
             const { authorWallet, cultureId, content, mediaUrls } = body;
 
             if (!authorWallet || !content) {
@@ -5758,7 +5761,8 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: true, post }));
         } catch (e) {
-            console.error('[POSTS] Create error:', e);
+            console.error('[POSTS] Create error:', e.message);
+            console.error('[POSTS] Stack:', e.stack?.slice(0, 500));
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: false, error: e.message }));
         }
