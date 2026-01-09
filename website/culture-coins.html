@@ -3375,6 +3375,17 @@
           const [agreedToTerms, setAgreedToTerms] = useState(false);
           const wallet = useContext(WalletContext);
 
+          // Swap state for Buy/Sell functionality
+          const [swapMode, setSwapMode] = useState('buy'); // 'buy' or 'sell'
+          const [swapAmount, setSwapAmount] = useState('');
+          const [swapQuote, setSwapQuote] = useState(null);
+          const [swapLoading, setSwapLoading] = useState(false);
+          const [swapError, setSwapError] = useState(null);
+          const [swapSuccess, setSwapSuccess] = useState(null);
+
+          // SOL mint address (native SOL wrapped)
+          const SOL_MINT = 'So11111111111111111111111111111111111111112';
+
           // Theme with fallback defaults
           const theme = culture.theme || {};
           const accentColor = theme.accentColor || '#8b5cf6';
@@ -3540,6 +3551,135 @@
               setSelectedTier(null);
               setAgreedToTerms(false);
             }
+          };
+
+          // Get swap quote from Jupiter
+          const getSwapQuote = async () => {
+            if (!swapAmount || !culture.tokenAddress) return;
+
+            setSwapLoading(true);
+            setSwapError(null);
+            setSwapQuote(null);
+
+            try {
+              // Convert amount to lamports/base units
+              const decimals = swapMode === 'buy' ? 9 : 6; // SOL has 9, most tokens have 6
+              const amountRaw = Math.floor(parseFloat(swapAmount) * Math.pow(10, decimals));
+
+              const inputMint = swapMode === 'buy' ? SOL_MINT : culture.tokenAddress;
+              const outputMint = swapMode === 'buy' ? culture.tokenAddress : SOL_MINT;
+
+              const quoteRes = await fetch(
+                `/api/swap/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amountRaw}&slippageBps=100`
+              );
+
+              if (!quoteRes.ok) {
+                const errData = await quoteRes.json();
+                throw new Error(errData.error || 'Failed to get quote');
+              }
+
+              const quote = await quoteRes.json();
+              setSwapQuote(quote);
+              console.log('[SWAP] Quote received:', quote);
+            } catch (err) {
+              console.error('[SWAP] Quote error:', err);
+              setSwapError(err.message);
+            } finally {
+              setSwapLoading(false);
+            }
+          };
+
+          // Execute swap with wallet signing
+          const executeSwap = async () => {
+            if (!wallet?.address || !swapQuote) {
+              if (!wallet?.address) wallet?.connect();
+              return;
+            }
+
+            setSwapLoading(true);
+            setSwapError(null);
+            setSwapSuccess(null);
+
+            try {
+              console.log('[SWAP] Building transaction...');
+
+              // Step 1: Build the transaction
+              const buildRes = await fetch('/api/swap/build', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  quote: swapQuote,
+                  userPublicKey: wallet.address
+                })
+              });
+
+              if (!buildRes.ok) {
+                const errData = await buildRes.json();
+                throw new Error(errData.error || 'Failed to build transaction');
+              }
+
+              const { swapTransaction, lastValidBlockHeight } = await buildRes.json();
+              console.log('[SWAP] Transaction built, signing...');
+
+              // Step 2: Deserialize and sign the transaction
+              const txBuffer = Uint8Array.from(atob(swapTransaction), c => c.charCodeAt(0));
+              const tx = solanaWeb3.VersionedTransaction.deserialize(txBuffer);
+
+              let signedTx;
+              if (window.solana?.isPhantom) {
+                console.log('[SWAP] Signing with Phantom...');
+                signedTx = await window.solana.signTransaction(tx);
+              } else if (window.solflare?.isSolflare) {
+                console.log('[SWAP] Signing with Solflare...');
+                signedTx = await window.solflare.signTransaction(tx);
+              } else {
+                throw new Error('No compatible wallet found. Please install Phantom or Solflare.');
+              }
+
+              // Step 3: Send the signed transaction
+              console.log('[SWAP] Sending signed transaction...');
+              const signedBase64 = btoa(String.fromCharCode(...signedTx.serialize()));
+
+              const execRes = await fetch('/api/swap/execute', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  signedTransaction: signedBase64,
+                  lastValidBlockHeight
+                })
+              });
+
+              if (!execRes.ok) {
+                const errData = await execRes.json();
+                throw new Error(errData.error || 'Transaction failed');
+              }
+
+              const { signature } = await execRes.json();
+              console.log('[SWAP] Success! Signature:', signature);
+
+              setSwapSuccess(signature);
+              setSwapQuote(null);
+              setSwapAmount('');
+
+              // Refresh token data after swap
+              setTimeout(() => {
+                window.location.reload();
+              }, 3000);
+
+            } catch (err) {
+              console.error('[SWAP] Error:', err);
+              setSwapError(err.message);
+            } finally {
+              setSwapLoading(false);
+            }
+          };
+
+          // Format output amount for display
+          const formatOutputAmount = () => {
+            if (!swapQuote?.outAmount) return '0';
+            const decimals = swapMode === 'buy' ? 6 : 9; // Token decimals vs SOL decimals
+            const amount = parseFloat(swapQuote.outAmount) / Math.pow(10, decimals);
+            return amount.toLocaleString(undefined, { maximumFractionDigits: swapMode === 'buy' ? 0 : 6 });
           };
 
           // Helper to create accent rgba
@@ -4143,7 +4283,7 @@
                           marginBottom: '16px'
                         }}
                       >
-                        ACQUIRE ACCESS
+                        BUY / SELL
                       </button>
                     )}
 
@@ -4154,7 +4294,7 @@
                       lineHeight: 1.6,
                       textAlign: 'center'
                     }}>
-                      {userHolding ? 'Welcome to the culture.' : 'This is participation, not a trade.'}
+                      {userHolding ? 'Welcome to the culture.' : 'Trade via Jupiter Aggregator'}
                     </p>
                   </div>
 
@@ -4234,7 +4374,7 @@
                 </div>
               </div>
 
-              {/* Join Modal */}
+              {/* Trade Modal - Buy/Sell Swaps via Jupiter */}
               {showJoinModal && (
                 <div style={{
                   position: 'fixed',
@@ -4248,97 +4388,285 @@
                   <div style={{
                     background: theme.bgColor || '#0a0a0a',
                     border: `1px solid ${borderColor}`,
-                    padding: '48px',
+                    padding: isMobile ? '24px' : '48px',
                     maxWidth: '500px',
-                    width: '100%'
+                    width: '100%',
+                    margin: isMobile ? '16px' : '0'
                   }}>
                     <h2 style={{
                       fontFamily: "'Playfair Display', serif",
-                      fontSize: '28px',
+                      fontSize: isMobile ? '22px' : '28px',
                       color: textColor,
                       marginBottom: '24px'
                     }}>
-                      Join {culture.name}
+                      Trade {culture.ticker || culture.name}
                     </h2>
 
+                    {/* Buy/Sell Toggle */}
                     <div style={{
-                      background: cardBg,
-                      border: `1px solid ${borderColor}`,
-                      padding: '20px',
-                      marginBottom: '24px'
+                      display: 'flex',
+                      gap: '0',
+                      marginBottom: '24px',
+                      border: `1px solid ${borderColor}`
                     }}>
-                      <p style={{
-                        fontFamily: "'IBM Plex Mono', monospace",
-                        fontSize: '13px',
-                        color: textColor,
-                        opacity: 0.7,
-                        lineHeight: 1.7
-                      }}>
-                        "{culture.ethos}"
-                      </p>
+                      <button
+                        onClick={() => { setSwapMode('buy'); setSwapQuote(null); setSwapError(null); }}
+                        style={{
+                          flex: 1,
+                          padding: '14px',
+                          background: swapMode === 'buy' ? '#22c55e' : 'transparent',
+                          color: swapMode === 'buy' ? '#000' : '#666',
+                          border: 'none',
+                          fontSize: '13px',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          letterSpacing: '0.1em',
+                          cursor: 'pointer',
+                          fontWeight: swapMode === 'buy' ? 600 : 400
+                        }}
+                      >
+                        BUY
+                      </button>
+                      <button
+                        onClick={() => { setSwapMode('sell'); setSwapQuote(null); setSwapError(null); }}
+                        style={{
+                          flex: 1,
+                          padding: '14px',
+                          background: swapMode === 'sell' ? '#ef4444' : 'transparent',
+                          color: swapMode === 'sell' ? '#fff' : '#666',
+                          border: 'none',
+                          borderLeft: `1px solid ${borderColor}`,
+                          fontSize: '13px',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          letterSpacing: '0.1em',
+                          cursor: 'pointer',
+                          fontWeight: swapMode === 'sell' ? 600 : 400
+                        }}
+                      >
+                        SELL
+                      </button>
                     </div>
 
-                    {/* Tier Selection */}
-                    <div style={{ marginBottom: '24px' }}>
+                    {/* Token Address Display */}
+                    {culture.tokenAddress && (
+                      <div style={{
+                        background: cardBg,
+                        border: `1px solid ${borderColor}`,
+                        padding: '12px 16px',
+                        marginBottom: '20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '8px'
+                      }}>
+                        <span style={{
+                          fontSize: '10px',
+                          color: '#666',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          letterSpacing: '0.1em'
+                        }}>
+                          CA: {culture.tokenAddress.slice(0, 8)}...{culture.tokenAddress.slice(-6)}
+                        </span>
+                        <button
+                          onClick={() => navigator.clipboard.writeText(culture.tokenAddress)}
+                          style={{
+                            background: 'none',
+                            border: `1px solid ${borderColor}`,
+                            color: accentColor,
+                            padding: '4px 8px',
+                            fontSize: '9px',
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            cursor: 'pointer'
+                          }}
+                        >
+                          COPY
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Amount Input */}
+                    <div style={{ marginBottom: '20px' }}>
                       <div style={{
                         fontSize: '10px',
                         letterSpacing: '0.15em',
                         color: '#666',
-                        marginBottom: '12px',
+                        marginBottom: '8px',
                         fontFamily: "'IBM Plex Mono', monospace"
                       }}>
-                        SELECT YOUR TIER
+                        {swapMode === 'buy' ? 'YOU PAY (SOL)' : `YOU SELL (${culture.ticker || 'TOKENS'})`}
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {culture.tiers.map((tier, i) => (
+                      <div style={{
+                        display: 'flex',
+                        gap: '8px',
+                        alignItems: 'stretch'
+                      }}>
+                        <input
+                          type="number"
+                          value={swapAmount}
+                          onChange={(e) => { setSwapAmount(e.target.value); setSwapQuote(null); }}
+                          placeholder={swapMode === 'buy' ? '0.1' : '1000000'}
+                          style={{
+                            flex: 1,
+                            padding: '14px 16px',
+                            background: cardBg,
+                            border: `1px solid ${borderColor}`,
+                            color: textColor,
+                            fontSize: '18px',
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            outline: 'none'
+                          }}
+                        />
+                        <button
+                          onClick={getSwapQuote}
+                          disabled={!swapAmount || swapLoading || !culture.tokenAddress}
+                          style={{
+                            padding: '14px 20px',
+                            background: accentColor,
+                            color: '#000',
+                            border: 'none',
+                            fontSize: '11px',
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            letterSpacing: '0.1em',
+                            cursor: (!swapAmount || swapLoading || !culture.tokenAddress) ? 'not-allowed' : 'pointer',
+                            opacity: (!swapAmount || swapLoading || !culture.tokenAddress) ? 0.5 : 1
+                          }}
+                        >
+                          {swapLoading ? '...' : 'QUOTE'}
+                        </button>
+                      </div>
+
+                      {/* Quick Amount Buttons */}
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                        {(swapMode === 'buy' ? ['0.1', '0.5', '1', '2'] : ['1000', '10000', '100000', '1000000']).map(amt => (
                           <button
-                            key={i}
-                            onClick={() => setSelectedTier(tier)}
+                            key={amt}
+                            onClick={() => setSwapAmount(amt)}
                             style={{
-                              padding: '14px 16px',
-                              background: selectedTier?.name === tier.name ? cardBg : (theme.bgColor || '#0a0a0a'),
-                              border: '1px solid',
-                              borderColor: selectedTier?.name === tier.name ? accentColor : borderColor,
-                              color: textColor,
-                              textAlign: 'left',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center'
+                              flex: 1,
+                              padding: '8px',
+                              background: 'transparent',
+                              border: `1px solid ${borderColor}`,
+                              color: '#666',
+                              fontSize: '10px',
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              cursor: 'pointer'
                             }}
                           >
-                            <span style={{ fontFamily: "'Playfair Display', serif", fontSize: '16px' }}>
-                              {tier.name}
-                            </span>
-                            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '11px', color: '#888' }}>
-                              {tier.percent}% of supply
-                            </span>
+                            {swapMode === 'buy' ? `${amt} SOL` : parseInt(amt).toLocaleString()}
                           </button>
                         ))}
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-                      <input
-                        type="checkbox"
-                        id="understand"
-                        checked={agreedToTerms}
-                        onChange={(e) => setAgreedToTerms(e.target.checked)}
-                        style={{ width: '18px', height: '18px', accentColor: accentColor }}
-                      />
-                      <label htmlFor="understand" style={{
-                        fontFamily: "'IBM Plex Mono', monospace",
-                        fontSize: '12px',
-                        color: '#888',
-                        cursor: 'pointer'
+                    {/* Quote Result */}
+                    {swapQuote && (
+                      <div style={{
+                        background: swapMode === 'buy' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                        border: `1px solid ${swapMode === 'buy' ? '#22c55e' : '#ef4444'}`,
+                        padding: '16px',
+                        marginBottom: '20px'
                       }}>
-                        I understand this is participation, not a trade.
-                      </label>
-                    </div>
+                        <div style={{
+                          fontSize: '10px',
+                          letterSpacing: '0.15em',
+                          color: '#666',
+                          marginBottom: '8px',
+                          fontFamily: "'IBM Plex Mono', monospace"
+                        }}>
+                          {swapMode === 'buy' ? `YOU RECEIVE (${culture.ticker || 'TOKENS'})` : 'YOU RECEIVE (SOL)'}
+                        </div>
+                        <div style={{
+                          fontSize: '24px',
+                          color: swapMode === 'buy' ? '#22c55e' : '#ef4444',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontWeight: 600
+                        }}>
+                          {formatOutputAmount()}
+                        </div>
+                        {swapQuote.priceImpactPct && (
+                          <div style={{
+                            fontSize: '11px',
+                            color: parseFloat(swapQuote.priceImpactPct) > 1 ? '#ef4444' : '#666',
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            marginTop: '8px'
+                          }}>
+                            Price Impact: {parseFloat(swapQuote.priceImpactPct).toFixed(2)}%
+                          </div>
+                        )}
+                      </div>
+                    )}
 
+                    {/* Error Display */}
+                    {swapError && (
+                      <div style={{
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        border: '1px solid #ef4444',
+                        padding: '12px 16px',
+                        marginBottom: '20px',
+                        color: '#ef4444',
+                        fontSize: '12px',
+                        fontFamily: "'IBM Plex Mono', monospace"
+                      }}>
+                        {swapError}
+                      </div>
+                    )}
+
+                    {/* Success Display */}
+                    {swapSuccess && (
+                      <div style={{
+                        background: 'rgba(34, 197, 94, 0.1)',
+                        border: '1px solid #22c55e',
+                        padding: '16px',
+                        marginBottom: '20px'
+                      }}>
+                        <div style={{
+                          color: '#22c55e',
+                          fontSize: '14px',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          marginBottom: '8px',
+                          fontWeight: 600
+                        }}>
+                          SWAP SUCCESSFUL!
+                        </div>
+                        <a
+                          href={`https://solscan.io/tx/${swapSuccess}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            color: accentColor,
+                            fontSize: '11px',
+                            fontFamily: "'IBM Plex Mono', monospace"
+                          }}
+                        >
+                          View on Solscan →
+                        </a>
+                      </div>
+                    )}
+
+                    {/* No Token Address Warning */}
+                    {!culture.tokenAddress && (
+                      <div style={{
+                        background: 'rgba(234, 179, 8, 0.1)',
+                        border: '1px solid #eab308',
+                        padding: '12px 16px',
+                        marginBottom: '20px',
+                        color: '#eab308',
+                        fontSize: '12px',
+                        fontFamily: "'IBM Plex Mono', monospace"
+                      }}>
+                        This culture does not have a token address yet. Trading is unavailable.
+                      </div>
+                    )}
+
+                    {/* Action Buttons */}
                     <div style={{ display: 'flex', gap: '12px' }}>
                       <button
-                        onClick={() => { setShowJoinModal(false); setSelectedTier(null); setAgreedToTerms(false); }}
+                        onClick={() => {
+                          setShowJoinModal(false);
+                          setSwapAmount('');
+                          setSwapQuote(null);
+                          setSwapError(null);
+                          setSwapSuccess(null);
+                        }}
                         style={{
                           flex: 1,
                           padding: '14px',
@@ -4351,25 +4679,36 @@
                           cursor: 'pointer'
                         }}
                       >
-                        CANCEL
+                        CLOSE
                       </button>
                       <button
-                        onClick={handleJoin}
-                        disabled={!selectedTier || !agreedToTerms}
+                        onClick={executeSwap}
+                        disabled={!swapQuote || swapLoading || !wallet?.address}
                         style={{
                           flex: 1,
                           padding: '14px',
-                          background: (selectedTier && agreedToTerms) ? accentColor : '#333',
-                          color: (selectedTier && agreedToTerms) ? '#000' : '#666',
+                          background: swapQuote && !swapLoading ? (swapMode === 'buy' ? '#22c55e' : '#ef4444') : '#333',
+                          color: swapQuote && !swapLoading ? (swapMode === 'buy' ? '#000' : '#fff') : '#666',
                           border: 'none',
                           fontSize: '12px',
                           fontFamily: "'IBM Plex Mono', monospace",
                           letterSpacing: '0.1em',
-                          cursor: (selectedTier && agreedToTerms) ? 'pointer' : 'not-allowed'
+                          cursor: (!swapQuote || swapLoading || !wallet?.address) ? 'not-allowed' : 'pointer'
                         }}
                       >
-                        {wallet?.address ? 'ENTER THE CULTURE' : 'CONNECT WALLET'}
+                        {!wallet?.address ? 'CONNECT WALLET' : swapLoading ? 'PROCESSING...' : swapMode === 'buy' ? 'BUY NOW' : 'SELL NOW'}
                       </button>
+                    </div>
+
+                    {/* Powered by Jupiter */}
+                    <div style={{
+                      textAlign: 'center',
+                      marginTop: '16px',
+                      fontSize: '10px',
+                      color: '#444',
+                      fontFamily: "'IBM Plex Mono', monospace"
+                    }}>
+                      Powered by Jupiter Aggregator
                     </div>
                   </div>
                 </div>
@@ -5383,97 +5722,94 @@
             setPosts(prev => prev.filter(p => p.authorWallet !== walletToBlock));
           };
 
-          // Load posts from SERVER + localStorage fallback
-          useEffect(() => {
-            const loadPosts = async () => {
-              try {
-                // Try server first (single source of truth for shared posts)
-                const apiRes = await fetch('/api/posts?limit=200');
-                if (!apiRes.ok) throw new Error(`HTTP ${apiRes.status}`);
-                const apiData = await apiRes.json();
-                console.log('[FEED] Server returned', apiData.posts?.length || 0, 'posts');
+          // Load posts function - can be called by Refresh button
+          const loadPosts = async () => {
+            setLoading(true);
+            try {
+              // Try server first (single source of truth for shared posts)
+              const apiRes = await fetch('/api/posts?limit=200');
+              if (!apiRes.ok) throw new Error(`HTTP ${apiRes.status}`);
+              const apiData = await apiRes.json();
+              console.log('[FEED] Server returned', apiData.posts?.length || 0, 'posts');
 
-                let allPosts = [];
+              let allPosts = [];
 
-                if (apiData.success && apiData.posts && apiData.posts.length > 0) {
-                  const serverPosts = apiData.posts.map(p => {
-                    const wallet = p.authorWallet || p.author_wallet || '';
-                    // Get display name - check server first, then try to enrich from localStorage
-                    let name = p.authorName || p.author_name || p.display_name;
-                    let pfp = p.authorPfp || p.author_pfp || p.authorAvatar || p.pfp;
+              if (apiData.success && apiData.posts && apiData.posts.length > 0) {
+                const serverPosts = apiData.posts.map(p => {
+                  const wallet = p.authorWallet || p.author_wallet || '';
+                  let name = p.authorName || p.author_name || p.display_name;
+                  let pfp = p.authorPfp || p.author_pfp || p.authorAvatar || p.pfp;
 
-                    // If no name from server, try localStorage profile
-                    if (!name && wallet) {
-                      try {
-                        const profile = JSON.parse(localStorage.getItem('creator_profile_' + wallet) || 'null');
-                        if (profile?.displayName) {
-                          name = profile.displayName;
-                          pfp = profile.pfp || pfp;
-                        }
-                      } catch (e) {}
-                    }
-
-                    // Final fallback to truncated wallet
-                    if (!name) {
-                      name = wallet ? wallet.slice(0, 6) + '...' + wallet.slice(-4) : 'Anonymous';
-                    }
-
-                    return {
-                      id: p.id,
-                      authorWallet: wallet,
-                      authorName: name,
-                      authorPfp: pfp,
-                      content: p.content,
-                      media: p.mediaUrl ? [p.mediaUrl] : (p.media_urls ? JSON.parse(p.media_urls) : []),
-                      likes: Array.isArray(p.likes) ? p.likes : (p.liked_by ? JSON.parse(p.liked_by) : []),
-                      reposts: p.reposts || 0,
-                      repostedBy: Array.isArray(p.repostedBy) ? p.repostedBy : (p.reposted_by ? JSON.parse(p.reposted_by) : []),
-                      comments: p.comments || [],
-                      createdAt: p.createdAt || p.created_at,
-                      cultureId: p.cultureId || p.culture_id
-                    };
-                  });
-                  allPosts = serverPosts;
-                }
-
-                // Also check localStorage for any posts (backward compat + offline posts)
-                try {
-                  const localPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
-                  if (localPosts.length > 0) {
-                    console.log('[FEED] Found', localPosts.length, 'posts in localStorage');
-                    // Merge: add local posts that aren't already in server posts
-                    const serverIds = new Set(allPosts.map(p => String(p.id)));
-                    const newLocalPosts = localPosts.filter(p => !serverIds.has(String(p.id)));
-                    allPosts = [...allPosts, ...newLocalPosts];
+                  if (!name && wallet) {
+                    try {
+                      const profile = JSON.parse(localStorage.getItem('creator_profile_' + wallet) || 'null');
+                      if (profile?.displayName) {
+                        name = profile.displayName;
+                        pfp = profile.pfp || pfp;
+                      }
+                    } catch (e) {}
                   }
-                } catch (e) {
-                  console.error('[FEED] localStorage parse error:', e);
-                }
 
-                // Filter out blocked users
-                const blocked = JSON.parse(localStorage.getItem('blocked_users') || '[]');
-                const filteredPosts = allPosts.filter(p => !blocked.includes(p.authorWallet));
-
-                // Sort by newest first
-                filteredPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-                console.log('[FEED] Displaying', filteredPosts.length, 'total posts');
-                setPosts(filteredPosts);
-              } catch (e) {
-                console.error('[FEED] Error loading posts:', e);
-                // On error, try localStorage only
-                try {
-                  const localPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
-                  if (localPosts.length > 0) {
-                    console.log('[FEED] Fallback to localStorage:', localPosts.length, 'posts');
-                    setPosts(localPosts);
+                  if (!name) {
+                    name = wallet ? wallet.slice(0, 6) + '...' + wallet.slice(-4) : 'Anonymous';
                   }
-                } catch (le) {}
-              } finally {
-                setLoading(false);
+
+                  return {
+                    id: p.id,
+                    authorWallet: wallet,
+                    authorName: name,
+                    authorPfp: pfp,
+                    content: p.content,
+                    media: p.mediaUrl ? [p.mediaUrl] : (p.media_urls ? JSON.parse(p.media_urls) : []),
+                    likes: Array.isArray(p.likes) ? p.likes : (p.liked_by ? JSON.parse(p.liked_by) : []),
+                    reposts: p.reposts || 0,
+                    repostedBy: Array.isArray(p.repostedBy) ? p.repostedBy : (p.reposted_by ? JSON.parse(p.reposted_by) : []),
+                    comments: p.comments || [],
+                    createdAt: p.createdAt || p.created_at,
+                    cultureId: p.cultureId || p.culture_id
+                  };
+                });
+                allPosts = serverPosts;
               }
-            };
+
+              // Also check localStorage for any posts (backward compat + offline posts)
+              try {
+                const localPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
+                if (localPosts.length > 0) {
+                  console.log('[FEED] Found', localPosts.length, 'posts in localStorage');
+                  const serverIds = new Set(allPosts.map(p => String(p.id)));
+                  const newLocalPosts = localPosts.filter(p => !serverIds.has(String(p.id)));
+                  allPosts = [...allPosts, ...newLocalPosts];
+                }
+              } catch (e) {
+                console.error('[FEED] localStorage parse error:', e);
+              }
+
+              // Filter out blocked users
+              const blocked = JSON.parse(localStorage.getItem('blocked_users') || '[]');
+              const filteredPosts = allPosts.filter(p => !blocked.includes(p.authorWallet));
+
+              // Sort by newest first
+              filteredPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+              console.log('[FEED] Displaying', filteredPosts.length, 'total posts');
+              setPosts(filteredPosts);
+            } catch (e) {
+              console.error('[FEED] Error loading posts:', e);
+              try {
+                const localPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
+                if (localPosts.length > 0) {
+                  console.log('[FEED] Fallback to localStorage:', localPosts.length, 'posts');
+                  setPosts(localPosts);
+                }
+              } catch (le) {}
+            } finally {
+              setLoading(false);
+            }
+          };
+
+          // Load posts on mount and refresh every 15 seconds
+          useEffect(() => {
             loadPosts();
-            // Refresh every 15 seconds for real-time feel
             const interval = setInterval(loadPosts, 15000);
             return () => clearInterval(interval);
           }, []);
@@ -5713,19 +6049,21 @@
                     </span>
                   </div>
                   <button
-                    onClick={() => window.location.reload()}
+                    onClick={() => loadPosts()}
+                    disabled={loading}
                     style={{
                       background: 'none',
                       border: `1px solid ${colors.border}`,
-                      color: colors.textMuted,
+                      color: loading ? colors.accent : colors.textMuted,
                       fontSize: '10px',
                       fontFamily: "'IBM Plex Mono', monospace",
                       letterSpacing: '0.1em',
                       padding: '6px 12px',
-                      cursor: 'pointer'
+                      cursor: loading ? 'wait' : 'pointer',
+                      opacity: loading ? 0.7 : 1
                     }}
                   >
-                    REFRESH
+                    {loading ? 'LOADING...' : 'REFRESH'}
                   </button>
                 </div>
 

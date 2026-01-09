@@ -4538,6 +4538,157 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // JUPITER SWAP API - Buy/Sell tokens via Jupiter aggregator
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    const SOL_MINT = 'So11111111111111111111111111111111111111112';
+
+    // API: Get swap quote
+    if (url.pathname === '/api/swap/quote' && req.method === 'GET') {
+        try {
+            const inputMint = url.searchParams.get('inputMint');
+            const outputMint = url.searchParams.get('outputMint');
+            const amount = url.searchParams.get('amount');
+            const slippageBps = url.searchParams.get('slippageBps') || '500';
+
+            if (!inputMint || !outputMint || !amount) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'inputMint, outputMint, and amount required' }));
+                return;
+            }
+
+            log(`[SWAP] Quote: ${inputMint.slice(0,8)}... → ${outputMint.slice(0,8)}... amount=${amount}`);
+
+            // Use Jupiter lite-api (no API key needed)
+            const quoteUrl = `https://lite-api.jup.ag/swap/v1/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=${slippageBps}`;
+            const quoteRes = await fetch(quoteUrl);
+
+            if (!quoteRes.ok) {
+                const errText = await quoteRes.text();
+                throw new Error(`Jupiter quote failed: ${quoteRes.status} - ${errText.slice(0, 200)}`);
+            }
+
+            const quote = await quoteRes.json();
+            log(`[SWAP] Quote received: out=${quote.outAmount}, price impact=${quote.priceImpactPct}%`);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, quote }));
+        } catch (e) {
+            log(`[SWAP] Quote error: ${e.message}`);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Build swap transaction (returns unsigned tx for client to sign)
+    if (url.pathname === '/api/swap/build' && req.method === 'POST') {
+        try {
+            const body = await parseBody(req);
+            const { quote, userPublicKey } = body;
+
+            if (!quote || !userPublicKey) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'quote and userPublicKey required' }));
+                return;
+            }
+
+            log(`[SWAP] Building tx for ${userPublicKey.slice(0,8)}...`);
+
+            // Get swap transaction from Jupiter
+            const swapRes = await fetch('https://lite-api.jup.ag/swap/v1/swap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    quoteResponse: quote,
+                    userPublicKey: userPublicKey,
+                    wrapAndUnwrapSol: true,
+                    dynamicComputeUnitLimit: true,
+                    prioritizationFeeLamports: 'auto'
+                })
+            });
+
+            if (!swapRes.ok) {
+                const errText = await swapRes.text();
+                throw new Error(`Jupiter swap build failed: ${swapRes.status} - ${errText.slice(0, 200)}`);
+            }
+
+            const swapData = await swapRes.json();
+            log(`[SWAP] Transaction built successfully`);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                swapTransaction: swapData.swapTransaction, // base64 encoded
+                lastValidBlockHeight: swapData.lastValidBlockHeight
+            }));
+        } catch (e) {
+            log(`[SWAP] Build error: ${e.message}`);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Execute signed swap transaction
+    if (url.pathname === '/api/swap/execute' && req.method === 'POST') {
+        try {
+            const body = await parseBody(req);
+            const { signedTransaction } = body;
+
+            if (!signedTransaction) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'signedTransaction required' }));
+                return;
+            }
+
+            log(`[SWAP] Executing signed transaction...`);
+
+            const { Connection, VersionedTransaction } = require('@solana/web3.js');
+            const connection = new Connection(PRODUCTION_CONFIG.HELIUS_RPC, 'confirmed');
+
+            // Decode and send the signed transaction
+            const txBuffer = Buffer.from(signedTransaction, 'base64');
+            const tx = VersionedTransaction.deserialize(txBuffer);
+
+            // Send with skipPreflight for faster landing
+            const signature = await connection.sendRawTransaction(tx.serialize(), {
+                skipPreflight: true,
+                maxRetries: 3,
+                preflightCommitment: 'confirmed'
+            });
+
+            log(`[SWAP] Transaction sent: ${signature}`);
+
+            // Wait for confirmation (with timeout)
+            const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+            const confirmation = await connection.confirmTransaction({
+                signature,
+                blockhash,
+                lastValidBlockHeight
+            }, 'confirmed');
+
+            if (confirmation.value.err) {
+                throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+            }
+
+            log(`[SWAP] ✓ Confirmed: ${signature}`);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                signature,
+                confirmed: true
+            }));
+        } catch (e) {
+            log(`[SWAP] Execute error: ${e.message}`);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // TOKEN OWNERSHIP VERIFICATION - Uses Helius DAS API (CIA-Level)
     // Verifies if wallet is creator/authority of a token before allowing edits
     // ═══════════════════════════════════════════════════════════════════════════
@@ -5715,15 +5866,18 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     // API: Create a new post
     if (url.pathname === '/api/posts' && req.method === 'POST') {
         const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        console.log('[POSTS] POST request received from:', clientIP);
         try {
             // Rate limit check
             if (!rateLimiter.checkLimit(clientIP, 'post')) {
+                console.log('[POSTS] Rate limited:', clientIP);
                 res.writeHead(429, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: false, error: 'Rate limit exceeded. Please wait before posting again.' }));
                 return;
             }
 
             const body = await parseBody(req, 100 * 1024); // 100KB max for post data
+            console.log('[POSTS] Received body:', JSON.stringify(body).slice(0, 200));
             const { authorWallet, cultureId, content, mediaUrls } = body;
 
             if (!authorWallet || !content) {
@@ -5758,7 +5912,8 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: true, post }));
         } catch (e) {
-            console.error('[POSTS] Create error:', e);
+            console.error('[POSTS] Create error:', e.message);
+            console.error('[POSTS] Stack:', e.stack?.slice(0, 500));
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: false, error: e.message }));
         }
