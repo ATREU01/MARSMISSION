@@ -3545,9 +3545,9 @@
                 throw new Error(errData.error || 'Failed to get quote');
               }
 
-              const quote = await quoteRes.json();
-              setSwapQuote(quote);
-              console.log('[SWAP] Quote received:', quote);
+              const data = await quoteRes.json();
+              setSwapQuote(data.quote);
+              console.log('[SWAP] Quote received:', data.quote);
             } catch (err) {
               console.error('[SWAP] Quote error:', err);
               setSwapError(err.message);
