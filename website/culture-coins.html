@@ -2134,50 +2134,9 @@
           { id: 'other', name: 'Other', description: 'Other categories' }
         ];
 
-        const AUCTIONS = [
-          {
-            id: 1,
-            cultureId: 1,
-            cultureName: "Quiet Capital",
-            title: "The Case for Doing Nothing",
-            description: "A framework for strategic patience in volatile markets. When inaction is the highest-conviction trade.",
-            type: "Essay",
-            minBid: 500,
-            currentBid: 2340,
-            bidCount: 12,
-            endsIn: "2h 14m",
-            burnOrReturn: "burn",
-            bidder: "0x8f2...a901"
-          },
-          {
-            id: 2,
-            cultureId: 1,
-            cultureName: "Quiet Capital",
-            title: "Q1 Thesis Review - Live Session",
-            description: "90-minute breakdown of positions, mistakes, and recalibrations. Unfiltered.",
-            type: "Live Session",
-            minBid: 1000,
-            currentBid: 4120,
-            bidCount: 8,
-            endsIn: "6h 42m",
-            burnOrReturn: "treasury",
-            bidder: "0x3c1...b234"
-          },
-          {
-            id: 3,
-            cultureId: 3,
-            cultureName: "Iron Protocol",
-            title: "12-Week Hypertrophy Block",
-            description: "Complete programming with progression schemes, deload protocols, and nutrition timing.",
-            type: "Program",
-            minBid: 250,
-            currentBid: 890,
-            bidCount: 23,
-            endsIn: "18h 03m",
-            burnOrReturn: "burn",
-            bidder: "0x7e4...c567"
-          }
-        ];
+        // Auctions - Currently empty until real auction system is built
+        // Connected to real cultures only (no fake placeholder data)
+        const AUCTIONS = [];
 
         // Navigation Component - Mobile Responsive with Hamburger Menu
         const Navigation = ({ view, setView, onMenuToggle, menuOpen }) => {
@@ -6253,18 +6212,98 @@
                 </div>
               </div>
 
-              <div
-                className="auction-grid"
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(380px, 1fr))',
-                  gap: isMobile ? '16px' : '24px'
-                }}
-              >
-                {filteredAuctions.map(auction => (
-                  <AuctionCard key={auction.id} auction={auction} lightMode={lightMode} />
-                ))}
-              </div>
+              {/* Show Coming Soon when no auctions */}
+              {filteredAuctions.length === 0 ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: isMobile ? '60px 20px' : '100px 40px',
+                  background: colors.cardBg,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: isMobile ? '12px' : '0'
+                }}>
+                  <div style={{
+                    fontSize: isMobile ? '48px' : '64px',
+                    marginBottom: '24px',
+                    opacity: 0.6
+                  }}>
+                    🔨
+                  </div>
+                  <h2 style={{
+                    fontFamily: "'Playfair Display', serif",
+                    fontSize: isMobile ? '24px' : '32px',
+                    color: colors.text,
+                    marginBottom: '16px',
+                    fontWeight: 400
+                  }}>
+                    Auctions Coming Soon
+                  </h2>
+                  <p style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: isMobile ? '13px' : '14px',
+                    color: colors.textMuted,
+                    maxWidth: '500px',
+                    margin: '0 auto 32px',
+                    lineHeight: 1.7
+                  }}>
+                    Culture creators will be able to auction exclusive content to their community.
+                    Winning bids are burned to strengthen the culture economy.
+                  </p>
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: isMobile ? 'column' : 'row',
+                    gap: '12px',
+                    justifyContent: 'center'
+                  }}>
+                    <a
+                      href="/culture-coins?view=discover"
+                      style={{
+                        padding: '14px 28px',
+                        background: colors.accent,
+                        color: '#fff',
+                        border: 'none',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: '12px',
+                        letterSpacing: '0.1em',
+                        cursor: 'pointer',
+                        textDecoration: 'none',
+                        textAlign: 'center'
+                      }}
+                    >
+                      EXPLORE CULTURES
+                    </a>
+                    <a
+                      href="/culture-coins?view=create"
+                      style={{
+                        padding: '14px 28px',
+                        background: 'transparent',
+                        color: colors.text,
+                        border: `1px solid ${colors.border}`,
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: '12px',
+                        letterSpacing: '0.1em',
+                        cursor: 'pointer',
+                        textDecoration: 'none',
+                        textAlign: 'center'
+                      }}
+                    >
+                      CREATE A CULTURE
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className="auction-grid"
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(380px, 1fr))',
+                    gap: isMobile ? '16px' : '24px'
+                  }}
+                >
+                  {filteredAuctions.map(auction => (
+                    <AuctionCard key={auction.id} auction={auction} lightMode={lightMode} />
+                  ))}
+                </div>
+              )}
             </div>
           );
         };
