@@ -5175,6 +5175,32 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             tokens.sort((a, b) => (b.volume24h || 0) - (a.volume24h || 0));
             tokens = tokens.slice(0, 20);
 
+            // ENRICH: Add holder counts via Jupiter API (same as dashboard)
+            // Batch fetch holders for all tokens in parallel
+            await Promise.all(tokens.map(async (token) => {
+                try {
+                    // Try Jupiter first (best for most tokens)
+                    const jupRes = await fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${token.mint}`);
+                    if (jupRes.ok) {
+                        const jupArr = await jupRes.json();
+                        const jupToken = Array.isArray(jupArr) ? jupArr.find(t => t.id === token.mint || t.address === token.mint) : null;
+                        if (jupToken?.holderCount > 0) {
+                            token.holders = jupToken.holderCount;
+                            return;
+                        }
+                    }
+                    // Fallback to GMGN
+                    const gmgnRes = await fetch(`https://gmgn.ai/defi/quotation/v1/tokens/sol/${token.mint}`);
+                    if (gmgnRes.ok) {
+                        const gmgnData = await gmgnRes.json();
+                        const holders = gmgnData?.data?.token?.holder_count || gmgnData?.data?.token?.holders || 0;
+                        if (holders > 0) token.holders = holders;
+                    }
+                } catch (e) {
+                    token.holders = 0;
+                }
+            }));
+
             // Cache result
             global.trendingCache[cacheKey] = { data: { success: true, tokens, count: tokens.length, source: HELIUS_KEY ? 'helius' : 'dexscreener' }, ts: Date.now() };
 
