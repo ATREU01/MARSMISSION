@@ -12479,11 +12479,56 @@
             return () => channel.close();
           }, []);
 
+          // Global sync function - syncs localStorage posts to server for ALL users
+          const syncLocalPostsToServer = async () => {
+            const localPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
+            const unsynced = localPosts.filter(p => !p.serverSynced && p.authorWallet && p.content);
+
+            if (unsynced.length === 0) {
+              console.log('[SYNC] No unsynced posts');
+              return;
+            }
+
+            console.log('[SYNC] Migrating', unsynced.length, 'posts to server...');
+            let synced = 0;
+
+            for (const post of unsynced) {
+              try {
+                const res = await fetch('/api/posts', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    authorWallet: post.authorWallet,
+                    cultureId: post.cultureId || null,
+                    content: post.content,
+                    mediaUrls: post.media || []
+                  })
+                });
+                const data = await res.json();
+                if (data.success) {
+                  post.serverSynced = true;
+                  synced++;
+                  console.log('[SYNC] ✓', post.content?.slice(0, 30));
+                }
+              } catch (e) {
+                console.error('[SYNC] ✗', e.message);
+              }
+            }
+
+            if (synced > 0) {
+              localStorage.setItem('culture_posts', JSON.stringify(localPosts));
+              console.log('[SYNC] Done:', synced, 'posts synced to server');
+            }
+          };
+
           const handleWalletConnected = async (address, type = 'privy') => {
             console.log('[WALLET] Connected:', address, 'type:', type);
             setWalletAddress(address);
             setWalletType(type);
             setShowWalletSelect(false);
+
+            // Sync any local posts to server
+            syncLocalPostsToServer();
 
             // Fetch balance
             try {
