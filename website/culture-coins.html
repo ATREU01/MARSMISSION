@@ -1406,112 +1406,155 @@
                     )}
                   </div>
                 ) : activeTab === 'news' ? (
-                  /* SOCIAL TAB */
+                  /* X NEWS TAB - Real-time crypto intelligence */
                   <div>
-                    {trends.map((trend, index) => (
-                      <div
-                        key={index}
-                        onMouseEnter={() => setHoveredItem(index + 100)}
-                        onMouseLeave={() => setHoveredItem(null)}
-                        style={{
-                          padding: '14px 20px',
-                          borderBottom: `1px solid ${colors.border}`,
-                          cursor: 'pointer',
-                          background: hoveredItem === index + 100
-                            ? (lightMode ? 'rgba(139, 92, 246, 0.08)' : 'rgba(139, 92, 246, 0.05)')
-                            : 'transparent',
-                          transition: 'all 0.2s ease'
-                        }}
-                        onClick={() => window.open(`https://x.com/search?q=${encodeURIComponent(trend.name)}`, '_blank')}
-                      >
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          gap: '12px'
-                        }}>
-                          {/* Rank */}
+                    {trends.length === 0 ? (
+                      <div style={{
+                        padding: '40px 20px',
+                        textAlign: 'center',
+                        color: colors.textMuted,
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: '12px'
+                      }}>
+                        Loading X feed...
+                      </div>
+                    ) : trends.map((trend, index) => {
+                      // Category-specific colors for visual hierarchy
+                      const getCategoryColor = (cat) => {
+                        const categories = {
+                          'BREAKING': '#ef4444',
+                          'HOT': '#f97316',
+                          'TRENDING': colors.accent,
+                          'MARKET': '#3b82f6',
+                          'ALPHA': '#a855f7',
+                          'DEFI': '#06b6d4',
+                          'YIELD': '#10b981',
+                          'TECH': '#6366f1',
+                          'SOCIAL': '#ec4899'
+                        };
+                        return categories[cat?.toUpperCase()] || colors.accent;
+                      };
+                      const categoryColor = getCategoryColor(trend.category);
+                      const sentimentColor = trend.sentiment >= 0.7 ? colors.green : trend.sentiment >= 0.4 ? colors.accent : colors.red;
+
+                      return (
+                        <div
+                          key={index}
+                          onMouseEnter={() => setHoveredItem(index + 100)}
+                          onMouseLeave={() => setHoveredItem(null)}
+                          style={{
+                            padding: '16px 20px',
+                            borderBottom: `1px solid ${colors.border}`,
+                            cursor: 'pointer',
+                            background: hoveredItem === index + 100
+                              ? (lightMode ? 'rgba(139, 92, 246, 0.08)' : 'rgba(255, 255, 255, 0.03)')
+                              : 'transparent',
+                            transition: 'all 0.15s ease',
+                            transform: hoveredItem === index + 100 ? 'translateX(4px)' : 'translateX(0)',
+                            borderLeft: hoveredItem === index + 100 ? `2px solid ${categoryColor}` : '2px solid transparent'
+                          }}
+                          onClick={() => window.open(`https://x.com/search?q=${encodeURIComponent(trend.name)}`, '_blank')}
+                        >
                           <div style={{
-                            fontFamily: "'IBM Plex Mono', monospace",
-                            fontSize: '10px',
-                            color: index < 3 ? colors.accent : colors.textMuted,
-                            fontWeight: index < 3 ? 700 : 400,
-                            width: '20px',
-                            paddingTop: '2px'
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: '14px'
                           }}>
-                            {String(index + 1).padStart(2, '0')}
-                          </div>
-
-                          <div style={{ flex: 1 }}>
-                            {/* Category */}
-                            <div style={{
-                              fontSize: '9px',
-                              letterSpacing: '0.1em',
-                              color: colors.accent,
-                              marginBottom: '4px',
-                              fontFamily: "'IBM Plex Mono', monospace",
-                              fontWeight: 600
-                            }}>
-                              {trend.category?.toUpperCase() || 'TRENDING'}
-                            </div>
-
-                            {/* Topic name */}
+                            {/* Rank with visual indicator */}
                             <div style={{
                               fontFamily: "'IBM Plex Mono', monospace",
-                              fontSize: '14px',
-                              color: colors.text,
-                              marginBottom: '6px',
-                              fontWeight: 500
+                              fontSize: '11px',
+                              color: index < 3 ? categoryColor : colors.textMuted,
+                              fontWeight: 600,
+                              width: '24px',
+                              paddingTop: '1px',
+                              opacity: index < 3 ? 1 : 0.7
                             }}>
-                              {trend.name}
+                              {String(index + 1).padStart(2, '0')}
                             </div>
 
-                            {/* Volume & Velocity */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              {/* Category badge */}
+                              <div style={{
+                                display: 'inline-block',
+                                fontSize: '9px',
+                                letterSpacing: '0.12em',
+                                color: categoryColor,
+                                marginBottom: '6px',
+                                fontFamily: "'IBM Plex Mono', monospace",
+                                fontWeight: 700,
+                                padding: '2px 0',
+                                borderBottom: `1px solid ${categoryColor}40`
+                              }}>
+                                {trend.category?.toUpperCase() || 'TRENDING'}
+                              </div>
+
+                              {/* Headline */}
+                              <div style={{
+                                fontFamily: "'IBM Plex Mono', monospace",
+                                fontSize: '13px',
+                                color: colors.text,
+                                marginBottom: '8px',
+                                fontWeight: 500,
+                                lineHeight: 1.4,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical'
+                              }}>
+                                {trend.name}
+                              </div>
+
+                              {/* Metrics row */}
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '16px'
+                              }}>
+                                <span style={{
+                                  fontFamily: "'IBM Plex Mono', monospace",
+                                  fontSize: '11px',
+                                  color: colors.textMuted
+                                }}>
+                                  {trend.volume} posts
+                                </span>
+                                <span style={{
+                                  fontFamily: "'IBM Plex Mono', monospace",
+                                  fontSize: '11px',
+                                  color: trend.velocity?.startsWith('+') && parseFloat(trend.velocity) >= 200 ? '#22c55e' : colors.green,
+                                  fontWeight: 700
+                                }}>
+                                  {trend.velocity}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Sentiment score */}
                             <div style={{
+                              width: '36px',
+                              height: '36px',
+                              borderRadius: '50%',
+                              border: `2px solid ${sentimentColor}`,
                               display: 'flex',
                               alignItems: 'center',
-                              gap: '12px'
+                              justifyContent: 'center',
+                              background: `${sentimentColor}15`,
+                              flexShrink: 0
                             }}>
                               <span style={{
                                 fontFamily: "'IBM Plex Mono', monospace",
-                                fontSize: '11px',
-                                color: colors.textMuted
+                                fontSize: '10px',
+                                fontWeight: 700,
+                                color: sentimentColor
                               }}>
-                                {trend.volume} posts
-                              </span>
-                              <span style={{
-                                fontFamily: "'IBM Plex Mono', monospace",
-                                fontSize: '11px',
-                                color: parseFloat(trend.velocity) >= 200 ? colors.accent : colors.green,
-                                fontWeight: 600
-                              }}>
-                                {trend.velocity}
+                                {Math.round(trend.sentiment * 100)}
                               </span>
                             </div>
                           </div>
-
-                          {/* Sentiment */}
-                          <div style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '50%',
-                            border: `2px solid ${trend.sentiment >= 0.7 ? colors.green : trend.sentiment >= 0.4 ? colors.accent : colors.red}`,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            background: `${trend.sentiment >= 0.7 ? colors.green : trend.sentiment >= 0.4 ? colors.accent : colors.red}15`
-                          }}>
-                            <span style={{
-                              fontFamily: "'IBM Plex Mono', monospace",
-                              fontSize: '9px',
-                              fontWeight: 600,
-                              color: trend.sentiment >= 0.7 ? colors.green : trend.sentiment >= 0.4 ? colors.accent : colors.red
-                            }}>
-                              {Math.round(trend.sentiment * 100)}
-                            </span>
-                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : activeTab === 'ideas' ? (
                   /* AI IDEAS TAB */

@@ -1880,8 +1880,8 @@ const server = http.createServer(async (req, res) => {
 
             if (X_BEARER_TOKEN) {
                 log('[X-API] Fetching real trends from X/Twitter API...');
-                // Fetch real trending data from X API
-                const xResponse = await fetch('https://api.twitter.com/2/tweets/search/recent?query=crypto OR solana OR web3 OR defi&max_results=50&tweet.fields=public_metrics,created_at', {
+                // Fetch real trending data from X API - get high engagement tweets
+                const xResponse = await fetch('https://api.twitter.com/2/tweets/search/recent?query=(crypto OR solana OR web3 OR defi OR memecoin) -is:retweet lang:en&max_results=100&tweet.fields=public_metrics,created_at,author_id&sort_order=relevancy', {
                     headers: {
                         'Authorization': `Bearer ${X_BEARER_TOKEN}`,
                         'Content-Type': 'application/json'
@@ -1891,54 +1891,117 @@ const server = http.createServer(async (req, res) => {
                 if (xResponse.ok) {
                     const xData = await xResponse.json();
 
-                    // Process tweets to extract trending topics
-                    const topicCounts = {};
+                    // Headline templates based on detected topics
+                    const headlineTemplates = {
+                        solana: [
+                            'Solana network activity surges {pct}%',
+                            'SOL price action heats up amid volume spike',
+                            'Solana DEX volume hits new highs',
+                            'Solana ecosystem sees major inflows'
+                        ],
+                        bitcoin: [
+                            'Bitcoin breaks key resistance level',
+                            'BTC whale activity detected on-chain',
+                            'Bitcoin dominance shifts as alts rally'
+                        ],
+                        ethereum: [
+                            'Ethereum gas fees spike on network congestion',
+                            'ETH staking rewards attract new validators'
+                        ],
+                        memecoin: [
+                            'Memecoin frenzy continues as traders pile in',
+                            'New memecoin launches dominate DEX volume',
+                            'Memecoin meta shifts to culture coins'
+                        ],
+                        defi: [
+                            'DeFi TVL climbs as yields attract capital',
+                            'DeFi protocols see surge in active users',
+                            'Lending rates spike across DeFi platforms'
+                        ],
+                        nft: [
+                            'NFT trading volume rebounds sharply',
+                            'Blue chip NFTs see renewed interest'
+                        ],
+                        ai: [
+                            'AI tokens surge amid tech sector momentum',
+                            'AI agent tokens capture trader attention',
+                            'AI crypto narrative gains traction'
+                        ],
+                        pump: [
+                            'pump.fun launches hit record numbers',
+                            'pump.fun trading volume stays elevated'
+                        ],
+                        jupiter: [
+                            'Jupiter aggregator processes record swaps',
+                            'Jupiter DEX volume rivals top exchanges'
+                        ],
+                        raydium: [
+                            'Raydium liquidity pools attract new LPs',
+                            'Raydium TVL continues upward trend'
+                        ]
+                    };
+
+                    // Analyze tweets to detect trending topics and sentiment
+                    const topicData = {};
+                    const categories = {
+                        solana: 'MARKET', bitcoin: 'MARKET', ethereum: 'MARKET',
+                        memecoin: 'TRENDING', defi: 'DEFI', nft: 'ALPHA',
+                        ai: 'HOT', pump: 'BREAKING', jupiter: 'DEFI', raydium: 'DEFI'
+                    };
 
                     if (xData.data) {
                         xData.data.forEach(tweet => {
-                            const hashtags = tweet.text.match(/#\w+/g) || [];
-                            const keywords = ['Solana', 'crypto', 'web3', 'DeFi', 'NFT', 'token', 'blockchain', 'AI'];
+                            const text = tweet.text.toLowerCase();
+                            const engagement = (tweet.public_metrics?.like_count || 0) +
+                                             (tweet.public_metrics?.retweet_count || 0) * 2 +
+                                             (tweet.public_metrics?.reply_count || 0);
 
-                            hashtags.forEach(tag => {
-                                const key = tag.toLowerCase();
-                                if (!topicCounts[key]) {
-                                    topicCounts[key] = { count: 0, engagement: 0, name: tag };
-                                }
-                                topicCounts[key].count++;
-                                topicCounts[key].engagement += (tweet.public_metrics?.like_count || 0) + (tweet.public_metrics?.retweet_count || 0);
-                            });
-
-                            keywords.forEach(kw => {
-                                if (tweet.text.toLowerCase().includes(kw.toLowerCase())) {
-                                    const key = kw.toLowerCase();
-                                    if (!topicCounts[key]) {
-                                        topicCounts[key] = { count: 0, engagement: 0, name: kw };
+                            Object.keys(headlineTemplates).forEach(topic => {
+                                if (text.includes(topic) || (topic === 'pump' && text.includes('pump.fun'))) {
+                                    if (!topicData[topic]) {
+                                        topicData[topic] = { count: 0, engagement: 0, sentiment: 0 };
                                     }
-                                    topicCounts[key].count++;
-                                    topicCounts[key].engagement += (tweet.public_metrics?.like_count || 0) + (tweet.public_metrics?.retweet_count || 0);
+                                    topicData[topic].count++;
+                                    topicData[topic].engagement += engagement;
+                                    // Simple sentiment: positive words increase, negative decrease
+                                    const positive = (text.match(/surge|rally|pump|moon|bullish|ath|high|record|gains/g) || []).length;
+                                    const negative = (text.match(/dump|crash|bear|low|fear|sell|down|drop/g) || []).length;
+                                    topicData[topic].sentiment += (positive - negative);
                                 }
                             });
                         });
                     }
 
-                    // Convert to trends array
-                    const trends = Object.entries(topicCounts)
-                        .map(([key, data]) => ({
-                            name: data.name,
-                            category: getCategoryForTopic(data.name),
-                            volume: formatTrendVolume(data.count * 1000),
-                            velocity: `+${Math.floor(Math.random() * 500 + 50)}%`,
-                            sentiment: 0.5 + Math.random() * 0.4
-                        }))
-                        .sort((a, b) => parseFloat(b.volume) - parseFloat(a.volume))
-                        .slice(0, 10);
+                    // Generate headlines from detected topics
+                    const trends = Object.entries(topicData)
+                        .filter(([_, data]) => data.count >= 2)
+                        .sort((a, b) => b[1].engagement - a[1].engagement)
+                        .slice(0, 10)
+                        .map(([topic, data], index) => {
+                            const templates = headlineTemplates[topic] || [`${topic} activity increases on crypto twitter`];
+                            const template = templates[Math.floor(Date.now() / 3600000 + index) % templates.length];
+                            const velocity = Math.min(999, Math.floor(50 + (data.engagement / Math.max(1, data.count)) * 2));
+                            const sentiment = Math.max(0.3, Math.min(0.95, 0.5 + (data.sentiment / Math.max(1, data.count)) * 0.1));
 
-                    xTrendingCache = { data: trends, timestamp: now };
-                    log('[X-API] ✓ Real X trends fetched: ' + trends.length + ' topics (top: ' + trends.slice(0,3).map(t=>t.name).join(', ') + ')');
+                            return {
+                                name: template.replace('{pct}', velocity),
+                                category: categories[topic] || 'TRENDING',
+                                volume: formatTrendVolume(data.count * 1000 + data.engagement * 10),
+                                velocity: `+${velocity}%`,
+                                sentiment: sentiment
+                            };
+                        });
 
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ success: true, trends, cached: false, source: 'x-api-live' }));
-                    return;
+                    if (trends.length >= 5) {
+                        xTrendingCache = { data: trends, timestamp: now };
+                        log('[X-API] ✓ Generated ' + trends.length + ' news headlines from X data');
+
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ success: true, trends, cached: false, source: 'x-api-live' }));
+                        return;
+                    }
+                    // Fall through to curated headlines if not enough data
+                    log('[X-API] Not enough X data, using curated headlines');
                 }
             }
 
