@@ -2400,18 +2400,26 @@
 
                   // Enrich with REAL blockchain data via Helius DAS + DexScreener
                   const enriched = await Promise.all(allCultures.map(async (culture) => {
-                    if (!culture.tokenAddress) return culture;
+                    if (!culture.tokenAddress) {
+                      console.log(`[DISCOVER] ${culture.name} has no tokenAddress`);
+                      return culture;
+                    }
                     try {
                       // Use /api/token endpoint (Helius DAS + DexScreener + pump.fun combined)
                       const tokenRes = await fetch(`/api/token/${culture.tokenAddress}`);
                       if (tokenRes.ok) {
                         const tokenData = await tokenRes.json();
+                        console.log(`[DISCOVER] ${culture.name} token data:`, {
+                          holders: tokenData.holders,
+                          marketCap: tokenData.marketCap,
+                          tokenAddress: culture.tokenAddress.slice(0, 8) + '...'
+                        });
                         if (tokenData) {
                           return {
                             ...culture,
                             marketCap: tokenData.marketCap || 0,
                             volume: tokenData.volume || 0,
-                            holders: tokenData.holders || 1,
+                            holders: tokenData.holders || 0,
                             price: tokenData.price || 0,
                             liquidity: tokenData.liquidity || 0,
                             priceChange24h: tokenData.priceChange24h || 0
