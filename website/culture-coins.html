@@ -5731,14 +5731,17 @@
           };
 
           // Load posts function - can be called by Refresh button
-          const loadPosts = async () => {
-            setLoading(true);
+          // isBackground = true means don't show loading spinner (graceful sync)
+          const loadPosts = async (isBackground = false) => {
+            if (!isBackground) setLoading(true);
             try {
               // Try server first (single source of truth for shared posts)
               const apiRes = await fetch('/api/posts?limit=200');
               if (!apiRes.ok) throw new Error(`HTTP ${apiRes.status}`);
               const apiData = await apiRes.json();
-              console.log('[FEED] Server returned', apiData.posts?.length || 0, 'posts');
+              if (!isBackground) {
+                console.log('[FEED] Server returned', apiData.posts?.length || 0, 'posts');
+              }
 
               let allPosts = [];
 
@@ -5811,14 +5814,14 @@
                 }
               } catch (le) {}
             } finally {
-              setLoading(false);
+              if (!isBackground) setLoading(false);
             }
           };
 
-          // Load posts on mount and refresh every 15 seconds
+          // Load posts on mount (with loading) and background sync every 15 seconds (graceful)
           useEffect(() => {
-            loadPosts();
-            const interval = setInterval(loadPosts, 15000);
+            loadPosts(false); // Initial load shows loading spinner
+            const interval = setInterval(() => loadPosts(true), 15000); // Background syncs are silent
             return () => clearInterval(interval);
           }, []);
 
@@ -6057,7 +6060,7 @@
                     </span>
                   </div>
                   <button
-                    onClick={() => loadPosts()}
+                    onClick={() => loadPosts(false)}
                     disabled={loading}
                     style={{
                       background: 'none',
