@@ -3294,7 +3294,7 @@ Generate ideas that would make a crypto-native VC say "Why didn't I think of tha
                     'anthropic-version': '2023-06-01'
                 },
                 body: JSON.stringify({
-                    model: 'claude-3-5-sonnet-20241022',
+                    model: 'claude-3-haiku-20240307',  // Same model as TEK optimizer (works)
                     max_tokens: 2048,
                     messages: [{ role: 'user', content: prompt }]
                 })
