@@ -7088,7 +7088,8 @@
           // Sync localStorage posts to server (for migration)
           const syncLocalPostsToServer = async () => {
             const localPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
-            const unsynced = localPosts.filter(p => !p.serverSynced && p.authorWallet);
+            // Filter posts that have content and haven't been synced - handle legacy field names
+            const unsynced = localPosts.filter(p => !p.serverSynced && (p.authorWallet || p.author) && (p.content || p.text));
 
             if (unsynced.length === 0) {
               console.log('[SYNC] No unsynced posts to migrate');
@@ -7100,22 +7101,34 @@
 
             for (const post of unsynced) {
               try {
+                // Handle legacy field names: author vs authorWallet, text vs content
+                const authorWallet = post.authorWallet || post.author;
+                const content = post.content || post.text;
+
+                if (!authorWallet || !content) {
+                  console.warn('[SYNC] Skipping post without author/content');
+                  continue;
+                }
+
                 const res = await fetch('/api/posts', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
-                    authorWallet: post.authorWallet,
+                    authorWallet,
                     cultureId: post.cultureId || null,
-                    content: post.content,
-                    mediaUrls: post.media || []
+                    content,
+                    mediaUrls: post.media || post.mediaUrls || []
                   })
                 });
                 const data = await res.json();
                 if (data.success) {
                   post.serverSynced = true;
                   post.serverId = data.post?.id;
+                  // Normalize field names
+                  post.authorWallet = authorWallet;
+                  post.content = content;
                   synced++;
-                  console.log('[SYNC] ✓ Migrated post:', post.content?.slice(0, 30) + '...');
+                  console.log('[SYNC] ✓ Migrated post:', content?.slice(0, 30) + '...');
                 } else {
                   failed++;
                   console.error('[SYNC] ✗ Failed:', data.error);
