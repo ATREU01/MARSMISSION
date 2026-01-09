@@ -967,25 +967,31 @@
             };
 
             const fetchTrends = async () => {
+              // Fallback news data
+              const fallbackTrends = [
+                { name: 'Solana hits new ATH volume on DEXs', category: 'BREAKING', volume: '245K', velocity: '+892%', sentiment: 0.89 },
+                { name: 'pump.fun surpasses $500M in fees', category: 'MARKET', volume: '189K', velocity: '+567%', sentiment: 0.84 },
+                { name: 'BONK rallies 40% on whale accumulation', category: 'TRENDING', volume: '156K', velocity: '+445%', sentiment: 0.81 },
+                { name: 'AI agent tokens surge amid hype', category: 'HOT', volume: '134K', velocity: '+678%', sentiment: 0.78 },
+                { name: 'Jupiter DEX volume exceeds Uniswap', category: 'MARKET', volume: '98K', velocity: '+234%', sentiment: 0.72 },
+                { name: 'New memecoin meta: culture coins', category: 'ALPHA', volume: '87K', velocity: '+312%', sentiment: 0.76 },
+                { name: 'Raydium TVL crosses $2B milestone', category: 'DEFI', volume: '76K', velocity: '+156%', sentiment: 0.68 },
+                { name: 'Crypto Twitter buzzing on launches', category: 'SOCIAL', volume: '38K', velocity: '+398%', sentiment: 0.74 }
+              ];
+
               try {
                 const res = await fetch('/api/x/trending');
                 const data = await res.json();
-                if (data.success && data.trends) {
+                if (data.success && data.trends && data.trends.length > 0) {
                   setTrends(data.trends);
+                } else {
+                  // API returned empty or error - use fallback
+                  console.log('[TRENDS] API returned empty, using fallback news');
+                  setTrends(fallbackTrends);
                 }
               } catch (e) {
                 console.error('[TRENDS] Failed to fetch:', e);
-                // Fallback: Today's crypto news headlines
-                setTrends([
-                  { name: 'Solana hits new ATH volume on DEXs', category: 'BREAKING', volume: '245K', velocity: '+892%', sentiment: 0.89 },
-                  { name: 'pump.fun surpasses $500M in fees', category: 'MARKET', volume: '189K', velocity: '+567%', sentiment: 0.84 },
-                  { name: 'BONK rallies 40% on whale accumulation', category: 'TRENDING', volume: '156K', velocity: '+445%', sentiment: 0.81 },
-                  { name: 'AI agent tokens surge amid hype', category: 'HOT', volume: '134K', velocity: '+678%', sentiment: 0.78 },
-                  { name: 'Jupiter DEX volume exceeds Uniswap', category: 'MARKET', volume: '98K', velocity: '+234%', sentiment: 0.72 },
-                  { name: 'New memecoin meta: culture coins', category: 'ALPHA', volume: '87K', velocity: '+312%', sentiment: 0.76 },
-                  { name: 'Raydium TVL crosses $2B milestone', category: 'DEFI', volume: '76K', velocity: '+156%', sentiment: 0.68 },
-                  { name: 'Crypto Twitter buzzing on launches', category: 'SOCIAL', volume: '38K', velocity: '+398%', sentiment: 0.74 }
-                ]);
+                setTrends(fallbackTrends);
               }
             };
 
