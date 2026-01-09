@@ -676,7 +676,25 @@ async function updateTokenMetrics(tokenMint) {
         }
     } catch (e) {}
 
-    // 4b. GMGN (reliable for all tokens)
+    // 4b. Jupiter API (BEST for graduated tokens - same as working dashboard!)
+    if (freshHolders === 0) {
+        try {
+            const jupRes = await axios.get(`https://lite-api.jup.ag/tokens/v2/search?query=${tokenMint}`, {
+                timeout: 5000,
+                headers: { 'Accept': 'application/json' }
+            });
+            if (Array.isArray(jupRes.data)) {
+                const jupToken = jupRes.data.find(t => t.id === tokenMint || t.address === tokenMint);
+                if (jupToken?.holderCount > 0) {
+                    freshHolders = jupToken.holderCount;
+                    holderSource = 'Jupiter';
+                    console.log(`[TRACKER] Jupiter: ${token.symbol} has ${freshHolders} holders`);
+                }
+            }
+        } catch (e) {}
+    }
+
+    // 4c. GMGN (reliable for all tokens)
     if (freshHolders === 0) {
         try {
             const gmgnRes = await axios.get(`https://gmgn.ai/defi/quotation/v1/tokens/sol/${tokenMint}`, {
@@ -688,7 +706,7 @@ async function updateTokenMetrics(tokenMint) {
         } catch (e) {}
     }
 
-    // 4c. Birdeye API
+    // 4d. Birdeye API
     if (freshHolders === 0) {
         try {
             const birdRes = await axios.get(`https://public-api.birdeye.so/public/token_overview?address=${tokenMint}`, {
@@ -700,7 +718,7 @@ async function updateTokenMetrics(tokenMint) {
         } catch (e) {}
     }
 
-    // 4d. Solscan
+    // 4e. Solscan
     if (freshHolders === 0) {
         try {
             const solscanRes = await axios.get(`https://public-api.solscan.io/token/holders?tokenAddress=${tokenMint}&limit=1`, {
