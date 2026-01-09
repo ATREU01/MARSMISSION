@@ -5987,7 +5987,8 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
         console.log('[POSTS] POST request received from:', clientIP);
         try {
             // Rate limit check
-            if (!rateLimiter.checkLimit(clientIP, 'post')) {
+            const rateCheck = rateLimiter.check(clientIP, 'post');
+            if (!rateCheck.allowed) {
                 console.log('[POSTS] Rate limited:', clientIP);
                 res.writeHead(429, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: false, error: 'Rate limit exceeded. Please wait before posting again.' }));
@@ -6194,7 +6195,8 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     if (url.pathname.match(/^\/api\/posts\/\d+\/comment$/) && req.method === 'POST') {
         const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
         try {
-            if (!rateLimiter.checkLimit(clientIP, 'post')) {
+            const rateCheck = rateLimiter.check(clientIP, 'post');
+            if (!rateCheck.allowed) {
                 res.writeHead(429, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: false, error: 'Rate limit exceeded' }));
                 return;
@@ -6289,7 +6291,8 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     if (url.pathname === '/api/media/upload' && req.method === 'POST') {
         const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
         try {
-            if (!rateLimiter.checkLimit(clientIP, 'upload')) {
+            const rateCheck = rateLimiter.check(clientIP, 'upload');
+            if (!rateCheck.allowed) {
                 res.writeHead(429, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: false, error: 'Upload rate limit exceeded. Please wait.' }));
                 return;
