@@ -2341,7 +2341,7 @@
         };
 
         // Discovery View
-        const DiscoveryView = ({ onSelectCulture }) => {
+        const DiscoveryView = ({ onSelectCulture, lightMode, setLightMode }) => {
           const [selectedCategory, setSelectedCategory] = useState(null);
           const [cultures, setCultures] = useState(CULTURES);
           const [loading, setLoading] = useState(true);
@@ -2359,12 +2359,6 @@
             window.addEventListener('resize', handleResize);
             return () => window.removeEventListener('resize', handleResize);
           }, []);
-
-          // Light/Dark Mode State (synced with localStorage)
-          const [lightMode, setLightMode] = useState(() => {
-            try { return JSON.parse(localStorage.getItem('lightMode') || 'false'); }
-            catch { return false; }
-          });
 
           // Colors based on light/dark mode
           const colors = lightMode ? {
@@ -5345,16 +5339,10 @@
         };
 
         // Community Feed View - Shows all posts from all creators
-        const FeedView = ({ onSelectCulture }) => {
+        const FeedView = ({ onSelectCulture, lightMode, setLightMode }) => {
           const wallet = useContext(WalletContext);
           const [posts, setPosts] = useState([]);
           const [loading, setLoading] = useState(true);
-
-          // Light/Dark Mode State (synced with localStorage)
-          const [lightMode, setLightMode] = useState(() => {
-            try { return JSON.parse(localStorage.getItem('lightMode') || 'false'); }
-            catch { return false; }
-          });
 
           // Colors based on light/dark mode
           const colors = lightMode ? {
@@ -5776,9 +5764,32 @@
         };
 
         // Auctions View - Mobile Responsive
-        const AuctionsView = () => {
+        const AuctionsView = ({ lightMode, setLightMode }) => {
           const { isMobile } = useMobile();
           const [searchQuery, setSearchQuery] = useState('');
+
+          // Colors based on light/dark mode
+          const colors = lightMode ? {
+            bg: '#fafafa',
+            cardBg: '#ffffff',
+            border: '#e5e5e5',
+            text: '#171717',
+            textSecondary: '#404040',
+            textMuted: '#737373',
+            accent: '#8b5cf6',
+            inputBg: '#ffffff',
+            inputBorder: '#d4d4d4'
+          } : {
+            bg: '#0a0a0a',
+            cardBg: '#0f0f0f',
+            border: '#1a1a1a',
+            text: '#ffffff',
+            textSecondary: '#a0a0a0',
+            textMuted: '#666666',
+            accent: '#8b5cf6',
+            inputBg: '#111111',
+            inputBorder: '#333333'
+          };
 
           // Filter auctions by culture name, title, or type
           const filteredAuctions = AUCTIONS.filter(auction => {
@@ -5793,7 +5804,32 @@
           });
 
           return (
-            <div style={{ padding: isMobile ? '110px 16px 80px' : '136px 40px 60px' }}>
+            <div style={{ padding: isMobile ? '110px 16px 80px' : '136px 40px 60px', background: colors.bg, minHeight: '100vh', transition: 'all 0.3s ease' }}>
+              {/* Light/Dark Mode Toggle */}
+              <button
+                onClick={() => setLightMode(!lightMode)}
+                style={{
+                  position: 'fixed',
+                  top: isMobile ? '104px' : '100px',
+                  right: isMobile ? '16px' : '40px',
+                  zIndex: 100,
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  background: lightMode ? '#1a1a1a' : '#ffffff',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
+                  transition: 'all 0.3s'
+                }}
+                title={lightMode ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+              >
+                <span style={{ fontSize: '20px' }}>{lightMode ? '🌙' : '☀️'}</span>
+              </button>
+
               <div style={{ marginBottom: isMobile ? '32px' : '48px' }}>
                 <h1
                   className="page-title"
@@ -5801,7 +5837,7 @@
                     fontFamily: "'Playfair Display', serif",
                     fontSize: isMobile ? '32px' : '48px',
                     fontWeight: 400,
-                    color: '#fff',
+                    color: colors.text,
                     marginBottom: '16px'
                   }}
                 >
@@ -5810,7 +5846,7 @@
                 <p style={{
                   fontFamily: "'IBM Plex Mono', monospace",
                   fontSize: isMobile ? '13px' : '14px',
-                  color: '#888',
+                  color: colors.textMuted,
                   maxWidth: '600px',
                   lineHeight: 1.7
                 }}>
@@ -5824,12 +5860,12 @@
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
-                  background: '#0f0f0f',
-                  border: '1px solid #222',
+                  background: colors.inputBg,
+                  border: `1px solid ${colors.inputBorder}`,
                   padding: '0 16px',
                   borderRadius: isMobile ? '8px' : '0'
                 }}>
-                  <span style={{ color: '#666', marginRight: '12px', fontSize: '14px' }}>⌕</span>
+                  <span style={{ color: colors.textMuted, marginRight: '12px', fontSize: '14px' }}>⌕</span>
                   <input
                     type="text"
                     placeholder={isMobile ? "Search auctions..." : "Search by culture name, title, or type..."}
@@ -5841,7 +5877,7 @@
                       background: 'transparent',
                       border: 'none',
                       outline: 'none',
-                      color: '#fff',
+                      color: colors.text,
                       fontSize: isMobile ? '16px' : '13px',
                       fontFamily: "'IBM Plex Mono', monospace"
                     }}
@@ -5852,7 +5888,7 @@
                       style={{
                         background: 'transparent',
                         border: 'none',
-                        color: '#666',
+                        color: colors.textMuted,
                         cursor: 'pointer',
                         fontSize: '18px',
                         padding: '8px',
@@ -5875,7 +5911,7 @@
                 }}
               >
                 {filteredAuctions.map(auction => (
-                  <AuctionCard key={auction.id} auction={auction} />
+                  <AuctionCard key={auction.id} auction={auction} lightMode={lightMode} />
                 ))}
               </div>
             </div>
@@ -5883,7 +5919,7 @@
         };
 
         // Dashboard View - Shows cultures you CREATED (as owner) + Social Hub - Mobile Responsive
-        const DashboardView = () => {
+        const DashboardView = ({ lightMode, setLightMode }) => {
           const wallet = useContext(WalletContext);
           const { isMobile, isTablet } = useMobile();
           const [myCultures, setMyCultures] = useState([]);
@@ -5894,12 +5930,6 @@
           const [chartHeight, setChartHeight] = useState(400);
           const [activeTab, setActiveTab] = useState('overview'); // overview, posts, cultures, settings
           const [toolsExpanded, setToolsExpanded] = useState(true); // Collapsible tools section
-
-          // Light/Dark Mode State
-          const [lightMode, setLightMode] = useState(() => {
-            try { return JSON.parse(localStorage.getItem('lightMode') || 'false'); }
-            catch { return false; }
-          });
 
           // TEK Integration State
           const [tekAllocations, setTekAllocations] = useState({
@@ -9062,7 +9092,7 @@
         };
 
         // Create Culture Page - Manifesto Style (also handles Edit mode)
-        const CreateCulturePage = ({ editMode = false }) => {
+        const CreateCulturePage = ({ editMode = false, lightMode, setLightMode }) => {
           const { isMobile, isTablet } = useMobile();
           const wallet = useContext(WalletContext);
           const [editCultureId, setEditCultureId] = useState(null);
@@ -9169,13 +9199,6 @@
             { id: 'food', name: 'Food & Drink' },
             { id: 'other', name: 'Other' }
           ];
-
-          // Light/Dark mode
-          const [lightMode, setLightMode] = useState(() => {
-            try {
-              return JSON.parse(localStorage.getItem('lightMode') || 'false');
-            } catch { return false; }
-          });
 
           // Vanity Address Mining
           const [vanitySuffix, setVanitySuffix] = useState('');
@@ -12911,18 +12934,18 @@
                   className="main-content"
                   style={{ marginLeft: isMobile ? 0 : '200px' }}
                 >
-                  {view === 'discover' && <DiscoveryView onSelectCulture={handleSelectCulture} />}
-                  {view === 'feed' && <FeedView onSelectCulture={handleSelectCulture} />}
-                  {view === 'create' && <CreateCulturePage />}
-                  {view === 'edit' && <CreateCulturePage editMode={true} />}
+                  {view === 'discover' && <DiscoveryView onSelectCulture={handleSelectCulture} lightMode={lightMode} setLightMode={(v) => { setLightMode(v); localStorage.setItem('lightMode', JSON.stringify(v)); }} />}
+                  {view === 'feed' && <FeedView onSelectCulture={handleSelectCulture} lightMode={lightMode} setLightMode={(v) => { setLightMode(v); localStorage.setItem('lightMode', JSON.stringify(v)); }} />}
+                  {view === 'create' && <CreateCulturePage lightMode={lightMode} setLightMode={(v) => { setLightMode(v); localStorage.setItem('lightMode', JSON.stringify(v)); }} />}
+                  {view === 'edit' && <CreateCulturePage editMode={true} lightMode={lightMode} setLightMode={(v) => { setLightMode(v); localStorage.setItem('lightMode', JSON.stringify(v)); }} />}
                   {view === 'culture' && selectedCulture && (
                     <CulturePage
                       culture={selectedCulture}
                       onBack={() => { setView('discover'); setSelectedCulture(null); }}
                     />
                   )}
-                  {view === 'auctions' && <AuctionsView />}
-                  {view === 'dashboard' && <DashboardView />}
+                  {view === 'auctions' && <AuctionsView lightMode={lightMode} setLightMode={(v) => { setLightMode(v); localStorage.setItem('lightMode', JSON.stringify(v)); }} />}
+                  {view === 'dashboard' && <DashboardView lightMode={lightMode} setLightMode={(v) => { setLightMode(v); localStorage.setItem('lightMode', JSON.stringify(v)); }} />}
                 </div>
 
                 {/* Modals */}
