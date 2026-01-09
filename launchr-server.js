@@ -3062,6 +3062,53 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    // API: Test Claude API Key - simple test to verify key works
+    if (url.pathname === '/api/ai/test' && req.method === 'GET') {
+        try {
+            const apiKey = process.env.CLAUDE_API_KEY;
+            if (!apiKey) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'CLAUDE_API_KEY not set' }));
+                return;
+            }
+
+            log('Testing Claude API key (length=' + apiKey.length + ', prefix=' + apiKey.slice(0, 10) + '...)');
+
+            const response = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey,
+                    'anthropic-version': '2023-06-01'
+                },
+                body: JSON.stringify({
+                    model: 'claude-3-haiku-20240307',
+                    max_tokens: 10,
+                    messages: [{ role: 'user', content: 'Say OK' }]
+                })
+            });
+
+            if (!response.ok) {
+                const errBody = await response.text();
+                log('Claude API test FAILED: ' + response.status + ' - ' + errBody);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, status: response.status, error: errBody }));
+                return;
+            }
+
+            const result = await response.json();
+            log('Claude API test SUCCESS: ' + result.content?.[0]?.text);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, response: result.content?.[0]?.text }));
+            return;
+        } catch (error) {
+            log('Claude API test error: ' + error.message);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: error.message }));
+            return;
+        }
+    }
+
     // API: Smart Optimizer - Optimize allocations using AI (no auth - just AI suggestions)
     if (url.pathname === '/api/ai/optimize' && req.method === 'POST') {
         try {
