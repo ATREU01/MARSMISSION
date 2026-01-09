@@ -3161,14 +3161,18 @@ The 4 percentages MUST sum to exactly 100.`;
             }
             log('AI Ideas: API key found, length=' + apiKey.length);
 
-            // Format trending data with rich context
-            const tokenContext = (trendingTokens || []).slice(0, 8).map(t =>
-                `• ${t.name} ($${t.symbol}) - MC: $${((t.marketCap || 0) / 1000000).toFixed(2)}M, 24h: ${t.priceChange > 0 ? '+' : ''}${(t.priceChange || 0).toFixed(1)}%, Volume: $${((t.volume || 0) / 1000).toFixed(0)}K`
-            ).join('\n');
+            // Format trending data with rich context (ensure numbers)
+            const tokenContext = (trendingTokens || []).slice(0, 8).map(t => {
+                const mc = parseFloat(t.marketCap) || 0;
+                const change = parseFloat(t.priceChange) || 0;
+                const vol = parseFloat(t.volume) || 0;
+                return `• ${t.name || 'Unknown'} ($${t.symbol || '???'}) - MC: $${(mc / 1000000).toFixed(2)}M, 24h: ${change >= 0 ? '+' : ''}${change.toFixed(1)}%, Volume: $${(vol / 1000).toFixed(0)}K`;
+            }).join('\n');
 
-            const newsContext = (trendingNews || []).slice(0, 8).map(t =>
-                `• "${t.name}" - ${t.volume || 'N/A'} mentions, sentiment: ${Math.round((t.sentiment || 0.5) * 100)}% positive`
-            ).join('\n');
+            const newsContext = (trendingNews || []).slice(0, 8).map(t => {
+                const sent = parseFloat(t.sentiment) || 0.5;
+                return `• "${t.name || 'Trend'}" - ${t.volume || 'N/A'} mentions, sentiment: ${Math.round(sent * 100)}% positive`;
+            }).join('\n');
 
             const currentDate = new Date().toISOString().split('T')[0];
 
