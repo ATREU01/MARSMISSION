@@ -6021,14 +6021,18 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             }
 
             // Handle media - support both mediaUrls array and single mediaUrl
-            const mediaUrl = Array.isArray(mediaUrls) && mediaUrls.length > 0 ? mediaUrls[0] : (mediaUrls || null);
+            let mediaUrl = Array.isArray(mediaUrls) && mediaUrls.length > 0 ? mediaUrls[0] : (mediaUrls || null);
+            // Ensure mediaUrl is a string
+            if (mediaUrl && typeof mediaUrl !== 'string') {
+                mediaUrl = mediaUrl.url || mediaUrl.src || String(mediaUrl) || null;
+            }
 
             const post = postDB.create({
                 authorWallet,
                 cultureId: cultureId || null,
                 content: content.trim().slice(0, 5000), // Max 5000 chars
                 mediaUrl: mediaUrl,
-                mediaType: mediaUrl ? (mediaUrl.match(/\.(mp4|webm|mov)$/i) ? 'video' : 'image') : null
+                mediaType: mediaUrl && typeof mediaUrl === 'string' ? (mediaUrl.match(/\.(mp4|webm|mov)$/i) ? 'video' : 'image') : null
             });
 
             console.log(`[POSTS] ✓ Created post ${post.id} by ${authorWallet.slice(0, 8)}... content: "${content.slice(0,30)}..."`);
