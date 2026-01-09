@@ -3120,10 +3120,13 @@ The 4 percentages MUST sum to exactly 100.`;
             });
 
             if (!response.ok) {
-                throw new Error('Claude API error: ' + response.status);
+                const errBody = await response.text();
+                log('Claude Optimizer API error: ' + response.status + ' - ' + errBody.slice(0, 500));
+                throw new Error('Claude API error: ' + response.status + ' - ' + errBody.slice(0, 200));
             }
 
             const result = await response.json();
+            log('Claude Optimizer response received');
             const content = result.content[0].text;
 
             // Parse the JSON response

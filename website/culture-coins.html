@@ -1035,26 +1035,28 @@
                 })
               });
 
-              if (res.ok) {
-                const data = await res.json();
-                if (data.success && data.ideas && data.ideas.length > 0) {
-                  console.log('[AI IDEAS] Claude generated', data.ideas.length, 'ideas');
-                  setAiIdeas(data.ideas);
-                  setIdeasLoading(false);
-                  return;
-                }
+              const data = await res.json();
+
+              if (res.ok && data.success && data.ideas && data.ideas.length > 0) {
+                console.log('[AI IDEAS] Claude generated', data.ideas.length, 'ideas');
+                setAiIdeas(data.ideas);
+                setIdeasLoading(false);
+                return;
               }
-              throw new Error('API response invalid');
+
+              // Server returned an error - show the actual error message
+              const errorMsg = data.error || 'API response invalid';
+              throw new Error(errorMsg);
             } catch (e) {
               console.log('[AI IDEAS] Claude API failed:', e.message);
-              // Show error state - don't generate fake ideas
+              // Show error state with actual error message
               setAiIdeas([{
                 name: 'AI Analysis Unavailable',
                 ticker: 'RETRY',
                 description: 'Unable to connect to AI analysis service. Click REGENERATE to try again.',
                 category: 'System',
                 confidence: 0,
-                reasoning: 'The AI service may be temporarily unavailable. Please try again in a moment.',
+                reasoning: e.message.includes('API key') ? 'The AI API key is not configured. Contact the admin.' : 'The AI service may be temporarily unavailable. Please try again in a moment.',
                 isError: true
               }]);
             }
