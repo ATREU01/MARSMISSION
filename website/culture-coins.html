@@ -12430,6 +12430,20 @@
             }
           }, []);
 
+          // Auto-sync localStorage posts on page load (for already connected users)
+          useEffect(() => {
+            // Run sync after a short delay to ensure wallet state is loaded
+            const timer = setTimeout(() => {
+              const localPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
+              const unsynced = localPosts.filter(p => !p.serverSynced && p.authorWallet && p.content);
+              if (unsynced.length > 0) {
+                console.log('[AUTO-SYNC] Found', unsynced.length, 'unsynced posts, syncing...');
+                syncLocalPostsToServer();
+              }
+            }, 2000);
+            return () => clearTimeout(timer);
+          }, []);
+
           // Handle Phantom mobile deep link return
           useEffect(() => {
             const checkPhantomReturn = async () => {
