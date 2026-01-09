@@ -6502,6 +6502,76 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
         return;
     }
 
+    // API: End/settle an auction (creator only, after auction expires)
+    if (url.pathname.match(/^\/api\/auctions\/[a-zA-Z0-9-]+\/settle$/) && req.method === 'POST') {
+        try {
+            const auctionId = url.pathname.split('/')[3];
+            const body = await parseBody(req);
+            const { creatorWallet, txSignature } = body;
+
+            const auction = auctionDB.getById(auctionId);
+            if (!auction) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Auction not found' }));
+                return;
+            }
+
+            if (auction.creator_wallet !== creatorWallet) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Only the creator can settle this auction' }));
+                return;
+            }
+
+            // Check if auction has ended
+            if (new Date(auction.ends_at) > new Date()) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Auction has not ended yet' }));
+                return;
+            }
+
+            const result = auctionDB.endAuction(auctionId, txSignature);
+
+            if (!result.success) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(result));
+                return;
+            }
+
+            // Log the outcome for tracking
+            console.log(`[AUCTIONS] Auction ${auctionId} settled - Winner: ${auction.highest_bidder || 'none'}, Amount: ${auction.current_bid} SOL, Outcome: ${auction.outcome}`);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                winner: auction.highest_bidder,
+                finalAmount: auction.current_bid,
+                outcome: auction.outcome,
+                message: auction.bid_count > 0
+                    ? `Auction settled! ${auction.current_bid} SOL ${auction.outcome === 'burn' ? 'will be burned' : 'sent to treasury'}`
+                    : 'Auction ended with no bids'
+            }));
+        } catch (e) {
+            console.error('[AUCTIONS] Settle error:', e.message);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Get expired auctions that need settlement (admin/cron)
+    if (url.pathname === '/api/auctions/expired' && req.method === 'GET') {
+        try {
+            const expired = auctionDB.getExpired();
+            console.log(`[AUCTIONS] Found ${expired.length} expired auctions needing settlement`);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, auctions: expired }));
+        } catch (e) {
+            console.error('[AUCTIONS] Get expired error:', e.message);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     // MEDIA UPLOAD API - File storage for images/videos
     // ═══════════════════════════════════════════════════════════════════════════

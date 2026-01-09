@@ -6246,6 +6246,39 @@
             }
           };
 
+          // Settle auction handler (for creators after auction ends)
+          const handleSettleAuction = async (auction) => {
+            if (!wallet?.address || wallet.address !== auction.creator_wallet) {
+              alert('Only the auction creator can settle this auction');
+              return;
+            }
+
+            if (auction.isActive) {
+              alert('Auction has not ended yet');
+              return;
+            }
+
+            try {
+              const res = await fetch(`/api/auctions/${auction.id}/settle`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  creatorWallet: wallet.address
+                })
+              });
+
+              const data = await res.json();
+              if (data.success) {
+                alert(data.message || 'Auction settled successfully!');
+                fetchAuctions();
+              } else {
+                alert(data.error || 'Failed to settle auction');
+              }
+            } catch (e) {
+              alert('Error settling auction: ' + e.message);
+            }
+          };
+
           // Filter auctions
           const filteredAuctions = auctions.filter(auction => {
             if (!searchQuery.trim()) return true;
@@ -6337,9 +6370,16 @@
                       <div style={{ background: lightMode ? '#f5f5f5' : '#0a0a0a', padding: '12px', marginBottom: '16px', fontSize: '11px', color: colors.textMuted, fontFamily: "'IBM Plex Mono', monospace" }}>
                         {auction.outcome === 'burn' ? 'Winning bid is burned to strengthen the culture economy.' : 'Winning bid returns to creator treasury for future rewards.'}
                       </div>
-                      <button onClick={() => { setSelectedAuction(auction); setBidAmount(((auction.current_bid || auction.min_bid || 0.1) + 0.1).toFixed(2)); setShowBidModal(true); }} disabled={!auction.isActive} style={{ width: '100%', padding: '14px', background: auction.isActive ? colors.accent : colors.border, color: auction.isActive ? '#fff' : colors.textMuted, border: 'none', fontFamily: "'IBM Plex Mono', monospace", fontSize: '12px', letterSpacing: '0.1em', cursor: auction.isActive ? 'pointer' : 'not-allowed' }}>
-                        {auction.isActive ? 'SIGNAL VALUE' : 'AUCTION ENDED'}
-                      </button>
+                      {/* Auction action button - shows different states based on auction status and user role */}
+                      {!auction.isActive && wallet?.address === auction.creator_wallet && auction.status === 'active' ? (
+                        <button onClick={() => handleSettleAuction(auction)} style={{ width: '100%', padding: '14px', background: colors.green, color: '#fff', border: 'none', fontFamily: "'IBM Plex Mono', monospace", fontSize: '12px', letterSpacing: '0.1em', cursor: 'pointer' }}>
+                          SETTLE AUCTION
+                        </button>
+                      ) : (
+                        <button onClick={() => { setSelectedAuction(auction); setBidAmount(((auction.current_bid || auction.min_bid || 0.1) + 0.1).toFixed(2)); setShowBidModal(true); }} disabled={!auction.isActive} style={{ width: '100%', padding: '14px', background: auction.isActive ? colors.accent : colors.border, color: auction.isActive ? '#fff' : colors.textMuted, border: 'none', fontFamily: "'IBM Plex Mono', monospace", fontSize: '12px', letterSpacing: '0.1em', cursor: auction.isActive ? 'pointer' : 'not-allowed' }}>
+                          {auction.isActive ? 'SIGNAL VALUE' : (auction.status === 'ended' ? 'SETTLED' : 'AUCTION ENDED')}
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
