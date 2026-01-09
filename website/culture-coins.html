@@ -5382,13 +5382,13 @@
               marginBottom: '24px',
               overflow: 'hidden'
             }}>
-              {/* Banner - Full width edge-to-edge like Twitter/X */}
+              {/* Banner - Full width, shows entire image (3:1 ratio for 1500x500) */}
               <div
                 style={{
-                  height: '200px',
                   width: '100%',
+                  aspectRatio: '3/1',
                   backgroundImage: profile?.banner ? `url(${profile.banner})` : 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%)',
-                  backgroundSize: 'cover',
+                  backgroundSize: '100% 100%',
                   backgroundPosition: 'center center',
                   backgroundRepeat: 'no-repeat',
                   position: 'relative'
