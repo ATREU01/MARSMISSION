@@ -1874,7 +1874,12 @@ const server = http.createServer(async (req, res) => {
             // X API Bearer Token (set via environment variable)
             const X_BEARER_TOKEN = process.env.X_BEARER_TOKEN || process.env.TWITTER_BEARER_TOKEN;
 
+            if (!X_BEARER_TOKEN) {
+                log('[X-API] WARNING: X_BEARER_TOKEN not set - using fallback data. Add X_BEARER_TOKEN to Railway for real X trends.');
+            }
+
             if (X_BEARER_TOKEN) {
+                log('[X-API] Fetching real trends from X/Twitter API...');
                 // Fetch real trending data from X API
                 const xResponse = await fetch('https://api.twitter.com/2/tweets/search/recent?query=crypto OR solana OR web3 OR defi&max_results=50&tweet.fields=public_metrics,created_at', {
                     headers: {
@@ -1929,9 +1934,10 @@ const server = http.createServer(async (req, res) => {
                         .slice(0, 10);
 
                     xTrendingCache = { data: trends, timestamp: now };
+                    log('[X-API] ✓ Real X trends fetched: ' + trends.length + ' topics (top: ' + trends.slice(0,3).map(t=>t.name).join(', ') + ')');
 
                     res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ success: true, trends, cached: false }));
+                    res.end(JSON.stringify({ success: true, trends, cached: false, source: 'x-api-live' }));
                     return;
                 }
             }
@@ -1951,9 +1957,10 @@ const server = http.createServer(async (req, res) => {
             ];
 
             xTrendingCache = { data: fallbackTrends, timestamp: now };
+            log('[X-API] Using fallback trends (X_BEARER_TOKEN not configured or X API failed)');
 
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true, trends: fallbackTrends, cached: false, fallback: true }));
+            res.end(JSON.stringify({ success: true, trends: fallbackTrends, cached: false, source: 'fallback' }));
         } catch (e) {
             console.error('[X-API] Trending fetch error:', e);
             res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -3210,6 +3217,13 @@ The 4 percentages MUST sum to exactly 100.`;
                 throw new Error('AI service not configured - missing API key');
             }
             log('AI Ideas: API key found, length=' + apiKey.length);
+            log('AI Ideas: Received ' + (trendingTokens?.length || 0) + ' tokens, ' + (trendingNews?.length || 0) + ' news trends');
+            if (trendingTokens?.length > 0) {
+                log('AI Ideas: Top tokens: ' + trendingTokens.slice(0,3).map(t => t.symbol || t.name).join(', '));
+            }
+            if (trendingNews?.length > 0) {
+                log('AI Ideas: Top trends: ' + trendingNews.slice(0,3).map(t => t.name).join(', '));
+            }
 
             // Format trending data with rich context (ensure numbers)
             const tokenContext = (trendingTokens || []).slice(0, 8).map(t => {
