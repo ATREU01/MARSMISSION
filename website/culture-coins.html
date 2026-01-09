@@ -5382,15 +5382,16 @@
               marginBottom: '24px',
               overflow: 'hidden'
             }}>
-              {/* Banner - 1500x500 recommended (3:1 ratio like Twitter/X) */}
+              {/* Banner - Shows full image without cropping */}
               <div
                 style={{
-                  height: '250px',
+                  height: profile?.banner ? '300px' : '200px',
                   width: '100%',
                   backgroundImage: profile?.banner ? `url(${profile.banner})` : 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%)',
-                  backgroundSize: 'cover',
+                  backgroundSize: 'contain',
                   backgroundPosition: 'center center',
                   backgroundRepeat: 'no-repeat',
+                  backgroundColor: '#0a0a0a',
                   position: 'relative'
                 }}
               >
