@@ -4523,10 +4523,70 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 }
             } catch (e) {}
 
+            // FALLBACK: If pump.fun didn't have holder count, get it from Helius RPC
+            // Uses getTokenAccounts to count unique token holders
+            if ((!tokenData.holders || tokenData.holders <= 1) && HELIUS_RPC) {
+                try {
+                    log(`[TOKEN API] Fetching holder count from RPC for ${mint.slice(0,8)}...`);
+                    const TOKEN_PROGRAM_ID = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+
+                    // Get token accounts for this mint using Helius DAS
+                    const holderRes = await fetch(HELIUS_RPC, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            jsonrpc: '2.0',
+                            id: 'get-holders',
+                            method: 'getTokenAccounts',
+                            params: {
+                                mint: mint,
+                                limit: 1000, // Get up to 1000 accounts
+                                options: { showZeroBalance: false }
+                            }
+                        })
+                    });
+
+                    if (holderRes.ok) {
+                        const holderData = await holderRes.json();
+                        if (holderData.result && holderData.result.token_accounts) {
+                            // Count unique owners
+                            const uniqueOwners = new Set(
+                                holderData.result.token_accounts
+                                    .filter(acc => acc.amount > 0)
+                                    .map(acc => acc.owner)
+                            );
+                            const holderCount = uniqueOwners.size;
+                            log(`[TOKEN API] Found ${holderCount} holders via RPC for ${mint.slice(0,8)}`);
+                            if (holderCount > tokenData.holders) {
+                                tokenData.holders = holderCount;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    log(`[TOKEN API] RPC holder fetch failed: ${e.message}`);
+                }
+            }
+
+            // FALLBACK 2: Try Birdeye API for holder count
+            if ((!tokenData.holders || tokenData.holders <= 1)) {
+                try {
+                    const birdeyeRes = await fetch(`https://public-api.birdeye.so/defi/token_overview?address=${mint}`, {
+                        headers: { 'X-API-KEY': 'public' }
+                    });
+                    if (birdeyeRes.ok) {
+                        const birdData = await birdeyeRes.json();
+                        if (birdData.data?.holder) {
+                            tokenData.holders = birdData.data.holder;
+                            log(`[TOKEN API] Got ${tokenData.holders} holders from Birdeye for ${mint.slice(0,8)}`);
+                        }
+                    }
+                } catch (e) {}
+            }
+
             // Cache the result
             global.tokenDataCache.set(cacheKey, { data: tokenData, ts: Date.now() });
 
-            log(`[TOKEN API] ${mint.slice(0,8)}... - MC: $${tokenData.marketCap?.toLocaleString() || 0}, Vol: $${tokenData.volume?.toLocaleString() || 0}`);
+            log(`[TOKEN API] ${mint.slice(0,8)}... - MC: $${tokenData.marketCap?.toLocaleString() || 0}, Vol: $${tokenData.volume?.toLocaleString() || 0}, Holders: ${tokenData.holders || 0}`);
             res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'MISS' });
             res.end(JSON.stringify(tokenData));
         } catch (e) {
