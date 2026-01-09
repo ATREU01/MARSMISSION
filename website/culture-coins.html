@@ -7351,26 +7351,47 @@
 
                 const enriched = await Promise.all(allCultures.map(async (culture) => {
                   if (!culture.tokenAddress) return culture;
-                  // Skip enrichment if we already have pump data
-                  if (culture.marketCap && culture.holders) return culture;
+
                   try {
-                    const pumpRes = await fetch(`/api/pump/coin/${culture.tokenAddress}`);
-                    if (pumpRes.ok) {
-                      const pumpData = await pumpRes.json();
-                      if (pumpData) {
-                        return {
-                          ...culture,
-                          marketCap: pumpData.usd_market_cap || culture.marketCap || 0,
-                          holders: pumpData.holder_count || culture.holders || 0,
-                          volume: pumpData.volume_24h || culture.volume || 0,
-                          imageUri: pumpData.image_uri || culture.imageUri
-                        };
-                      }
+                    // Fetch from BOTH DexScreener and pump.fun for complete data
+                    // (graduated tokens only show on DexScreener, not pump.fun)
+                    const [dexRes, pumpRes] = await Promise.all([
+                      fetch(`https://api.dexscreener.com/latest/dex/tokens/${culture.tokenAddress}`).catch(() => null),
+                      fetch(`/api/pump/coin/${culture.tokenAddress}`).catch(() => null)
+                    ]);
+
+                    let dexData = null;
+                    let pumpData = null;
+
+                    if (dexRes?.ok) {
+                      const dexJson = await dexRes.json();
+                      dexData = dexJson.pairs?.[0];
                     }
+
+                    if (pumpRes?.ok) {
+                      pumpData = await pumpRes.json();
+                    }
+
+                    // Combine data: prioritize DexScreener for graduated tokens
+                    const marketCap = dexData?.marketCap || dexData?.fdv || pumpData?.usd_market_cap || culture.marketCap || 0;
+                    const volume = dexData?.volume?.h24 || pumpData?.volume_24h || culture.volume || 0;
+                    const liquidity = dexData?.liquidity?.usd || 0;
+                    const holders = pumpData?.holder_count || culture.holders || 0;
+
+                    return {
+                      ...culture,
+                      marketCap: marketCap,
+                      holders: holders,
+                      volume: volume,
+                      liquidity: liquidity,
+                      imageUri: pumpData?.image_uri || culture.imageUri,
+                      priceUsd: dexData?.priceUsd || 0,
+                      priceChange24h: dexData?.priceChange?.h24 || 0
+                    };
                   } catch (e) {
                     console.error('[DASHBOARD] Failed to enrich', culture.name, e);
+                    return culture;
                   }
-                  return culture;
                 }));
 
                 console.log('[DASHBOARD] Total cultures after merge:', enriched.length);
