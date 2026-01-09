@@ -5175,6 +5175,32 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             tokens.sort((a, b) => (b.volume24h || 0) - (a.volume24h || 0));
             tokens = tokens.slice(0, 20);
 
+            // ENRICH: Add holder counts via Jupiter API (same as dashboard)
+            // Batch fetch holders for all tokens in parallel
+            await Promise.all(tokens.map(async (token) => {
+                try {
+                    // Try Jupiter first (best for most tokens)
+                    const jupRes = await fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${token.mint}`);
+                    if (jupRes.ok) {
+                        const jupArr = await jupRes.json();
+                        const jupToken = Array.isArray(jupArr) ? jupArr.find(t => t.id === token.mint || t.address === token.mint) : null;
+                        if (jupToken?.holderCount > 0) {
+                            token.holders = jupToken.holderCount;
+                            return;
+                        }
+                    }
+                    // Fallback to GMGN
+                    const gmgnRes = await fetch(`https://gmgn.ai/defi/quotation/v1/tokens/sol/${token.mint}`);
+                    if (gmgnRes.ok) {
+                        const gmgnData = await gmgnRes.json();
+                        const holders = gmgnData?.data?.token?.holder_count || gmgnData?.data?.token?.holders || 0;
+                        if (holders > 0) token.holders = holders;
+                    }
+                } catch (e) {
+                    token.holders = 0;
+                }
+            }));
+
             // Cache result
             global.trendingCache[cacheKey] = { data: { success: true, tokens, count: tokens.length, source: HELIUS_KEY ? 'helius' : 'dexscreener' }, ts: Date.now() };
 
@@ -5993,14 +6019,18 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 }
             }
 
+            // Handle media - support both mediaUrls array and single mediaUrl
+            const mediaUrl = Array.isArray(mediaUrls) && mediaUrls.length > 0 ? mediaUrls[0] : (mediaUrls || null);
+
             const post = postDB.create({
                 authorWallet,
                 cultureId: cultureId || null,
                 content: content.trim().slice(0, 5000), // Max 5000 chars
-                mediaUrls: mediaUrls || []
+                mediaUrl: mediaUrl,
+                mediaType: mediaUrl ? (mediaUrl.match(/\.(mp4|webm|mov)$/i) ? 'video' : 'image') : null
             });
 
-            console.log(`[POSTS] Created post ${post.id} by ${authorWallet.slice(0, 8)}... (name: ${authorProfile?.displayName || 'none'})`);
+            console.log(`[POSTS] ✓ Created post ${post.id} by ${authorWallet.slice(0, 8)}... content: "${content.slice(0,30)}..."`);
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: true, post }));
         } catch (e) {
@@ -6020,13 +6050,18 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             const limit = parseInt(url.searchParams.get('limit')) || 50;
             const offset = parseInt(url.searchParams.get('offset')) || 0;
 
+            console.log(`[POSTS] GET request - cultureId: ${cultureId}, author: ${authorWallet}, limit: ${limit}`);
+
             let posts;
             if (cultureId) {
                 posts = postDB.getByCulture(parseInt(cultureId), limit, offset);
+                console.log(`[POSTS] Found ${posts.length} posts for culture ${cultureId}`);
             } else if (authorWallet) {
                 posts = postDB.getByAuthor(authorWallet, limit, offset);
+                console.log(`[POSTS] Found ${posts.length} posts by ${authorWallet.slice(0,8)}...`);
             } else {
                 posts = postDB.getAll(limit, offset);
+                console.log(`[POSTS] Returning ${posts.length} total posts from database`);
             }
 
             // CRITICAL: Enrich posts with profile data from both SQLite and profiles.js
