@@ -7088,7 +7088,8 @@
           // Sync localStorage posts to server (for migration)
           const syncLocalPostsToServer = async () => {
             const localPosts = JSON.parse(localStorage.getItem('culture_posts') || '[]');
-            const unsynced = localPosts.filter(p => !p.serverSynced && p.authorWallet);
+            // Filter posts that have content and haven't been synced - handle legacy field names
+            const unsynced = localPosts.filter(p => !p.serverSynced && (p.authorWallet || p.author) && (p.content || p.text));
 
             if (unsynced.length === 0) {
               console.log('[SYNC] No unsynced posts to migrate');
@@ -7100,22 +7101,34 @@
 
             for (const post of unsynced) {
               try {
+                // Handle legacy field names: author vs authorWallet, text vs content
+                const authorWallet = post.authorWallet || post.author;
+                const content = post.content || post.text;
+
+                if (!authorWallet || !content) {
+                  console.warn('[SYNC] Skipping post without author/content');
+                  continue;
+                }
+
                 const res = await fetch('/api/posts', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
-                    authorWallet: post.authorWallet,
+                    authorWallet,
                     cultureId: post.cultureId || null,
-                    content: post.content,
-                    mediaUrls: post.media || []
+                    content,
+                    mediaUrls: post.media || post.mediaUrls || []
                   })
                 });
                 const data = await res.json();
                 if (data.success) {
                   post.serverSynced = true;
                   post.serverId = data.post?.id;
+                  // Normalize field names
+                  post.authorWallet = authorWallet;
+                  post.content = content;
                   synced++;
-                  console.log('[SYNC] ✓ Migrated post:', post.content?.slice(0, 30) + '...');
+                  console.log('[SYNC] ✓ Migrated post:', content?.slice(0, 30) + '...');
                 } else {
                   failed++;
                   console.error('[SYNC] ✗ Failed:', data.error);
@@ -9451,16 +9464,17 @@
                         <button
                           key={type}
                           onClick={() => {
-                            const dashTheme = JSON.parse(localStorage.getItem('dashboard_theme') || '{}');
+                            const dashTheme = { ...profile?.theme } || {};
                             dashTheme.bgType = type;
                             localStorage.setItem('dashboard_theme', JSON.stringify(dashTheme));
                             handleEditProfile({ theme: dashTheme });
+                            console.log('[THEME] Set bgType to:', type);
                           }}
                           style={{
                             padding: '10px 16px',
-                            background: profile?.theme?.bgType === type ? '#8b5cf6' : '#0a0a0a',
+                            background: profile?.theme?.bgType === type ? dashColors.accent : '#0a0a0a',
                             border: '1px solid',
-                            borderColor: profile?.theme?.bgType === type ? '#8b5cf6' : '#333',
+                            borderColor: profile?.theme?.bgType === type ? dashColors.accent : '#333',
                             color: profile?.theme?.bgType === type ? '#000' : '#888',
                             fontSize: '11px',
                             fontFamily: "'IBM Plex Mono', monospace",
@@ -9487,22 +9501,24 @@
                       ACCENT COLOR
                     </label>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      {['#8b5cf6', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#ef4444', '#ffffff'].map(color => (
+                      {['#8b5cf6', '#3b82f6', '#22c55e', '#ec4899', '#f59e0b', '#ef4444', '#06b6d4'].map((color, idx) => (
                         <button
-                          key={color}
+                          key={color + idx}
                           onClick={() => {
-                            const dashTheme = JSON.parse(localStorage.getItem('dashboard_theme') || '{}');
+                            const dashTheme = { ...profile?.theme } || {};
                             dashTheme.accentColor = color;
                             localStorage.setItem('dashboard_theme', JSON.stringify(dashTheme));
                             handleEditProfile({ theme: dashTheme });
+                            console.log('[THEME] Set accentColor to:', color);
                           }}
                           style={{
                             width: '36px',
                             height: '36px',
                             background: color,
-                            border: profile?.theme?.accentColor === color ? '3px solid #fff' : '1px solid #333',
+                            border: dashColors.accent === color ? '3px solid #fff' : '1px solid #333',
                             cursor: 'pointer',
-                            borderRadius: '4px'
+                            borderRadius: '4px',
+                            boxShadow: dashColors.accent === color ? `0 0 10px ${color}` : 'none'
                           }}
                           title={color}
                         />
@@ -9513,13 +9529,13 @@
                   {/* Connected Wallet */}
                   <div style={{
                     padding: '20px',
-                    background: 'rgba(139, 92, 246, 0.1)',
-                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                    background: `${dashColors.accent}15`,
+                    border: `1px solid ${dashColors.accent}50`,
                     marginTop: '40px'
                   }}>
                     <div style={{
                       fontSize: '12px',
-                      color: '#8b5cf6',
+                      color: dashColors.accent,
                       fontFamily: "'IBM Plex Mono', monospace",
                       marginBottom: '8px'
                     }}>
