@@ -6864,44 +6864,8 @@
             }
           }, [myCultures, myTokens]);
 
-          // Dashboard Colors - Wall Street x Solana (Elegant Coral/Gold)
-          const dashColors = lightMode ? {
-            bg: '#fafafa',
-            cardBg: '#ffffff',
-            border: '#e5e5e5',
-            text: '#171717',
-            textSecondary: '#404040',
-            textMuted: '#737373',
-            accent: '#8b5cf6',
-            accentAlt: '#06b6d4',
-            cyan: '#06b6d4',
-            coral: '#06b6d4', // Alias for backwards compat
-            peach: '#FFAB91',
-            purple: '#8b5cf6',
-            gold: '#8b5cf6', // Alias for backwards compat
-            inputBg: '#ffffff',
-            inputBorder: '#d4d4d4',
-            gradient: 'linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%)',
-            gradientSubtle: 'linear-gradient(135deg, rgba(6,182,212,0.1) 0%, rgba(139,92,246,0.1) 100%)'
-          } : {
-            bg: '#0a0a0a',
-            cardBg: '#0f0f0f',
-            border: '#1a1a1a',
-            text: '#ffffff',
-            textSecondary: '#a0a0a0',
-            textMuted: '#666666',
-            accent: '#8b5cf6',
-            accentAlt: '#06b6d4',
-            cyan: '#06b6d4',
-            coral: '#06b6d4', // Alias for backwards compat
-            peach: '#FFAB91',
-            purple: '#8b5cf6',
-            gold: '#8b5cf6', // Alias for backwards compat
-            inputBg: '#111111',
-            inputBorder: '#333333',
-            gradient: 'linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%)',
-            gradientSubtle: 'linear-gradient(135deg, rgba(6,182,212,0.08) 0%, rgba(139,92,246,0.08) 100%)'
-          };
+          // Dashboard Colors - Will be computed after profile is loaded
+          // (Moved to after profile state declaration to use theme settings)
 
           // Import Existing Coin Modal State
           const [showImportModal, setShowImportModal] = useState(false);
@@ -6920,6 +6884,46 @@
             return null;
           });
           const [myPosts, setMyPosts] = useState([]);
+
+          // Dashboard Colors - Uses profile theme settings for personalization
+          const userAccent = profile?.theme?.accentColor || '#8b5cf6';
+          const dashColors = lightMode ? {
+            bg: '#fafafa',
+            cardBg: '#ffffff',
+            border: '#e5e5e5',
+            text: '#171717',
+            textSecondary: '#404040',
+            textMuted: '#737373',
+            accent: userAccent,
+            accentAlt: '#06b6d4',
+            cyan: '#06b6d4',
+            coral: '#06b6d4',
+            peach: '#FFAB91',
+            purple: userAccent,
+            gold: userAccent,
+            inputBg: '#ffffff',
+            inputBorder: '#d4d4d4',
+            gradient: `linear-gradient(135deg, ${userAccent} 0%, #06b6d4 100%)`,
+            gradientSubtle: `linear-gradient(135deg, rgba(6,182,212,0.1) 0%, ${userAccent}22 100%)`
+          } : {
+            bg: '#0a0a0a',
+            cardBg: '#0f0f0f',
+            border: '#1a1a1a',
+            text: '#ffffff',
+            textSecondary: '#a0a0a0',
+            textMuted: '#666666',
+            accent: userAccent,
+            accentAlt: '#06b6d4',
+            cyan: '#06b6d4',
+            coral: '#06b6d4',
+            peach: '#FFAB91',
+            purple: userAccent,
+            gold: userAccent,
+            inputBg: '#111111',
+            inputBorder: '#333333',
+            gradient: `linear-gradient(135deg, ${userAccent} 0%, #06b6d4 100%)`,
+            gradientSubtle: `linear-gradient(135deg, rgba(6,182,212,0.08) 0%, ${userAccent}15 100%)`
+          };
 
           // Load profile when wallet changes and sync to server
           useEffect(() => {
