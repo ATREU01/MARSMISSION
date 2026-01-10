@@ -6815,19 +6815,22 @@
             }
           };
 
-          // Fetch TEK stats when token is selected
+          // Fetch TEK stats when token is selected - REAL ON-CHAIN DATA
           useEffect(() => {
             const fetchTekStats = async () => {
               if (!selectedTekCulture?.tokenAddress) return;
               try {
                 const res = await fetch(`/api/stats?mint=${selectedTekCulture.tokenAddress}`);
                 const data = await res.json();
-                if (data.success) {
+                console.log('[TEK] On-chain stats:', data);
+                if (data.success !== false) {
+                  // Use SOL values directly from on-chain data
+                  // API returns both lamports and SOL versions
                   setTekStats({
-                    claimed: data.totalClaimed || 0,
-                    distributed: data.totalDistributed || 0,
-                    pending: data.pending || 0,
-                    holderPool: data.holderPool || 0
+                    claimed: data.totalClaimedSOL || (data.totalClaimed ? data.totalClaimed / 1e9 : 0),
+                    distributed: data.totalDistributedSOL || (data.totalDistributed ? data.totalDistributed / 1e9 : 0),
+                    pending: data.pendingSOL || (data.pending ? data.pending / 1e9 : 0),
+                    holderPool: data.holderPoolSOL || (data.holderPool ? data.holderPool / 1e9 : 0)
                   });
                 }
               } catch (e) {
