@@ -782,6 +782,7 @@
         // TRENDING FEED - Tokens + Crypto Twitter (Fortune 500 Design)
         // ═══════════════════════════════════════════════════════════════════
         const TrendingXFeed = ({ lightMode }) => {
+          const { isMobile } = useMobile();
           const [activeTab, setActiveTab] = useState('tokens'); // 'tokens' | 'news' | 'ideas'
           const [aiIdeas, setAiIdeas] = useState([]);
           const [ideasLoading, setIdeasLoading] = useState(false);
@@ -1111,19 +1112,19 @@
 
               {/* Header */}
               <div style={{
-                padding: '20px 20px 0',
+                padding: isMobile ? '16px 12px 0' : '20px 20px 0',
                 borderBottom: `1px solid ${colors.border}`
               }}>
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  marginBottom: '16px'
+                  marginBottom: isMobile ? '12px' : '16px'
                 }}>
                   <div>
                     <h2 style={{
                       fontFamily: "'Playfair Display', serif",
-                      fontSize: '20px',
+                      fontSize: isMobile ? '18px' : '20px',
                       fontWeight: 500,
                       color: colors.text,
                       margin: 0
@@ -1146,7 +1147,7 @@
                     display: 'flex',
                     alignItems: 'center',
                     gap: '6px',
-                    padding: '5px 10px',
+                    padding: isMobile ? '4px 8px' : '5px 10px',
                     background: 'rgba(139, 92, 246, 0.1)',
                     borderRadius: '16px'
                   }}>
@@ -1177,24 +1178,24 @@
                     onClick={() => setActiveTab('tokens')}
                     style={{
                       flex: 1,
-                      padding: '12px 16px',
+                      padding: isMobile ? '10px 8px' : '12px 16px',
                       background: activeTab === 'tokens' ? colors.gradient : 'transparent',
                       border: 'none',
                       borderBottom: activeTab === 'tokens' ? 'none' : `2px solid ${colors.border}`,
                       color: activeTab === 'tokens' ? '#000' : colors.textMuted,
                       fontFamily: "'IBM Plex Mono', monospace",
-                      fontSize: '10px',
+                      fontSize: isMobile ? '9px' : '10px',
                       fontWeight: 600,
-                      letterSpacing: '0.1em',
+                      letterSpacing: '0.08em',
                       cursor: 'pointer',
                       transition: 'all 0.2s',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '8px'
+                      gap: isMobile ? '4px' : '8px'
                     }}
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg width={isMobile ? "12" : "14"} height={isMobile ? "12" : "14"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <circle cx="12" cy="12" r="10"/>
                       <path d="M12 6v12M6 12h12"/>
                     </svg>
@@ -1204,24 +1205,24 @@
                     onClick={() => setActiveTab('news')}
                     style={{
                       flex: 1,
-                      padding: '12px 16px',
+                      padding: isMobile ? '10px 8px' : '12px 16px',
                       background: activeTab === 'news' ? colors.gradient : 'transparent',
                       border: 'none',
                       borderBottom: activeTab === 'news' ? 'none' : `2px solid ${colors.border}`,
                       color: activeTab === 'news' ? '#000' : colors.textMuted,
                       fontFamily: "'IBM Plex Mono', monospace",
-                      fontSize: '10px',
+                      fontSize: isMobile ? '9px' : '10px',
                       fontWeight: 600,
-                      letterSpacing: '0.1em',
+                      letterSpacing: '0.08em',
                       cursor: 'pointer',
                       transition: 'all 0.2s',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '8px'
+                      gap: isMobile ? '4px' : '8px'
                     }}
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <svg width={isMobile ? "12" : "14"} height={isMobile ? "12" : "14"} viewBox="0 0 24 24" fill="currentColor">
                       <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
                     </svg>
                     NEWS
@@ -1230,21 +1231,21 @@
                     onClick={() => setActiveTab('ideas')}
                     style={{
                       flex: 1,
-                      padding: '12px 16px',
+                      padding: isMobile ? '10px 8px' : '12px 16px',
                       background: activeTab === 'ideas' ? colors.gradient : 'transparent',
                       border: 'none',
                       borderBottom: activeTab === 'ideas' ? 'none' : `2px solid ${colors.border}`,
                       color: activeTab === 'ideas' ? '#000' : colors.textMuted,
                       fontFamily: "'IBM Plex Mono', monospace",
-                      fontSize: '10px',
+                      fontSize: isMobile ? '9px' : '10px',
                       fontWeight: 600,
-                      letterSpacing: '0.1em',
+                      letterSpacing: '0.08em',
                       cursor: 'pointer',
                       transition: 'all 0.2s',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '8px'
+                      gap: isMobile ? '4px' : '8px'
                     }}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1299,31 +1300,32 @@
                         style={{
                           display: 'flex',
                           alignItems: 'center',
-                          padding: '14px 20px',
+                          padding: isMobile ? '12px 12px' : '14px 20px',
                           borderBottom: `1px solid ${colors.border}`,
                           textDecoration: 'none',
                           background: hoveredItem === index
                             ? (lightMode ? 'rgba(139, 92, 246, 0.08)' : 'rgba(139, 92, 246, 0.05)')
                             : 'transparent',
                           transition: 'all 0.2s ease',
-                          gap: '12px'
+                          gap: isMobile ? '8px' : '12px'
                         }}
                       >
                         {/* Rank */}
                         <div style={{
                           fontFamily: "'IBM Plex Mono', monospace",
-                          fontSize: '10px',
+                          fontSize: isMobile ? '9px' : '10px',
                           color: index < 3 ? colors.accent : colors.textMuted,
                           fontWeight: index < 3 ? 700 : 400,
-                          width: '20px'
+                          width: isMobile ? '16px' : '20px',
+                          flexShrink: 0
                         }}>
                           {String(index + 1).padStart(2, '0')}
                         </div>
 
                         {/* Token Image */}
                         <div style={{
-                          width: '36px',
-                          height: '36px',
+                          width: isMobile ? '32px' : '36px',
+                          height: isMobile ? '32px' : '36px',
                           borderRadius: '50%',
                           background: colors.border,
                           overflow: 'hidden',
@@ -1340,28 +1342,30 @@
                         </div>
 
                         {/* Token Info */}
-                        <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
                           <div style={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '6px',
-                            marginBottom: '4px'
+                            gap: isMobile ? '4px' : '6px',
+                            marginBottom: '3px'
                           }}>
                             <span style={{
                               fontFamily: "'IBM Plex Mono', monospace",
-                              fontSize: '13px',
+                              fontSize: isMobile ? '12px' : '13px',
                               fontWeight: 600,
                               color: colors.text,
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap'
+                              whiteSpace: 'nowrap',
+                              maxWidth: isMobile ? '90px' : 'none'
                             }}>
                               {token.name}
                             </span>
                             <span style={{
                               fontFamily: "'IBM Plex Mono', monospace",
-                              fontSize: '10px',
-                              color: colors.textMuted
+                              fontSize: isMobile ? '9px' : '10px',
+                              color: colors.textMuted,
+                              flexShrink: 0
                             }}>
                               ${token.symbol}
                             </span>
@@ -1369,18 +1373,18 @@
                           <div style={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '12px'
+                            gap: isMobile ? '6px' : '12px'
                           }}>
                             <span style={{
                               fontFamily: "'IBM Plex Mono', monospace",
-                              fontSize: '11px',
+                              fontSize: isMobile ? '10px' : '11px',
                               color: colors.textSecondary
                             }}>
                               {formatMcap(token.marketCap)}
                             </span>
                             <span style={{
                               fontFamily: "'IBM Plex Mono', monospace",
-                              fontSize: '10px',
+                              fontSize: isMobile ? '9px' : '10px',
                               color: colors.textMuted
                             }}>
                               Vol: {formatMcap(token.volume24h || 0)}
@@ -1390,11 +1394,12 @@
 
                         {/* Price Change */}
                         <div style={{
-                          textAlign: 'right'
+                          textAlign: 'right',
+                          flexShrink: 0
                         }}>
                           <div style={{
                             fontFamily: "'IBM Plex Mono', monospace",
-                            fontSize: '12px',
+                            fontSize: isMobile ? '11px' : '12px',
                             fontWeight: 600,
                             color: parseFloat(token.priceChange) >= 0 ? colors.green : colors.red,
                             marginBottom: '2px'
@@ -2970,8 +2975,8 @@
                   {/* Culture Grid */}
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))',
-                    gap: isMobile ? '16px' : '20px'
+                    gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(320px, 1fr))',
+                    gap: isMobile ? '10px' : '20px'
                   }}>
                     {filteredCultures.map((culture, index) => {
                       // Vibrant accent colors like the reference design
@@ -2985,9 +2990,9 @@
                         style={{
                           background: colors.cardBg,
                           border: `1px solid ${colors.border}`,
-                          borderTop: `4px solid ${accentColor}`,
-                          padding: '24px',
-                          paddingTop: '20px',
+                          borderTop: `3px solid ${accentColor}`,
+                          padding: isMobile ? '12px' : '24px',
+                          paddingTop: isMobile ? '10px' : '20px',
                           cursor: 'pointer',
                           transition: 'all 0.3s',
                           position: 'relative',
@@ -3006,12 +3011,12 @@
                         {index < 3 && (
                           <div style={{
                             position: 'absolute',
-                            top: '-4px',
+                            top: '-3px',
                             left: '0',
                             background: accentColor,
                             color: '#000',
-                            padding: '8px 12px',
-                            fontSize: '14px',
+                            padding: isMobile ? '4px 8px' : '8px 12px',
+                            fontSize: isMobile ? '11px' : '14px',
                             fontWeight: 700,
                             fontFamily: "'IBM Plex Mono', monospace"
                           }}>
@@ -3024,12 +3029,12 @@
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          marginBottom: '12px',
-                          marginTop: index < 3 ? '24px' : '0'
+                          marginBottom: isMobile ? '8px' : '12px',
+                          marginTop: index < 3 ? (isMobile ? '16px' : '24px') : '0'
                         }}>
                           <div style={{
-                            fontSize: '9px',
-                            letterSpacing: '0.12em',
+                            fontSize: isMobile ? '8px' : '9px',
+                            letterSpacing: '0.1em',
                             color: accentColor,
                             fontFamily: "'IBM Plex Mono', monospace",
                             fontWeight: 700,
@@ -3037,7 +3042,7 @@
                           }}>
                             {culture.category?.toUpperCase() || 'CULTURE'}
                           </div>
-                          {culture.activeAuctions > 0 && (
+                          {culture.activeAuctions > 0 && !isMobile && (
                             <div style={{
                               display: 'flex',
                               alignItems: 'center',
@@ -3068,26 +3073,30 @@
                         {/* Name & Ticker */}
                         <h3 style={{
                           fontFamily: "'Playfair Display', serif",
-                          fontSize: '24px',
+                          fontSize: isMobile ? '14px' : '24px',
                           fontWeight: 500,
                           color: colors.text,
-                          marginBottom: '6px'
+                          marginBottom: isMobile ? '2px' : '6px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: isMobile ? 'nowrap' : 'normal'
                         }}>
                           {culture.name}
                         </h3>
                         {culture.ticker && (
                           <div style={{
                             fontFamily: "'IBM Plex Mono', monospace",
-                            fontSize: '11px',
+                            fontSize: isMobile ? '9px' : '11px',
                             color: colors.textMuted,
-                            marginBottom: '12px',
+                            marginBottom: isMobile ? '8px' : '12px',
                             letterSpacing: '0.05em'
                           }}>
                             ${culture.ticker}
                           </div>
                         )}
 
-                        {/* Ethos */}
+                        {/* Ethos - Hidden on mobile for compact view */}
+                        {!isMobile && (
                         <p style={{
                           fontFamily: "'IBM Plex Mono', monospace",
                           fontSize: '13px',
@@ -3098,9 +3107,10 @@
                         }}>
                           "{culture.ethos}"
                         </p>
+                        )}
 
-                        {/* Core Pillar Preview - Vibrant Style */}
-                        {culture.pillars && culture.pillars.length > 0 && (
+                        {/* Core Pillar Preview - Hidden on mobile */}
+                        {!isMobile && culture.pillars && culture.pillars.length > 0 && (
                           <div style={{
                             background: `${accentColor}15`,
                             padding: '14px',
@@ -3127,54 +3137,56 @@
                           </div>
                         )}
 
-                        {/* Stats Grid - Clean */}
+                        {/* Stats Grid - Compact on mobile */}
                         <div style={{
                           display: 'grid',
-                          gridTemplateColumns: 'repeat(3, 1fr)',
-                          gap: '12px',
+                          gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
+                          gap: isMobile ? '6px' : '12px',
                           borderTop: `1px solid ${colors.border}`,
-                          paddingTop: '16px'
+                          paddingTop: isMobile ? '8px' : '16px'
                         }}>
                           <div>
                             <div style={{
-                              fontSize: '16px',
+                              fontSize: isMobile ? '12px' : '16px',
                               color: colors.text,
                               fontFamily: "'IBM Plex Mono', monospace",
-                              marginBottom: '4px',
+                              marginBottom: '2px',
                               fontWeight: 600
                             }}>
                               {culture.marketCap
                                 ? (culture.marketCap >= 1000000
                                     ? `$${(culture.marketCap / 1000000).toFixed(1)}M`
                                     : culture.marketCap >= 1000
-                                      ? `$${(culture.marketCap / 1000).toFixed(1)}K`
+                                      ? `$${(culture.marketCap / 1000).toFixed(0)}K`
                                       : `$${culture.marketCap.toFixed(0)}`)
                                 : '—'}
                             </div>
-                            <div style={{ fontSize: '8px', color: colors.textMuted, letterSpacing: '0.1em', fontFamily: "'IBM Plex Mono', monospace" }}>
+                            <div style={{ fontSize: isMobile ? '7px' : '8px', color: colors.textMuted, letterSpacing: '0.08em', fontFamily: "'IBM Plex Mono', monospace" }}>
                               MCAP
                             </div>
                           </div>
                           <div>
                             <div style={{
-                              fontSize: '16px',
+                              fontSize: isMobile ? '12px' : '16px',
                               color: colors.text,
                               fontFamily: "'IBM Plex Mono', monospace",
-                              marginBottom: '4px',
+                              marginBottom: '2px',
                               fontWeight: 600
                             }}>
                               {culture.volume
                                 ? (culture.volume >= 1000000
                                     ? `$${(culture.volume / 1000000).toFixed(1)}M`
                                     : culture.volume >= 1000
-                                      ? `$${(culture.volume / 1000).toFixed(1)}K`
+                                      ? `$${(culture.volume / 1000).toFixed(0)}K`
                                       : `$${culture.volume.toFixed(0)}`)
                                 : '—'}
                             </div>
-                            <div style={{ fontSize: '8px', color: colors.textMuted, letterSpacing: '0.1em', fontFamily: "'IBM Plex Mono', monospace" }}>
-                              VOLUME
+                            <div style={{ fontSize: isMobile ? '7px' : '8px', color: colors.textMuted, letterSpacing: '0.08em', fontFamily: "'IBM Plex Mono', monospace" }}>
+                              {isMobile ? 'VOL' : 'VOLUME'}
                             </div>
                           </div>
+                          {/* Holders - Hidden on mobile to fit 2 columns */}
+                          {!isMobile && (
                           <div>
                             <div style={{
                               fontSize: '16px',
@@ -3189,6 +3201,7 @@
                               HOLDERS
                             </div>
                           </div>
+                          )}
                         </div>
 
                         {/* Bottom accent bar */}
@@ -11717,7 +11730,7 @@
                       type="text"
                       value={vanitySuffix}
                       onChange={(e) => setVanitySuffix(e.target.value.replace(/[^a-zA-Z1-9]/g, '').slice(0, 6))}
-                      placeholder="moon"
+                      placeholder="type suffix here (e.g. KING)"
                       disabled={vanityMining}
                       maxLength={6}
                       style={{
@@ -13326,24 +13339,42 @@
             setTimeout(checkWalletBrowser, 300);
           }, []);
 
-          // Listen for Privy auth via BroadcastChannel
+          // Listen for Privy auth via BroadcastChannel (desktop popup flow)
           useEffect(() => {
             const channel = new BroadcastChannel('launchr-auth');
             channel.onmessage = (e) => {
               if (e.data?.type === 'privy-auth-success' && e.data?.address) {
-                handleWalletConnected(e.data.address);
+                handleWalletConnected(e.data.address, 'privy');
                 showNotification('Connected with Privy wallet!');
               }
             };
 
             window.addEventListener('message', (e) => {
               if (e.data?.type === 'privy-auth-success' && e.data?.address) {
-                handleWalletConnected(e.data.address);
+                handleWalletConnected(e.data.address, 'privy');
                 showNotification('Connected with Privy wallet!');
               }
             });
 
             return () => channel.close();
+          }, []);
+
+          // Handle mobile Privy auth return (wallet address in URL query params)
+          useEffect(() => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const privyWallet = urlParams.get('privy_wallet');
+
+            if (privyWallet && privyWallet.length > 30) {
+              console.log('[PRIVY] Mobile auth return detected:', privyWallet);
+
+              // Connect with the wallet address
+              handleWalletConnected(privyWallet, 'privy');
+              showNotification('Privy wallet connected!');
+
+              // Clean up URL (remove query params)
+              const cleanUrl = window.location.pathname + (urlParams.get('view') ? `?view=${urlParams.get('view')}` : '');
+              window.history.replaceState({}, '', cleanUrl);
+            }
           }, []);
 
           // Global sync function - syncs localStorage posts to server for ALL users
