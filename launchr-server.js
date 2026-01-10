@@ -101,7 +101,15 @@ if (PRODUCTION_CONFIG.FEE_WALLET_PRIVATE_KEY) {
     }
 }
 
+// SECURITY: Generate random HMAC secret if not configured
+const HMAC_SECRET = process.env.HMAC_SECRET || crypto.randomBytes(32).toString('hex');
+if (!process.env.HMAC_SECRET) {
+    console.warn('[SECURITY] WARNING: HMAC_SECRET not set - using random session secret (will change on restart)');
+    console.warn('[SECURITY] Set HMAC_SECRET env var for persistent signatures');
+}
+
 console.log('[CONFIG] Production config loaded:');
+console.log(`  - HMAC Secret: ${process.env.HMAC_SECRET ? 'SET' : 'RANDOM (session-only)'}`);
 console.log(`  - Privy App ID: ${PRODUCTION_CONFIG.PRIVY_APP_ID ? 'SET' : 'NOT SET'}`);
 console.log(`  - Privy App Secret: ${PRODUCTION_CONFIG.PRIVY_APP_SECRET ? 'SET' : 'NOT SET'}`);
 console.log(`  - Privy Auth Key: ${PRODUCTION_CONFIG.PRIVY_AUTH_PRIVATE_KEY ? 'SET' : 'NOT SET'}`);
@@ -1520,6 +1528,76 @@ function escapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
+// SECURITY: Safely extract client IP from request
+// Railway/proxies set X-Forwarded-For, validate format to prevent spoofing
+function getClientIP(req) {
+    const forwardedFor = req.headers['x-forwarded-for'];
+    if (forwardedFor) {
+        // Take first IP (client), trim whitespace, validate format
+        const ip = forwardedFor.split(',')[0].trim();
+        // Basic IPv4/IPv6 format validation
+        if (/^[\d.:a-fA-F]+$/.test(ip) && ip.length <= 45) {
+            return ip;
+        }
+    }
+    // Fallback to socket address
+    return req.socket?.remoteAddress || 'unknown';
+}
+
+// SECURITY: Sanitize error messages to prevent info leaks
+// Removes stack traces, file paths, and internal details
+function sanitizeErrorMessage(error) {
+    const message = error?.message || String(error) || 'An error occurred';
+    // Remove file paths
+    let sanitized = message.replace(/\/[^\s:]+\.(js|ts|json)/gi, '[path]');
+    // Remove stack traces
+    sanitized = sanitized.replace(/\s+at\s+.+/g, '');
+    // Remove line/column numbers
+    sanitized = sanitized.replace(/:\d+:\d+/g, '');
+    // Truncate long messages
+    if (sanitized.length > 200) {
+        sanitized = sanitized.slice(0, 200) + '...';
+    }
+    return sanitized;
+}
+
+// SECURITY: Input validation helpers
+const validateInput = {
+    // Validate string with max length
+    string: (val, maxLen = 1000) => {
+        if (typeof val !== 'string') return null;
+        return val.slice(0, maxLen);
+    },
+    // Validate positive integer
+    positiveInt: (val, max = Number.MAX_SAFE_INTEGER) => {
+        const num = parseInt(val, 10);
+        if (isNaN(num) || num < 0 || num > max) return null;
+        return num;
+    },
+    // Validate Solana address (base58, 32-44 chars)
+    solanaAddress: (val) => {
+        if (typeof val !== 'string') return null;
+        if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(val)) return null;
+        return val;
+    },
+    // Validate array with max length
+    array: (val, maxLen = 100) => {
+        if (!Array.isArray(val)) return null;
+        return val.slice(0, maxLen);
+    },
+    // Sanitize object keys (prevent prototype pollution)
+    safeObject: (val) => {
+        if (typeof val !== 'object' || val === null || Array.isArray(val)) return {};
+        const safe = {};
+        for (const key of Object.keys(val)) {
+            // Block prototype pollution
+            if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+            safe[key] = val[key];
+        }
+        return safe;
+    }
+};
+
 // Format timestamp to "X ago" format
 function formatTimeAgo(timestamp) {
     if (!timestamp) return 'Unknown';
@@ -1652,12 +1730,14 @@ setInterval(cleanupCaches, 300000);
 const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
 
-    // Get origin for CORS - only allow same-origin or configured origins
+    // Get origin for CORS - only allow same-origin or explicitly configured origins
     const origin = req.headers.origin;
-    const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
+    const allowedOrigins = (process.env.ALLOWED_ORIGINS?.split(',') || [])
+        .map(o => o.trim())
+        .filter(o => o && o !== '*'); // SECURITY: Reject wildcard CORS
 
-    // CORS headers - restrict to same origin by default
-    if (origin && (allowedOrigins.includes(origin) || allowedOrigins.includes('*'))) {
+    // CORS headers - only allow explicitly listed origins (no wildcards)
+    if (origin && allowedOrigins.includes(origin)) {
         res.setHeader('Access-Control-Allow-Origin', origin);
     }
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -1673,6 +1753,18 @@ const server = http.createServer(async (req, res) => {
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    // CSP: Allow inline scripts (React) but block unsafe evals and data: URIs
+    res.setHeader('Content-Security-Policy', [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://esm.sh",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com",
+        "img-src 'self' data: https: blob:",
+        "connect-src 'self' https://api.dexscreener.com https://lite-api.jup.ag https://api.jup.ag https://gmgn.ai https://frontend-api.pump.fun https://*.helius-rpc.com wss://*.helius-rpc.com",
+        "frame-src 'self' https://dexscreener.com",
+        "object-src 'none'",
+        "base-uri 'self'"
+    ].join('; '));
 
     if (req.method === 'OPTIONS') {
         res.writeHead(200);
@@ -2101,7 +2193,7 @@ const server = http.createServer(async (req, res) => {
 
     // API: Create new culture (CIA-level security with wallet verification)
     if (url.pathname === '/api/culture/create' && req.method === 'POST') {
-        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const clientIP = getClientIP(req);
         try {
             // Rate limit
             const rateCheck = checkRateLimit(clientIP, 'sensitive');
@@ -2198,7 +2290,7 @@ const server = http.createServer(async (req, res) => {
 
                 // Sign the response for tamper detection
                 const responseData = { success: true, culture: newCulture };
-                const responseSignature = crypto.createHmac('sha256', process.env.HMAC_SECRET || 'culture-coins-secret')
+                const responseSignature = crypto.createHmac('sha256', HMAC_SECRET)
                     .update(JSON.stringify(responseData))
                     .digest('hex');
 
@@ -2222,7 +2314,7 @@ const server = http.createServer(async (req, res) => {
 
     // API: Update existing culture (for edit mode)
     if (url.pathname === '/api/culture/update' && req.method === 'POST') {
-        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const clientIP = getClientIP(req);
         try {
             // Rate limit
             const rateCheck = checkRateLimit(clientIP, 'sensitive');
@@ -2397,9 +2489,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/culture/verify-access' && req.method === 'POST') {
         try {
             // Get client IP for rate limiting
-            const clientIP = req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-                           req.socket?.remoteAddress ||
-                           'unknown';
+            const clientIP = getClientIP(req);
             // Rate limit
             const rateCheck = checkRateLimit(clientIP, 'sensitive');
             if (!rateCheck.allowed) {
@@ -4090,6 +4180,13 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     </div>
 
     <script>
+        // XSS Protection - escape HTML entities
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
         const launchId = '${launchId}';
         let launchData = null;
         const { Connection, VersionedTransaction } = solanaWeb3;
@@ -4122,7 +4219,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
             } catch (e) {
                 document.getElementById('loading').style.display = 'none';
-                document.getElementById('error').innerHTML = '<h3>Error: ' + e.message + '</h3><p style="margin-top:0.5rem;color:#888">This link may have expired. Go back to Telegram and try /create again.</p>';
+                document.getElementById('error').innerHTML = '<h3>Error: ' + escapeHtml(e.message) + '</h3><p style="margin-top:0.5rem;color:#888">This link may have expired. Go back to Telegram and try /create again.</p>';
                 document.getElementById('error').style.display = 'block';
             }
         }
@@ -4143,7 +4240,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                     window.solana.publicKey.toBase58().slice(0, 6) + '...' +
                     window.solana.publicKey.toBase58().slice(-4) + '</code>';
             } catch (e) {
-                statusEl.innerHTML = 'Connection failed: ' + e.message;
+                statusEl.innerHTML = 'Connection failed: ' + escapeHtml(e.message);
             }
         });
 
@@ -4269,7 +4366,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                     errorMsg = 'Insufficient SOL balance for fees';
                 }
 
-                statusEl.innerHTML = '<div style="color:#ff4444">' + errorMsg + '</div><div style="color:#888;font-size:0.85rem;margin-top:0.5rem">Click the button to try again</div>';
+                statusEl.innerHTML = '<div style="color:#ff4444">' + escapeHtml(errorMsg) + '</div><div style="color:#888;font-size:0.85rem;margin-top:0.5rem">Click the button to try again</div>';
             }
         });
 
@@ -6046,7 +6143,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
     // API: Create a new post
     if (url.pathname === '/api/posts' && req.method === 'POST') {
-        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const clientIP = getClientIP(req);
         console.log('[POSTS] POST request received from:', clientIP);
         try {
             // Rate limit check
@@ -6260,7 +6357,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
     // API: Add comment to post
     if (url.pathname.match(/^\/api\/posts\/\d+\/comment$/) && req.method === 'POST') {
-        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const clientIP = getClientIP(req);
         try {
             const rateCheck = rateLimiter.check(clientIP, 'post');
             if (!rateCheck.allowed) {
@@ -6437,7 +6534,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
     // API: Create a new auction (creator only)
     if (url.pathname === '/api/auctions' && req.method === 'POST') {
-        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const clientIP = getClientIP(req);
         try {
             const rateCheck = rateLimiter.check(clientIP, 'create');
             if (!rateCheck.allowed) {
@@ -6499,7 +6596,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
     // API: Place a bid on an auction
     if (url.pathname.match(/^\/api\/auctions\/[a-zA-Z0-9-]+\/bid$/) && req.method === 'POST') {
-        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const clientIP = getClientIP(req);
         try {
             const rateCheck = rateLimiter.check(clientIP, 'bid');
             if (!rateCheck.allowed) {
@@ -6645,7 +6742,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
     // API: Upload media file
     if (url.pathname === '/api/media/upload' && req.method === 'POST') {
-        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const clientIP = getClientIP(req);
         try {
             const rateCheck = rateLimiter.check(clientIP, 'upload');
             if (!rateCheck.allowed) {
@@ -6722,7 +6819,16 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     if (url.pathname.startsWith('/media/') && req.method === 'GET') {
         try {
             const filename = url.pathname.replace('/media/', '');
-            const filePath = path.join(MEDIA_DIR, filename);
+
+            // SECURITY: Prevent path traversal attacks
+            const filePath = path.resolve(MEDIA_DIR, filename);
+            const mediaRoot = path.resolve(MEDIA_DIR);
+            if (!filePath.startsWith(mediaRoot + path.sep) && filePath !== mediaRoot) {
+                console.warn('[SECURITY] Path traversal attempt blocked:', filename);
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Access denied' }));
+                return;
+            }
 
             if (!fs.existsSync(filePath)) {
                 res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -6812,7 +6918,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     // API: Get all active ORBIT instances (PUBLIC - rate limited)
     if (url.pathname === '/api/orbit/status' && req.method === 'GET') {
         // Rate limit ORBIT endpoints
-        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const clientIP = getClientIP(req);
         const rateCheck = checkRateLimit(clientIP, 'general');
         if (!rateCheck.allowed) {
             res.writeHead(429, { 'Content-Type': 'application/json' });
@@ -6845,7 +6951,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
     // API: Get ORBIT status for specific token (PUBLIC - rate limited)
     if (url.pathname.startsWith('/api/orbit/status/') && req.method === 'GET') {
-        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const clientIP = getClientIP(req);
         const rateCheck = checkRateLimit(clientIP, 'general');
         if (!rateCheck.allowed) {
             res.writeHead(429, { 'Content-Type': 'application/json' });
@@ -6887,7 +6993,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
     // API: Get ORBIT activity log (PUBLIC - rate limited)
     if (url.pathname === '/api/orbit/activity' && req.method === 'GET') {
-        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const clientIP = getClientIP(req);
         const rateCheck = checkRateLimit(clientIP, 'general');
         if (!rateCheck.allowed) {
             res.writeHead(429, { 'Content-Type': 'application/json' });
@@ -6923,7 +7029,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
     // API: Check if token has ORBIT (simple boolean check for external platforms)
     if (url.pathname.startsWith('/api/orbit/check/') && req.method === 'GET') {
-        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const clientIP = getClientIP(req);
         const rateCheck = checkRateLimit(clientIP, 'general');
         if (!rateCheck.allowed) {
             res.writeHead(429, { 'Content-Type': 'application/json' });
@@ -7192,7 +7298,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     // API: Get vanity keypair (mint address ending in "launchr") - RATE LIMITED
     if (url.pathname === '/api/vanity-keypair' && req.method === 'GET') {
         // Rate limit by IP
-        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const clientIP = getClientIP(req);
         const lastRequest = vanityRateLimits[clientIP] || 0;
         const now = Date.now();
 
@@ -7300,7 +7406,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 }
 
                 // Rate limit by IP (separate from Mars vanity, shorter cooldown)
-                const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+                const clientIP = getClientIP(req);
                 const lastRequest = customVanityRateLimits[clientIP] || 0;
                 const now = Date.now();
 
@@ -7455,6 +7561,20 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 const secretKeyBytes = bs58.decode(vaultEntry.secretKey);
                 const mintKeypair = Keypair.fromSecretKey(secretKeyBytes);
 
+                // SECURITY: Validate transaction includes mint keypair as signer
+                const mintPubkeyStr = mintKeypair.publicKey.toBase58();
+                const txAccountKeys = tx.message.staticAccountKeys.map(k => k.toBase58());
+                if (!txAccountKeys.includes(mintPubkeyStr)) {
+                    console.error(`[VAULT] SECURITY: Transaction rejected - mint ${mintPubkeyStr} not in account keys`);
+                    res.writeHead(403, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Transaction does not reference this mint' }));
+                    return;
+                }
+
+                // Log transaction details for audit
+                console.log(`[VAULT] Signing transaction for mint ${mintPubkeyStr}`);
+                console.log(`[VAULT] Transaction has ${tx.message.compiledInstructions.length} instructions`);
+
                 // Sign transaction with mint keypair
                 tx.sign([mintKeypair]);
 
@@ -7539,6 +7659,20 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 // Recreate mint keypair from stored secretKey
                 const secretKeyBytes = bs58.decode(vaultEntry.secretKey);
                 const mintKeypair = Keypair.fromSecretKey(secretKeyBytes);
+
+                // SECURITY: Validate transaction includes mint keypair as signer
+                const mintPubkeyStr = mintKeypair.publicKey.toBase58();
+                const txAccountKeys = tx.message.staticAccountKeys.map(k => k.toBase58());
+                if (!txAccountKeys.includes(mintPubkeyStr)) {
+                    console.error(`[VAULT] SECURITY: Transaction rejected - mint ${mintPubkeyStr} not in account keys`);
+                    res.writeHead(403, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Transaction does not reference this mint' }));
+                    return;
+                }
+
+                // Log transaction details for audit
+                console.log(`[VAULT] Signing and sending transaction for mint ${mintPubkeyStr}`);
+                console.log(`[VAULT] Transaction has ${tx.message.compiledInstructions.length} instructions`);
 
                 // Add mint keypair signature (wallet already signed)
                 tx.sign([mintKeypair]);
@@ -8550,6 +8684,13 @@ function getHTML() {
     </div>
 
     <script>
+        // XSS Protection
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
         let configured = false;
         let authToken = null;
         let allocationsLoaded = false; // Track if we've loaded allocations from server
@@ -8784,14 +8925,14 @@ function getHTML() {
                     resultDiv.innerHTML = '✅ Distributed ' + (data.distributed / 1e9).toFixed(4) + ' SOL!';
                     resultDiv.style.color = '#22c55e';
                 } else {
-                    resultDiv.innerHTML = '❌ ' + (data.error || 'Failed');
+                    resultDiv.innerHTML = '❌ ' + escapeHtml(data.error || 'Failed');
                     resultDiv.style.color = '#ef4444';
                 }
                 resultDiv.style.display = 'block';
                 refreshStatus();
                 refreshLogs();
             } catch (e) {
-                resultDiv.innerHTML = '❌ ' + e.message;
+                resultDiv.innerHTML = '❌ ' + escapeHtml(e.message);
                 resultDiv.style.color = '#ef4444';
                 resultDiv.style.display = 'block';
             }
@@ -8848,7 +8989,7 @@ function getHTML() {
                     throw new Error(data.error);
                 }
             } catch (e) {
-                resultDiv.innerHTML = '❌ ' + e.message;
+                resultDiv.innerHTML = '❌ ' + escapeHtml(e.message);
                 resultDiv.style.display = 'block';
                 resultDiv.style.color = '#ef4444';
             }
@@ -8917,12 +9058,12 @@ function getHTML() {
                     setTimeout(() => refreshStatus(), 1000);
                     setTimeout(() => refreshStatus(), 3000);
                 } else {
-                    resultDiv.innerHTML = '❌ ' + data.error;
+                    resultDiv.innerHTML = '❌ ' + escapeHtml(data.error);
                     resultDiv.style.color = '#ef4444';
                     resultDiv.style.display = 'block';
                 }
             } catch (e) {
-                resultDiv.innerHTML = '❌ ' + e.message;
+                resultDiv.innerHTML = '❌ ' + escapeHtml(e.message);
                 resultDiv.style.color = '#ef4444';
                 resultDiv.style.display = 'block';
             }
@@ -8961,7 +9102,7 @@ function getHTML() {
                         resultDiv.style.display = 'block';
                     }
                 } catch (e) {
-                    resultDiv.innerHTML = 'Error: ' + e.message;
+                    resultDiv.innerHTML = 'Error: ' + escapeHtml(e.message);
                     resultDiv.style.color = '#ef4444';
                     resultDiv.style.display = 'block';
                 }
@@ -8991,12 +9132,12 @@ function getHTML() {
                     resultDiv.style.color = '#22c55e';
                     resultDiv.style.display = 'block';
                 } else {
-                    resultDiv.innerHTML = 'Error: ' + data.error;
+                    resultDiv.innerHTML = 'Error: ' + escapeHtml(data.error);
                     resultDiv.style.color = '#ef4444';
                     resultDiv.style.display = 'block';
                 }
             } catch (e) {
-                resultDiv.innerHTML = 'Error: ' + e.message;
+                resultDiv.innerHTML = 'Error: ' + escapeHtml(e.message);
                 resultDiv.style.color = '#ef4444';
                 resultDiv.style.display = 'block';
             }

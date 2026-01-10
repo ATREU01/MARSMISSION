@@ -184,10 +184,10 @@ class WalletVerifier {
      * Used to prove wallet ownership for culture operations
      */
     static verifySignature(message, signature, publicKey) {
-        // If nacl or bs58 not available, skip verification (log warning)
+        // SECURITY: If nacl or bs58 not available, DENY operation
         if (!nacl || !bs58) {
-            console.warn('[CULTURE-SECURITY] Signature verification skipped - dependencies not available');
-            return true; // Allow through but log it
+            console.error('[CULTURE-SECURITY] CRITICAL: Signature verification BLOCKED - dependencies not available');
+            return false; // NEVER allow unverified operations
         }
 
         try {
