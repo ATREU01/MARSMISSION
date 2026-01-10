@@ -1561,6 +1561,43 @@ function sanitizeErrorMessage(error) {
     return sanitized;
 }
 
+// SECURITY: Input validation helpers
+const validateInput = {
+    // Validate string with max length
+    string: (val, maxLen = 1000) => {
+        if (typeof val !== 'string') return null;
+        return val.slice(0, maxLen);
+    },
+    // Validate positive integer
+    positiveInt: (val, max = Number.MAX_SAFE_INTEGER) => {
+        const num = parseInt(val, 10);
+        if (isNaN(num) || num < 0 || num > max) return null;
+        return num;
+    },
+    // Validate Solana address (base58, 32-44 chars)
+    solanaAddress: (val) => {
+        if (typeof val !== 'string') return null;
+        if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(val)) return null;
+        return val;
+    },
+    // Validate array with max length
+    array: (val, maxLen = 100) => {
+        if (!Array.isArray(val)) return null;
+        return val.slice(0, maxLen);
+    },
+    // Sanitize object keys (prevent prototype pollution)
+    safeObject: (val) => {
+        if (typeof val !== 'object' || val === null || Array.isArray(val)) return {};
+        const safe = {};
+        for (const key of Object.keys(val)) {
+            // Block prototype pollution
+            if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+            safe[key] = val[key];
+        }
+        return safe;
+    }
+};
+
 // Format timestamp to "X ago" format
 function formatTimeAgo(timestamp) {
     if (!timestamp) return 'Unknown';
