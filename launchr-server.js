@@ -101,7 +101,15 @@ if (PRODUCTION_CONFIG.FEE_WALLET_PRIVATE_KEY) {
     }
 }
 
+// SECURITY: Generate random HMAC secret if not configured
+const HMAC_SECRET = process.env.HMAC_SECRET || crypto.randomBytes(32).toString('hex');
+if (!process.env.HMAC_SECRET) {
+    console.warn('[SECURITY] WARNING: HMAC_SECRET not set - using random session secret (will change on restart)');
+    console.warn('[SECURITY] Set HMAC_SECRET env var for persistent signatures');
+}
+
 console.log('[CONFIG] Production config loaded:');
+console.log(`  - HMAC Secret: ${process.env.HMAC_SECRET ? 'SET' : 'RANDOM (session-only)'}`);
 console.log(`  - Privy App ID: ${PRODUCTION_CONFIG.PRIVY_APP_ID ? 'SET' : 'NOT SET'}`);
 console.log(`  - Privy App Secret: ${PRODUCTION_CONFIG.PRIVY_APP_SECRET ? 'SET' : 'NOT SET'}`);
 console.log(`  - Privy Auth Key: ${PRODUCTION_CONFIG.PRIVY_AUTH_PRIVATE_KEY ? 'SET' : 'NOT SET'}`);
@@ -1652,12 +1660,14 @@ setInterval(cleanupCaches, 300000);
 const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
 
-    // Get origin for CORS - only allow same-origin or configured origins
+    // Get origin for CORS - only allow same-origin or explicitly configured origins
     const origin = req.headers.origin;
-    const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
+    const allowedOrigins = (process.env.ALLOWED_ORIGINS?.split(',') || [])
+        .map(o => o.trim())
+        .filter(o => o && o !== '*'); // SECURITY: Reject wildcard CORS
 
-    // CORS headers - restrict to same origin by default
-    if (origin && (allowedOrigins.includes(origin) || allowedOrigins.includes('*'))) {
+    // CORS headers - only allow explicitly listed origins (no wildcards)
+    if (origin && allowedOrigins.includes(origin)) {
         res.setHeader('Access-Control-Allow-Origin', origin);
     }
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -2198,7 +2208,7 @@ const server = http.createServer(async (req, res) => {
 
                 // Sign the response for tamper detection
                 const responseData = { success: true, culture: newCulture };
-                const responseSignature = crypto.createHmac('sha256', process.env.HMAC_SECRET || 'culture-coins-secret')
+                const responseSignature = crypto.createHmac('sha256', HMAC_SECRET)
                     .update(JSON.stringify(responseData))
                     .digest('hex');
 
@@ -4090,6 +4100,13 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     </div>
 
     <script>
+        // XSS Protection - escape HTML entities
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
         const launchId = '${launchId}';
         let launchData = null;
         const { Connection, VersionedTransaction } = solanaWeb3;
@@ -4122,7 +4139,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
             } catch (e) {
                 document.getElementById('loading').style.display = 'none';
-                document.getElementById('error').innerHTML = '<h3>Error: ' + e.message + '</h3><p style="margin-top:0.5rem;color:#888">This link may have expired. Go back to Telegram and try /create again.</p>';
+                document.getElementById('error').innerHTML = '<h3>Error: ' + escapeHtml(e.message) + '</h3><p style="margin-top:0.5rem;color:#888">This link may have expired. Go back to Telegram and try /create again.</p>';
                 document.getElementById('error').style.display = 'block';
             }
         }
@@ -4143,7 +4160,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                     window.solana.publicKey.toBase58().slice(0, 6) + '...' +
                     window.solana.publicKey.toBase58().slice(-4) + '</code>';
             } catch (e) {
-                statusEl.innerHTML = 'Connection failed: ' + e.message;
+                statusEl.innerHTML = 'Connection failed: ' + escapeHtml(e.message);
             }
         });
 
@@ -4269,7 +4286,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                     errorMsg = 'Insufficient SOL balance for fees';
                 }
 
-                statusEl.innerHTML = '<div style="color:#ff4444">' + errorMsg + '</div><div style="color:#888;font-size:0.85rem;margin-top:0.5rem">Click the button to try again</div>';
+                statusEl.innerHTML = '<div style="color:#ff4444">' + escapeHtml(errorMsg) + '</div><div style="color:#888;font-size:0.85rem;margin-top:0.5rem">Click the button to try again</div>';
             }
         });
 
@@ -6722,7 +6739,16 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     if (url.pathname.startsWith('/media/') && req.method === 'GET') {
         try {
             const filename = url.pathname.replace('/media/', '');
-            const filePath = path.join(MEDIA_DIR, filename);
+
+            // SECURITY: Prevent path traversal attacks
+            const filePath = path.resolve(MEDIA_DIR, filename);
+            const mediaRoot = path.resolve(MEDIA_DIR);
+            if (!filePath.startsWith(mediaRoot + path.sep) && filePath !== mediaRoot) {
+                console.warn('[SECURITY] Path traversal attempt blocked:', filename);
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Access denied' }));
+                return;
+            }
 
             if (!fs.existsSync(filePath)) {
                 res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -7455,6 +7481,20 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 const secretKeyBytes = bs58.decode(vaultEntry.secretKey);
                 const mintKeypair = Keypair.fromSecretKey(secretKeyBytes);
 
+                // SECURITY: Validate transaction includes mint keypair as signer
+                const mintPubkeyStr = mintKeypair.publicKey.toBase58();
+                const txAccountKeys = tx.message.staticAccountKeys.map(k => k.toBase58());
+                if (!txAccountKeys.includes(mintPubkeyStr)) {
+                    console.error(`[VAULT] SECURITY: Transaction rejected - mint ${mintPubkeyStr} not in account keys`);
+                    res.writeHead(403, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Transaction does not reference this mint' }));
+                    return;
+                }
+
+                // Log transaction details for audit
+                console.log(`[VAULT] Signing transaction for mint ${mintPubkeyStr}`);
+                console.log(`[VAULT] Transaction has ${tx.message.compiledInstructions.length} instructions`);
+
                 // Sign transaction with mint keypair
                 tx.sign([mintKeypair]);
 
@@ -7539,6 +7579,20 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 // Recreate mint keypair from stored secretKey
                 const secretKeyBytes = bs58.decode(vaultEntry.secretKey);
                 const mintKeypair = Keypair.fromSecretKey(secretKeyBytes);
+
+                // SECURITY: Validate transaction includes mint keypair as signer
+                const mintPubkeyStr = mintKeypair.publicKey.toBase58();
+                const txAccountKeys = tx.message.staticAccountKeys.map(k => k.toBase58());
+                if (!txAccountKeys.includes(mintPubkeyStr)) {
+                    console.error(`[VAULT] SECURITY: Transaction rejected - mint ${mintPubkeyStr} not in account keys`);
+                    res.writeHead(403, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Transaction does not reference this mint' }));
+                    return;
+                }
+
+                // Log transaction details for audit
+                console.log(`[VAULT] Signing and sending transaction for mint ${mintPubkeyStr}`);
+                console.log(`[VAULT] Transaction has ${tx.message.compiledInstructions.length} instructions`);
 
                 // Add mint keypair signature (wallet already signed)
                 tx.sign([mintKeypair]);
@@ -8550,6 +8604,13 @@ function getHTML() {
     </div>
 
     <script>
+        // XSS Protection
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
         let configured = false;
         let authToken = null;
         let allocationsLoaded = false; // Track if we've loaded allocations from server
@@ -8784,14 +8845,14 @@ function getHTML() {
                     resultDiv.innerHTML = '✅ Distributed ' + (data.distributed / 1e9).toFixed(4) + ' SOL!';
                     resultDiv.style.color = '#22c55e';
                 } else {
-                    resultDiv.innerHTML = '❌ ' + (data.error || 'Failed');
+                    resultDiv.innerHTML = '❌ ' + escapeHtml(data.error || 'Failed');
                     resultDiv.style.color = '#ef4444';
                 }
                 resultDiv.style.display = 'block';
                 refreshStatus();
                 refreshLogs();
             } catch (e) {
-                resultDiv.innerHTML = '❌ ' + e.message;
+                resultDiv.innerHTML = '❌ ' + escapeHtml(e.message);
                 resultDiv.style.color = '#ef4444';
                 resultDiv.style.display = 'block';
             }
@@ -8848,7 +8909,7 @@ function getHTML() {
                     throw new Error(data.error);
                 }
             } catch (e) {
-                resultDiv.innerHTML = '❌ ' + e.message;
+                resultDiv.innerHTML = '❌ ' + escapeHtml(e.message);
                 resultDiv.style.display = 'block';
                 resultDiv.style.color = '#ef4444';
             }
@@ -8917,12 +8978,12 @@ function getHTML() {
                     setTimeout(() => refreshStatus(), 1000);
                     setTimeout(() => refreshStatus(), 3000);
                 } else {
-                    resultDiv.innerHTML = '❌ ' + data.error;
+                    resultDiv.innerHTML = '❌ ' + escapeHtml(data.error);
                     resultDiv.style.color = '#ef4444';
                     resultDiv.style.display = 'block';
                 }
             } catch (e) {
-                resultDiv.innerHTML = '❌ ' + e.message;
+                resultDiv.innerHTML = '❌ ' + escapeHtml(e.message);
                 resultDiv.style.color = '#ef4444';
                 resultDiv.style.display = 'block';
             }
@@ -8961,7 +9022,7 @@ function getHTML() {
                         resultDiv.style.display = 'block';
                     }
                 } catch (e) {
-                    resultDiv.innerHTML = 'Error: ' + e.message;
+                    resultDiv.innerHTML = 'Error: ' + escapeHtml(e.message);
                     resultDiv.style.color = '#ef4444';
                     resultDiv.style.display = 'block';
                 }
@@ -8991,12 +9052,12 @@ function getHTML() {
                     resultDiv.style.color = '#22c55e';
                     resultDiv.style.display = 'block';
                 } else {
-                    resultDiv.innerHTML = 'Error: ' + data.error;
+                    resultDiv.innerHTML = 'Error: ' + escapeHtml(data.error);
                     resultDiv.style.color = '#ef4444';
                     resultDiv.style.display = 'block';
                 }
             } catch (e) {
-                resultDiv.innerHTML = 'Error: ' + e.message;
+                resultDiv.innerHTML = 'Error: ' + escapeHtml(e.message);
                 resultDiv.style.color = '#ef4444';
                 resultDiv.style.display = 'block';
             }
