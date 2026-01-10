@@ -43,13 +43,19 @@ const CONFIG = {
 
 class OnChainStats {
     constructor() {
-        this.rpcUrl = CONFIG.HELIUS_API_KEY
-            ? `${CONFIG.HELIUS_RPC}/?api-key=${CONFIG.HELIUS_API_KEY}`
-            : CONFIG.HELIUS_RPC;
+        // Use HELIUS_RPC directly - it should already be the full URL with API key
+        // Format: https://mainnet.helius-rpc.com/?api-key=YOUR_KEY
+        this.rpcUrl = process.env.HELIUS_RPC || CONFIG.HELIUS_RPC;
+
+        // If HELIUS_RPC doesn't have api-key and we have HELIUS_API_KEY, construct it
+        if (!this.rpcUrl.includes('api-key') && CONFIG.HELIUS_API_KEY) {
+            this.rpcUrl = `https://mainnet.helius-rpc.com/?api-key=${CONFIG.HELIUS_API_KEY}`;
+        }
+
         this.connection = new Connection(this.rpcUrl, 'confirmed');
         this.cache = new Map();
 
-        console.log(`[ONCHAIN-STATS] Initialized with Helius RPC`);
+        console.log(`[ONCHAIN-STATS] Initialized with RPC: ${this.rpcUrl.replace(/api-key=[^&]+/, 'api-key=REDACTED')}`);
     }
 
     /**
