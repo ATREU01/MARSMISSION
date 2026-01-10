@@ -6228,19 +6228,20 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 return;
             }
 
-            // Ensure author profile exists in SQLite for posts JOIN
-            const authorProfile = profiles.getProfile(authorWallet);
-            if (authorProfile) {
-                try {
-                    profileDB.upsert(authorWallet, {
-                        displayName: authorProfile.displayName || authorProfile.username || '',
-                        bio: authorProfile.bio || '',
-                        pfpUrl: authorProfile.avatar || null,
-                        bannerUrl: null
-                    });
-                } catch (syncErr) {
-                    console.error('[POSTS] Profile sync error:', syncErr);
-                }
+            // Ensure author profile exists in SQLite for posts FOREIGN KEY constraint
+            // This MUST succeed or the post insert will fail
+            try {
+                const authorProfile = profiles.getProfile(authorWallet);
+                profileDB.upsert(authorWallet, {
+                    displayName: authorProfile?.displayName || authorProfile?.username || authorWallet.slice(0, 8) + '...',
+                    bio: authorProfile?.bio || '',
+                    pfpUrl: authorProfile?.avatar || null,
+                    bannerUrl: null
+                });
+                console.log(`[POSTS] Profile ensured for ${authorWallet.slice(0, 8)}...`);
+            } catch (syncErr) {
+                console.error('[POSTS] Profile sync error:', syncErr);
+                // Don't fail - let the post creation try anyway
             }
 
             // Handle media - support both mediaUrls array and single mediaUrl
