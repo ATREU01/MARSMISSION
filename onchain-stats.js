@@ -104,8 +104,16 @@ class OnChainStats {
 
             console.log(`[ONCHAIN-STATS] Found ${transactions.length} parsed transactions`);
 
-            // Parse Helius transaction data
+            // Known addresses for categorization
+            const BURN_ADDRESS = '1nc1nerator11111111111111111111111111111111';
+            const PUMP_PROGRAMS = ['6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P', 'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA'];
+
+            // Parse Helius transaction data with categorization
             for (const tx of transactions) {
+                const txType = tx.type || '';
+                const txSource = tx.source || '';
+                const description = tx.description || '';
+
                 // Look for native SOL transfers
                 if (tx.nativeTransfers && tx.nativeTransfers.length > 0) {
                     for (const transfer of tx.nativeTransfers) {
@@ -116,13 +124,27 @@ class OnChainStats {
                         }
                         // Outgoing SOL from fee wallet = distributed fees
                         if (transfer.fromUserAccount === feeWalletAddress) {
-                            stats.totalDistributed += transfer.amount;
+                            const amount = transfer.amount;
+                            stats.totalDistributed += amount;
                             stats.distributeCount++;
+
+                            // Categorize the distribution
+                            const category = this.categorizeTransaction(tx, transfer, BURN_ADDRESS, PUMP_PROGRAMS);
+                            if (category === 'burn') {
+                                stats.totalBurned += amount;
+                                stats.burnCount++;
+                            } else if (category === 'buyback') {
+                                stats.totalBuyback += amount;
+                                stats.buybackCount++;
+                            } else if (category === 'liquidity') {
+                                stats.totalLiquidity += amount;
+                                stats.liquidityCount++;
+                            }
                         }
                     }
                 }
 
-                // Also check accountData for balance changes
+                // Also check accountData for balance changes (fallback)
                 if (tx.accountData) {
                     for (const account of tx.accountData) {
                         if (account.account === feeWalletAddress && account.nativeBalanceChange) {
@@ -147,9 +169,12 @@ class OnChainStats {
             // Convert to SOL
             stats.totalClaimedSOL = stats.totalClaimed / LAMPORTS_PER_SOL;
             stats.totalDistributedSOL = stats.totalDistributed / LAMPORTS_PER_SOL;
-            stats.holderPoolSOL = stats.holderPool / LAMPORTS_PER_SOL;
+            stats.totalBurnedSOL = stats.totalBurned / LAMPORTS_PER_SOL;
+            stats.totalBuybackSOL = stats.totalBuyback / LAMPORTS_PER_SOL;
+            stats.totalLiquiditySOL = stats.totalLiquidity / LAMPORTS_PER_SOL;
 
-            console.log(`[ONCHAIN-STATS] RESULTS: Claimed=${stats.totalClaimedSOL.toFixed(4)} SOL, Distributed=${stats.totalDistributedSOL.toFixed(4)} SOL, Pending=${stats.pendingSOL.toFixed(4)} SOL`);
+            console.log(`[ONCHAIN-STATS] RESULTS: Claimed=${stats.totalClaimedSOL.toFixed(4)} SOL, Distributed=${stats.totalDistributedSOL.toFixed(4)} SOL`);
+            console.log(`[ONCHAIN-STATS] BREAKDOWN: Burned=${stats.totalBurnedSOL.toFixed(4)}, Buyback=${stats.totalBuybackSOL.toFixed(4)}, Liquidity=${stats.totalLiquiditySOL.toFixed(4)}`);
 
             return stats;
 
@@ -348,25 +373,35 @@ class OnChainStats {
     /**
      * Get combined stats for dashboard display
      * Returns data in the format the frontend expects
+     * Includes breakdown: burned, buyback, liquidity
      */
     async getStatsForDashboard(tokenMint, feeWalletAddress) {
         const tokenStats = await this.getTokenStats(tokenMint, feeWalletAddress);
 
         return {
             success: true,
-            // In lamports (frontend will convert)
+            // In lamports
             totalClaimed: tokenStats.totalClaimed,
             totalDistributed: tokenStats.totalDistributed,
-            holderPool: tokenStats.holderPool,
             pending: tokenStats.pending,
+            // Breakdown in lamports
+            totalBurned: tokenStats.totalBurned,
+            totalBuyback: tokenStats.totalBuyback,
+            totalLiquidity: tokenStats.totalLiquidity,
             // In SOL (for display)
             totalClaimedSOL: tokenStats.totalClaimedSOL,
             totalDistributedSOL: tokenStats.totalDistributedSOL,
-            holderPoolSOL: tokenStats.holderPoolSOL,
             pendingSOL: tokenStats.pendingSOL,
+            // Breakdown in SOL
+            totalBurnedSOL: tokenStats.totalBurnedSOL,
+            totalBuybackSOL: tokenStats.totalBuybackSOL,
+            totalLiquiditySOL: tokenStats.totalLiquiditySOL,
             // Counts
             claimCount: tokenStats.claimCount,
             distributeCount: tokenStats.distributeCount,
+            burnCount: tokenStats.burnCount,
+            buybackCount: tokenStats.buybackCount,
+            liquidityCount: tokenStats.liquidityCount,
             // Meta
             tokenMint,
             feeWallet: feeWalletAddress,
@@ -376,20 +411,92 @@ class OnChainStats {
     }
 
     /**
-     * Empty stats object
+     * Categorize a transaction as burn, buyback, or liquidity
+     * Based on transaction type, source, and involved accounts
+     */
+    categorizeTransaction(tx, transfer, burnAddress, pumpPrograms) {
+        const txType = (tx.type || '').toUpperCase();
+        const txSource = (tx.source || '').toUpperCase();
+        const description = (tx.description || '').toLowerCase();
+
+        // Check for burns - transfers to burn address or burn instructions
+        if (transfer.toUserAccount === burnAddress) {
+            return 'burn';
+        }
+
+        // Check token transfers for burns
+        if (tx.tokenTransfers) {
+            for (const tokenTransfer of tx.tokenTransfers) {
+                if (tokenTransfer.toUserAccount === burnAddress ||
+                    tokenTransfer.toTokenAccount === burnAddress) {
+                    return 'burn';
+                }
+            }
+        }
+
+        // Check description for burn keywords
+        if (description.includes('burn')) {
+            return 'burn';
+        }
+
+        // Check for liquidity adds
+        if (txType === 'ADD_LIQUIDITY' ||
+            txType.includes('LIQUIDITY') ||
+            description.includes('liquidity') ||
+            description.includes('lp ')) {
+            return 'liquidity';
+        }
+
+        // Check for swaps/buybacks - any swap on Pump.fun/PumpSwap is a buyback
+        if (txType === 'SWAP' ||
+            txType.includes('SWAP') ||
+            txSource.includes('PUMP') ||
+            txSource.includes('RAYDIUM') ||
+            txSource.includes('JUPITER') ||
+            description.includes('swap') ||
+            description.includes('buy') ||
+            description.includes('sold')) {
+            return 'buyback';
+        }
+
+        // Check if transaction involves pump programs
+        if (tx.instructions) {
+            for (const ix of tx.instructions) {
+                if (pumpPrograms.includes(ix.programId)) {
+                    return 'buyback';
+                }
+            }
+        }
+
+        // Default: uncategorized distribution
+        return 'other';
+    }
+
+    /**
+     * Empty stats object - includes breakdown by category
      */
     getEmptyStats() {
         return {
             totalClaimed: 0,
             totalDistributed: 0,
-            holderPool: 0,
             pending: 0,
+            // Breakdown by category
+            totalBurned: 0,
+            totalBuyback: 0,
+            totalLiquidity: 0,
+            // SOL values
             totalClaimedSOL: 0,
             totalDistributedSOL: 0,
-            holderPoolSOL: 0,
             pendingSOL: 0,
+            totalBurnedSOL: 0,
+            totalBuybackSOL: 0,
+            totalLiquiditySOL: 0,
+            // Counts
             claimCount: 0,
             distributeCount: 0,
+            burnCount: 0,
+            buybackCount: 0,
+            liquidityCount: 0,
         };
     }
 
