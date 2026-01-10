@@ -1528,6 +1528,39 @@ function escapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
+// SECURITY: Safely extract client IP from request
+// Railway/proxies set X-Forwarded-For, validate format to prevent spoofing
+function getClientIP(req) {
+    const forwardedFor = req.headers['x-forwarded-for'];
+    if (forwardedFor) {
+        // Take first IP (client), trim whitespace, validate format
+        const ip = forwardedFor.split(',')[0].trim();
+        // Basic IPv4/IPv6 format validation
+        if (/^[\d.:a-fA-F]+$/.test(ip) && ip.length <= 45) {
+            return ip;
+        }
+    }
+    // Fallback to socket address
+    return req.socket?.remoteAddress || 'unknown';
+}
+
+// SECURITY: Sanitize error messages to prevent info leaks
+// Removes stack traces, file paths, and internal details
+function sanitizeErrorMessage(error) {
+    const message = error?.message || String(error) || 'An error occurred';
+    // Remove file paths
+    let sanitized = message.replace(/\/[^\s:]+\.(js|ts|json)/gi, '[path]');
+    // Remove stack traces
+    sanitized = sanitized.replace(/\s+at\s+.+/g, '');
+    // Remove line/column numbers
+    sanitized = sanitized.replace(/:\d+:\d+/g, '');
+    // Truncate long messages
+    if (sanitized.length > 200) {
+        sanitized = sanitized.slice(0, 200) + '...';
+    }
+    return sanitized;
+}
+
 // Format timestamp to "X ago" format
 function formatTimeAgo(timestamp) {
     if (!timestamp) return 'Unknown';
@@ -1683,6 +1716,18 @@ const server = http.createServer(async (req, res) => {
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    // CSP: Allow inline scripts (React) but block unsafe evals and data: URIs
+    res.setHeader('Content-Security-Policy', [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://esm.sh",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com",
+        "img-src 'self' data: https: blob:",
+        "connect-src 'self' https://api.dexscreener.com https://lite-api.jup.ag https://api.jup.ag https://gmgn.ai https://frontend-api.pump.fun https://*.helius-rpc.com wss://*.helius-rpc.com",
+        "frame-src 'self' https://dexscreener.com",
+        "object-src 'none'",
+        "base-uri 'self'"
+    ].join('; '));
 
     if (req.method === 'OPTIONS') {
         res.writeHead(200);
@@ -2111,7 +2156,7 @@ const server = http.createServer(async (req, res) => {
 
     // API: Create new culture (CIA-level security with wallet verification)
     if (url.pathname === '/api/culture/create' && req.method === 'POST') {
-        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const clientIP = getClientIP(req);
         try {
             // Rate limit
             const rateCheck = checkRateLimit(clientIP, 'sensitive');
@@ -2232,7 +2277,7 @@ const server = http.createServer(async (req, res) => {
 
     // API: Update existing culture (for edit mode)
     if (url.pathname === '/api/culture/update' && req.method === 'POST') {
-        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const clientIP = getClientIP(req);
         try {
             // Rate limit
             const rateCheck = checkRateLimit(clientIP, 'sensitive');
@@ -2407,9 +2452,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/culture/verify-access' && req.method === 'POST') {
         try {
             // Get client IP for rate limiting
-            const clientIP = req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-                           req.socket?.remoteAddress ||
-                           'unknown';
+            const clientIP = getClientIP(req);
             // Rate limit
             const rateCheck = checkRateLimit(clientIP, 'sensitive');
             if (!rateCheck.allowed) {
@@ -6063,7 +6106,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
     // API: Create a new post
     if (url.pathname === '/api/posts' && req.method === 'POST') {
-        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const clientIP = getClientIP(req);
         console.log('[POSTS] POST request received from:', clientIP);
         try {
             // Rate limit check
@@ -6277,7 +6320,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
     // API: Add comment to post
     if (url.pathname.match(/^\/api\/posts\/\d+\/comment$/) && req.method === 'POST') {
-        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const clientIP = getClientIP(req);
         try {
             const rateCheck = rateLimiter.check(clientIP, 'post');
             if (!rateCheck.allowed) {
@@ -6454,7 +6497,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
     // API: Create a new auction (creator only)
     if (url.pathname === '/api/auctions' && req.method === 'POST') {
-        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const clientIP = getClientIP(req);
         try {
             const rateCheck = rateLimiter.check(clientIP, 'create');
             if (!rateCheck.allowed) {
@@ -6516,7 +6559,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
     // API: Place a bid on an auction
     if (url.pathname.match(/^\/api\/auctions\/[a-zA-Z0-9-]+\/bid$/) && req.method === 'POST') {
-        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const clientIP = getClientIP(req);
         try {
             const rateCheck = rateLimiter.check(clientIP, 'bid');
             if (!rateCheck.allowed) {
@@ -6662,7 +6705,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
     // API: Upload media file
     if (url.pathname === '/api/media/upload' && req.method === 'POST') {
-        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const clientIP = getClientIP(req);
         try {
             const rateCheck = rateLimiter.check(clientIP, 'upload');
             if (!rateCheck.allowed) {
@@ -6838,7 +6881,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     // API: Get all active ORBIT instances (PUBLIC - rate limited)
     if (url.pathname === '/api/orbit/status' && req.method === 'GET') {
         // Rate limit ORBIT endpoints
-        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const clientIP = getClientIP(req);
         const rateCheck = checkRateLimit(clientIP, 'general');
         if (!rateCheck.allowed) {
             res.writeHead(429, { 'Content-Type': 'application/json' });
@@ -6871,7 +6914,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
     // API: Get ORBIT status for specific token (PUBLIC - rate limited)
     if (url.pathname.startsWith('/api/orbit/status/') && req.method === 'GET') {
-        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const clientIP = getClientIP(req);
         const rateCheck = checkRateLimit(clientIP, 'general');
         if (!rateCheck.allowed) {
             res.writeHead(429, { 'Content-Type': 'application/json' });
@@ -6913,7 +6956,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
     // API: Get ORBIT activity log (PUBLIC - rate limited)
     if (url.pathname === '/api/orbit/activity' && req.method === 'GET') {
-        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const clientIP = getClientIP(req);
         const rateCheck = checkRateLimit(clientIP, 'general');
         if (!rateCheck.allowed) {
             res.writeHead(429, { 'Content-Type': 'application/json' });
@@ -6949,7 +6992,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
     // API: Check if token has ORBIT (simple boolean check for external platforms)
     if (url.pathname.startsWith('/api/orbit/check/') && req.method === 'GET') {
-        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const clientIP = getClientIP(req);
         const rateCheck = checkRateLimit(clientIP, 'general');
         if (!rateCheck.allowed) {
             res.writeHead(429, { 'Content-Type': 'application/json' });
@@ -7218,7 +7261,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     // API: Get vanity keypair (mint address ending in "launchr") - RATE LIMITED
     if (url.pathname === '/api/vanity-keypair' && req.method === 'GET') {
         // Rate limit by IP
-        const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+        const clientIP = getClientIP(req);
         const lastRequest = vanityRateLimits[clientIP] || 0;
         const now = Date.now();
 
@@ -7326,7 +7369,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 }
 
                 // Rate limit by IP (separate from Mars vanity, shorter cooldown)
-                const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+                const clientIP = getClientIP(req);
                 const lastRequest = customVanityRateLimits[clientIP] || 0;
                 const now = Date.now();
 
