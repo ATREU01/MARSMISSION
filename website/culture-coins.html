@@ -251,9 +251,9 @@
             }
         }
 
-        /* Mobile Modal Styles */
+        /* Mobile Modal Styles - Bottom sheet modals preserve their styles */
         @media (max-width: 768px) {
-            .modal-content {
+            .modal-content.fullscreen {
                 width: 100% !important;
                 max-width: 100% !important;
                 height: 100vh !important;
@@ -268,6 +268,14 @@
                 z-index: 10;
                 padding: 16px;
                 border-bottom: 1px solid #222;
+            }
+            /* Prevent body scroll when modal/menu is open */
+            body.modal-open,
+            body.menu-open {
+                overflow: hidden !important;
+                position: fixed !important;
+                width: 100% !important;
+                height: 100% !important;
             }
         }
 
@@ -2296,9 +2304,10 @@
           );
         };
 
-        // Wallet Button Component
+        // Wallet Button Component - Mobile Optimized
         const WalletButton = () => {
           const wallet = useContext(WalletContext);
+          const { isMobile } = useMobile();
           console.log('[WALLET-BTN] wallet context:', wallet ? 'present' : 'null', 'connect:', typeof wallet?.connect);
 
           if (wallet?.address) {
@@ -2308,17 +2317,19 @@
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '10px',
-                  padding: '10px 16px',
+                  gap: isMobile ? '6px' : '10px',
+                  padding: isMobile ? '12px 14px' : '10px 16px',
                   background: '#111',
                   border: '1px solid #333',
                   color: '#fff',
-                  fontSize: '12px',
+                  fontSize: isMobile ? '11px' : '12px',
                   fontFamily: "'IBM Plex Mono', monospace",
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  minHeight: '44px',
+                  borderRadius: isMobile ? '6px' : '0'
                 }}
               >
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#8b5cf6' }} />
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#8b5cf6', flexShrink: 0 }} />
                 {wallet.address.slice(0,4)}...{wallet.address.slice(-4)}
               </button>
             );
@@ -2328,15 +2339,17 @@
             <button
               onClick={wallet?.connect}
               style={{
-                padding: '10px 20px',
+                padding: isMobile ? '12px 16px' : '10px 20px',
                 background: '#fff',
                 border: 'none',
                 color: '#000',
-                fontSize: '11px',
+                fontSize: isMobile ? '10px' : '11px',
                 fontFamily: "'IBM Plex Mono', monospace",
                 letterSpacing: '0.1em',
                 cursor: 'pointer',
-                fontWeight: 600
+                fontWeight: 600,
+                minHeight: '44px',
+                borderRadius: isMobile ? '6px' : '0'
               }}
             >
               CONNECT
@@ -7738,7 +7751,7 @@
           // Loading state
           if (loading) {
             return (
-              <div style={{ padding: '136px 40px 60px', textAlign: 'center' }}>
+              <div style={{ padding: isMobile ? '110px 16px 80px' : '136px 40px 60px', textAlign: 'center' }}>
                 <p style={{ color: '#888', fontFamily: "'IBM Plex Mono', monospace" }}>Loading your cultures...</p>
               </div>
             );
@@ -7746,7 +7759,7 @@
 
           return (
             <div style={{
-              padding: '136px 40px 60px',
+              padding: isMobile ? '110px 16px 80px' : '136px 40px 60px',
               background: dashColors.bg,
               minHeight: '100vh',
               color: dashColors.text,
@@ -7768,34 +7781,47 @@
               {/* Dashboard Tabs */}
               <div style={{
                 display: 'flex',
+                flexDirection: isMobile ? 'column' : 'row',
                 justifyContent: 'space-between',
-                alignItems: 'center',
+                alignItems: isMobile ? 'stretch' : 'center',
                 marginBottom: '32px',
                 borderBottom: `1px solid ${dashColors.border}`,
-                paddingBottom: '16px'
+                paddingBottom: '16px',
+                gap: isMobile ? '16px' : '0'
               }}>
-                <div style={{ display: 'flex', gap: '24px' }}>
+                <div style={{
+                  display: 'flex',
+                  gap: isMobile ? '8px' : '24px',
+                  overflowX: isMobile ? 'auto' : 'visible',
+                  paddingBottom: isMobile ? '8px' : '0',
+                  WebkitOverflowScrolling: 'touch',
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none'
+                }}>
                   {[
                     { id: 'overview', label: 'Overview' },
-                    { id: 'posts', label: 'My Posts' },
-                    { id: 'cultures', label: 'My Cultures' },
-                    { id: 'tek', label: 'TEK Engine' },
+                    { id: 'posts', label: 'Posts' },
+                    { id: 'cultures', label: 'Cultures' },
+                    { id: 'tek', label: 'TEK' },
                     { id: 'settings', label: 'Settings' }
                   ].map(tab => (
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
                       style={{
-                        background: 'none',
+                        background: activeTab === tab.id ? 'rgba(139,92,246,0.1)' : 'none',
                         border: 'none',
                         color: activeTab === tab.id ? dashColors.accent : dashColors.textMuted,
-                        fontSize: '13px',
+                        fontSize: isMobile ? '12px' : '13px',
                         fontFamily: "'IBM Plex Mono', monospace",
                         letterSpacing: '0.05em',
                         cursor: 'pointer',
-                        padding: '8px 0',
-                        borderBottom: activeTab === tab.id ? `2px solid ${dashColors.accent}` : '2px solid transparent',
-                        transition: 'all 0.2s'
+                        padding: isMobile ? '10px 12px' : '8px 0',
+                        borderRadius: isMobile ? '6px' : '0',
+                        borderBottom: isMobile ? 'none' : (activeTab === tab.id ? `2px solid ${dashColors.accent}` : '2px solid transparent'),
+                        transition: 'all 0.2s',
+                        whiteSpace: 'nowrap',
+                        minHeight: isMobile ? '44px' : 'auto'
                       }}
                     >
                       {tab.label}
@@ -10620,13 +10646,13 @@
               ...getBackgroundStyle(),
               color: colors.text
             }}>
-              <div style={{ padding: '136px 40px 80px', maxWidth: '900px', margin: '0 auto' }}>
+              <div style={{ padding: isMobile ? '110px 16px 80px' : '136px 40px 80px', maxWidth: '900px', margin: '0 auto' }}>
 
               {/* Light/Dark Mode Toggle */}
               <div style={{
                 position: 'fixed',
-                top: '110px',
-                right: '40px',
+                top: isMobile ? '104px' : '110px',
+                right: isMobile ? '16px' : '40px',
                 zIndex: 100
               }}>
                 <button
@@ -12631,60 +12657,81 @@
           const hasPhantom = typeof window !== 'undefined' && window.solana?.isPhantom;
           const hasSolflare = typeof window !== 'undefined' && window.solflare?.isSolflare;
 
-          // Mobile deep link detection
-          const phantomMobile = detectPhantomMobile();
+          // Detect if we're inside Phantom's in-app browser
+          const isPhantomBrowser = typeof window !== 'undefined' && window.solana?.isPhantom && detectMobileDevice();
+          const isSolflareBrowser = typeof window !== 'undefined' && window.solflare?.isSolflare && detectMobileDevice();
+
+          // Mobile deep link detection - only use if wallet NOT already available
           const canUsePhantomDeepLink = isMobileDevice && !hasPhantom;
           const canUseSolflareDeepLink = isMobileDevice && !hasSolflare;
 
-          console.log('[WALLET-MODAL] hasPhantom:', hasPhantom, 'hasSolflare:', hasSolflare, 'canDeepLink:', canUsePhantomDeepLink);
+          console.log('[WALLET-MODAL] hasPhantom:', hasPhantom, 'hasSolflare:', hasSolflare,
+                      'isPhantomBrowser:', isPhantomBrowser, 'canDeepLink:', canUsePhantomDeepLink);
 
-          // Generate Phantom deep link URL for mobile
-          const getPhantomDeepLink = () => {
-            // Use explicit Culture Coins page URL for redirect
-            const baseUrl = window.location.origin + '/culture-coins';
-            const redirectUrl = encodeURIComponent(baseUrl);
-            const appUrl = encodeURIComponent(baseUrl);
-            // Phantom universal link format - use redirect_link (not redirect_url)
-            return `https://phantom.app/ul/v1/connect?app_url=${appUrl}&redirect_link=${redirectUrl}&cluster=mainnet-beta`;
+          // Generate Phantom BROWSE deep link - opens site in Phantom's in-app browser
+          // This is the key: instead of just connecting, we open the page INSIDE Phantom's browser
+          // where window.solana is available and works like desktop extension
+          const getPhantomBrowseLink = () => {
+            const currentUrl = window.location.href;
+            const encodedUrl = encodeURIComponent(currentUrl);
+            // Use browse deeplink to open site inside Phantom's browser
+            return `https://phantom.app/ul/browse/${encodedUrl}?ref=${encodeURIComponent(window.location.origin)}`;
           };
 
-          // Generate Solflare deep link URL for mobile
-          const getSolflareDeepLink = () => {
-            const baseUrl = window.location.origin + '/culture-coins';
-            const redirectUrl = encodeURIComponent(baseUrl);
-            return `https://solflare.com/ul/v1/connect?redirect_link=${redirectUrl}`;
+          // Generate Solflare BROWSE deep link - opens site in Solflare's in-app browser
+          const getSolflareBrowseLink = () => {
+            const currentUrl = window.location.href;
+            const encodedUrl = encodeURIComponent(currentUrl);
+            // Solflare uses similar browse format
+            return `https://solflare.com/ul/v1/browse/${encodedUrl}`;
           };
 
           const connectPhantom = async () => {
             console.log('[PHANTOM] Connecting...');
-            if (canUsePhantomDeepLink) {
-              // Mobile: Use deep link to open Phantom app
-              console.log('[PHANTOM] Using mobile deep link');
-              window.location.href = getPhantomDeepLink();
+
+            // If we're already in Phantom's browser, connect directly
+            if (hasPhantom) {
+              try {
+                const res = await window.solana.connect();
+                console.log('[PHANTOM] Connected:', res.publicKey.toString());
+                onConnect(res.publicKey.toString(), 'phantom');
+                onClose();
+              } catch (e) {
+                console.error('[PHANTOM] Error:', e);
+              }
               return;
             }
-            // Desktop: Use injected provider
-            try {
-              const res = await window.solana.connect();
-              console.log('[PHANTOM] Connected:', res.publicKey.toString());
-              onConnect(res.publicKey.toString(), 'phantom');
-              onClose();
-            } catch (e) { console.error('[PHANTOM] Error:', e); }
+
+            // Mobile web: Open site in Phantom's in-app browser
+            if (canUsePhantomDeepLink) {
+              console.log('[PHANTOM] Opening in Phantom browser via deep link');
+              // Store intent to connect after Phantom browser opens
+              sessionStorage.setItem('phantom_connect_pending', 'true');
+              window.location.href = getPhantomBrowseLink();
+              return;
+            }
           };
 
           const connectSolflare = async () => {
-            if (canUseSolflareDeepLink) {
-              // Mobile: Use deep link to open Solflare app
-              console.log('[SOLFLARE] Using mobile deep link');
-              window.location.href = getSolflareDeepLink();
+            // If we're already in Solflare's browser, connect directly
+            if (hasSolflare) {
+              try {
+                await window.solflare.connect();
+                onConnect(window.solflare.publicKey.toString(), 'solflare');
+                onClose();
+              } catch (e) {
+                console.error('[SOLFLARE]', e);
+              }
               return;
             }
-            // Desktop: Use injected provider
-            try {
-              await window.solflare.connect();
-              onConnect(window.solflare.publicKey.toString(), 'solflare');
-              onClose();
-            } catch (e) { console.error('[SOLFLARE]', e); }
+
+            // Mobile web: Open site in Solflare's in-app browser
+            if (canUseSolflareDeepLink) {
+              console.log('[SOLFLARE] Opening in Solflare browser via deep link');
+              sessionStorage.setItem('solflare_connect_pending', 'true');
+              window.location.href = getSolflareBrowseLink();
+              return;
+            }
           };
 
           const connectPrivy = () => {
@@ -12707,6 +12754,7 @@
           };
 
           // Determine if Phantom/Solflare should be enabled
+          // Always enabled on mobile (can deep link), or enabled if extension is present
           const phantomEnabled = hasPhantom || canUsePhantomDeepLink;
           const solflareEnabled = hasSolflare || canUseSolflareDeepLink;
 
@@ -12854,7 +12902,7 @@
                     <img src="/website/phantom_icon.png" alt="Phantom" style={{ width: '28px', height: '28px', borderRadius: '6px' }} />
                     <span style={{ flex: 1, textAlign: 'left' }}>Phantom</span>
                     <span style={{ fontSize: '10px', color: phantomEnabled ? '#8b5cf6' : '#666' }}>
-                      {hasPhantom ? 'DETECTED' : (canUsePhantomDeepLink ? 'OPEN APP' : 'NOT INSTALLED')}
+                      {hasPhantom ? 'CONNECT' : (canUsePhantomDeepLink ? 'OPEN IN APP' : 'NOT INSTALLED')}
                     </span>
                   </button>
 
@@ -12882,11 +12930,11 @@
                     <img src="https://solflare.com/favicon.ico" alt="Solflare" style={{ width: '28px', height: '28px', borderRadius: '6px' }} />
                     <span style={{ flex: 1, textAlign: 'left' }}>Solflare</span>
                     <span style={{ fontSize: '10px', color: solflareEnabled ? '#8b5cf6' : '#666' }}>
-                      {hasSolflare ? 'DETECTED' : (canUseSolflareDeepLink ? 'OPEN APP' : 'NOT INSTALLED')}
+                      {hasSolflare ? 'CONNECT' : (canUseSolflareDeepLink ? 'OPEN IN APP' : 'NOT INSTALLED')}
                     </span>
                   </button>
 
-                  {/* Help text for mobile */}
+                  {/* Help text for mobile - explain the flow */}
                   {isMobileDevice && !hasPhantom && !hasSolflare && (
                     <p style={{
                       color: '#555',
@@ -12896,7 +12944,9 @@
                       marginTop: '8px',
                       lineHeight: 1.5
                     }}>
-                      Don't have a wallet? Privy creates one for you automatically.
+                      Tap Phantom/Solflare to open this page in their app browser.
+                      <br/>
+                      Or use Privy for instant wallet creation.
                     </p>
                   )}
                 </div>
@@ -13166,33 +13216,76 @@
             return () => clearTimeout(timer);
           }, []);
 
-          // Handle Phantom mobile deep link return
+          // Handle Phantom/Solflare in-app browser auto-connect
+          // When user opens site via deep link in wallet's browser, auto-prompt connection
           useEffect(() => {
-            const checkPhantomReturn = async () => {
-              // Check if Phantom injected after returning from deep link
-              if (window.solana?.isPhantom && window.solana.isConnected) {
+            const checkWalletBrowser = async () => {
+              const phantomPending = sessionStorage.getItem('phantom_connect_pending');
+              const solflarePending = sessionStorage.getItem('solflare_connect_pending');
+
+              // We're inside Phantom's in-app browser (window.solana is available)
+              if (window.solana?.isPhantom) {
+                console.log('[PHANTOM] Detected Phantom browser');
+
+                // If we came from a pending deep link, auto-connect immediately
+                if (phantomPending) {
+                  sessionStorage.removeItem('phantom_connect_pending');
+                  console.log('[PHANTOM] Auto-connecting from deep link...');
+                  try {
+                    const resp = await window.solana.connect();
+                    if (resp?.publicKey) {
+                      console.log('[PHANTOM] Connected:', resp.publicKey.toString());
+                      handleWalletConnected(resp.publicKey.toString(), 'phantom');
+                      showNotification('Phantom connected!');
+                    }
+                  } catch (e) {
+                    console.log('[PHANTOM] User rejected connection:', e.message);
+                  }
+                  return;
+                }
+
+                // Otherwise, try silent connect (if previously authorized)
                 try {
                   const resp = await window.solana.connect({ onlyIfTrusted: true });
                   if (resp?.publicKey) {
-                    console.log('[PHANTOM] Auto-connected from deep link:', resp.publicKey.toString());
+                    console.log('[PHANTOM] Silent reconnected:', resp.publicKey.toString());
                     handleWalletConnected(resp.publicKey.toString(), 'phantom');
-                    showNotification('Phantom connected!');
                   }
                 } catch (e) {
-                  console.log('[PHANTOM] Not pre-authorized');
+                  // Not pre-authorized, that's fine
+                  console.log('[PHANTOM] Not pre-authorized, showing connect button');
                 }
               }
-              // Also try Solflare
-              if (window.solflare?.isConnected) {
-                console.log('[SOLFLARE] Auto-connected:', window.solflare.publicKey?.toString());
-                if (window.solflare.publicKey) {
+
+              // We're inside Solflare's in-app browser
+              if (window.solflare?.isSolflare) {
+                console.log('[SOLFLARE] Detected Solflare browser');
+
+                if (solflarePending) {
+                  sessionStorage.removeItem('solflare_connect_pending');
+                  console.log('[SOLFLARE] Auto-connecting from deep link...');
+                  try {
+                    await window.solflare.connect();
+                    if (window.solflare.publicKey) {
+                      handleWalletConnected(window.solflare.publicKey.toString(), 'solflare');
+                      showNotification('Solflare connected!');
+                    }
+                  } catch (e) {
+                    console.log('[SOLFLARE] User rejected:', e.message);
+                  }
+                  return;
+                }
+
+                // Try silent connect
+                if (window.solflare.isConnected && window.solflare.publicKey) {
+                  console.log('[SOLFLARE] Already connected:', window.solflare.publicKey.toString());
                   handleWalletConnected(window.solflare.publicKey.toString(), 'solflare');
-                  showNotification('Solflare connected!');
                 }
               }
             };
-            // Delay check to allow wallet extension to inject
-            setTimeout(checkPhantomReturn, 500);
+
+            // Small delay to ensure wallet provider is injected
+            setTimeout(checkWalletBrowser, 300);
           }, []);
 
           // Listen for Privy auth via BroadcastChannel
@@ -13346,6 +13439,25 @@
 
           // Mobile menu state
           const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+          // Body scroll lock for mobile menu and modals
+          useEffect(() => {
+            if (mobileMenuOpen) {
+              document.body.classList.add('menu-open');
+            } else {
+              document.body.classList.remove('menu-open');
+            }
+            return () => document.body.classList.remove('menu-open');
+          }, [mobileMenuOpen]);
+
+          useEffect(() => {
+            if (showWalletSelect || showWalletInfo) {
+              document.body.classList.add('modal-open');
+            } else {
+              document.body.classList.remove('modal-open');
+            }
+            return () => document.body.classList.remove('modal-open');
+          }, [showWalletSelect, showWalletInfo]);
 
           // Close mobile menu when navigating
           const handleSetView = (v) => {
