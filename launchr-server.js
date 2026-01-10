@@ -2034,6 +2034,19 @@ const server = http.createServer(async (req, res) => {
 
                                 return false;
                             };
+                            // Spam filter patterns - block common crypto spam/scam tweets
+                            const SPAM_PATTERNS = [
+                                /earn \$\d+/i,           // "earn $3724"
+                                /earned \$\d+/i,         // "earned $3864"
+                                /drop your.*address/i,  // "drop your SOL address"
+                                /\bRT\b.*👇/i,           // "RT 👇" giveaway spam
+                                /giveaway/i,            // giveaway spam
+                                /free (airdrop|drop)/i, // free airdrop spam
+                                /dm (me|for)/i,         // "DM me" scams
+                                /(\$\w+\s*){4,}/,       // 4+ $TICKERS in a row (like "$BULLA $TRUMP $CRV $GALA")
+                            ];
+
+                            const isSpam = (text) => SPAM_PATTERNS.some(p => p.test(text));
 
                             // Convert to trend items with REAL tweet text (filtered)
                             const realTweets = xData.data
@@ -2042,6 +2055,10 @@ const server = http.createServer(async (req, res) => {
                                     const likes = metrics.like_count || 0;
                                     // Block spam bots (return false to remove)
                                     if (isSpamBot(tweet.text, likes)) return false;
+                                    // Require minimum engagement (3 likes) to filter out spam
+                                    if ((metrics.like_count || 0) < 3) return false;
+                                    // Block spam patterns
+                                    if (isSpam(tweet.text)) return false;
                                     return true;
                                 })
                                 .slice(0, 10)
