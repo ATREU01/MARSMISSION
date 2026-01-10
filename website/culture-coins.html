@@ -1726,6 +1726,36 @@
                                   {idea.description}
                                 </p>
 
+                                {/* Inspired By - shows which real trend this came from */}
+                                {idea.inspiredBy && (
+                                  <div style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    padding: '3px 8px',
+                                    background: 'rgba(6, 182, 212, 0.15)',
+                                    border: '1px solid rgba(6, 182, 212, 0.3)',
+                                    borderRadius: '4px',
+                                    marginBottom: '6px'
+                                  }}>
+                                    <span style={{
+                                      fontFamily: "'IBM Plex Mono', monospace",
+                                      fontSize: '8px',
+                                      color: '#06b6d4',
+                                      fontWeight: 600
+                                    }}>
+                                      INSPIRED BY:
+                                    </span>
+                                    <span style={{
+                                      fontFamily: "'IBM Plex Mono', monospace",
+                                      fontSize: '9px',
+                                      color: '#06b6d4'
+                                    }}>
+                                      {idea.inspiredBy}
+                                    </span>
+                                  </div>
+                                )}
+
                                 <div style={{
                                   display: 'flex',
                                   alignItems: 'center',

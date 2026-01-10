@@ -1951,7 +1951,7 @@ const server = http.createServer(async (req, res) => {
         try {
             const now = Date.now();
 
-            // Return cached data if still fresh
+            // Return cached data if still fresh (5 min cache)
             if (xTrendingCache.data && (now - xTrendingCache.timestamp) < X_CACHE_DURATION) {
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({
@@ -1966,156 +1966,158 @@ const server = http.createServer(async (req, res) => {
             // X API Bearer Token (set via environment variable)
             const X_BEARER_TOKEN = process.env.X_BEARER_TOKEN || process.env.TWITTER_BEARER_TOKEN;
 
-            if (!X_BEARER_TOKEN) {
-                log('[X-API] WARNING: X_BEARER_TOKEN not set - using fallback data. Add X_BEARER_TOKEN to Railway for real X trends.');
-            }
+            let trends = [];
+            let source = 'fallback';
 
+            // ═══════════════════════════════════════════════════════════════
+            // OPTION 1: Fetch REAL TWEETS from X API
+            // ═══════════════════════════════════════════════════════════════
             if (X_BEARER_TOKEN) {
-                log('[X-API] Fetching real trends from X/Twitter API...');
-                // Fetch real trending data from X API - get high engagement tweets
-                const xResponse = await fetch('https://api.twitter.com/2/tweets/search/recent?query=(crypto OR solana OR web3 OR defi OR memecoin) -is:retweet lang:en&max_results=100&tweet.fields=public_metrics,created_at,author_id&sort_order=relevancy', {
-                    headers: {
-                        'Authorization': `Bearer ${X_BEARER_TOKEN}`,
-                        'Content-Type': 'application/json'
+                log('[X-API] Fetching real tweets from X/Twitter API...');
+                try {
+                    // Search for high-engagement crypto tweets
+                    const xResponse = await fetch(
+                        'https://api.twitter.com/2/tweets/search/recent?' +
+                        'query=(crypto OR solana OR $SOL OR memecoin OR pump.fun) -is:retweet lang:en&' +
+                        'max_results=20&' +
+                        'tweet.fields=public_metrics,created_at,author_id&' +
+                        'expansions=author_id&' +
+                        'user.fields=username,name,verified&' +
+                        'sort_order=relevancy',
+                        {
+                            headers: {
+                                'Authorization': `Bearer ${X_BEARER_TOKEN}`,
+                                'Content-Type': 'application/json'
+                            }
+                        }
+                    );
+
+                    if (xResponse.ok) {
+                        const xData = await xResponse.json();
+
+                        if (xData.data && xData.data.length > 0) {
+                            // Build user lookup
+                            const users = {};
+                            if (xData.includes?.users) {
+                                xData.includes.users.forEach(u => users[u.id] = u);
+                            }
+
+                            // Convert to trend items with REAL tweet text
+                            const realTweets = xData.data
+                                .filter(tweet => tweet.public_metrics?.like_count > 5)
+                                .slice(0, 10)
+                                .map((tweet, index) => {
+                                    const user = users[tweet.author_id] || {};
+                                    const engagement = (tweet.public_metrics?.like_count || 0) +
+                                                      (tweet.public_metrics?.retweet_count || 0) * 2;
+
+                                    // Detect category from tweet content
+                                    const text = tweet.text.toLowerCase();
+                                    let category = 'TRENDING';
+                                    if (text.includes('breaking') || text.includes('just in')) category = 'BREAKING';
+                                    else if (text.includes('pump') || text.includes('moon')) category = 'HOT';
+                                    else if (text.includes('defi') || text.includes('yield')) category = 'DEFI';
+                                    else if (text.includes('sol') || text.includes('btc') || text.includes('eth')) category = 'MARKET';
+                                    else if (text.includes('ai') || text.includes('agent')) category = 'ALPHA';
+
+                                    return {
+                                        name: tweet.text.slice(0, 140) + (tweet.text.length > 140 ? '...' : ''),
+                                        category: category,
+                                        volume: formatTrendVolume(engagement * 100),
+                                        velocity: `+${Math.floor(50 + engagement / 10)}%`,
+                                        sentiment: 0.5 + Math.min(0.4, engagement / 5000),
+                                        author: user.username ? `@${user.username}` : null,
+                                        authorName: user.name || null,
+                                        verified: user.verified || false,
+                                        likes: tweet.public_metrics?.like_count || 0,
+                                        retweets: tweet.public_metrics?.retweet_count || 0,
+                                        isRealTweet: true
+                                    };
+                                });
+
+                            if (realTweets.length >= 5) {
+                                trends = realTweets;
+                                source = 'x-api-real-tweets';
+                                log('[X-API] ✓ Got ' + realTweets.length + ' real tweets');
+                            }
+                        }
+                    } else {
+                        log('[X-API] X API returned status:', xResponse.status);
                     }
-                });
-
-                if (xResponse.ok) {
-                    const xData = await xResponse.json();
-
-                    // Headline templates based on detected topics
-                    const headlineTemplates = {
-                        solana: [
-                            'Solana network activity surges {pct}%',
-                            'SOL price action heats up amid volume spike',
-                            'Solana DEX volume hits new highs',
-                            'Solana ecosystem sees major inflows'
-                        ],
-                        bitcoin: [
-                            'Bitcoin breaks key resistance level',
-                            'BTC whale activity detected on-chain',
-                            'Bitcoin dominance shifts as alts rally'
-                        ],
-                        ethereum: [
-                            'Ethereum gas fees spike on network congestion',
-                            'ETH staking rewards attract new validators'
-                        ],
-                        memecoin: [
-                            'Memecoin frenzy continues as traders pile in',
-                            'New memecoin launches dominate DEX volume',
-                            'Memecoin meta shifts to culture coins'
-                        ],
-                        defi: [
-                            'DeFi TVL climbs as yields attract capital',
-                            'DeFi protocols see surge in active users',
-                            'Lending rates spike across DeFi platforms'
-                        ],
-                        nft: [
-                            'NFT trading volume rebounds sharply',
-                            'Blue chip NFTs see renewed interest'
-                        ],
-                        ai: [
-                            'AI tokens surge amid tech sector momentum',
-                            'AI agent tokens capture trader attention',
-                            'AI crypto narrative gains traction'
-                        ],
-                        pump: [
-                            'pump.fun launches hit record numbers',
-                            'pump.fun trading volume stays elevated'
-                        ],
-                        jupiter: [
-                            'Jupiter aggregator processes record swaps',
-                            'Jupiter DEX volume rivals top exchanges'
-                        ],
-                        raydium: [
-                            'Raydium liquidity pools attract new LPs',
-                            'Raydium TVL continues upward trend'
-                        ]
-                    };
-
-                    // Analyze tweets to detect trending topics and sentiment
-                    const topicData = {};
-                    const categories = {
-                        solana: 'MARKET', bitcoin: 'MARKET', ethereum: 'MARKET',
-                        memecoin: 'TRENDING', defi: 'DEFI', nft: 'ALPHA',
-                        ai: 'HOT', pump: 'BREAKING', jupiter: 'DEFI', raydium: 'DEFI'
-                    };
-
-                    if (xData.data) {
-                        xData.data.forEach(tweet => {
-                            const text = tweet.text.toLowerCase();
-                            const engagement = (tweet.public_metrics?.like_count || 0) +
-                                             (tweet.public_metrics?.retweet_count || 0) * 2 +
-                                             (tweet.public_metrics?.reply_count || 0);
-
-                            Object.keys(headlineTemplates).forEach(topic => {
-                                if (text.includes(topic) || (topic === 'pump' && text.includes('pump.fun'))) {
-                                    if (!topicData[topic]) {
-                                        topicData[topic] = { count: 0, engagement: 0, sentiment: 0 };
-                                    }
-                                    topicData[topic].count++;
-                                    topicData[topic].engagement += engagement;
-                                    // Simple sentiment: positive words increase, negative decrease
-                                    const positive = (text.match(/surge|rally|pump|moon|bullish|ath|high|record|gains/g) || []).length;
-                                    const negative = (text.match(/dump|crash|bear|low|fear|sell|down|drop/g) || []).length;
-                                    topicData[topic].sentiment += (positive - negative);
-                                }
-                            });
-                        });
-                    }
-
-                    // Generate headlines from detected topics
-                    const trends = Object.entries(topicData)
-                        .filter(([_, data]) => data.count >= 2)
-                        .sort((a, b) => b[1].engagement - a[1].engagement)
-                        .slice(0, 10)
-                        .map(([topic, data], index) => {
-                            const templates = headlineTemplates[topic] || [`${topic} activity increases on crypto twitter`];
-                            const template = templates[Math.floor(Date.now() / 3600000 + index) % templates.length];
-                            const velocity = Math.min(999, Math.floor(50 + (data.engagement / Math.max(1, data.count)) * 2));
-                            const sentiment = Math.max(0.3, Math.min(0.95, 0.5 + (data.sentiment / Math.max(1, data.count)) * 0.1));
-
-                            return {
-                                name: template.replace('{pct}', velocity),
-                                category: categories[topic] || 'TRENDING',
-                                volume: formatTrendVolume(data.count * 1000 + data.engagement * 10),
-                                velocity: `+${velocity}%`,
-                                sentiment: sentiment
-                            };
-                        });
-
-                    if (trends.length >= 5) {
-                        xTrendingCache = { data: trends, timestamp: now };
-                        log('[X-API] ✓ Generated ' + trends.length + ' news headlines from X data');
-
-                        res.writeHead(200, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify({ success: true, trends, cached: false, source: 'x-api-live' }));
-                        return;
-                    }
-                    // Fall through to curated headlines if not enough data
-                    log('[X-API] Not enough X data, using curated headlines');
+                } catch (xErr) {
+                    log('[X-API] X API error:', xErr.message);
                 }
             }
 
-            // Fallback: Return today's crypto news headlines
-            const fallbackTrends = [
-                { name: 'Solana hits new ATH volume on DEXs', category: 'BREAKING', volume: '245K', velocity: '+892%', sentiment: 0.89 },
-                { name: 'pump.fun surpasses $500M in fees', category: 'MARKET', volume: '189K', velocity: '+567%', sentiment: 0.84 },
-                { name: 'BONK rallies 40% on whale accumulation', category: 'TRENDING', volume: '156K', velocity: '+445%', sentiment: 0.81 },
-                { name: 'AI agent tokens surge amid hype', category: 'HOT', volume: '134K', velocity: '+678%', sentiment: 0.78 },
-                { name: 'Jupiter DEX volume exceeds Uniswap', category: 'MARKET', volume: '98K', velocity: '+234%', sentiment: 0.72 },
-                { name: 'New memecoin meta: culture coins', category: 'ALPHA', volume: '87K', velocity: '+312%', sentiment: 0.76 },
-                { name: 'Raydium TVL crosses $2B milestone', category: 'DEFI', volume: '76K', velocity: '+156%', sentiment: 0.68 },
-                { name: 'Phantom wallet adds new features', category: 'TECH', volume: '54K', velocity: '+189%', sentiment: 0.71 },
-                { name: 'SOL staking yields hit 8% APY', category: 'YIELD', volume: '43K', velocity: '+78%', sentiment: 0.65 },
-                { name: 'Crypto Twitter buzzing on launches', category: 'SOCIAL', volume: '38K', velocity: '+398%', sentiment: 0.74 }
-            ];
+            // ═══════════════════════════════════════════════════════════════
+            // OPTION 2: Fetch REAL NEWS from CryptoPanic API (free, no auth)
+            // ═══════════════════════════════════════════════════════════════
+            if (trends.length < 5) {
+                log('[NEWS-API] Fetching real crypto news from CryptoPanic...');
+                try {
+                    // CryptoPanic free API - real crypto news aggregator
+                    const newsResponse = await fetch(
+                        'https://cryptopanic.com/api/v1/posts/?auth_token=free&public=true&kind=news&filter=hot&currencies=SOL,BTC,ETH',
+                        { headers: { 'Accept': 'application/json' } }
+                    );
 
-            xTrendingCache = { data: fallbackTrends, timestamp: now };
-            log('[X-API] Using fallback trends (X_BEARER_TOKEN not configured or X API failed)');
+                    if (newsResponse.ok) {
+                        const newsData = await newsResponse.json();
+
+                        if (newsData.results && newsData.results.length > 0) {
+                            const realNews = newsData.results.slice(0, 10).map((item, index) => {
+                                // Detect category from title/source
+                                const title = item.title.toLowerCase();
+                                let category = 'TRENDING';
+                                if (title.includes('breaking') || title.includes('just')) category = 'BREAKING';
+                                else if (title.includes('surge') || title.includes('rally') || title.includes('pump')) category = 'HOT';
+                                else if (title.includes('defi') || title.includes('tvl')) category = 'DEFI';
+                                else if (title.includes('price') || title.includes('market')) category = 'MARKET';
+                                else if (title.includes('ai') || title.includes('launch')) category = 'ALPHA';
+
+                                return {
+                                    name: item.title,
+                                    category: category,
+                                    volume: formatTrendVolume((item.votes?.positive || 0) * 1000 + (index + 1) * 5000),
+                                    velocity: `+${100 + (item.votes?.positive || 0) * 10}%`,
+                                    sentiment: item.votes ? (item.votes.positive / Math.max(1, item.votes.positive + item.votes.negative)) : 0.7,
+                                    source: item.source?.title || 'CryptoPanic',
+                                    url: item.url,
+                                    publishedAt: item.published_at,
+                                    isRealNews: true
+                                };
+                            });
+
+                            if (realNews.length >= 3) {
+                                trends = realNews;
+                                source = 'cryptopanic-real-news';
+                                log('[NEWS-API] ✓ Got ' + realNews.length + ' real news articles');
+                            }
+                        }
+                    }
+                } catch (newsErr) {
+                    log('[NEWS-API] CryptoPanic error:', newsErr.message);
+                }
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // FALLBACK: Use static headlines if APIs fail
+            // ═══════════════════════════════════════════════════════════════
+            if (trends.length < 3) {
+                log('[X-API] Using fallback data (APIs unavailable)');
+                trends = [
+                    { name: 'Configure X_BEARER_TOKEN for real tweets', category: 'INFO', volume: '—', velocity: '—', sentiment: 0.5, isRealTweet: false },
+                    { name: 'Or news will load from CryptoPanic API', category: 'INFO', volume: '—', velocity: '—', sentiment: 0.5, isRealNews: false },
+                    { name: 'Check server logs for API status', category: 'INFO', volume: '—', velocity: '—', sentiment: 0.5 }
+                ];
+                source = 'fallback';
+            }
+
+            // Cache and return
+            xTrendingCache = { data: trends, timestamp: now };
 
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true, trends: fallbackTrends, cached: false, source: 'fallback' }));
+            res.end(JSON.stringify({ success: true, trends, cached: false, source }));
         } catch (e) {
             console.error('[X-API] Trending fetch error:', e);
             res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -3393,65 +3395,57 @@ The 4 percentages MUST sum to exactly 100.`;
 
             const currentDate = new Date().toISOString().split('T')[0];
 
-            const prompt = `You are an elite crypto venture analyst and cultural trend forecaster specializing in Solana memecoin launches. Your role is to identify UNIQUE market opportunities by synthesizing on-chain data, social sentiment, and cultural zeitgeist.
+            const prompt = `You are a crypto culture coin strategist. Your job is to generate token ideas DIRECTLY INSPIRED BY the real trending tokens and real news below.
 
 DATE: ${currentDate}
 
 ═══════════════════════════════════════════════════════════════
-LIVE MARKET DATA - TOP PERFORMING TOKENS (SOLANA)
+REAL TRENDING TOKENS RIGHT NOW (from pump.fun/Solana)
 ═══════════════════════════════════════════════════════════════
-${tokenContext || 'Market data unavailable - analyze based on known Solana trends'}
+${tokenContext || 'No token data available'}
 
 ═══════════════════════════════════════════════════════════════
-SOCIAL SENTIMENT - TRENDING NARRATIVES (X/TWITTER)
+REAL CRYPTO NEWS/TWEETS RIGHT NOW
 ═══════════════════════════════════════════════════════════════
-${newsContext || 'Social data unavailable - analyze based on known crypto narratives'}
-
-═══════════════════════════════════════════════════════════════
-YOUR ANALYSIS FRAMEWORK
-═══════════════════════════════════════════════════════════════
-
-STEP 1: PATTERN RECOGNITION
-- What meta-narratives are emerging from the trending tokens?
-- What cultural moments or memes are gaining velocity?
-- What gaps exist in the current market (underserved niches)?
-
-STEP 2: OPPORTUNITY SYNTHESIS
-Generate exactly 5 token concepts. Each MUST be:
-- GENUINELY ORIGINAL - No lazy derivatives like "Baby X" or "X Inu"
-- CULTURALLY RESONANT - Tap into real human emotions, communities, or movements
-- NARRATIVELY COMPELLING - Has a story that spreads organically
-- TECHNICALLY SOUND - Makes sense as a Solana token with clear use case
-
-STEP 3: DIFFERENTIATION CHECK
-Before finalizing, verify each idea:
-- Does this name already exist? (If it sounds too obvious, it's taken)
-- Is this a lazy pattern? (Avoid: [Animal][Crypto term], [Meme]AI, Baby[X])
-- Would a sophisticated investor take notice? (Not just degens)
+${newsContext || 'No news data available'}
 
 ═══════════════════════════════════════════════════════════════
-OUTPUT FORMAT (STRICT JSON)
+YOUR TASK: Generate ideas BASED ON THE REAL DATA ABOVE
 ═══════════════════════════════════════════════════════════════
 
-Return ONLY a JSON array with exactly 5 objects:
+CRITICAL RULES:
+1. Each idea MUST be directly inspired by a specific trending token OR news headline above
+2. Reference the ACTUAL token names or news topics in your reasoning
+3. Think: "What culture coin would capitalize on THIS specific trend?"
+4. NOT random ideas - ideas must connect to the real data
+
+EXAMPLES OF WHAT WE WANT:
+- If BONK is trending → idea for a culture coin that captures the dog meme energy but with a unique angle
+- If news says "Solana DEX volume surges" → idea for a DEX trader culture/community coin
+- If AI tokens are pumping → idea for an AI-native creator culture coin
+
+EXAMPLES OF WHAT WE DON'T WANT:
+- Random "Lunar Chorus" type names with no connection to trends
+- Generic ideas that ignore the actual trending data
+- Made-up narratives that don't reference the real tokens/news
+
+═══════════════════════════════════════════════════════════════
+OUTPUT FORMAT (STRICT JSON - 5 ideas)
+═══════════════════════════════════════════════════════════════
+
 [
   {
-    "name": "Unique creative name (2-3 words max)",
-    "ticker": "TICKER (3-5 chars, memorable, not generic)",
-    "description": "Compelling 2-sentence pitch explaining the unique value proposition and why NOW is the moment",
-    "category": "Specific narrative (e.g., 'AI Agent Infrastructure', 'Culture DAO', 'Gaming Guild', 'Creator Economy')",
-    "confidence": 75-95 (realistic assessment based on market timing),
-    "reasoning": "Detailed analysis: What specific trend data supports this? What cultural moment does it capture? Why would it spread virally?"
+    "name": "Creative name (2-3 words)",
+    "ticker": "TICKER (3-5 chars)",
+    "description": "2-sentence pitch - MUST mention which trend inspired this",
+    "category": "e.g., 'Meme Culture', 'DeFi Degens', 'AI Builders', 'Gaming'",
+    "confidence": 70-95,
+    "reasoning": "MUST say: 'Inspired by [specific token/news from above]. This captures...'",
+    "inspiredBy": "The specific token name or news headline this is based on"
   }
 ]
 
-QUALITY STANDARDS:
-- Names should be evocative, not descriptive (Think "Render" not "GPU Token")
-- Tickers should be speakable and memorable (Think "BONK" not "SOLDOG")
-- Descriptions should create FOMO, not just explain
-- Reasoning should reference SPECIFIC data points from the trends above
-
-Generate ideas that would make a crypto-native VC say "Why didn't I think of that?" - not ideas that make them roll their eyes.`;
+Generate 5 ideas that are CLEARLY derived from the real trending data above. Each idea should make it obvious which trend inspired it.`;
 
             const response = await fetch('https://api.anthropic.com/v1/messages', {
                 method: 'POST',
@@ -3506,7 +3500,8 @@ Generate ideas that would make a crypto-native VC say "Why didn't I think of tha
                 description: idea.description || '',
                 category: idea.category || 'Culture',
                 confidence: Math.min(99, Math.max(50, idea.confidence || 75)),
-                reasoning: idea.reasoning || ''
+                reasoning: idea.reasoning || '',
+                inspiredBy: idea.inspiredBy || null  // Which real token/news inspired this
             }));
 
             log(`AI Ideas: Generated ${ideas.length} institutional-grade coin ideas`);
