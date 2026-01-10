@@ -6940,9 +6940,9 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
         try {
             const mint = url.searchParams.get('mint');
 
-            // If mint is provided, get on-chain stats for that specific token
+            // If mint is provided, get stats for that specific token
             if (mint) {
-                console.log(`[STATS] Fetching on-chain stats for ${mint.slice(0, 8)}...`);
+                console.log(`[STATS] Fetching stats for ${mint.slice(0, 8)}...`);
 
                 // Get the fee wallet for this token from ORBIT registry or use default
                 const orbitStatus = orbitRegistry.get(mint);
@@ -6954,28 +6954,62 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                         const secretKey = bs58.decode(process.env.FEE_WALLET_PRIVATE_KEY);
                         const keypair = Keypair.fromSecretKey(secretKey);
                         feeWallet = keypair.publicKey.toBase58();
-                        console.log(`[STATS] Derived fee wallet: ${feeWallet.slice(0, 8)}...`);
                     } catch (e) {
                         console.error('[STATS] Could not derive fee wallet:', e.message);
                     }
                 }
 
-                if (!feeWallet) {
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({
-                        success: false,
-                        error: 'No fee wallet configured for this token',
-                        totalClaimed: 0,
-                        totalDistributed: 0,
-                        pending: 0,
-                        holderPool: 0,
-                    }));
-                    return;
+                // Try to get persisted stats from .launchr-stats.json (most accurate breakdown)
+                let persistedStats = null;
+                const statsFile = path.join(process.env.DATA_DIR || './data', '.launchr-stats.json');
+                try {
+                    if (fs.existsSync(statsFile)) {
+                        const statsData = JSON.parse(fs.readFileSync(statsFile, 'utf8'));
+                        if (statsData[mint]) {
+                            persistedStats = statsData[mint];
+                            console.log(`[STATS] Found persisted stats for ${mint.slice(0, 8)}`);
+                        }
+                    }
+                } catch (e) {
+                    console.log(`[STATS] Could not read persisted stats: ${e.message}`);
                 }
 
-                // Fetch REAL on-chain stats
+                // Get on-chain stats for pending balance
                 const onChainStats = getOnChainStats();
-                const stats = await onChainStats.getStatsForDashboard(mint, feeWallet);
+                const chainStats = await onChainStats.getStatsForDashboard(mint, feeWallet || '');
+
+                // Merge: use persisted breakdown if available, chain data for pending
+                const stats = {
+                    success: true,
+                    // Use persisted totals if available, otherwise chain data
+                    totalClaimed: persistedStats?.totalClaimed || chainStats.totalClaimed || 0,
+                    totalDistributed: persistedStats?.totalDistributed || chainStats.totalDistributed || 0,
+                    pending: chainStats.pending || 0,
+                    // BREAKDOWN - use persisted data (this is the REAL breakdown from actual distributions)
+                    // buybackBurn = SOL spent buying tokens that were burned
+                    // marketMaking = SOL spent on market support (buybacks that are held)
+                    // liquidity = SOL added to LP
+                    totalBurned: persistedStats?.buybackBurn || chainStats.totalBurned || 0,
+                    totalBuyback: persistedStats?.marketMaking || chainStats.totalBuyback || 0,
+                    totalLiquidity: persistedStats?.liquidity || chainStats.totalLiquidity || 0,
+                    // SOL values
+                    totalClaimedSOL: (persistedStats?.totalClaimed || chainStats.totalClaimed || 0) / LAMPORTS_PER_SOL,
+                    totalDistributedSOL: (persistedStats?.totalDistributed || chainStats.totalDistributed || 0) / LAMPORTS_PER_SOL,
+                    pendingSOL: (chainStats.pending || 0) / LAMPORTS_PER_SOL,
+                    // Breakdown in SOL - these are the KEY values for the dashboard
+                    totalBurnedSOL: (persistedStats?.buybackBurn || chainStats.totalBurned || 0) / LAMPORTS_PER_SOL,
+                    totalBuybackSOL: (persistedStats?.marketMaking || chainStats.totalBuyback || 0) / LAMPORTS_PER_SOL,
+                    totalLiquiditySOL: (persistedStats?.liquidity || chainStats.totalLiquidity || 0) / LAMPORTS_PER_SOL,
+                    // Transaction counts
+                    transactions: persistedStats?.transactions || [],
+                    // Meta
+                    tokenMint: mint,
+                    feeWallet,
+                    lastUpdated: Date.now(),
+                    source: persistedStats ? 'persisted+onchain' : 'onchain',
+                };
+
+                console.log(`[STATS] Returning: Burned=${stats.totalBurnedSOL.toFixed(4)}, Buyback=${stats.totalBuybackSOL.toFixed(4)}, LP=${stats.totalLiquiditySOL.toFixed(4)}`);
 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify(stats));
