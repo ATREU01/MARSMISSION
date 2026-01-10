@@ -279,6 +279,17 @@
             }
         }
 
+        /* Smooth scrolling nav container */
+        .nav-scroll-container {
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+        .nav-scroll-container::-webkit-scrollbar {
+            display: none;
+            height: 0;
+            width: 0;
+        }
+
         /* Safe area insets for notched phones */
         @supports (padding-top: env(safe-area-inset-top)) {
             .mobile-safe-top {
@@ -2189,7 +2200,7 @@
         // Connected to real cultures only (no fake placeholder data)
         const AUCTIONS = [];
 
-        // Navigation Component - Mobile Responsive with Hamburger Menu
+        // Navigation Component - Mobile Responsive with Scrollable Nav
         const Navigation = ({ view, setView, onMenuToggle, menuOpen }) => {
           const { isMobile } = useMobile();
 
@@ -2205,11 +2216,18 @@
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: isMobile ? '0 16px' : '0 40px',
+              padding: isMobile ? '0 12px' : '0 40px',
               zIndex: 1000,
               fontFamily: "'IBM Plex Mono', monospace"
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '12px' : '32px' }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: isMobile ? '8px' : '32px',
+                flex: 1,
+                minWidth: 0,
+                overflow: 'hidden'
+              }}>
                 {/* Hamburger Menu Button - Mobile Only */}
                 {isMobile && (
                   <button
@@ -2226,7 +2244,8 @@
                       padding: '8px',
                       cursor: 'pointer',
                       minHeight: '44px',
-                      minWidth: '44px'
+                      minWidth: '44px',
+                      flexShrink: 0
                     }}
                   >
                     <span style={{
@@ -2258,46 +2277,65 @@
                   </button>
                 )}
 
+                {/* Logo - Compact on mobile */}
                 <a href="/" style={{
-                  fontSize: isMobile ? '12px' : '14px',
+                  fontSize: isMobile ? '11px' : '14px',
                   fontWeight: 600,
-                  letterSpacing: '0.15em',
+                  letterSpacing: '0.1em',
                   color: '#fff',
                   textDecoration: 'none',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: isMobile ? '8px' : '12px'
+                  gap: '6px',
+                  flexShrink: 0
                 }}>
-                  <img src="/website/logo-icon.jpg" alt="LAUNCHR" style={{ height: isMobile ? '24px' : '28px', width: isMobile ? '24px' : '28px' }} />
-                  {isMobile ? 'CC' : 'CULTURE COINS'}
+                  <img src="/website/logo-icon.jpg" alt="LAUNCHR" style={{ height: isMobile ? '20px' : '28px', width: isMobile ? '20px' : '28px' }} />
+                  {!isMobile && 'CULTURE COINS'}
                 </a>
 
-                {/* Desktop Nav Links - Hidden on Mobile */}
-                {!isMobile && (
-                  <div className="desktop-nav-links" style={{ display: 'flex', gap: '24px' }}>
-                    {['discover', 'feed', 'create', 'auctions', 'dashboard'].map(v => (
-                      <button
-                        key={v}
-                        onClick={() => setView(v)}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: view === v ? '#fff' : '#666',
-                          fontSize: '11px',
-                          letterSpacing: '0.1em',
-                          textTransform: 'uppercase',
-                          cursor: 'pointer',
-                          padding: '4px 0',
-                          borderBottom: view === v ? '1px solid #fff' : '1px solid transparent',
-                          transition: 'all 0.2s',
-                          fontFamily: "'IBM Plex Mono', monospace"
-                        }}
-                      >
-                        {v}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                {/* Nav Links - Scrollable on Mobile */}
+                <div
+                  className="nav-scroll-container"
+                  style={{
+                    display: 'flex',
+                    gap: isMobile ? '4px' : '24px',
+                    flex: 1,
+                    overflowX: isMobile ? 'auto' : 'visible',
+                    overflowY: 'hidden',
+                    WebkitOverflowScrolling: 'touch',
+                    scrollbarWidth: 'none',
+                    msOverflowStyle: 'none',
+                    paddingLeft: isMobile ? '8px' : '0',
+                    paddingRight: isMobile ? '8px' : '0',
+                    maskImage: isMobile ? 'linear-gradient(to right, transparent, black 8px, black calc(100% - 8px), transparent)' : 'none',
+                    WebkitMaskImage: isMobile ? 'linear-gradient(to right, transparent, black 8px, black calc(100% - 8px), transparent)' : 'none'
+                  }}
+                >
+                  {['discover', 'feed', 'create', 'auctions', 'dashboard'].map(v => (
+                    <button
+                      key={v}
+                      onClick={() => setView(v)}
+                      style={{
+                        background: view === v ? 'rgba(139,92,246,0.15)' : 'none',
+                        border: 'none',
+                        color: view === v ? '#fff' : '#666',
+                        fontSize: isMobile ? '10px' : '11px',
+                        letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
+                        cursor: 'pointer',
+                        padding: isMobile ? '8px 10px' : '4px 0',
+                        borderRadius: isMobile ? '4px' : '0',
+                        borderBottom: isMobile ? 'none' : (view === v ? '1px solid #fff' : '1px solid transparent'),
+                        transition: 'all 0.2s',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0
+                      }}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
               </div>
               <WalletButton />
             </nav>
