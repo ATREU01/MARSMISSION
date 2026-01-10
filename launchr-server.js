@@ -8,6 +8,7 @@ const bs58 = require('bs58');
 const tracker = require('./tracker');
 const profiles = require('./profiles');
 const { LaunchrBot } = require('./telegram-bot');
+const { getOnChainStats } = require('./onchain-stats');
 
 // Production Database Module
 const { cultureDB, profileDB, postDB, mediaDB, auctionDB, rateLimiter, MEDIA_DIR } = require('./database');
@@ -6931,31 +6932,106 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
         return;
     }
 
-    // API: Get platform stats
+    // API: Get stats - ON-CHAIN DATA for real transparency
+    // If mint param provided: returns token-specific TEK stats
+    // If no mint: returns platform-wide stats
     if (url.pathname === '/api/stats' && req.method === 'GET') {
         try {
+            const mint = url.searchParams.get('mint');
+
+            // If mint is provided, get on-chain stats for that specific token
+            if (mint) {
+                console.log(`[STATS] Fetching on-chain stats for ${mint.slice(0, 8)}...`);
+
+                // Get the fee wallet for this token from ORBIT registry or use default
+                const orbitStatus = orbitRegistry.get(mint);
+                let feeWallet = orbitStatus?.wallet || process.env.FEE_WALLET_PUBLIC_KEY || '';
+
+                // If no fee wallet, try to derive from private key
+                if (!feeWallet && process.env.FEE_WALLET_PRIVATE_KEY) {
+                    try {
+                        const secretKey = bs58.decode(process.env.FEE_WALLET_PRIVATE_KEY);
+                        const keypair = Keypair.fromSecretKey(secretKey);
+                        feeWallet = keypair.publicKey.toBase58();
+                        console.log(`[STATS] Derived fee wallet: ${feeWallet.slice(0, 8)}...`);
+                    } catch (e) {
+                        console.error('[STATS] Could not derive fee wallet:', e.message);
+                    }
+                }
+
+                if (!feeWallet) {
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({
+                        success: false,
+                        error: 'No fee wallet configured for this token',
+                        totalClaimed: 0,
+                        totalDistributed: 0,
+                        pending: 0,
+                        holderPool: 0,
+                    }));
+                    return;
+                }
+
+                // Fetch REAL on-chain stats
+                const onChainStats = getOnChainStats();
+                const stats = await onChainStats.getStatsForDashboard(mint, feeWallet);
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(stats));
+                return;
+            }
+
+            // No mint provided - return platform-wide stats
             const data = tracker.getTokens();
             const tokens = data.tokens || [];
 
+            // Get platform stats from ops wallet (1% collected from ALL tokens)
+            const onChainStats = getOnChainStats();
+            let platformStats = { totalReceivedSOL: 0 };
+            try {
+                platformStats = await onChainStats.getPlatformStats();
+            } catch (e) {
+                console.error('[STATS] Platform stats error:', e.message);
+            }
+
             // Sum totalDistributed from all active ORBIT engines (values in lamports)
             let totalDistributedLamports = 0;
+            let totalClaimedLamports = 0;
             for (const [mint, orbitStatus] of orbitRegistry.entries()) {
                 totalDistributedLamports += orbitStatus.totalDistributed || 0;
+                totalClaimedLamports += orbitStatus.totalClaimed || 0;
             }
-            const totalDistributedSOL = totalDistributedLamports / 1e9; // Convert lamports to SOL
 
             const stats = {
+                success: true,
                 totalLaunches: tokens.length,
-                vanityTokens: tokens.length, // Tokens with vanity addresses
+                vanityTokens: tokens.length,
                 totalVolume: tokens.reduce((sum, t) => sum + (t.volume || 0), 0),
-                poolDistribution: totalDistributedSOL * 0.01, // 1% of all distributed goes to holder pool
+                // Platform revenue (1% from all tokens) - FROM ON-CHAIN
+                holderPool: platformStats.totalReceivedSOL || 0,
+                holderPoolBalance: platformStats.currentBalanceSOL || 0,
+                // Aggregated from registry (backup)
+                totalClaimed: totalClaimedLamports,
+                totalClaimedSOL: totalClaimedLamports / 1e9,
+                totalDistributed: totalDistributedLamports,
+                totalDistributedSOL: totalDistributedLamports / 1e9,
                 graduated: tokens.filter(t => t.graduated).length,
+                source: 'onchain+registry',
             };
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify(stats));
         } catch (e) {
+            console.error('[STATS] Error:', e.message);
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ totalLaunches: 0, vanityTokens: 0, totalVolume: 0, poolDistribution: 0, graduated: 0 }));
+            res.end(JSON.stringify({
+                success: false,
+                error: e.message,
+                totalLaunches: 0,
+                totalClaimed: 0,
+                totalDistributed: 0,
+                holderPool: 0,
+                pending: 0,
+            }));
         }
         return;
     }
