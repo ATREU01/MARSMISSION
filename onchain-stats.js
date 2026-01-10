@@ -1,7 +1,7 @@
 /**
  * ON-CHAIN STATS SERVICE
  *
- * Fetches REAL stats from the Solana blockchain via Helius RPC.
+ * Fetches REAL stats from the Solana blockchain via Helius API.
  * No more internal state that resets - this is THE TRUTH from the chain.
  *
  * For each token using TEK:
@@ -12,6 +12,7 @@
  */
 
 const { Connection, PublicKey, LAMPORTS_PER_SOL } = require('@solana/web3.js');
+const axios = require('axios');
 
 // ═══════════════════════════════════════════════════════════════════
 // CONFIGURATION
@@ -20,12 +21,13 @@ const { Connection, PublicKey, LAMPORTS_PER_SOL } = require('@solana/web3.js');
 const CONFIG = {
     HELIUS_API_KEY: process.env.HELIUS_API_KEY || '',
     HELIUS_RPC: process.env.HELIUS_RPC || 'https://mainnet.helius-rpc.com',
+    HELIUS_API: 'https://api.helius.xyz/v0',
 
     // Pump.fun program IDs for identifying transactions
     PUMP_PROGRAM_ID: '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P',
     PUMPSWAP_PROGRAM_ID: 'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA',
 
-    // LAUNCHR ops wallet - receives 1% of all fees
+    // LAUNCHR ops wallet - receives 1% of all fees AND claims LAUNCHR token fees
     LAUNCHR_OPS_WALLET: process.env.LAUNCHR_OPS_WALLET || 'GAnPTu7xSfb9CdVsfYZw84hoHeeibJN4NJounbnrq9U7',
 
     // LAUNCHR token mint
@@ -72,146 +74,216 @@ class OnChainStats {
     }
 
     /**
-     * Fetch real on-chain statistics by parsing transaction history
+     * Fetch real on-chain statistics using Helius parsed transaction API
+     * This is the REAL DEAL - actual blockchain data
      */
     async fetchOnChainStats(tokenMint, feeWalletAddress) {
         if (!feeWalletAddress) {
             return this.getEmptyStats();
         }
 
-        const feeWallet = new PublicKey(feeWalletAddress);
+        console.log(`[ONCHAIN-STATS] Fetching parsed transactions for ${feeWalletAddress}...`);
 
-        // Get transaction history for the fee wallet
-        const signatures = await this.getSignatures(feeWalletAddress, 1000);
+        const stats = this.getEmptyStats();
 
-        if (signatures.length === 0) {
-            console.log(`[ONCHAIN-STATS] No transactions found for ${feeWalletAddress.slice(0, 8)}...`);
-            return this.getEmptyStats();
+        try {
+            // Use Helius parsed transaction history API - MUCH more reliable
+            const transactions = await this.getHeliusParsedTransactions(feeWalletAddress);
+
+            if (transactions.length === 0) {
+                console.log(`[ONCHAIN-STATS] No transactions found, trying RPC fallback...`);
+                // Fallback to RPC-based parsing
+                return await this.fetchOnChainStatsViaRPC(tokenMint, feeWalletAddress);
+            }
+
+            console.log(`[ONCHAIN-STATS] Found ${transactions.length} parsed transactions`);
+
+            // Parse Helius transaction data
+            for (const tx of transactions) {
+                // Look for native SOL transfers
+                if (tx.nativeTransfers && tx.nativeTransfers.length > 0) {
+                    for (const transfer of tx.nativeTransfers) {
+                        // Incoming SOL to fee wallet = claimed fees
+                        if (transfer.toUserAccount === feeWalletAddress) {
+                            stats.totalClaimed += transfer.amount;
+                            stats.claimCount++;
+                        }
+                        // Outgoing SOL from fee wallet = distributed fees
+                        if (transfer.fromUserAccount === feeWalletAddress) {
+                            stats.totalDistributed += transfer.amount;
+                            stats.distributeCount++;
+                        }
+                    }
+                }
+
+                // Also check accountData for balance changes
+                if (tx.accountData) {
+                    for (const account of tx.accountData) {
+                        if (account.account === feeWalletAddress && account.nativeBalanceChange) {
+                            const change = account.nativeBalanceChange;
+                            if (change > 0) {
+                                // Don't double count if we already got it from nativeTransfers
+                                if (!tx.nativeTransfers || tx.nativeTransfers.length === 0) {
+                                    stats.totalClaimed += change;
+                                    stats.claimCount++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Get current balance (pending)
+            const balance = await this.connection.getBalance(new PublicKey(feeWalletAddress));
+            stats.pending = balance;
+            stats.pendingSOL = balance / LAMPORTS_PER_SOL;
+
+            // Convert to SOL
+            stats.totalClaimedSOL = stats.totalClaimed / LAMPORTS_PER_SOL;
+            stats.totalDistributedSOL = stats.totalDistributed / LAMPORTS_PER_SOL;
+            stats.holderPoolSOL = stats.holderPool / LAMPORTS_PER_SOL;
+
+            console.log(`[ONCHAIN-STATS] RESULTS: Claimed=${stats.totalClaimedSOL.toFixed(4)} SOL, Distributed=${stats.totalDistributedSOL.toFixed(4)} SOL, Pending=${stats.pendingSOL.toFixed(4)} SOL`);
+
+            return stats;
+
+        } catch (e) {
+            console.error(`[ONCHAIN-STATS] Helius API error: ${e.message}, trying RPC fallback...`);
+            return await this.fetchOnChainStatsViaRPC(tokenMint, feeWalletAddress);
         }
-
-        console.log(`[ONCHAIN-STATS] Found ${signatures.length} transactions, parsing...`);
-
-        // Parse transactions to extract stats
-        const stats = await this.parseTransactions(signatures, feeWalletAddress, tokenMint);
-
-        // Get current balance (pending)
-        const balance = await this.connection.getBalance(feeWallet);
-        stats.pending = balance;
-        stats.pendingSOL = balance / LAMPORTS_PER_SOL;
-
-        return stats;
     }
 
     /**
-     * Get transaction signatures for an address
+     * Get parsed transactions from Helius API
      */
-    async getSignatures(address, limit = 1000) {
+    async getHeliusParsedTransactions(address, limit = 100) {
+        if (!CONFIG.HELIUS_API_KEY) {
+            console.log(`[ONCHAIN-STATS] No HELIUS_API_KEY set, using RPC fallback`);
+            return [];
+        }
+
         try {
-            const sigs = await this.connection.getSignaturesForAddress(
-                new PublicKey(address),
-                { limit },
-                'confirmed'
-            );
-            return sigs;
+            // Helius parsed transaction history endpoint
+            const url = `${CONFIG.HELIUS_API}/addresses/${address}/transactions?api-key=${CONFIG.HELIUS_API_KEY}&limit=${limit}`;
+            console.log(`[ONCHAIN-STATS] Calling Helius API: ${url.replace(CONFIG.HELIUS_API_KEY, 'REDACTED')}`);
+
+            const response = await axios.get(url, { timeout: 30000 });
+
+            if (response.data && Array.isArray(response.data)) {
+                return response.data;
+            }
+
+            return [];
         } catch (e) {
-            console.error(`[ONCHAIN-STATS] Error fetching signatures: ${e.message}`);
+            console.error(`[ONCHAIN-STATS] Helius API error: ${e.message}`);
+            if (e.response) {
+                console.error(`[ONCHAIN-STATS] Response status: ${e.response.status}`);
+                console.error(`[ONCHAIN-STATS] Response data: ${JSON.stringify(e.response.data)}`);
+            }
             return [];
         }
     }
 
     /**
-     * Parse transactions to extract fee claim and distribution data
+     * Fallback: Fetch stats via RPC (if Helius API fails)
      */
-    async parseTransactions(signatures, feeWalletAddress, tokenMint) {
+    async fetchOnChainStatsViaRPC(tokenMint, feeWalletAddress) {
+        console.log(`[ONCHAIN-STATS] Using RPC fallback for ${feeWalletAddress.slice(0, 8)}...`);
+
         const stats = this.getEmptyStats();
-        const opsWallet = CONFIG.LAUNCHR_OPS_WALLET.toLowerCase();
 
-        // Batch fetch transactions (Helius supports up to 100 per request)
-        const batches = this.chunkArray(signatures, 100);
+        try {
+            const feeWallet = new PublicKey(feeWalletAddress);
 
-        for (const batch of batches) {
-            try {
-                const txs = await this.connection.getTransactions(
-                    batch.map(s => s.signature),
-                    { maxSupportedTransactionVersion: 0 }
-                );
+            // Get signatures
+            const signatures = await this.connection.getSignaturesForAddress(
+                feeWallet,
+                { limit: 1000 },
+                'confirmed'
+            );
 
-                for (let i = 0; i < txs.length; i++) {
-                    const tx = txs[i];
-                    if (!tx || !tx.meta) continue;
+            console.log(`[ONCHAIN-STATS] RPC found ${signatures.length} signatures`);
 
-                    const sig = batch[i];
-                    const preBalances = tx.meta.preBalances;
-                    const postBalances = tx.meta.postBalances;
-                    const accountKeys = tx.transaction.message.staticAccountKeys ||
-                                       tx.transaction.message.accountKeys || [];
+            if (signatures.length === 0) {
+                const balance = await this.connection.getBalance(feeWallet);
+                stats.pending = balance;
+                stats.pendingSOL = balance / LAMPORTS_PER_SOL;
+                return stats;
+            }
 
-                    // Find fee wallet index
-                    const feeWalletIndex = accountKeys.findIndex(
-                        k => k.toBase58().toLowerCase() === feeWalletAddress.toLowerCase()
+            // Batch fetch transactions
+            const batches = this.chunkArray(signatures, 50);
+
+            for (const batch of batches) {
+                try {
+                    const txs = await this.connection.getTransactions(
+                        batch.map(s => s.signature),
+                        { maxSupportedTransactionVersion: 0 }
                     );
 
-                    if (feeWalletIndex === -1) continue;
+                    for (let i = 0; i < txs.length; i++) {
+                        const tx = txs[i];
+                        if (!tx || !tx.meta) continue;
 
-                    // Calculate balance change for fee wallet
-                    const balanceChange = postBalances[feeWalletIndex] - preBalances[feeWalletIndex];
+                        const preBalances = tx.meta.preBalances;
+                        const postBalances = tx.meta.postBalances;
+                        const accountKeys = tx.transaction.message.staticAccountKeys ||
+                                           tx.transaction.message.accountKeys || [];
 
-                    // Check if this involves Pump.fun program (creator fee claim)
-                    const involvesPump = tx.meta.logMessages?.some(log =>
-                        log.includes(CONFIG.PUMP_PROGRAM_ID) ||
-                        log.includes('collect') ||
-                        log.includes('CreatorFee')
-                    );
-
-                    // Incoming SOL = claim
-                    if (balanceChange > 0) {
-                        stats.totalClaimed += balanceChange;
-                        stats.claimCount++;
-                    }
-
-                    // Outgoing SOL = distribution
-                    if (balanceChange < 0) {
-                        const outgoing = Math.abs(balanceChange);
-
-                        // Check if going to ops wallet (1% holder fee)
-                        const opsWalletIndex = accountKeys.findIndex(
-                            k => k.toBase58().toLowerCase() === opsWallet
+                        // Find fee wallet index
+                        const feeWalletIndex = accountKeys.findIndex(
+                            k => k.toBase58() === feeWalletAddress
                         );
 
-                        if (opsWalletIndex !== -1) {
-                            const opsChange = postBalances[opsWalletIndex] - preBalances[opsWalletIndex];
-                            if (opsChange > 0) {
-                                stats.holderPool += opsChange;
+                        if (feeWalletIndex === -1) continue;
+
+                        // Calculate balance change
+                        const balanceChange = postBalances[feeWalletIndex] - preBalances[feeWalletIndex];
+                        const txFee = tx.meta.fee || 5000;
+
+                        // Incoming SOL (excluding any refunds from failed txs)
+                        if (balanceChange > 0) {
+                            stats.totalClaimed += balanceChange;
+                            stats.claimCount++;
+                        }
+
+                        // Outgoing SOL (excluding tx fees)
+                        if (balanceChange < 0) {
+                            const netOutgoing = Math.abs(balanceChange) - txFee;
+                            if (netOutgoing > 0) {
+                                stats.totalDistributed += netOutgoing;
+                                stats.distributeCount++;
                             }
                         }
-
-                        // Total distributed (excluding tx fees)
-                        const fee = tx.meta.fee || 5000;
-                        const actualDistributed = outgoing - fee;
-                        if (actualDistributed > 0) {
-                            stats.totalDistributed += actualDistributed;
-                            stats.distributeCount++;
-                        }
                     }
+                } catch (e) {
+                    console.error(`[ONCHAIN-STATS] RPC batch error: ${e.message}`);
                 }
-            } catch (e) {
-                console.error(`[ONCHAIN-STATS] Batch parse error: ${e.message}`);
             }
+
+            // Get current balance
+            const balance = await this.connection.getBalance(feeWallet);
+            stats.pending = balance;
+            stats.pendingSOL = balance / LAMPORTS_PER_SOL;
+
+            // Convert to SOL
+            stats.totalClaimedSOL = stats.totalClaimed / LAMPORTS_PER_SOL;
+            stats.totalDistributedSOL = stats.totalDistributed / LAMPORTS_PER_SOL;
+            stats.holderPoolSOL = stats.holderPool / LAMPORTS_PER_SOL;
+
+            console.log(`[ONCHAIN-STATS] RPC RESULTS: Claimed=${stats.totalClaimedSOL.toFixed(4)} SOL, Distributed=${stats.totalDistributedSOL.toFixed(4)} SOL`);
+
+            return stats;
+
+        } catch (e) {
+            console.error(`[ONCHAIN-STATS] RPC fallback error: ${e.message}`);
+            return stats;
         }
-
-        // Convert to SOL
-        stats.totalClaimedSOL = stats.totalClaimed / LAMPORTS_PER_SOL;
-        stats.totalDistributedSOL = stats.totalDistributed / LAMPORTS_PER_SOL;
-        stats.holderPoolSOL = stats.holderPool / LAMPORTS_PER_SOL;
-
-        console.log(`[ONCHAIN-STATS] Parsed: Claimed=${stats.totalClaimedSOL.toFixed(4)} SOL, Distributed=${stats.totalDistributedSOL.toFixed(4)} SOL, HolderPool=${stats.holderPoolSOL.toFixed(4)} SOL`);
-
-        return stats;
     }
 
     /**
      * Get stats for LAUNCHR_OPS_WALLET (the 1% from ALL tokens)
-     * This shows total platform revenue
+     * This shows total platform revenue - uses Helius API
      */
     async getPlatformStats() {
         const cacheKey = 'platform:ops';
@@ -224,41 +296,20 @@ class OnChainStats {
             const opsWallet = CONFIG.LAUNCHR_OPS_WALLET;
             const balance = await this.connection.getBalance(new PublicKey(opsWallet));
 
-            // Get incoming transactions to ops wallet
-            const signatures = await this.getSignatures(opsWallet, 1000);
+            // Use Helius parsed transactions
+            const transactions = await this.getHeliusParsedTransactions(opsWallet, 100);
 
             let totalReceived = 0;
             let transactionCount = 0;
 
-            // Batch fetch
-            const batches = this.chunkArray(signatures, 100);
-            for (const batch of batches) {
-                try {
-                    const txs = await this.connection.getTransactions(
-                        batch.map(s => s.signature),
-                        { maxSupportedTransactionVersion: 0 }
-                    );
-
-                    for (const tx of txs) {
-                        if (!tx || !tx.meta) continue;
-
-                        const accountKeys = tx.transaction.message.staticAccountKeys ||
-                                           tx.transaction.message.accountKeys || [];
-
-                        const opsIndex = accountKeys.findIndex(
-                            k => k.toBase58() === opsWallet
-                        );
-
-                        if (opsIndex !== -1) {
-                            const change = tx.meta.postBalances[opsIndex] - tx.meta.preBalances[opsIndex];
-                            if (change > 0) {
-                                totalReceived += change;
-                                transactionCount++;
-                            }
+            for (const tx of transactions) {
+                if (tx.nativeTransfers) {
+                    for (const transfer of tx.nativeTransfers) {
+                        if (transfer.toUserAccount === opsWallet) {
+                            totalReceived += transfer.amount;
+                            transactionCount++;
                         }
                     }
-                } catch (e) {
-                    // Continue on errors
                 }
             }
 
