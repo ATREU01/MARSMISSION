@@ -13326,24 +13326,42 @@
             setTimeout(checkWalletBrowser, 300);
           }, []);
 
-          // Listen for Privy auth via BroadcastChannel
+          // Listen for Privy auth via BroadcastChannel (desktop popup flow)
           useEffect(() => {
             const channel = new BroadcastChannel('launchr-auth');
             channel.onmessage = (e) => {
               if (e.data?.type === 'privy-auth-success' && e.data?.address) {
-                handleWalletConnected(e.data.address);
+                handleWalletConnected(e.data.address, 'privy');
                 showNotification('Connected with Privy wallet!');
               }
             };
 
             window.addEventListener('message', (e) => {
               if (e.data?.type === 'privy-auth-success' && e.data?.address) {
-                handleWalletConnected(e.data.address);
+                handleWalletConnected(e.data.address, 'privy');
                 showNotification('Connected with Privy wallet!');
               }
             });
 
             return () => channel.close();
+          }, []);
+
+          // Handle mobile Privy auth return (wallet address in URL query params)
+          useEffect(() => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const privyWallet = urlParams.get('privy_wallet');
+
+            if (privyWallet && privyWallet.length > 30) {
+              console.log('[PRIVY] Mobile auth return detected:', privyWallet);
+
+              // Connect with the wallet address
+              handleWalletConnected(privyWallet, 'privy');
+              showNotification('Privy wallet connected!');
+
+              // Clean up URL (remove query params)
+              const cleanUrl = window.location.pathname + (urlParams.get('view') ? `?view=${urlParams.get('view')}` : '');
+              window.history.replaceState({}, '', cleanUrl);
+            }
           }, []);
 
           // Global sync function - syncs localStorage posts to server for ALL users

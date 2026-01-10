@@ -82,6 +82,16 @@ function App() {
 
   const isPopup = !!window.opener
   const isAuthPage = window.location.pathname === '/auth'
+  const isMobileAuth = new URLSearchParams(window.location.search).get('mobile') === 'true'
+
+  // Get return URL for mobile auth flow
+  const getMobileReturnUrl = () => {
+    // Check sessionStorage first (set by culture-coins before redirect)
+    const stored = sessionStorage.getItem('privy_return_url')
+    if (stored) return stored
+    // Fallback to culture-coins
+    return '/culture-coins'
+  }
 
   // Get the Privy wallet ID for the Solana wallet
   const privyWalletId = useMemo(() => {
@@ -102,6 +112,7 @@ function App() {
   }, [wallets, user])
 
   // When authenticated, notify parent window (via BroadcastChannel + postMessage for cross-tab reliability)
+  // For MOBILE: redirect back to return URL with wallet address
   useEffect(() => {
     const sendAuthMessage = async () => {
       if (authenticated && walletAddress && (isPopup || isAuthPage)) {
@@ -122,6 +133,20 @@ function App() {
           privyAuthToken: authToken,
           privyUserId: user?.id,
           is24_7Ready: !!privyWalletId && !!authToken
+        }
+
+        // MOBILE FLOW: Redirect back to return URL with wallet address in query params
+        if (isMobileAuth) {
+          log('Mobile auth detected, redirecting back with wallet:', walletAddress)
+          const returnUrl = getMobileReturnUrl()
+          // Clear stored return URL
+          sessionStorage.removeItem('privy_return_url')
+          // Add wallet address to return URL
+          const separator = returnUrl.includes('?') ? '&' : '?'
+          const redirectUrl = `${returnUrl}${separator}privy_wallet=${walletAddress}&privy_user=${user?.id || ''}`
+          log('Redirecting to:', redirectUrl)
+          window.location.href = redirectUrl
+          return
         }
 
         // Use BroadcastChannel for reliable cross-tab communication
@@ -151,7 +176,7 @@ function App() {
       }
     }
     sendAuthMessage()
-  }, [authenticated, walletAddress, isPopup, isAuthPage, privyWalletId, user?.id, getAccessToken])
+  }, [authenticated, walletAddress, isPopup, isAuthPage, isMobileAuth, privyWalletId, user?.id, getAccessToken])
 
   // Auto-open login on auth page (with debounce to prevent multiple calls)
   useEffect(() => {
