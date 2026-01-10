@@ -1974,23 +1974,23 @@ const server = http.createServer(async (req, res) => {
             // ═══════════════════════════════════════════════════════════════
             if (X_BEARER_TOKEN) {
                 log('[X-API] Fetching real tweets from X/Twitter API...');
+                log('[X-API] Token present: ' + X_BEARER_TOKEN.slice(0, 10) + '...');
                 try {
                     // Search for high-engagement crypto tweets
-                    const xResponse = await fetch(
-                        'https://api.twitter.com/2/tweets/search/recent?' +
-                        'query=(crypto OR solana OR $SOL OR memecoin OR pump.fun) -is:retweet lang:en&' +
-                        'max_results=20&' +
-                        'tweet.fields=public_metrics,created_at,author_id&' +
-                        'expansions=author_id&' +
-                        'user.fields=username,name,verified&' +
-                        'sort_order=relevancy',
-                        {
-                            headers: {
-                                'Authorization': `Bearer ${X_BEARER_TOKEN}`,
-                                'Content-Type': 'application/json'
-                            }
+                    // IMPORTANT: Query MUST be URL encoded!
+                    const searchQuery = '(crypto OR solana OR memecoin) -is:retweet lang:en';
+                    const encodedQuery = encodeURIComponent(searchQuery);
+
+                    const xUrl = `https://api.twitter.com/2/tweets/search/recent?query=${encodedQuery}&max_results=10&tweet.fields=public_metrics,created_at,author_id&expansions=author_id&user.fields=username,name,verified`;
+
+                    log('[X-API] Request URL: ' + xUrl.slice(0, 100) + '...');
+
+                    const xResponse = await fetch(xUrl, {
+                        headers: {
+                            'Authorization': `Bearer ${X_BEARER_TOKEN}`,
+                            'Content-Type': 'application/json'
                         }
-                    );
+                    });
 
                     if (xResponse.ok) {
                         const xData = await xResponse.json();
