@@ -108,11 +108,19 @@ class OnChainStats {
             const BURN_ADDRESS = '1nc1nerator11111111111111111111111111111111';
             const PUMP_PROGRAMS = ['6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P', 'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA'];
 
-            // Parse Helius transaction data with categorization
+            // First pass: identify all burn transactions by signature
+            const burnTxSignatures = new Set();
+            for (const tx of transactions) {
+                if (this.isBurnTransaction(tx, BURN_ADDRESS)) {
+                    burnTxSignatures.add(tx.signature);
+                }
+            }
+            console.log(`[ONCHAIN-STATS] Found ${burnTxSignatures.size} burn transactions`);
+
+            // Second pass: categorize SOL movements
             for (const tx of transactions) {
                 const txType = tx.type || '';
-                const txSource = tx.source || '';
-                const description = tx.description || '';
+                const signature = tx.signature || '';
 
                 // Look for native SOL transfers
                 if (tx.nativeTransfers && tx.nativeTransfers.length > 0) {
@@ -130,6 +138,7 @@ class OnChainStats {
 
                             // Categorize the distribution
                             const category = this.categorizeTransaction(tx, transfer, BURN_ADDRESS, PUMP_PROGRAMS);
+
                             if (category === 'burn') {
                                 stats.totalBurned += amount;
                                 stats.burnCount++;
@@ -411,50 +420,115 @@ class OnChainStats {
     }
 
     /**
+     * Check if a transaction is a burn transaction
+     */
+    isBurnTransaction(tx, burnAddress) {
+        const txType = (tx.type || '').toUpperCase();
+        const description = (tx.description || '').toLowerCase();
+
+        // Direct burn type
+        if (txType === 'BURN' || txType === 'TOKEN_BURN' || txType.includes('BURN')) {
+            return true;
+        }
+
+        // Description mentions burn
+        if (description.includes('burn') || description.includes('burned')) {
+            return true;
+        }
+
+        // Token transfers to burn address
+        if (tx.tokenTransfers) {
+            for (const tt of tx.tokenTransfers) {
+                if (tt.toUserAccount === burnAddress || tt.toTokenAccount === burnAddress) {
+                    return true;
+                }
+            }
+        }
+
+        // Check for burn instructions
+        if (tx.instructions) {
+            for (const ix of tx.instructions) {
+                const ixType = (ix.type || '').toLowerCase();
+                if (ixType === 'burn' || ixType === 'burnchecked' || ixType.includes('burn')) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Categorize a transaction as burn, buyback, or liquidity
-     * Based on transaction type, source, and involved accounts
+     * BURNS: SOL spent buying tokens that were then burned (check tokenTransfers + type)
+     * BUYBACK: SOL spent buying tokens that were kept (market support)
+     * LIQUIDITY: SOL added to LP pools
      */
     categorizeTransaction(tx, transfer, burnAddress, pumpPrograms) {
         const txType = (tx.type || '').toUpperCase();
         const txSource = (tx.source || '').toUpperCase();
         const description = (tx.description || '').toLowerCase();
 
-        // Check for burns - transfers to burn address or burn instructions
-        if (transfer.toUserAccount === burnAddress) {
+        // PRIORITY 1: Check if this transaction burned tokens
+        // This is the key fix - burns are TOKEN operations, not SOL transfers to burn address
+        if (txType === 'BURN' || txType.includes('BURN')) {
             return 'burn';
         }
 
-        // Check token transfers for burns
-        if (tx.tokenTransfers) {
+        // Check for burn in description (Helius often describes burns)
+        if (description.includes('burn') || description.includes('burned')) {
+            return 'burn';
+        }
+
+        // Check token transfers for burns - tokens going to burn address or null
+        if (tx.tokenTransfers && tx.tokenTransfers.length > 0) {
             for (const tokenTransfer of tx.tokenTransfers) {
+                // Token sent to burn address
                 if (tokenTransfer.toUserAccount === burnAddress ||
                     tokenTransfer.toTokenAccount === burnAddress) {
+                    return 'burn';
+                }
+                // Token burned (no destination)
+                if (!tokenTransfer.toUserAccount && !tokenTransfer.toTokenAccount) {
                     return 'burn';
                 }
             }
         }
 
-        // Check description for burn keywords
-        if (description.includes('burn')) {
+        // Check instructions for burn operations
+        if (tx.instructions) {
+            for (const ix of tx.instructions) {
+                const ixType = (ix.type || '').toLowerCase();
+                const ixProgram = (ix.programId || '').toLowerCase();
+                if (ixType.includes('burn') || ixType === 'burnChecked' || ixType === 'burn') {
+                    return 'burn';
+                }
+            }
+        }
+
+        // Check events for burns
+        if (tx.events && tx.events.nft) {
+            // NFT burns
             return 'burn';
         }
 
-        // Check for liquidity adds
+        // PRIORITY 2: Check for liquidity adds
         if (txType === 'ADD_LIQUIDITY' ||
             txType.includes('LIQUIDITY') ||
             description.includes('liquidity') ||
+            description.includes('add lp') ||
             description.includes('lp ')) {
             return 'liquidity';
         }
 
-        // Check for swaps/buybacks - any swap on Pump.fun/PumpSwap is a buyback
+        // PRIORITY 3: Everything else going to Pump/swap is buyback
         if (txType === 'SWAP' ||
             txType.includes('SWAP') ||
             txSource.includes('PUMP') ||
             txSource.includes('RAYDIUM') ||
             txSource.includes('JUPITER') ||
             description.includes('swap') ||
-            description.includes('buy') ||
+            description.includes('bought') ||
             description.includes('sold')) {
             return 'buyback';
         }
@@ -468,7 +542,7 @@ class OnChainStats {
             }
         }
 
-        // Default: uncategorized distribution
+        // Default: uncategorized (could be transfer, etc)
         return 'other';
     }
 
