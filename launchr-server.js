@@ -56,11 +56,9 @@ const PRODUCTION_CONFIG = {
     HELIUS_RPC: process.env.HELIUS_RPC || process.env.RPC_URL || 'https://api.mainnet-beta.solana.com',
     HELIUS_API_KEY: process.env.HELIUS_API_KEY || '',
 
-    // Twitter/X API (for real crypto news)
-    X_API_KEY: process.env.X_API_KEY || '',
-    X_API_SECRET_KEY: process.env.X_API_SECRET_KEY || '',
-    X_ACCESS_TOKEN: process.env.X_ACCESS_TOKEN || '',
-    X_ACCESS_TOKEN_SECRET: process.env.X_ACCESS_TOKEN_SECRET || '',
+    // Twitter/X API - Bearer Token ONLY (read-only for trending feed)
+    // Using Bearer Token avoids rate limit conflicts with apps that POST to Twitter
+    X_BEARER_TOKEN: process.env.X_BEARER_TOKEN || process.env.TWITTER_BEARER_TOKEN || '',
 
     // Fee Structure
     PLATFORM_FEE_PERCENT: 1,      // 1% of all fees to LAUNCHR distribution pool
@@ -115,7 +113,7 @@ console.log(`  - Privy App Secret: ${PRODUCTION_CONFIG.PRIVY_APP_SECRET ? 'SET' 
 console.log(`  - Privy Auth Key: ${PRODUCTION_CONFIG.PRIVY_AUTH_PRIVATE_KEY ? 'SET' : 'NOT SET'}`);
 console.log(`  - Helius RPC: ${PRODUCTION_CONFIG.HELIUS_RPC ? 'SET' : 'NOT SET'}`);
 console.log(`  - Helius API Key: ${PRODUCTION_CONFIG.HELIUS_API_KEY ? 'SET' : 'NOT SET'}`);
-console.log(`  - Twitter/X API: ${PRODUCTION_CONFIG.X_API_KEY ? 'SET' : 'NOT SET'}`);
+console.log(`  - Twitter/X API: ${PRODUCTION_CONFIG.X_BEARER_TOKEN ? 'SET (Bearer Token)' : 'NOT SET'}`);
 console.log(`  - Fee Wallet: ${FEE_WALLET_PUBLIC_KEY ? 'SET' : 'NOT SET'}`);
 
 // ═══════════════════════════════════════════════════════════════════════════
