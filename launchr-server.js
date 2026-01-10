@@ -2010,8 +2010,40 @@ const server = http.createServer(async (req, res) => {
                                 xData.includes.users.forEach(u => users[u.id] = u);
                             }
 
-                            // Convert to trend items with REAL tweet text
+                            // INSTITUTIONAL GRADE SPAM FILTER
+                            // Rule 1: HIGH ENGAGEMENT = ALWAYS TRUST (Elon, major accounts)
+                            // Rule 2: Only filter LOW engagement spam bots with specific patterns
+                            const isSpamBot = (text, likes) => {
+                                // 50+ likes = real account, always trust
+                                if (likes >= 50) return false;
+
+                                // The SPECIFIC spam pattern we're seeing:
+                                // "$BULLA $TRUMP $CRV $GALA How to stake crypto and earn $3724"
+                                // Pattern: 3+ random tickers + staking/earn money claims
+                                const tickerCount = (text.match(/\$[A-Za-z]{2,}/g) || []).length;
+                                const hasScamClaim = /stak(e|ing|ed)/i.test(text) &&
+                                                     /(earn|\$\d{3,}|passive|gains)/i.test(text);
+
+                                // Block: 3+ tickers AND staking scam language AND low engagement
+                                if (tickerCount >= 3 && hasScamClaim) return true;
+
+                                // Block obvious wallet scams (any engagement level)
+                                if (/drop your.*(address|wallet)/i.test(text)) return true;
+                                if (/send .* (to )?(get|receive|claim)/i.test(text)) return true;
+                                if (/dm (me|for|to)/i.test(text) && likes < 10) return true;
+
+                                return false;
+                            };
+
+                            // Convert to trend items with REAL tweet text (filtered)
                             const realTweets = xData.data
+                                .filter(tweet => {
+                                    const metrics = tweet.public_metrics || {};
+                                    const likes = metrics.like_count || 0;
+                                    // Block spam bots (return false to remove)
+                                    if (isSpamBot(tweet.text, likes)) return false;
+                                    return true;
+                                })
                                 .slice(0, 10)
                                 .map((tweet) => {
                                     const user = users[tweet.author_id] || {};
