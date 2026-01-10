@@ -1974,26 +1974,36 @@ const server = http.createServer(async (req, res) => {
             // ═══════════════════════════════════════════════════════════════
             if (X_BEARER_TOKEN) {
                 log('[X-API] Fetching real tweets from X/Twitter API...');
-                log('[X-API] Token present: ' + X_BEARER_TOKEN.slice(0, 10) + '...');
+                log('[X-API] Token starts with: ' + X_BEARER_TOKEN.slice(0, 15) + '...');
                 try {
-                    // Search for high-engagement crypto tweets
-                    // IMPORTANT: Query MUST be URL encoded!
-                    const searchQuery = '(crypto OR solana OR memecoin) -is:retweet lang:en';
-                    const encodedQuery = encodeURIComponent(searchQuery);
+                    // Use URLSearchParams for proper encoding (auto-encodes special chars!)
+                    const xUrl = new URL('https://api.twitter.com/2/tweets/search/recent');
+                    xUrl.searchParams.set('query', '(crypto OR solana OR memecoin) -is:retweet lang:en');
+                    xUrl.searchParams.set('max_results', '20');
+                    xUrl.searchParams.set('tweet.fields', 'public_metrics,created_at,author_id');
+                    xUrl.searchParams.set('expansions', 'author_id');
+                    xUrl.searchParams.set('user.fields', 'username,name');
+                    xUrl.searchParams.set('sort_order', 'relevancy');
 
-                    const xUrl = `https://api.twitter.com/2/tweets/search/recent?query=${encodedQuery}&max_results=10&tweet.fields=public_metrics,created_at,author_id&expansions=author_id&user.fields=username,name,verified`;
+                    log('[X-API] Request URL: ' + xUrl.toString().slice(0, 120) + '...');
 
-                    log('[X-API] Request URL: ' + xUrl.slice(0, 100) + '...');
-
-                    const xResponse = await fetch(xUrl, {
+                    const xResponse = await fetch(xUrl.toString(), {
                         headers: {
-                            'Authorization': `Bearer ${X_BEARER_TOKEN}`,
-                            'Content-Type': 'application/json'
+                            'Authorization': `Bearer ${X_BEARER_TOKEN}`
+                            // NO Content-Type header for GET requests!
                         }
                     });
 
-                    if (xResponse.ok) {
-                        const xData = await xResponse.json();
+                    // ALWAYS read as text first so we can log errors properly
+                    const responseText = await xResponse.text();
+                    log('[X-API] Status: ' + xResponse.status);
+                    log('[X-API] Response: ' + responseText.slice(0, 400));
+
+                    if (!xResponse.ok) {
+                        log('[X-API] FAILED! Status ' + xResponse.status + ': ' + responseText.slice(0, 300));
+                        // Don't throw - fall through to CoinGecko backup
+                    } else {
+                        const xData = JSON.parse(responseText);
 
                         if (xData.data && xData.data.length > 0) {
                             // Build user lookup
@@ -2004,12 +2014,11 @@ const server = http.createServer(async (req, res) => {
 
                             // Convert to trend items with REAL tweet text
                             const realTweets = xData.data
-                                .filter(tweet => tweet.public_metrics?.like_count > 5)
                                 .slice(0, 10)
-                                .map((tweet, index) => {
+                                .map((tweet) => {
                                     const user = users[tweet.author_id] || {};
-                                    const engagement = (tweet.public_metrics?.like_count || 0) +
-                                                      (tweet.public_metrics?.retweet_count || 0) * 2;
+                                    const metrics = tweet.public_metrics || {};
+                                    const engagement = (metrics.like_count || 0) + (metrics.retweet_count || 0) * 2;
 
                                     // Detect category from tweet content
                                     const text = tweet.text.toLowerCase();
@@ -2023,31 +2032,35 @@ const server = http.createServer(async (req, res) => {
                                     return {
                                         name: tweet.text.slice(0, 140) + (tweet.text.length > 140 ? '...' : ''),
                                         category: category,
-                                        volume: formatTrendVolume(engagement * 100),
-                                        velocity: `+${Math.floor(50 + engagement / 10)}%`,
+                                        volume: `${((metrics.like_count || 0) / 1000).toFixed(1)}K`,
+                                        velocity: `+${metrics.retweet_count || 0}`,
                                         sentiment: 0.5 + Math.min(0.4, engagement / 5000),
                                         author: user.username ? `@${user.username}` : null,
                                         authorName: user.name || null,
-                                        verified: user.verified || false,
-                                        likes: tweet.public_metrics?.like_count || 0,
-                                        retweets: tweet.public_metrics?.retweet_count || 0,
+                                        likes: metrics.like_count || 0,
+                                        retweets: metrics.retweet_count || 0,
+                                        tweetId: tweet.id,
+                                        url: user.username ? `https://x.com/${user.username}/status/${tweet.id}` : null,
                                         isRealTweet: true
                                     };
                                 });
 
-                            if (realTweets.length >= 5) {
+                            if (realTweets.length >= 3) {
                                 trends = realTweets;
                                 source = 'x-api-real-tweets';
-                                log('[X-API] ✓ Got ' + realTweets.length + ' real tweets');
+                                log('[X-API] ✓ SUCCESS! Got ' + realTweets.length + ' real tweets');
+                            } else {
+                                log('[X-API] Only got ' + realTweets.length + ' tweets, trying CoinGecko...');
                             }
+                        } else {
+                            log('[X-API] No tweets in response data');
                         }
-                    } else {
-                        const errBody = await xResponse.text().catch(() => '');
-                        log('[X-API] X API FAILED - Status: ' + xResponse.status + ' Body: ' + errBody.slice(0, 300));
                     }
                 } catch (xErr) {
-                    log('[X-API] X API error:', xErr.message);
+                    log('[X-API] Exception: ' + xErr.message);
                 }
+            } else {
+                log('[X-API] No X_BEARER_TOKEN configured - skipping X API');
             }
 
             // ═══════════════════════════════════════════════════════════════
