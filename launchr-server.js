@@ -6978,35 +6978,65 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 const onChainStats = getOnChainStats();
                 const chainStats = await onChainStats.getStatsForDashboard(mint, feeWallet || '');
 
-                // Merge: use persisted breakdown if available, chain data for pending
+                // COMBINE SOURCES: Use MAX of (persisted, on-chain) to capture EVERYTHING
+                // On-chain is source of truth, persisted adds breakdown detail
+                const totalClaimed = Math.max(persistedStats?.totalClaimed || 0, chainStats.totalClaimed || 0);
+                const totalDistributed = Math.max(persistedStats?.totalDistributed || 0, chainStats.totalDistributed || 0);
+
+                // BREAKDOWN: Use MAX of each source to capture all activity
+                // buybackBurn (persisted) = SOL spent buying tokens that were burned
+                // marketMaking (persisted) = SOL spent on market support
+                // liquidity (persisted) = SOL added to LP
+                const totalBurned = Math.max(persistedStats?.buybackBurn || 0, chainStats.totalBurned || 0);
+                const totalBuyback = Math.max(persistedStats?.marketMaking || 0, chainStats.totalBuyback || 0);
+                const totalLiquidity = Math.max(persistedStats?.liquidity || 0, chainStats.totalLiquidity || 0);
+
                 const stats = {
                     success: true,
-                    // Use persisted totals if available, otherwise chain data
-                    totalClaimed: persistedStats?.totalClaimed || chainStats.totalClaimed || 0,
-                    totalDistributed: persistedStats?.totalDistributed || chainStats.totalDistributed || 0,
+                    // Totals in lamports
+                    totalClaimed,
+                    totalDistributed,
                     pending: chainStats.pending || 0,
-                    // BREAKDOWN - use persisted data (this is the REAL breakdown from actual distributions)
-                    // buybackBurn = SOL spent buying tokens that were burned
-                    // marketMaking = SOL spent on market support (buybacks that are held)
-                    // liquidity = SOL added to LP
-                    totalBurned: persistedStats?.buybackBurn || chainStats.totalBurned || 0,
-                    totalBuyback: persistedStats?.marketMaking || chainStats.totalBuyback || 0,
-                    totalLiquidity: persistedStats?.liquidity || chainStats.totalLiquidity || 0,
-                    // SOL values
-                    totalClaimedSOL: (persistedStats?.totalClaimed || chainStats.totalClaimed || 0) / LAMPORTS_PER_SOL,
-                    totalDistributedSOL: (persistedStats?.totalDistributed || chainStats.totalDistributed || 0) / LAMPORTS_PER_SOL,
+                    // Breakdown in lamports
+                    totalBurned,
+                    totalBuyback,
+                    totalLiquidity,
+                    // SOL values for display
+                    totalClaimedSOL: totalClaimed / LAMPORTS_PER_SOL,
+                    totalDistributedSOL: totalDistributed / LAMPORTS_PER_SOL,
                     pendingSOL: (chainStats.pending || 0) / LAMPORTS_PER_SOL,
                     // Breakdown in SOL - these are the KEY values for the dashboard
-                    totalBurnedSOL: (persistedStats?.buybackBurn || chainStats.totalBurned || 0) / LAMPORTS_PER_SOL,
-                    totalBuybackSOL: (persistedStats?.marketMaking || chainStats.totalBuyback || 0) / LAMPORTS_PER_SOL,
-                    totalLiquiditySOL: (persistedStats?.liquidity || chainStats.totalLiquidity || 0) / LAMPORTS_PER_SOL,
-                    // Transaction counts
+                    totalBurnedSOL: totalBurned / LAMPORTS_PER_SOL,
+                    totalBuybackSOL: totalBuyback / LAMPORTS_PER_SOL,
+                    totalLiquiditySOL: totalLiquidity / LAMPORTS_PER_SOL,
+                    // Transaction counts from on-chain
+                    burnCount: chainStats.burnCount || 0,
+                    buybackCount: chainStats.buybackCount || 0,
+                    liquidityCount: chainStats.liquidityCount || 0,
+                    // Recent transactions
                     transactions: persistedStats?.transactions || [],
                     // Meta
                     tokenMint: mint,
                     feeWallet,
                     lastUpdated: Date.now(),
-                    source: persistedStats ? 'persisted+onchain' : 'onchain',
+                    source: 'combined',
+                    // Debug: show what each source contributed
+                    _debug: {
+                        persisted: {
+                            totalClaimed: persistedStats?.totalClaimed || 0,
+                            totalDistributed: persistedStats?.totalDistributed || 0,
+                            buybackBurn: persistedStats?.buybackBurn || 0,
+                            marketMaking: persistedStats?.marketMaking || 0,
+                            liquidity: persistedStats?.liquidity || 0,
+                        },
+                        onchain: {
+                            totalClaimed: chainStats.totalClaimed || 0,
+                            totalDistributed: chainStats.totalDistributed || 0,
+                            totalBurned: chainStats.totalBurned || 0,
+                            totalBuyback: chainStats.totalBuyback || 0,
+                            totalLiquidity: chainStats.totalLiquidity || 0,
+                        }
+                    }
                 };
 
                 console.log(`[STATS] Returning: Burned=${stats.totalBurnedSOL.toFixed(4)}, Buyback=${stats.totalBuybackSOL.toFixed(4)}, LP=${stats.totalLiquiditySOL.toFixed(4)}`);

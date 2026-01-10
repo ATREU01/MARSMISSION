@@ -194,7 +194,8 @@ class OnChainStats {
     }
 
     /**
-     * Get parsed transactions from Helius API
+     * Get ALL parsed transactions from Helius API with pagination
+     * Fetches complete transaction history for accurate stats
      */
     async getHeliusParsedTransactions(address, limit = 100) {
         if (!CONFIG.HELIUS_API_KEY) {
@@ -202,25 +203,55 @@ class OnChainStats {
             return [];
         }
 
+        const allTransactions = [];
+        let lastSignature = null;
+        let pageCount = 0;
+        const maxPages = 20; // Safety limit: 20 pages * 100 = 2000 transactions max
+
         try {
-            // Helius parsed transaction history endpoint
-            const url = `${CONFIG.HELIUS_API}/addresses/${address}/transactions?api-key=${CONFIG.HELIUS_API_KEY}&limit=${limit}`;
-            console.log(`[ONCHAIN-STATS] Calling Helius API: ${url.replace(CONFIG.HELIUS_API_KEY, 'REDACTED')}`);
+            while (pageCount < maxPages) {
+                // Helius parsed transaction history endpoint with pagination
+                let url = `${CONFIG.HELIUS_API}/addresses/${address}/transactions?api-key=${CONFIG.HELIUS_API_KEY}&limit=100`;
+                if (lastSignature) {
+                    url += `&before=${lastSignature}`;
+                }
 
-            const response = await axios.get(url, { timeout: 30000 });
+                if (pageCount === 0) {
+                    console.log(`[ONCHAIN-STATS] Fetching ALL transactions for ${address.slice(0, 8)}...`);
+                }
 
-            if (response.data && Array.isArray(response.data)) {
-                return response.data;
+                const response = await axios.get(url, { timeout: 30000 });
+
+                if (!response.data || !Array.isArray(response.data) || response.data.length === 0) {
+                    break; // No more transactions
+                }
+
+                allTransactions.push(...response.data);
+                pageCount++;
+
+                // Get last signature for pagination
+                lastSignature = response.data[response.data.length - 1].signature;
+
+                // If we got less than 100, we've reached the end
+                if (response.data.length < 100) {
+                    break;
+                }
+
+                // Small delay to be nice to the API
+                await new Promise(r => setTimeout(r, 100));
             }
 
-            return [];
+            console.log(`[ONCHAIN-STATS] Fetched ${allTransactions.length} total transactions (${pageCount} pages)`);
+            return allTransactions;
+
         } catch (e) {
             console.error(`[ONCHAIN-STATS] Helius API error: ${e.message}`);
             if (e.response) {
                 console.error(`[ONCHAIN-STATS] Response status: ${e.response.status}`);
                 console.error(`[ONCHAIN-STATS] Response data: ${JSON.stringify(e.response.data)}`);
             }
-            return [];
+            // Return what we have so far
+            return allTransactions;
         }
     }
 
