@@ -2975,8 +2975,8 @@
                   {/* Culture Grid */}
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))',
-                    gap: isMobile ? '16px' : '20px'
+                    gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(320px, 1fr))',
+                    gap: isMobile ? '10px' : '20px'
                   }}>
                     {filteredCultures.map((culture, index) => {
                       // Vibrant accent colors like the reference design
@@ -2990,9 +2990,9 @@
                         style={{
                           background: colors.cardBg,
                           border: `1px solid ${colors.border}`,
-                          borderTop: `4px solid ${accentColor}`,
-                          padding: '24px',
-                          paddingTop: '20px',
+                          borderTop: `3px solid ${accentColor}`,
+                          padding: isMobile ? '12px' : '24px',
+                          paddingTop: isMobile ? '10px' : '20px',
                           cursor: 'pointer',
                           transition: 'all 0.3s',
                           position: 'relative',
@@ -3011,12 +3011,12 @@
                         {index < 3 && (
                           <div style={{
                             position: 'absolute',
-                            top: '-4px',
+                            top: '-3px',
                             left: '0',
                             background: accentColor,
                             color: '#000',
-                            padding: '8px 12px',
-                            fontSize: '14px',
+                            padding: isMobile ? '4px 8px' : '8px 12px',
+                            fontSize: isMobile ? '11px' : '14px',
                             fontWeight: 700,
                             fontFamily: "'IBM Plex Mono', monospace"
                           }}>
@@ -3029,12 +3029,12 @@
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          marginBottom: '12px',
-                          marginTop: index < 3 ? '24px' : '0'
+                          marginBottom: isMobile ? '8px' : '12px',
+                          marginTop: index < 3 ? (isMobile ? '16px' : '24px') : '0'
                         }}>
                           <div style={{
-                            fontSize: '9px',
-                            letterSpacing: '0.12em',
+                            fontSize: isMobile ? '8px' : '9px',
+                            letterSpacing: '0.1em',
                             color: accentColor,
                             fontFamily: "'IBM Plex Mono', monospace",
                             fontWeight: 700,
@@ -3042,7 +3042,7 @@
                           }}>
                             {culture.category?.toUpperCase() || 'CULTURE'}
                           </div>
-                          {culture.activeAuctions > 0 && (
+                          {culture.activeAuctions > 0 && !isMobile && (
                             <div style={{
                               display: 'flex',
                               alignItems: 'center',
@@ -3073,26 +3073,30 @@
                         {/* Name & Ticker */}
                         <h3 style={{
                           fontFamily: "'Playfair Display', serif",
-                          fontSize: '24px',
+                          fontSize: isMobile ? '14px' : '24px',
                           fontWeight: 500,
                           color: colors.text,
-                          marginBottom: '6px'
+                          marginBottom: isMobile ? '2px' : '6px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: isMobile ? 'nowrap' : 'normal'
                         }}>
                           {culture.name}
                         </h3>
                         {culture.ticker && (
                           <div style={{
                             fontFamily: "'IBM Plex Mono', monospace",
-                            fontSize: '11px',
+                            fontSize: isMobile ? '9px' : '11px',
                             color: colors.textMuted,
-                            marginBottom: '12px',
+                            marginBottom: isMobile ? '8px' : '12px',
                             letterSpacing: '0.05em'
                           }}>
                             ${culture.ticker}
                           </div>
                         )}
 
-                        {/* Ethos */}
+                        {/* Ethos - Hidden on mobile for compact view */}
+                        {!isMobile && (
                         <p style={{
                           fontFamily: "'IBM Plex Mono', monospace",
                           fontSize: '13px',
@@ -3103,9 +3107,10 @@
                         }}>
                           "{culture.ethos}"
                         </p>
+                        )}
 
-                        {/* Core Pillar Preview - Vibrant Style */}
-                        {culture.pillars && culture.pillars.length > 0 && (
+                        {/* Core Pillar Preview - Hidden on mobile */}
+                        {!isMobile && culture.pillars && culture.pillars.length > 0 && (
                           <div style={{
                             background: `${accentColor}15`,
                             padding: '14px',
@@ -3132,54 +3137,56 @@
                           </div>
                         )}
 
-                        {/* Stats Grid - Clean */}
+                        {/* Stats Grid - Compact on mobile */}
                         <div style={{
                           display: 'grid',
-                          gridTemplateColumns: 'repeat(3, 1fr)',
-                          gap: '12px',
+                          gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
+                          gap: isMobile ? '6px' : '12px',
                           borderTop: `1px solid ${colors.border}`,
-                          paddingTop: '16px'
+                          paddingTop: isMobile ? '8px' : '16px'
                         }}>
                           <div>
                             <div style={{
-                              fontSize: '16px',
+                              fontSize: isMobile ? '12px' : '16px',
                               color: colors.text,
                               fontFamily: "'IBM Plex Mono', monospace",
-                              marginBottom: '4px',
+                              marginBottom: '2px',
                               fontWeight: 600
                             }}>
                               {culture.marketCap
                                 ? (culture.marketCap >= 1000000
                                     ? `$${(culture.marketCap / 1000000).toFixed(1)}M`
                                     : culture.marketCap >= 1000
-                                      ? `$${(culture.marketCap / 1000).toFixed(1)}K`
+                                      ? `$${(culture.marketCap / 1000).toFixed(0)}K`
                                       : `$${culture.marketCap.toFixed(0)}`)
                                 : '—'}
                             </div>
-                            <div style={{ fontSize: '8px', color: colors.textMuted, letterSpacing: '0.1em', fontFamily: "'IBM Plex Mono', monospace" }}>
+                            <div style={{ fontSize: isMobile ? '7px' : '8px', color: colors.textMuted, letterSpacing: '0.08em', fontFamily: "'IBM Plex Mono', monospace" }}>
                               MCAP
                             </div>
                           </div>
                           <div>
                             <div style={{
-                              fontSize: '16px',
+                              fontSize: isMobile ? '12px' : '16px',
                               color: colors.text,
                               fontFamily: "'IBM Plex Mono', monospace",
-                              marginBottom: '4px',
+                              marginBottom: '2px',
                               fontWeight: 600
                             }}>
                               {culture.volume
                                 ? (culture.volume >= 1000000
                                     ? `$${(culture.volume / 1000000).toFixed(1)}M`
                                     : culture.volume >= 1000
-                                      ? `$${(culture.volume / 1000).toFixed(1)}K`
+                                      ? `$${(culture.volume / 1000).toFixed(0)}K`
                                       : `$${culture.volume.toFixed(0)}`)
                                 : '—'}
                             </div>
-                            <div style={{ fontSize: '8px', color: colors.textMuted, letterSpacing: '0.1em', fontFamily: "'IBM Plex Mono', monospace" }}>
-                              VOLUME
+                            <div style={{ fontSize: isMobile ? '7px' : '8px', color: colors.textMuted, letterSpacing: '0.08em', fontFamily: "'IBM Plex Mono', monospace" }}>
+                              {isMobile ? 'VOL' : 'VOLUME'}
                             </div>
                           </div>
+                          {/* Holders - Hidden on mobile to fit 2 columns */}
+                          {!isMobile && (
                           <div>
                             <div style={{
                               fontSize: '16px',
@@ -3194,6 +3201,7 @@
                               HOLDERS
                             </div>
                           </div>
+                          )}
                         </div>
 
                         {/* Bottom accent bar */}
@@ -11722,7 +11730,7 @@
                       type="text"
                       value={vanitySuffix}
                       onChange={(e) => setVanitySuffix(e.target.value.replace(/[^a-zA-Z1-9]/g, '').slice(0, 6))}
-                      placeholder="moon"
+                      placeholder="type suffix here (e.g. KING)"
                       disabled={vanityMining}
                       maxLength={6}
                       style={{
