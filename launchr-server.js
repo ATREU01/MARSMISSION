@@ -2010,8 +2010,30 @@ const server = http.createServer(async (req, res) => {
                                 xData.includes.users.forEach(u => users[u.id] = u);
                             }
 
-                            // Convert to trend items with REAL tweet text
+                            // Spam filter patterns - block common crypto spam/scam tweets
+                            const SPAM_PATTERNS = [
+                                /earn \$\d+/i,           // "earn $3724"
+                                /earned \$\d+/i,         // "earned $3864"
+                                /drop your.*address/i,  // "drop your SOL address"
+                                /\bRT\b.*👇/i,           // "RT 👇" giveaway spam
+                                /giveaway/i,            // giveaway spam
+                                /free (airdrop|drop)/i, // free airdrop spam
+                                /dm (me|for)/i,         // "DM me" scams
+                                /(\$\w+\s*){4,}/,       // 4+ $TICKERS in a row (like "$BULLA $TRUMP $CRV $GALA")
+                            ];
+
+                            const isSpam = (text) => SPAM_PATTERNS.some(p => p.test(text));
+
+                            // Convert to trend items with REAL tweet text (filtered)
                             const realTweets = xData.data
+                                .filter(tweet => {
+                                    const metrics = tweet.public_metrics || {};
+                                    // Require minimum engagement (3 likes) to filter out spam
+                                    if ((metrics.like_count || 0) < 3) return false;
+                                    // Block spam patterns
+                                    if (isSpam(tweet.text)) return false;
+                                    return true;
+                                })
                                 .slice(0, 10)
                                 .map((tweet) => {
                                     const user = users[tweet.author_id] || {};
