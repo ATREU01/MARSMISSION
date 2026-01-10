@@ -6664,7 +6664,7 @@
           const [tekLoading, setTekLoading] = useState(false);
           const [tekStatus, setTekStatus] = useState('');
           const [selectedTekCulture, setSelectedTekCulture] = useState(null);
-          const [tekStats, setTekStats] = useState({ claimed: 0, distributed: 0, pending: 0, holderPool: 0 });
+          const [tekStats, setTekStats] = useState({ claimed: 0, distributed: 0, pending: 0, burned: 0, buyback: 0, liquidity: 0 });
 
           // PK + CA Ownership Verification (like main dashboard)
           const [showVerifyModal, setShowVerifyModal] = useState(false);
@@ -6825,12 +6825,15 @@
                 console.log('[TEK] On-chain stats:', data);
                 if (data.success !== false) {
                   // Use SOL values directly from on-chain data
-                  // API returns both lamports and SOL versions
+                  // API returns both lamports and SOL versions + breakdown
                   setTekStats({
                     claimed: data.totalClaimedSOL || (data.totalClaimed ? data.totalClaimed / 1e9 : 0),
                     distributed: data.totalDistributedSOL || (data.totalDistributed ? data.totalDistributed / 1e9 : 0),
                     pending: data.pendingSOL || (data.pending ? data.pending / 1e9 : 0),
-                    holderPool: data.holderPoolSOL || (data.holderPool ? data.holderPool / 1e9 : 0)
+                    // Breakdown by category
+                    burned: data.totalBurnedSOL || (data.totalBurned ? data.totalBurned / 1e9 : 0),
+                    buyback: data.totalBuybackSOL || (data.totalBuyback ? data.totalBuyback / 1e9 : 0),
+                    liquidity: data.totalLiquiditySOL || (data.totalLiquidity ? data.totalLiquidity / 1e9 : 0)
                   });
                 }
               } catch (e) {
@@ -8818,9 +8821,9 @@
                       marginBottom: '24px'
                     }}>
                       {[
-                        { label: 'Total Claimed', value: tekStats.claimed, color: dashColors.accent, suffix: ' SOL' },
-                        { label: 'To Holder Pool', value: tekStats.holderPool, color: dashColors.coral, suffix: ' SOL', sub: '1% of fees' },
-                        { label: 'Distributed', value: tekStats.distributed, color: '#4ade80', suffix: ' SOL', sub: '99% to allocation' },
+                        { label: 'Burned', value: tekStats.burned, color: '#ff6b6b', suffix: ' SOL', sub: 'Tokens bought & burned' },
+                        { label: 'Buyback', value: tekStats.buyback, color: '#4ade80', suffix: ' SOL', sub: 'Market support' },
+                        { label: 'Liquidity', value: tekStats.liquidity, color: '#3b82f6', suffix: ' SOL', sub: 'Added to LP' },
                         { label: 'Pending', value: tekStats.pending, color: dashColors.peach, suffix: ' SOL', sub: 'Auto-claims every 10m' }
                       ].map((stat, i) => (
                         <div key={i} style={{
