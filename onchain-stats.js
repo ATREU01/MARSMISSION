@@ -81,92 +81,69 @@ class OnChainStats {
 
     /**
      * Fetch real on-chain statistics using Helius parsed transaction API
-     * This is the REAL DEAL - actual blockchain data
+     * COMBINED APPROACH: Use parsed API for categorization, RPC for accurate totals
      */
     async fetchOnChainStats(tokenMint, feeWalletAddress) {
         if (!feeWalletAddress) {
             return this.getEmptyStats();
         }
 
-        console.log(`[ONCHAIN-STATS] Fetching parsed transactions for ${feeWalletAddress}...`);
+        console.log(`[ONCHAIN-STATS] Fetching FULL on-chain data for ${feeWalletAddress}...`);
 
         const stats = this.getEmptyStats();
 
         try {
-            // Use Helius parsed transaction history API - MUCH more reliable
+            // STEP 1: Get accurate totals from RPC (pre/post balance method)
+            // This is the SOURCE OF TRUTH for total claimed/distributed
+            const rpcTotals = await this.getRPCTotals(feeWalletAddress);
+            stats.totalClaimed = rpcTotals.totalIn;
+            stats.totalDistributed = rpcTotals.totalOut;
+            stats.claimCount = rpcTotals.inCount;
+            stats.distributeCount = rpcTotals.outCount;
+
+            console.log(`[ONCHAIN-STATS] RPC TOTALS: In=${(rpcTotals.totalIn / LAMPORTS_PER_SOL).toFixed(4)} SOL, Out=${(rpcTotals.totalOut / LAMPORTS_PER_SOL).toFixed(4)} SOL`);
+
+            // STEP 2: Get categorization from Helius parsed API (better for tx types)
             const transactions = await this.getHeliusParsedTransactions(feeWalletAddress);
+            console.log(`[ONCHAIN-STATS] Found ${transactions.length} parsed transactions for categorization`);
 
-            if (transactions.length === 0) {
-                console.log(`[ONCHAIN-STATS] No transactions found, trying RPC fallback...`);
-                // Fallback to RPC-based parsing
-                return await this.fetchOnChainStatsViaRPC(tokenMint, feeWalletAddress);
-            }
+            if (transactions.length > 0) {
+                // Categorize distributions based on parsed transaction types
+                const BURN_ADDRESS = '1nc1nerator11111111111111111111111111111111';
+                const PUMP_PROGRAMS = ['6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P', 'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA'];
 
-            console.log(`[ONCHAIN-STATS] Found ${transactions.length} parsed transactions`);
+                let burnAmount = 0, buybackAmount = 0, liquidityAmount = 0;
 
-            // Known addresses for categorization
-            const BURN_ADDRESS = '1nc1nerator11111111111111111111111111111111';
-            const PUMP_PROGRAMS = ['6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P', 'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA'];
-
-            // First pass: identify all burn transactions by signature
-            const burnTxSignatures = new Set();
-            for (const tx of transactions) {
-                if (this.isBurnTransaction(tx, BURN_ADDRESS)) {
-                    burnTxSignatures.add(tx.signature);
-                }
-            }
-            console.log(`[ONCHAIN-STATS] Found ${burnTxSignatures.size} burn transactions`);
-
-            // Second pass: categorize SOL movements
-            for (const tx of transactions) {
-                const txType = tx.type || '';
-                const signature = tx.signature || '';
-
-                // Look for native SOL transfers
-                if (tx.nativeTransfers && tx.nativeTransfers.length > 0) {
-                    for (const transfer of tx.nativeTransfers) {
-                        // Incoming SOL to fee wallet = claimed fees
-                        if (transfer.toUserAccount === feeWalletAddress) {
-                            stats.totalClaimed += transfer.amount;
-                            stats.claimCount++;
-                        }
-                        // Outgoing SOL from fee wallet = distributed fees
-                        if (transfer.fromUserAccount === feeWalletAddress) {
-                            const amount = transfer.amount;
-                            stats.totalDistributed += amount;
-                            stats.distributeCount++;
-
-                            // Categorize the distribution
-                            const category = this.categorizeTransaction(tx, transfer, BURN_ADDRESS, PUMP_PROGRAMS);
-
-                            if (category === 'burn') {
-                                stats.totalBurned += amount;
-                                stats.burnCount++;
-                            } else if (category === 'buyback') {
-                                stats.totalBuyback += amount;
-                                stats.buybackCount++;
-                            } else if (category === 'liquidity') {
-                                stats.totalLiquidity += amount;
-                                stats.liquidityCount++;
-                            }
-                        }
-                    }
-                }
-
-                // Also check accountData for balance changes (fallback)
-                if (tx.accountData) {
-                    for (const account of tx.accountData) {
-                        if (account.account === feeWalletAddress && account.nativeBalanceChange) {
-                            const change = account.nativeBalanceChange;
-                            if (change > 0) {
-                                // Don't double count if we already got it from nativeTransfers
-                                if (!tx.nativeTransfers || tx.nativeTransfers.length === 0) {
-                                    stats.totalClaimed += change;
-                                    stats.claimCount++;
+                for (const tx of transactions) {
+                    // Look for outgoing SOL (distributions)
+                    if (tx.nativeTransfers) {
+                        for (const transfer of tx.nativeTransfers) {
+                            if (transfer.fromUserAccount === feeWalletAddress && transfer.amount > 0) {
+                                const category = this.categorizeTransaction(tx, transfer, BURN_ADDRESS, PUMP_PROGRAMS);
+                                if (category === 'burn') {
+                                    burnAmount += transfer.amount;
+                                    stats.burnCount++;
+                                } else if (category === 'buyback') {
+                                    buybackAmount += transfer.amount;
+                                    stats.buybackCount++;
+                                } else if (category === 'liquidity') {
+                                    liquidityAmount += transfer.amount;
+                                    stats.liquidityCount++;
                                 }
                             }
                         }
                     }
+                }
+
+                // Use categorized amounts if we have them
+                const categorizedTotal = burnAmount + buybackAmount + liquidityAmount;
+                if (categorizedTotal > 0) {
+                    // Scale categories proportionally to match actual distributed total
+                    const scale = stats.totalDistributed / categorizedTotal;
+                    stats.totalBurned = Math.round(burnAmount * scale);
+                    stats.totalBuyback = Math.round(buybackAmount * scale);
+                    stats.totalLiquidity = Math.round(liquidityAmount * scale);
+                    console.log(`[ONCHAIN-STATS] Categorized: Burn=${(stats.totalBurned / LAMPORTS_PER_SOL).toFixed(4)}, Buyback=${(stats.totalBuyback / LAMPORTS_PER_SOL).toFixed(4)}, LP=${(stats.totalLiquidity / LAMPORTS_PER_SOL).toFixed(4)}`);
                 }
             }
 
@@ -182,15 +159,95 @@ class OnChainStats {
             stats.totalBuybackSOL = stats.totalBuyback / LAMPORTS_PER_SOL;
             stats.totalLiquiditySOL = stats.totalLiquidity / LAMPORTS_PER_SOL;
 
-            console.log(`[ONCHAIN-STATS] RESULTS: Claimed=${stats.totalClaimedSOL.toFixed(4)} SOL, Distributed=${stats.totalDistributedSOL.toFixed(4)} SOL`);
-            console.log(`[ONCHAIN-STATS] BREAKDOWN: Burned=${stats.totalBurnedSOL.toFixed(4)}, Buyback=${stats.totalBuybackSOL.toFixed(4)}, Liquidity=${stats.totalLiquiditySOL.toFixed(4)}`);
+            console.log(`[ONCHAIN-STATS] FINAL: Claimed=${stats.totalClaimedSOL.toFixed(4)} SOL, Distributed=${stats.totalDistributedSOL.toFixed(4)} SOL, Pending=${stats.pendingSOL.toFixed(4)} SOL`);
 
             return stats;
 
         } catch (e) {
-            console.error(`[ONCHAIN-STATS] Helius API error: ${e.message}, trying RPC fallback...`);
+            console.error(`[ONCHAIN-STATS] Error: ${e.message}`);
+            // Fallback to RPC-only method
             return await this.fetchOnChainStatsViaRPC(tokenMint, feeWalletAddress);
         }
+    }
+
+    /**
+     * Get accurate totals using RPC pre/post balances
+     * This captures ALL SOL movements, not just parsed transfers
+     */
+    async getRPCTotals(feeWalletAddress) {
+        const feeWallet = new PublicKey(feeWalletAddress);
+        let totalIn = 0, totalOut = 0, inCount = 0, outCount = 0;
+
+        try {
+            // Get ALL signatures with pagination
+            let allSignatures = [];
+            let lastSig = null;
+
+            while (true) {
+                const options = { limit: 1000 };
+                if (lastSig) options.before = lastSig;
+
+                const sigs = await this.connection.getSignaturesForAddress(feeWallet, options, 'confirmed');
+                if (sigs.length === 0) break;
+
+                allSignatures.push(...sigs);
+                lastSig = sigs[sigs.length - 1].signature;
+
+                console.log(`[ONCHAIN-STATS] Fetched ${allSignatures.length} signatures...`);
+
+                if (sigs.length < 1000) break; // No more pages
+            }
+
+            console.log(`[ONCHAIN-STATS] Total signatures: ${allSignatures.length}`);
+
+            // Process in batches
+            const batches = this.chunkArray(allSignatures, 100);
+
+            for (const batch of batches) {
+                try {
+                    const txs = await this.connection.getTransactions(
+                        batch.map(s => s.signature),
+                        { maxSupportedTransactionVersion: 0 }
+                    );
+
+                    for (const tx of txs) {
+                        if (!tx || !tx.meta) continue;
+
+                        const preBalances = tx.meta.preBalances;
+                        const postBalances = tx.meta.postBalances;
+                        const accountKeys = tx.transaction.message.staticAccountKeys ||
+                                           tx.transaction.message.accountKeys || [];
+
+                        // Find fee wallet index
+                        const walletIndex = accountKeys.findIndex(k => k.toBase58() === feeWalletAddress);
+                        if (walletIndex === -1) continue;
+
+                        // Calculate balance change (excluding tx fee if this wallet paid it)
+                        const balanceChange = postBalances[walletIndex] - preBalances[walletIndex];
+                        const txFee = walletIndex === 0 ? (tx.meta.fee || 0) : 0;
+
+                        if (balanceChange > 0) {
+                            totalIn += balanceChange;
+                            inCount++;
+                        } else if (balanceChange < 0) {
+                            // Outgoing - subtract tx fee to get actual distributed amount
+                            const netOut = Math.abs(balanceChange) - txFee;
+                            if (netOut > 0) {
+                                totalOut += netOut;
+                                outCount++;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error(`[ONCHAIN-STATS] Batch error: ${e.message}`);
+                }
+            }
+
+        } catch (e) {
+            console.error(`[ONCHAIN-STATS] getRPCTotals error: ${e.message}`);
+        }
+
+        return { totalIn, totalOut, inCount, outCount };
     }
 
     /**
