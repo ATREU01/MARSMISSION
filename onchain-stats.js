@@ -60,59 +60,26 @@ class OnChainStats {
 
     /**
      * Get stats for a specific token's TEK usage
-     * Uses Helius enhanced API with TOKEN FILTER - only gets transactions for THIS token
+     * Uses pre/post balance method for ACCURATE totals (doesn't rely on token filter)
+     * This is THE TRUTH - balance changes on chain don't lie
      */
     async getTokenStats(tokenMint, feeWalletAddress) {
         const cacheKey = `stats:${tokenMint}:${feeWalletAddress}`;
         const cached = this.getFromCache(cacheKey);
         if (cached) return cached;
 
-        console.log(`[ONCHAIN-STATS] Fetching token-specific stats for ${tokenMint?.slice(0, 8)}...`);
+        console.log(`[ONCHAIN-STATS] Fetching REAL on-chain stats for ${feeWalletAddress?.slice(0, 8)}...`);
 
-        const stats = this.getEmptyStats();
+        // Use the full on-chain fetch which uses pre/post balances for accuracy
+        const stats = await this.fetchOnChainStats(tokenMint, feeWalletAddress);
 
-        try {
-            // Get current balance first
-            if (feeWalletAddress) {
-                const balance = await this.connection.getBalance(new PublicKey(feeWalletAddress));
-                stats.pending = balance;
-                stats.pendingSOL = balance / LAMPORTS_PER_SOL;
-            }
-
-            // Use Helius to get TOKEN-SPECIFIC transactions only
-            if (CONFIG.HELIUS_API_KEY && tokenMint) {
-                const tokenTxs = await this.getTokenTransactions(feeWalletAddress, tokenMint);
-
-                if (tokenTxs.totalBought > 0) {
-                    stats.totalDistributed = Math.round(tokenTxs.totalBought * LAMPORTS_PER_SOL);
-                    stats.totalDistributedSOL = tokenTxs.totalBought;
-                    stats.totalClaimed = stats.totalDistributed; // Approximate
-                    stats.totalClaimedSOL = stats.totalDistributedSOL;
-
-                    // Breakdown based on transaction types
-                    stats.totalBurned = Math.round(tokenTxs.burnAmount * LAMPORTS_PER_SOL);
-                    stats.totalBuyback = Math.round(tokenTxs.swapAmount * LAMPORTS_PER_SOL);
-                    stats.totalLiquidity = Math.round(tokenTxs.lpAmount * LAMPORTS_PER_SOL);
-
-                    stats.totalBurnedSOL = tokenTxs.burnAmount;
-                    stats.totalBuybackSOL = tokenTxs.swapAmount;
-                    stats.totalLiquiditySOL = tokenTxs.lpAmount;
-
-                    console.log(`[ONCHAIN-STATS] Token stats: Total=${tokenTxs.totalBought.toFixed(4)} SOL, Burns=${tokenTxs.burnAmount.toFixed(4)}, Swaps=${tokenTxs.swapAmount.toFixed(4)}, LP=${tokenTxs.lpAmount.toFixed(4)}`);
-                }
-            }
-
-            this.setCache(cacheKey, stats);
-            return stats;
-        } catch (e) {
-            console.error(`[ONCHAIN-STATS] Error: ${e.message}`);
-            return stats;
-        }
+        this.setCache(cacheKey, stats);
+        return stats;
     }
 
     /**
      * Get ALL transactions for a specific TOKEN using Helius getTransactionsForAddress RPC
-     * This is the PROPER way - full tx data in one call, efficient pagination
+     * Optimized with reasonable limits to prevent crashes
      */
     async getTokenTransactions(walletAddress, tokenMint) {
         let totalBought = 0;
@@ -121,16 +88,24 @@ class OnChainStats {
         let lpAmount = 0;
         let txCount = 0;
 
-        try {
-            console.log(`[ONCHAIN-STATS] Using getTransactionsForAddress for ${walletAddress.slice(0, 8)}, token ${tokenMint.slice(0, 8)}...`);
+        // Check cache first (cache for 10 minutes)
+        const cacheKey = `token_txs:${walletAddress}:${tokenMint}`;
+        const cached = this.cache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < 600000) {
+            console.log(`[ONCHAIN-STATS] Using cached token transactions`);
+            return cached.data;
+        }
 
-            let allTokenTxs = [];
+        try {
+            console.log(`[ONCHAIN-STATS] Fetching token transactions for ${walletAddress.slice(0, 8)}, token ${tokenMint.slice(0, 8)}...`);
+
             let paginationToken = null;
             let pages = 0;
             let totalFetched = 0;
+            const MAX_PAGES = 500; // Reasonable limit: 50k transactions max
 
             // Use Helius getTransactionsForAddress RPC method
-            while (true) {
+            while (pages < MAX_PAGES) {
                 const params = {
                     transactionDetails: 'full',
                     encoding: 'jsonParsed',
@@ -148,59 +123,55 @@ class OnChainStats {
                     id: `tx-${pages}`,
                     method: 'getTransactionsForAddress',
                     params: [walletAddress, params]
-                }, { timeout: 60000 });
+                }, { timeout: 30000 });
 
                 if (!response.data?.result?.data || response.data.result.data.length === 0) {
-                    console.log(`[ONCHAIN-STATS] No more transactions at page ${pages}`);
                     break;
                 }
 
                 const txs = response.data.result.data;
                 totalFetched += txs.length;
 
-                // Filter to ONLY transactions involving our specific token
+                // Process transactions involving our token
                 for (const txData of txs) {
                     const tx = txData.transaction;
                     const meta = txData.meta;
-
                     if (!tx || !meta) continue;
 
-                    // Check if this tx involves our token (check postTokenBalances)
+                    // Check if tx involves our token
                     const involvesToken = meta.postTokenBalances?.some(tb => tb.mint === tokenMint) ||
                                          meta.preTokenBalances?.some(tb => tb.mint === tokenMint);
 
                     if (involvesToken) {
-                        // Calculate SOL change for wallet
+                        // Get wallet's SOL balance change
                         const accountKeys = tx.message?.accountKeys || [];
                         const walletIndex = accountKeys.findIndex(k =>
                             (typeof k === 'string' ? k : k.pubkey) === walletAddress
                         );
 
                         if (walletIndex !== -1 && meta.preBalances && meta.postBalances) {
-                            const balanceChange = meta.postBalances[walletIndex] - meta.preBalances[walletIndex];
-                            const txFee = walletIndex === 0 ? (meta.fee || 0) : 0;
+                            const preBalance = meta.preBalances[walletIndex];
+                            const postBalance = meta.postBalances[walletIndex];
+                            const balanceChange = postBalance - preBalance;
 
-                            // Negative balance = SOL spent (buying tokens)
+                            // SOL spent = negative balance change (exclude tx fee)
                             if (balanceChange < 0) {
-                                const solSpent = (Math.abs(balanceChange) - txFee) / LAMPORTS_PER_SOL;
-                                if (solSpent > 0) {
+                                // Don't subtract fee - it's already in the balance change
+                                const solSpent = Math.abs(balanceChange) / LAMPORTS_PER_SOL;
+
+                                if (solSpent > 0.0001) { // Ignore dust
                                     totalBought += solSpent;
                                     txCount++;
 
-                                    // Categorize - check inner instructions for burn/LP/swap
-                                    const innerIxs = meta.innerInstructions || [];
-                                    const logMsgs = meta.logMessages || [];
-                                    const logStr = logMsgs.join(' ').toLowerCase();
-
-                                    if (logStr.includes('burn') || logStr.includes('burned')) {
+                                    // Simple categorization
+                                    const logStr = (meta.logMessages || []).join(' ').toLowerCase();
+                                    if (logStr.includes('burn')) {
                                         burnAmount += solSpent;
-                                    } else if (logStr.includes('liquidity') || logStr.includes('add_liquidity')) {
+                                    } else if (logStr.includes('liquidity')) {
                                         lpAmount += solSpent;
                                     } else {
-                                        swapAmount += solSpent; // Default: swap/buyback
+                                        swapAmount += solSpent;
                                     }
-
-                                    allTokenTxs.push({ solSpent, blockTime: txData.blockTime });
                                 }
                             }
                         }
@@ -210,32 +181,27 @@ class OnChainStats {
                 pages++;
                 paginationToken = response.data.result.paginationToken;
 
-                // Log progress
-                if (pages % 5 === 0) {
-                    console.log(`[ONCHAIN-STATS] Page ${pages}: ${totalFetched} scanned, ${txCount} token buys found (${totalBought.toFixed(2)} SOL)`);
+                // Progress logging
+                if (pages % 50 === 0) {
+                    console.log(`[ONCHAIN-STATS] Page ${pages}: ${totalFetched} txs, ${txCount} buys = ${totalBought.toFixed(2)} SOL`);
                 }
 
-                // No more pages
-                if (!paginationToken) {
-                    console.log(`[ONCHAIN-STATS] Reached end at page ${pages}`);
-                    break;
-                }
-
-                // Small delay
-                await new Promise(r => setTimeout(r, 50));
+                if (!paginationToken) break;
+                await new Promise(r => setTimeout(r, 25)); // Small delay
             }
 
-            console.log(`[ONCHAIN-STATS] COMPLETE: ${totalFetched} total txs, ${txCount} token buys = ${totalBought.toFixed(4)} SOL`);
-            console.log(`[ONCHAIN-STATS] BREAKDOWN: Burns=${burnAmount.toFixed(4)}, Swaps=${swapAmount.toFixed(4)}, LP=${lpAmount.toFixed(4)}`);
+            console.log(`[ONCHAIN-STATS] Done: ${totalFetched} txs scanned, ${txCount} token buys = ${totalBought.toFixed(4)} SOL`);
 
         } catch (e) {
-            console.error(`[ONCHAIN-STATS] getTokenTransactions error: ${e.message}`);
-            if (e.response?.data) {
-                console.error(`[ONCHAIN-STATS] Response: ${JSON.stringify(e.response.data)}`);
-            }
+            console.error(`[ONCHAIN-STATS] Error: ${e.message}`);
         }
 
-        return { totalBought, burnAmount, swapAmount, lpAmount, txCount };
+        const result = { totalBought, burnAmount, swapAmount, lpAmount, txCount };
+
+        // Cache for 10 minutes
+        this.cache.set(cacheKey, { data: result, timestamp: Date.now() });
+
+        return result;
     }
 
     /**
@@ -407,26 +373,27 @@ class OnChainStats {
 
     /**
      * Get accurate totals using RPC pre/post balances
-     * OPTIMIZED: Limits signatures, adds delays, handles rate limits
+     * SCANS ALL TRANSACTIONS - this is the source of truth
      */
     async getRPCTotals(feeWalletAddress) {
         const feeWallet = new PublicKey(feeWalletAddress);
         let totalIn = 0, totalOut = 0, inCount = 0, outCount = 0;
 
-        // Check cache first (cache for 5 minutes)
+        // Check cache first (cache for 30 minutes - this is expensive)
         const cacheKey = `rpc_totals:${feeWalletAddress}`;
-        const cached = this.getFromCache(cacheKey);
-        if (cached) {
-            console.log(`[ONCHAIN-STATS] Using cached RPC totals`);
-            return cached;
+        const cachedEntry = this.cache.get(cacheKey);
+        if (cachedEntry && Date.now() - cachedEntry.timestamp < 1800000) { // 30 min cache
+            console.log(`[ONCHAIN-STATS] Using cached RPC totals (valid for ${Math.round((1800000 - (Date.now() - cachedEntry.timestamp)) / 60000)} more minutes)`);
+            return cachedEntry.data;
         }
 
         try {
-            // LIMIT: Only fetch recent 5000 signatures to avoid rate limits
-            // For older history, we rely on persisted stats
-            const MAX_SIGNATURES = 5000;
+            // Fetch ALL signatures - no limit
+            // This is necessary for accurate totals
+            const MAX_SIGNATURES = 100000; // Safety cap
             let allSignatures = [];
             let lastSig = null;
+            let pageCount = 0;
 
             while (allSignatures.length < MAX_SIGNATURES) {
                 const options = { limit: 1000 };
@@ -437,22 +404,23 @@ class OnChainStats {
 
                 allSignatures.push(...sigs);
                 lastSig = sigs[sigs.length - 1].signature;
+                pageCount++;
+
+                if (pageCount % 10 === 0) {
+                    console.log(`[ONCHAIN-STATS] Fetched ${allSignatures.length} signatures...`);
+                }
 
                 if (sigs.length < 1000) break; // No more pages
 
                 // Rate limit protection
-                await new Promise(r => setTimeout(r, 200));
+                await new Promise(r => setTimeout(r, 100));
             }
 
-            // Trim to max
-            if (allSignatures.length > MAX_SIGNATURES) {
-                allSignatures = allSignatures.slice(0, MAX_SIGNATURES);
-            }
+            console.log(`[ONCHAIN-STATS] Processing ${allSignatures.length} total signatures`);
 
-            console.log(`[ONCHAIN-STATS] Processing ${allSignatures.length} signatures (limited to ${MAX_SIGNATURES})`);
-
-            // Process in smaller batches with delays
-            const batches = this.chunkArray(allSignatures, 50); // Smaller batches
+            // Process in batches with rate limit handling
+            const batches = this.chunkArray(allSignatures, 100);
+            let processedCount = 0;
 
             for (let i = 0; i < batches.length; i++) {
                 const batch = batches[i];
@@ -490,15 +458,22 @@ class OnChainStats {
                         }
                     }
 
-                    // Rate limit protection - delay between batches
-                    if (i < batches.length - 1) {
-                        await new Promise(r => setTimeout(r, 100));
+                    processedCount += batch.length;
+
+                    // Progress logging every 5000 transactions
+                    if (processedCount % 5000 === 0) {
+                        console.log(`[ONCHAIN-STATS] Processed ${processedCount}/${allSignatures.length} txs - In: ${(totalIn / LAMPORTS_PER_SOL).toFixed(2)} SOL, Out: ${(totalOut / LAMPORTS_PER_SOL).toFixed(2)} SOL`);
                     }
+
+                    // Rate limit protection
+                    await new Promise(r => setTimeout(r, 50));
                 } catch (e) {
                     console.error(`[ONCHAIN-STATS] Batch ${i}/${batches.length} error: ${e.message}`);
                     // Wait longer on rate limit errors
                     if (e.message.includes('429')) {
-                        await new Promise(r => setTimeout(r, 2000));
+                        console.log(`[ONCHAIN-STATS] Rate limited, waiting 3s...`);
+                        await new Promise(r => setTimeout(r, 3000));
+                        i--; // Retry this batch
                     }
                 }
             }
@@ -509,7 +484,7 @@ class OnChainStats {
 
         const result = { totalIn, totalOut, inCount, outCount };
 
-        // Cache for 5 minutes
+        // Cache for 30 minutes (this is expensive to compute)
         this.cache.set(cacheKey, { data: result, timestamp: Date.now() });
 
         console.log(`[ONCHAIN-STATS] RPC Totals: In=${(totalIn / LAMPORTS_PER_SOL).toFixed(4)}, Out=${(totalOut / LAMPORTS_PER_SOL).toFixed(4)}`);
