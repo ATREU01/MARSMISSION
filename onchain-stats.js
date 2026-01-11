@@ -59,6 +59,83 @@ class OnChainStats {
     }
 
     /**
+     * FAST: Get just the fee wallet balance (pending amount)
+     * This is very quick - single RPC call
+     */
+    async getBalanceOnly(feeWalletAddress) {
+        if (!feeWalletAddress) return 0;
+        try {
+            const balance = await this.connection.getBalance(new PublicKey(feeWalletAddress));
+            return balance;
+        } catch (e) {
+            console.error(`[ONCHAIN-STATS] getBalanceOnly error: ${e.message}`);
+            return 0;
+        }
+    }
+
+    /**
+     * FAST: Get stats with timeout - returns cached/empty if fetch takes too long
+     * @param timeoutMs - max time to wait (default 8 seconds)
+     */
+    async getTokenStatsWithTimeout(tokenMint, feeWalletAddress, timeoutMs = 8000) {
+        const cacheKey = `stats:${tokenMint}:${feeWalletAddress}`;
+        const cached = this.getFromCache(cacheKey);
+        if (cached) {
+            console.log(`[ONCHAIN-STATS] Returning cached stats for ${feeWalletAddress?.slice(0, 8)}`);
+            return cached;
+        }
+
+        // Check if we have cached RPC totals (the expensive part)
+        const rpcCacheKey = `rpc_totals:${feeWalletAddress}`;
+        const cachedRPCTotals = this.cache.get(rpcCacheKey);
+        if (cachedRPCTotals && Date.now() - cachedRPCTotals.timestamp < 1800000) {
+            // We have cached RPC totals, so full fetch will be fast
+            console.log(`[ONCHAIN-STATS] Have cached RPC totals, doing full fetch`);
+            return this.getTokenStats(tokenMint, feeWalletAddress);
+        }
+
+        // No cached RPC totals - this will be slow, use timeout
+        console.log(`[ONCHAIN-STATS] No cached totals, using ${timeoutMs}ms timeout for ${feeWalletAddress?.slice(0, 8)}`);
+
+        try {
+            const stats = await Promise.race([
+                this.fetchOnChainStats(tokenMint, feeWalletAddress),
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Timeout')), timeoutMs)
+                )
+            ]);
+            this.setCache(cacheKey, stats);
+            return stats;
+        } catch (e) {
+            if (e.message === 'Timeout') {
+                console.log(`[ONCHAIN-STATS] Fetch timed out, trying GMGN fallback`);
+
+                // Try GMGN as faster fallback
+                try {
+                    const gmgnStats = await this.fetchGMGNStats(tokenMint, feeWalletAddress);
+                    if (gmgnStats && gmgnStats.totalDistributed > 0) {
+                        console.log(`[ONCHAIN-STATS] Got GMGN stats: ${gmgnStats.totalDistributedSOL.toFixed(4)} SOL distributed`);
+                        return { ...gmgnStats, _timedOut: true, _source: 'gmgn' };
+                    }
+                } catch (gmgnErr) {
+                    console.log(`[ONCHAIN-STATS] GMGN fallback failed: ${gmgnErr.message}`);
+                }
+
+                // Final fallback: just the balance
+                const balance = await this.getBalanceOnly(feeWalletAddress);
+                return {
+                    ...this.getEmptyStats(),
+                    pending: balance,
+                    pendingSOL: balance / LAMPORTS_PER_SOL,
+                    _timedOut: true,
+                    _source: 'balance-only',
+                };
+            }
+            throw e;
+        }
+    }
+
+    /**
      * Get stats for a specific token's TEK usage
      * Uses pre/post balance method for ACCURATE totals (doesn't rely on token filter)
      * This is THE TRUTH - balance changes on chain don't lie
@@ -745,6 +822,47 @@ class OnChainStats {
             feeWallet: feeWalletAddress,
             lastUpdated: Date.now(),
             source: 'onchain',
+        };
+    }
+
+    /**
+     * FAST: Get stats for dashboard with timeout to prevent browser timeout
+     * Uses persisted stats as primary source, on-chain for pending balance
+     * @param timeoutMs - max time for on-chain fetch (default 8 seconds)
+     */
+    async getStatsForDashboardFast(tokenMint, feeWalletAddress, timeoutMs = 8000) {
+        const tokenStats = await this.getTokenStatsWithTimeout(tokenMint, feeWalletAddress, timeoutMs);
+
+        return {
+            success: true,
+            // In lamports
+            totalClaimed: tokenStats.totalClaimed,
+            totalDistributed: tokenStats.totalDistributed,
+            pending: tokenStats.pending,
+            // Breakdown in lamports
+            totalBurned: tokenStats.totalBurned,
+            totalBuyback: tokenStats.totalBuyback,
+            totalLiquidity: tokenStats.totalLiquidity,
+            // In SOL (for display)
+            totalClaimedSOL: tokenStats.totalClaimedSOL,
+            totalDistributedSOL: tokenStats.totalDistributedSOL,
+            pendingSOL: tokenStats.pendingSOL,
+            // Breakdown in SOL
+            totalBurnedSOL: tokenStats.totalBurnedSOL,
+            totalBuybackSOL: tokenStats.totalBuybackSOL,
+            totalLiquiditySOL: tokenStats.totalLiquiditySOL,
+            // Counts
+            claimCount: tokenStats.claimCount,
+            distributeCount: tokenStats.distributeCount,
+            burnCount: tokenStats.burnCount,
+            buybackCount: tokenStats.buybackCount,
+            liquidityCount: tokenStats.liquidityCount,
+            // Meta
+            tokenMint,
+            feeWallet: feeWalletAddress,
+            lastUpdated: Date.now(),
+            source: tokenStats._timedOut ? 'balance-only' : 'onchain',
+            _timedOut: tokenStats._timedOut || false,
         };
     }
 
