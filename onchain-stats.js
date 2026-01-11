@@ -60,32 +60,182 @@ class OnChainStats {
 
     /**
      * Get stats for a specific token's TEK usage
-     * PRIORITY: GMGN (most accurate) > Persisted > On-chain RPC
+     * Uses Helius enhanced API with TOKEN FILTER - only gets transactions for THIS token
      */
     async getTokenStats(tokenMint, feeWalletAddress) {
         const cacheKey = `stats:${tokenMint}:${feeWalletAddress}`;
         const cached = this.getFromCache(cacheKey);
         if (cached) return cached;
 
-        console.log(`[ONCHAIN-STATS] Fetching stats for ${tokenMint.slice(0, 8)}...`);
+        console.log(`[ONCHAIN-STATS] Fetching token-specific stats for ${tokenMint?.slice(0, 8)}...`);
+
+        const stats = this.getEmptyStats();
 
         try {
-            // Try GMGN first - they have the most accurate token-specific data
-            const gmgnStats = await this.fetchGMGNStats(tokenMint, feeWalletAddress);
-            if (gmgnStats && gmgnStats.totalDistributed > 0) {
-                console.log(`[ONCHAIN-STATS] Got stats from GMGN`);
-                this.setCache(cacheKey, gmgnStats);
-                return gmgnStats;
+            // Get current balance first
+            if (feeWalletAddress) {
+                const balance = await this.connection.getBalance(new PublicKey(feeWalletAddress));
+                stats.pending = balance;
+                stats.pendingSOL = balance / LAMPORTS_PER_SOL;
             }
 
-            // Fallback to on-chain RPC
-            const stats = await this.fetchOnChainStats(tokenMint, feeWalletAddress);
+            // Use Helius to get TOKEN-SPECIFIC transactions only
+            if (CONFIG.HELIUS_API_KEY && tokenMint) {
+                const tokenTxs = await this.getTokenTransactions(feeWalletAddress, tokenMint);
+
+                if (tokenTxs.totalBought > 0) {
+                    stats.totalDistributed = Math.round(tokenTxs.totalBought * LAMPORTS_PER_SOL);
+                    stats.totalDistributedSOL = tokenTxs.totalBought;
+                    stats.totalClaimed = stats.totalDistributed; // Approximate
+                    stats.totalClaimedSOL = stats.totalDistributedSOL;
+
+                    // Breakdown based on transaction types
+                    stats.totalBurned = Math.round(tokenTxs.burnAmount * LAMPORTS_PER_SOL);
+                    stats.totalBuyback = Math.round(tokenTxs.swapAmount * LAMPORTS_PER_SOL);
+                    stats.totalLiquidity = Math.round(tokenTxs.lpAmount * LAMPORTS_PER_SOL);
+
+                    stats.totalBurnedSOL = tokenTxs.burnAmount;
+                    stats.totalBuybackSOL = tokenTxs.swapAmount;
+                    stats.totalLiquiditySOL = tokenTxs.lpAmount;
+
+                    console.log(`[ONCHAIN-STATS] Token stats: Total=${tokenTxs.totalBought.toFixed(4)} SOL, Burns=${tokenTxs.burnAmount.toFixed(4)}, Swaps=${tokenTxs.swapAmount.toFixed(4)}, LP=${tokenTxs.lpAmount.toFixed(4)}`);
+                }
+            }
+
             this.setCache(cacheKey, stats);
             return stats;
         } catch (e) {
             console.error(`[ONCHAIN-STATS] Error: ${e.message}`);
-            return this.getEmptyStats();
+            return stats;
         }
+    }
+
+    /**
+     * Get ALL transactions for a specific TOKEN using Helius getTransactionsForAddress RPC
+     * This is the PROPER way - full tx data in one call, efficient pagination
+     */
+    async getTokenTransactions(walletAddress, tokenMint) {
+        let totalBought = 0;
+        let burnAmount = 0;
+        let swapAmount = 0;
+        let lpAmount = 0;
+        let txCount = 0;
+
+        try {
+            console.log(`[ONCHAIN-STATS] Using getTransactionsForAddress for ${walletAddress.slice(0, 8)}, token ${tokenMint.slice(0, 8)}...`);
+
+            let allTokenTxs = [];
+            let paginationToken = null;
+            let pages = 0;
+            let totalFetched = 0;
+
+            // Use Helius getTransactionsForAddress RPC method
+            while (true) {
+                const params = {
+                    transactionDetails: 'full',
+                    encoding: 'jsonParsed',
+                    maxSupportedTransactionVersion: 0,
+                    limit: 100,
+                    filters: { status: 'succeeded' }
+                };
+
+                if (paginationToken) {
+                    params.paginationToken = paginationToken;
+                }
+
+                const response = await axios.post(this.rpcUrl, {
+                    jsonrpc: '2.0',
+                    id: `tx-${pages}`,
+                    method: 'getTransactionsForAddress',
+                    params: [walletAddress, params]
+                }, { timeout: 60000 });
+
+                if (!response.data?.result?.data || response.data.result.data.length === 0) {
+                    console.log(`[ONCHAIN-STATS] No more transactions at page ${pages}`);
+                    break;
+                }
+
+                const txs = response.data.result.data;
+                totalFetched += txs.length;
+
+                // Filter to ONLY transactions involving our specific token
+                for (const txData of txs) {
+                    const tx = txData.transaction;
+                    const meta = txData.meta;
+
+                    if (!tx || !meta) continue;
+
+                    // Check if this tx involves our token (check postTokenBalances)
+                    const involvesToken = meta.postTokenBalances?.some(tb => tb.mint === tokenMint) ||
+                                         meta.preTokenBalances?.some(tb => tb.mint === tokenMint);
+
+                    if (involvesToken) {
+                        // Calculate SOL change for wallet
+                        const accountKeys = tx.message?.accountKeys || [];
+                        const walletIndex = accountKeys.findIndex(k =>
+                            (typeof k === 'string' ? k : k.pubkey) === walletAddress
+                        );
+
+                        if (walletIndex !== -1 && meta.preBalances && meta.postBalances) {
+                            const balanceChange = meta.postBalances[walletIndex] - meta.preBalances[walletIndex];
+                            const txFee = walletIndex === 0 ? (meta.fee || 0) : 0;
+
+                            // Negative balance = SOL spent (buying tokens)
+                            if (balanceChange < 0) {
+                                const solSpent = (Math.abs(balanceChange) - txFee) / LAMPORTS_PER_SOL;
+                                if (solSpent > 0) {
+                                    totalBought += solSpent;
+                                    txCount++;
+
+                                    // Categorize - check inner instructions for burn/LP/swap
+                                    const innerIxs = meta.innerInstructions || [];
+                                    const logMsgs = meta.logMessages || [];
+                                    const logStr = logMsgs.join(' ').toLowerCase();
+
+                                    if (logStr.includes('burn') || logStr.includes('burned')) {
+                                        burnAmount += solSpent;
+                                    } else if (logStr.includes('liquidity') || logStr.includes('add_liquidity')) {
+                                        lpAmount += solSpent;
+                                    } else {
+                                        swapAmount += solSpent; // Default: swap/buyback
+                                    }
+
+                                    allTokenTxs.push({ solSpent, blockTime: txData.blockTime });
+                                }
+                            }
+                        }
+                    }
+                }
+
+                pages++;
+                paginationToken = response.data.result.paginationToken;
+
+                // Log progress
+                if (pages % 5 === 0) {
+                    console.log(`[ONCHAIN-STATS] Page ${pages}: ${totalFetched} scanned, ${txCount} token buys found (${totalBought.toFixed(2)} SOL)`);
+                }
+
+                // No more pages
+                if (!paginationToken) {
+                    console.log(`[ONCHAIN-STATS] Reached end at page ${pages}`);
+                    break;
+                }
+
+                // Small delay
+                await new Promise(r => setTimeout(r, 50));
+            }
+
+            console.log(`[ONCHAIN-STATS] COMPLETE: ${totalFetched} total txs, ${txCount} token buys = ${totalBought.toFixed(4)} SOL`);
+            console.log(`[ONCHAIN-STATS] BREAKDOWN: Burns=${burnAmount.toFixed(4)}, Swaps=${swapAmount.toFixed(4)}, LP=${lpAmount.toFixed(4)}`);
+
+        } catch (e) {
+            console.error(`[ONCHAIN-STATS] getTokenTransactions error: ${e.message}`);
+            if (e.response?.data) {
+                console.error(`[ONCHAIN-STATS] Response: ${JSON.stringify(e.response.data)}`);
+            }
+        }
+
+        return { totalBought, burnAmount, swapAmount, lpAmount, txCount };
     }
 
     /**
