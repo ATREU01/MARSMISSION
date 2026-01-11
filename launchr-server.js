@@ -6944,9 +6944,19 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             if (mint) {
                 console.log(`[STATS] Fetching stats for ${mint.slice(0, 8)}...`);
 
+                // LAUNCHR token mint address
+                const LAUNCHR_MINT = process.env.LAUNCHR_TOKEN_MINT || '86ZnAujEVLmtnNazeCeT1zYR7hn2PeF5ZPEwUkTdpump';
+                const LAUNCHR_OPS_WALLET = process.env.LAUNCHR_OPS_WALLET || 'GAnPTu7xSfb9CdVsfYZw84hoHeeibJN4NJounbnrq9U7';
+
                 // Get the fee wallet for this token from ORBIT registry or use default
                 const orbitStatus = orbitRegistry.get(mint);
                 let feeWallet = orbitStatus?.wallet || process.env.FEE_WALLET_PUBLIC_KEY || '';
+
+                // Special case: LAUNCHR token uses the ops wallet
+                if (mint === LAUNCHR_MINT) {
+                    feeWallet = LAUNCHR_OPS_WALLET;
+                    console.log(`[STATS] Using LAUNCHR ops wallet: ${feeWallet.slice(0, 8)}...`);
+                }
 
                 // If no fee wallet, try to derive from private key
                 if (!feeWallet && process.env.FEE_WALLET_PRIVATE_KEY) {
@@ -6974,9 +6984,10 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                     console.log(`[STATS] Could not read persisted stats: ${e.message}`);
                 }
 
-                // Get on-chain stats for pending balance
+                // Get on-chain stats with timeout to prevent browser timeout
+                // Uses fast method that returns cached stats or times out after 8 seconds
                 const onChainStats = getOnChainStats();
-                const chainStats = await onChainStats.getStatsForDashboard(mint, feeWallet || '');
+                const chainStats = await onChainStats.getStatsForDashboardFast(mint, feeWallet || '', 8000);
 
                 // COMBINE SOURCES: Use MAX of (persisted, on-chain) to capture EVERYTHING
                 // On-chain is source of truth, persisted adds breakdown detail
@@ -7019,7 +7030,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                     tokenMint: mint,
                     feeWallet,
                     lastUpdated: Date.now(),
-                    source: 'combined',
+                    source: chainStats._timedOut ? 'persisted+balance' : 'combined',
                     // Debug: show what each source contributed
                     _debug: {
                         persisted: {
@@ -7035,11 +7046,21 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                             totalBurned: chainStats.totalBurned || 0,
                             totalBuyback: chainStats.totalBuyback || 0,
                             totalLiquidity: chainStats.totalLiquidity || 0,
+                            timedOut: chainStats._timedOut || false,
                         }
                     }
                 };
 
-                console.log(`[STATS] Returning: Burned=${stats.totalBurnedSOL.toFixed(4)}, Buyback=${stats.totalBuybackSOL.toFixed(4)}, LP=${stats.totalLiquiditySOL.toFixed(4)}`);
+                // If on-chain fetch timed out, trigger background refresh for next request
+                if (chainStats._timedOut && feeWallet) {
+                    console.log(`[STATS] On-chain fetch timed out, triggering background refresh`);
+                    // Fire and forget - populate cache for next request
+                    onChainStats.getStatsForDashboard(mint, feeWallet).catch(e => {
+                        console.log(`[STATS] Background refresh error: ${e.message}`);
+                    });
+                }
+
+                console.log(`[STATS] Returning: Burned=${stats.totalBurnedSOL.toFixed(4)}, Buyback=${stats.totalBuybackSOL.toFixed(4)}, LP=${stats.totalLiquiditySOL.toFixed(4)}${chainStats._timedOut ? ' (timed out, using persisted)' : ''}`);
 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify(stats));
