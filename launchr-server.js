@@ -7101,6 +7101,97 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
         return;
     }
 
+    // API: Seed historical stats (admin endpoint for initializing historical data)
+    // POST /api/stats/seed with { mint, historical: { marketMaking, buybackBurn, liquidity, creatorRevenue } }
+    if (url.pathname === '/api/stats/seed' && req.method === 'POST') {
+        try {
+            const body = await getBody(req);
+            const { mint, historical, adminKey } = JSON.parse(body);
+
+            // Simple admin key check (use env var in production)
+            const expectedKey = process.env.ADMIN_KEY || 'launchr-admin-2024';
+            if (adminKey !== expectedKey) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Invalid admin key' }));
+                return;
+            }
+
+            if (!mint || !historical) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Missing mint or historical data' }));
+                return;
+            }
+
+            const statsFile = path.join(process.env.DATA_DIR || './data', '.launchr-stats.json');
+
+            // Load existing stats
+            let allStats = {};
+            try {
+                if (fs.existsSync(statsFile)) {
+                    allStats = JSON.parse(fs.readFileSync(statsFile, 'utf8'));
+                }
+            } catch (e) {
+                console.log('[STATS-SEED] Could not read existing stats:', e.message);
+            }
+
+            // Get current stats for this mint
+            const currentStats = allStats[mint] || {
+                totalClaimed: 0,
+                totalDistributed: 0,
+                marketMaking: 0,
+                buybackBurn: 0,
+                liquidity: 0,
+                creatorRevenue: 0,
+                transactions: [],
+            };
+
+            // Add historical amounts (in lamports)
+            const histLamports = {
+                marketMaking: Math.round((historical.marketMaking || 0) * LAMPORTS_PER_SOL),
+                buybackBurn: Math.round((historical.buybackBurn || 0) * LAMPORTS_PER_SOL),
+                liquidity: Math.round((historical.liquidity || 0) * LAMPORTS_PER_SOL),
+                creatorRevenue: Math.round((historical.creatorRevenue || 0) * LAMPORTS_PER_SOL),
+            };
+
+            // Add to current stats
+            currentStats.marketMaking += histLamports.marketMaking;
+            currentStats.buybackBurn += histLamports.buybackBurn;
+            currentStats.liquidity += histLamports.liquidity;
+            currentStats.creatorRevenue += histLamports.creatorRevenue;
+            currentStats.totalDistributed += (histLamports.marketMaking + histLamports.buybackBurn + histLamports.liquidity + histLamports.creatorRevenue);
+            currentStats.totalClaimed += currentStats.totalDistributed; // Assume all claimed was distributed
+
+            // Save
+            allStats[mint] = currentStats;
+            fs.writeFileSync(statsFile, JSON.stringify(allStats, null, 2));
+
+            console.log(`[STATS-SEED] Seeded historical data for ${mint.slice(0, 8)}:`, {
+                marketMaking: (currentStats.marketMaking / LAMPORTS_PER_SOL).toFixed(4),
+                buybackBurn: (currentStats.buybackBurn / LAMPORTS_PER_SOL).toFixed(4),
+                liquidity: (currentStats.liquidity / LAMPORTS_PER_SOL).toFixed(4),
+                totalDistributed: (currentStats.totalDistributed / LAMPORTS_PER_SOL).toFixed(4),
+            });
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                message: 'Historical stats seeded',
+                stats: {
+                    marketMaking: currentStats.marketMaking / LAMPORTS_PER_SOL,
+                    buybackBurn: currentStats.buybackBurn / LAMPORTS_PER_SOL,
+                    liquidity: currentStats.liquidity / LAMPORTS_PER_SOL,
+                    creatorRevenue: currentStats.creatorRevenue / LAMPORTS_PER_SOL,
+                    totalDistributed: currentStats.totalDistributed / LAMPORTS_PER_SOL,
+                }
+            }));
+        } catch (e) {
+            console.error('[STATS-SEED] Error:', e.message);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
     // API: Get timer (6-hour distribution cycle)
     if (url.pathname === '/api/timer' && req.method === 'GET') {
         // Timer endpoint - returns countdown data (6 hour cycle)
