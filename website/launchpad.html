@@ -3239,7 +3239,7 @@
                 throw new Error('No mint keypair available for signing');
             }
 
-            // PRE-SIMULATE: Simulate transaction before showing to wallet (don't throw on errors)
+            // PRE-SIMULATE: Simulate transaction before showing to wallet
             console.log('[DEPLOY] Pre-simulating transaction...');
             try {
                 const simulation = await connection.simulateTransaction(tx, {
@@ -3247,13 +3247,28 @@
                     replaceRecentBlockhash: true
                 });
                 if (simulation.value.err) {
-                    console.warn('[DEPLOY] Simulation warning:', simulation.value.err);
-                    // Don't throw - let the user try anyway
+                    const errStr = JSON.stringify(simulation.value.err);
+                    console.error('[DEPLOY] Simulation FAILED:', simulation.value.err);
+                    console.error('[DEPLOY] Simulation logs:', simulation.value.logs);
+
+                    // Parse common Pump.fun errors
+                    if (errStr.includes('Custom":1') || errStr.includes('"Custom":1')) {
+                        throw new Error('Insufficient SOL balance. You need ~0.02 SOL for token creation + your dev buy amount + fees. Please add more SOL to your wallet.');
+                    } else if (errStr.includes('Custom":6') || errStr.includes('"Custom":6')) {
+                        throw new Error('Slippage exceeded. Try again or reduce your initial buy amount.');
+                    } else if (errStr.includes('InsufficientFunds') || errStr.includes('0x1')) {
+                        throw new Error('Insufficient SOL. Please add more SOL to your wallet.');
+                    }
+                    throw new Error('Simulation failed: ' + errStr + '. Check console for details.');
                 } else {
                     console.log('[DEPLOY] Pre-simulation successful, units consumed:', simulation.value.unitsConsumed);
                 }
             } catch (simErr) {
-                console.warn('[DEPLOY] Pre-simulation failed (continuing anyway):', simErr.message);
+                // Re-throw our custom errors
+                if (simErr.message.includes('Insufficient') || simErr.message.includes('Slippage') || simErr.message.includes('Simulation failed')) {
+                    throw simErr;
+                }
+                console.warn('[DEPLOY] Pre-simulation error (continuing anyway):', simErr.message);
             }
 
             let signature;
@@ -3316,16 +3331,49 @@
 
             console.log('[DEPLOY] Transaction sent, signature:', signature);
 
-            // Wait for confirmation
+            // Wait for confirmation with timeout
             console.log('[DEPLOY] Waiting for confirmation...');
-            const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+            try {
+                const confirmation = await Promise.race([
+                    connection.confirmTransaction(signature, 'confirmed'),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 60000))
+                ]);
 
-            if (confirmation.value.err) {
-                throw new Error('Transaction failed: ' + JSON.stringify(confirmation.value.err));
+                if (confirmation.value?.err) {
+                    const errStr = JSON.stringify(confirmation.value.err);
+                    console.error('[DEPLOY] Transaction failed on-chain:', confirmation.value.err);
+
+                    // Parse common Pump.fun errors for better messages
+                    if (errStr.includes('Custom":1') || errStr.includes('"Custom":1')) {
+                        throw new Error('Transaction failed: Insufficient SOL. You need ~0.5+ SOL total (creation fee + dev buy + priority fee). Add more SOL and try again.');
+                    } else if (errStr.includes('Custom":6')) {
+                        throw new Error('Transaction failed: Slippage exceeded. Price moved too much. Try again.');
+                    }
+                    throw new Error('Transaction failed: ' + errStr);
+                }
+
+                console.log('[DEPLOY] Transaction confirmed!');
+                return signature;
+            } catch (confirmErr) {
+                if (confirmErr.message === 'TIMEOUT') {
+                    // Transaction might still succeed - check status
+                    console.log('[DEPLOY] Confirmation timeout, checking transaction status...');
+                    try {
+                        const status = await connection.getSignatureStatus(signature);
+                        if (status?.value?.confirmationStatus === 'confirmed' || status?.value?.confirmationStatus === 'finalized') {
+                            console.log('[DEPLOY] Transaction confirmed via status check!');
+                            return signature;
+                        }
+                        if (status?.value?.err) {
+                            throw new Error('Transaction failed: ' + JSON.stringify(status.value.err));
+                        }
+                    } catch (statusErr) {
+                        console.warn('[DEPLOY] Status check failed:', statusErr.message);
+                    }
+                    throw new Error('Transaction sent but confirmation timed out. Check Solscan: https://solscan.io/tx/' + signature);
+                }
+                throw confirmErr;
             }
-
-            console.log('[DEPLOY] Transaction confirmed!');
-            return signature;
         }
 
         // Image preview helper
