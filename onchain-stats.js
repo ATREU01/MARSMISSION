@@ -52,8 +52,17 @@ class OnChainStats {
             this.rpcUrl = `https://mainnet.helius-rpc.com/?api-key=${CONFIG.HELIUS_API_KEY}`;
         }
 
-        this.connection = new Connection(this.rpcUrl, 'confirmed');
+        // Configure connection with DISABLED auto-retry to prevent 429 cascade
+        // We handle retries manually with proper exponential backoff
+        this.connection = new Connection(this.rpcUrl, {
+            commitment: 'confirmed',
+            disableRetryOnRateLimit: true, // Disable web3.js auto-retry
+            confirmTransactionInitialTimeout: 60000,
+        });
         this.cache = new Map();
+
+        // Track ongoing fetches to prevent duplicate requests
+        this.ongoingFetches = new Map();
 
         console.log(`[ONCHAIN-STATS] Initialized with RPC: ${this.rpcUrl.replace(/api-key=[^&]+/, 'api-key=REDACTED')}`);
     }
@@ -360,14 +369,38 @@ class OnChainStats {
     /**
      * Fetch real on-chain statistics using Helius parsed transaction API
      * COMBINED APPROACH: Use parsed API for categorization, RPC for accurate totals
+     * DEDUPED: Prevents multiple concurrent fetches for the same wallet
      */
     async fetchOnChainStats(tokenMint, feeWalletAddress) {
         if (!feeWalletAddress) {
             return this.getEmptyStats();
         }
 
+        // DEDUPLICATION: If we're already fetching for this wallet, wait for that fetch
+        const fetchKey = `fetch:${feeWalletAddress}`;
+        if (this.ongoingFetches.has(fetchKey)) {
+            console.log(`[ONCHAIN-STATS] Already fetching ${feeWalletAddress.slice(0, 8)}..., waiting...`);
+            return await this.ongoingFetches.get(fetchKey);
+        }
+
         console.log(`[ONCHAIN-STATS] Fetching FULL on-chain data for ${feeWalletAddress}...`);
 
+        // Create and store the fetch promise for deduplication
+        const fetchPromise = this._doFetchOnChainStats(tokenMint, feeWalletAddress);
+        this.ongoingFetches.set(fetchKey, fetchPromise);
+
+        try {
+            const result = await fetchPromise;
+            return result;
+        } finally {
+            this.ongoingFetches.delete(fetchKey);
+        }
+    }
+
+    /**
+     * Internal: Actually perform the on-chain stats fetch
+     */
+    async _doFetchOnChainStats(tokenMint, feeWalletAddress) {
         const stats = this.getEmptyStats();
 
         try {
@@ -467,9 +500,9 @@ class OnChainStats {
         }
 
         try {
-            // Fetch signatures with CONSERVATIVE rate limiting
-            // Reduced from 100k to 10k max to avoid excessive API calls
-            const MAX_SIGNATURES = 10000; // Reasonable limit
+            // Fetch signatures with VERY CONSERVATIVE rate limiting
+            // Reduced to 2000 max to prevent rate limiting
+            const MAX_SIGNATURES = 2000; // Strict limit to avoid 429s
             let allSignatures = [];
             let lastSig = null;
             let pageCount = 0;
@@ -491,8 +524,8 @@ class OnChainStats {
 
                 if (sigs.length < 1000) break; // No more pages
 
-                // INCREASED rate limit protection - 500ms between signature fetches
-                await new Promise(r => setTimeout(r, 500));
+                // AGGRESSIVE rate limit protection - 1 second between signature fetches
+                await new Promise(r => setTimeout(r, 1000));
             }
 
             console.log(`[ONCHAIN-STATS] Processing ${allSignatures.length} total signatures`);
@@ -549,8 +582,8 @@ class OnChainStats {
                         console.log(`[ONCHAIN-STATS] Processed ${processedCount}/${allSignatures.length} txs - In: ${(totalIn / LAMPORTS_PER_SOL).toFixed(2)} SOL, Out: ${(totalOut / LAMPORTS_PER_SOL).toFixed(2)} SOL`);
                     }
 
-                    // INCREASED rate limit protection - 300ms between batch fetches
-                    await new Promise(r => setTimeout(r, 300));
+                    // AGGRESSIVE rate limit protection - 500ms between batch fetches
+                    await new Promise(r => setTimeout(r, 500));
                 } catch (e) {
                     console.error(`[ONCHAIN-STATS] Batch ${i}/${batches.length} error: ${e.message}`);
                     consecutiveErrors++;
