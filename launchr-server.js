@@ -1759,7 +1759,7 @@ const server = http.createServer(async (req, res) => {
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com",
         "img-src 'self' data: https: blob:",
-        "connect-src 'self' https://api.dexscreener.com https://lite-api.jup.ag https://api.jup.ag https://gmgn.ai https://frontend-api.pump.fun https://*.helius-rpc.com wss://*.helius-rpc.com",
+        "connect-src 'self' https://api.dexscreener.com https://lite-api.jup.ag https://api.jup.ag https://gmgn.ai https://frontend-api.pump.fun https://pumpportal.fun https://*.helius-rpc.com wss://*.helius-rpc.com",
         "frame-src 'self' https://dexscreener.com",
         "object-src 'none'",
         "base-uri 'self'"
