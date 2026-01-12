@@ -33,8 +33,8 @@ const CONFIG = {
     // LAUNCHR token mint
     LAUNCHR_TOKEN_MINT: process.env.LAUNCHR_TOKEN_MINT || '86ZnAujEVLmtnNazeCeT1zYR7hn2PeF5ZPEwUkTdpump',
 
-    // Cache TTL
-    CACHE_TTL_MS: 30000, // 30 seconds
+    // Cache TTL - increased to reduce API load
+    CACHE_TTL_MS: 120000, // 2 minutes (was 30 seconds)
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -451,23 +451,25 @@ class OnChainStats {
     /**
      * Get accurate totals using RPC pre/post balances
      * SCANS ALL TRANSACTIONS - this is the source of truth
+     * RATE LIMITED: Uses conservative delays to avoid 429 errors
      */
     async getRPCTotals(feeWalletAddress) {
         const feeWallet = new PublicKey(feeWalletAddress);
         let totalIn = 0, totalOut = 0, inCount = 0, outCount = 0;
 
-        // Check cache first (cache for 30 minutes - this is expensive)
+        // Check cache first (cache for 2 HOURS - this is expensive and rate-limited)
         const cacheKey = `rpc_totals:${feeWalletAddress}`;
         const cachedEntry = this.cache.get(cacheKey);
-        if (cachedEntry && Date.now() - cachedEntry.timestamp < 1800000) { // 30 min cache
-            console.log(`[ONCHAIN-STATS] Using cached RPC totals (valid for ${Math.round((1800000 - (Date.now() - cachedEntry.timestamp)) / 60000)} more minutes)`);
+        const CACHE_DURATION = 7200000; // 2 hours cache to reduce API load
+        if (cachedEntry && Date.now() - cachedEntry.timestamp < CACHE_DURATION) {
+            console.log(`[ONCHAIN-STATS] Using cached RPC totals (valid for ${Math.round((CACHE_DURATION - (Date.now() - cachedEntry.timestamp)) / 60000)} more minutes)`);
             return cachedEntry.data;
         }
 
         try {
-            // Fetch ALL signatures - no limit
-            // This is necessary for accurate totals
-            const MAX_SIGNATURES = 100000; // Safety cap
+            // Fetch signatures with CONSERVATIVE rate limiting
+            // Reduced from 100k to 10k max to avoid excessive API calls
+            const MAX_SIGNATURES = 10000; // Reasonable limit
             let allSignatures = [];
             let lastSig = null;
             let pageCount = 0;
@@ -483,21 +485,24 @@ class OnChainStats {
                 lastSig = sigs[sigs.length - 1].signature;
                 pageCount++;
 
-                if (pageCount % 10 === 0) {
+                if (pageCount % 5 === 0) {
                     console.log(`[ONCHAIN-STATS] Fetched ${allSignatures.length} signatures...`);
                 }
 
                 if (sigs.length < 1000) break; // No more pages
 
-                // Rate limit protection
-                await new Promise(r => setTimeout(r, 100));
+                // INCREASED rate limit protection - 500ms between signature fetches
+                await new Promise(r => setTimeout(r, 500));
             }
 
             console.log(`[ONCHAIN-STATS] Processing ${allSignatures.length} total signatures`);
 
-            // Process in batches with rate limit handling
-            const batches = this.chunkArray(allSignatures, 100);
+            // Process in SMALLER batches with LONGER delays
+            // Reduced batch size from 100 to 25 to avoid rate limits
+            const batches = this.chunkArray(allSignatures, 25);
             let processedCount = 0;
+            let consecutiveErrors = 0;
+            const MAX_CONSECUTIVE_ERRORS = 5;
 
             for (let i = 0; i < batches.length; i++) {
                 const batch = batches[i];
@@ -506,6 +511,8 @@ class OnChainStats {
                         batch.map(s => s.signature),
                         { maxSupportedTransactionVersion: 0 }
                     );
+
+                    consecutiveErrors = 0; // Reset on success
 
                     for (const tx of txs) {
                         if (!tx || !tx.meta) continue;
@@ -537,20 +544,29 @@ class OnChainStats {
 
                     processedCount += batch.length;
 
-                    // Progress logging every 5000 transactions
-                    if (processedCount % 5000 === 0) {
+                    // Progress logging every 1000 transactions
+                    if (processedCount % 1000 === 0) {
                         console.log(`[ONCHAIN-STATS] Processed ${processedCount}/${allSignatures.length} txs - In: ${(totalIn / LAMPORTS_PER_SOL).toFixed(2)} SOL, Out: ${(totalOut / LAMPORTS_PER_SOL).toFixed(2)} SOL`);
                     }
 
-                    // Rate limit protection
-                    await new Promise(r => setTimeout(r, 50));
+                    // INCREASED rate limit protection - 300ms between batch fetches
+                    await new Promise(r => setTimeout(r, 300));
                 } catch (e) {
                     console.error(`[ONCHAIN-STATS] Batch ${i}/${batches.length} error: ${e.message}`);
-                    // Wait longer on rate limit errors
-                    if (e.message.includes('429')) {
-                        console.log(`[ONCHAIN-STATS] Rate limited, waiting 3s...`);
-                        await new Promise(r => setTimeout(r, 3000));
-                        i--; // Retry this batch
+                    consecutiveErrors++;
+
+                    // Exponential backoff on rate limit errors
+                    if (e.message.includes('429') || e.message.includes('Too Many')) {
+                        const backoffTime = Math.min(30000, 2000 * Math.pow(2, consecutiveErrors));
+                        console.log(`[ONCHAIN-STATS] Rate limited, waiting ${backoffTime/1000}s (attempt ${consecutiveErrors})...`);
+                        await new Promise(r => setTimeout(r, backoffTime));
+
+                        if (consecutiveErrors < MAX_CONSECUTIVE_ERRORS) {
+                            i--; // Retry this batch
+                        } else {
+                            console.log(`[ONCHAIN-STATS] Too many rate limit errors, stopping with partial results`);
+                            break;
+                        }
                     }
                 }
             }
@@ -561,7 +577,7 @@ class OnChainStats {
 
         const result = { totalIn, totalOut, inCount, outCount };
 
-        // Cache for 30 minutes (this is expensive to compute)
+        // Cache for 2 hours (this is expensive and rate-limited)
         this.cache.set(cacheKey, { data: result, timestamp: Date.now() });
 
         console.log(`[ONCHAIN-STATS] RPC Totals: In=${(totalIn / LAMPORTS_PER_SOL).toFixed(4)}, Out=${(totalOut / LAMPORTS_PER_SOL).toFixed(4)}`);
@@ -571,6 +587,7 @@ class OnChainStats {
     /**
      * Get ALL parsed transactions from Helius API with pagination
      * Fetches complete transaction history for accurate stats
+     * RATE LIMITED: Uses conservative delays and exponential backoff
      */
     async getHeliusParsedTransactions(address, limit = 100) {
         if (!CONFIG.HELIUS_API_KEY) {
@@ -581,7 +598,8 @@ class OnChainStats {
         const allTransactions = [];
         let lastSignature = null;
         let pageCount = 0;
-        const maxPages = 20; // Safety limit: 20 pages * 100 = 2000 transactions max
+        const maxPages = 10; // Reduced from 20 to 10 pages (1000 txs max) to reduce API load
+        let consecutiveErrors = 0;
 
         try {
             while (pageCount < maxPages) {
@@ -592,28 +610,45 @@ class OnChainStats {
                 }
 
                 if (pageCount === 0) {
-                    console.log(`[ONCHAIN-STATS] Fetching ALL transactions for ${address.slice(0, 8)}...`);
+                    console.log(`[ONCHAIN-STATS] Fetching transactions for ${address.slice(0, 8)}...`);
                 }
 
-                const response = await axios.get(url, { timeout: 30000 });
+                try {
+                    const response = await axios.get(url, { timeout: 30000 });
 
-                if (!response.data || !Array.isArray(response.data) || response.data.length === 0) {
-                    break; // No more transactions
+                    if (!response.data || !Array.isArray(response.data) || response.data.length === 0) {
+                        break; // No more transactions
+                    }
+
+                    consecutiveErrors = 0; // Reset on success
+                    allTransactions.push(...response.data);
+                    pageCount++;
+
+                    // Get last signature for pagination
+                    lastSignature = response.data[response.data.length - 1].signature;
+
+                    // If we got less than 100, we've reached the end
+                    if (response.data.length < 100) {
+                        break;
+                    }
+
+                    // INCREASED delay - 500ms between API calls
+                    await new Promise(r => setTimeout(r, 500));
+                } catch (fetchError) {
+                    consecutiveErrors++;
+                    if (fetchError.response?.status === 429 || fetchError.message.includes('429')) {
+                        const backoffTime = Math.min(30000, 2000 * Math.pow(2, consecutiveErrors));
+                        console.log(`[ONCHAIN-STATS] Helius rate limited, waiting ${backoffTime/1000}s...`);
+                        await new Promise(r => setTimeout(r, backoffTime));
+
+                        if (consecutiveErrors >= 3) {
+                            console.log(`[ONCHAIN-STATS] Too many rate limit errors, returning partial results`);
+                            break;
+                        }
+                        continue; // Retry this page
+                    }
+                    throw fetchError;
                 }
-
-                allTransactions.push(...response.data);
-                pageCount++;
-
-                // Get last signature for pagination
-                lastSignature = response.data[response.data.length - 1].signature;
-
-                // If we got less than 100, we've reached the end
-                if (response.data.length < 100) {
-                    break;
-                }
-
-                // Small delay to be nice to the API
-                await new Promise(r => setTimeout(r, 100));
             }
 
             console.log(`[ONCHAIN-STATS] Fetched ${allTransactions.length} total transactions (${pageCount} pages)`);
@@ -623,7 +658,6 @@ class OnChainStats {
             console.error(`[ONCHAIN-STATS] Helius API error: ${e.message}`);
             if (e.response) {
                 console.error(`[ONCHAIN-STATS] Response status: ${e.response.status}`);
-                console.error(`[ONCHAIN-STATS] Response data: ${JSON.stringify(e.response.data)}`);
             }
             // Return what we have so far
             return allTransactions;
