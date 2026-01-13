@@ -7147,90 +7147,105 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 console.log(`[VOLUME] Calculating REAL all-time volume from ${tokens.length} tokens via Helius getTransactionsForAddress...`);
 
                 const axios = require('axios');
-                const HELIUS_RPC_URL = process.env.HELIUS_RPC || 'https://mainnet.helius-rpc.com';
-                let totalAllTimeVolume = 0;
+                // Helius RPC URL must include API key: https://mainnet.helius-rpc.com/?api-key=YOUR_KEY
+                const HELIUS_RPC_URL = process.env.HELIUS_RPC;
+                if (!HELIUS_RPC_URL || !HELIUS_RPC_URL.includes('api-key')) {
+                    console.log(`[VOLUME] ERROR: HELIUS_RPC env var missing or no api-key. Cannot calculate volume.`);
+                } else {
+                    let totalAllTimeVolume = 0;
 
-                // Get current SOL price from DexScreener
-                let solPrice = 140; // fallback
-                try {
-                    const solRes = await axios.get('https://api.dexscreener.com/latest/dex/tokens/So11111111111111111111111111111111111111112', { timeout: 5000 });
-                    const solPair = solRes.data?.pairs?.find(p => p.quoteToken?.symbol === 'USDC' || p.quoteToken?.symbol === 'USDT');
-                    if (solPair?.priceUsd) solPrice = parseFloat(solPair.priceUsd);
-                } catch (e) {}
-                console.log(`[VOLUME] Using SOL price: $${solPrice}`);
-
-                for (const token of tokens) {
+                    // Get current SOL price from DexScreener
+                    let solPrice = 140; // fallback
                     try {
-                        let tokenVolume = 0;
-                        let paginationToken = null;
-                        let totalTxs = 0;
-                        let pages = 0;
-                        const MAX_PAGES = 50; // Safety limit
+                        const solRes = await axios.get('https://api.dexscreener.com/latest/dex/tokens/So11111111111111111111111111111111111111112', { timeout: 5000 });
+                        const solPair = solRes.data?.pairs?.find(p => p.quoteToken?.symbol === 'USDC' || p.quoteToken?.symbol === 'USDT');
+                        if (solPair?.priceUsd) solPrice = parseFloat(solPair.priceUsd);
+                    } catch (e) {}
+                    console.log(`[VOLUME] Using SOL price: $${solPrice}`);
+                    console.log(`[VOLUME] Using Helius RPC: ${HELIUS_RPC_URL.replace(/api-key=[^&]+/, 'api-key=REDACTED')}`);
 
-                        // Use Helius getTransactionsForAddress RPC - paginate through ALL transactions
-                        do {
-                            const rpcParams = {
-                                transactionDetails: 'full',
-                                encoding: 'jsonParsed',
-                                maxSupportedTransactionVersion: 0,
-                                limit: 100,
-                                filters: { status: 'succeeded' }
-                            };
-                            if (paginationToken) rpcParams.paginationToken = paginationToken;
+                    for (const token of tokens) {
+                        try {
+                            let tokenVolume = 0;
+                            let paginationToken = null;
+                            let totalTxs = 0;
+                            let pages = 0;
+                            const MAX_PAGES = 50; // Safety limit - 5000 txs max per token
 
-                            const response = await axios.post(HELIUS_RPC_URL, {
-                                jsonrpc: '2.0',
-                                id: `vol-${token.mint.slice(0,8)}-${pages}`,
-                                method: 'getTransactionsForAddress',
-                                params: [token.mint, rpcParams]
-                            }, { timeout: 20000 });
+                            // Use Helius getTransactionsForAddress RPC - paginate through ALL transactions
+                            do {
+                                const rpcParams = {
+                                    transactionDetails: 'full',
+                                    maxSupportedTransactionVersion: 0,
+                                    limit: 100,
+                                    filters: { status: 'succeeded' }
+                                };
+                                if (paginationToken) rpcParams.paginationToken = paginationToken;
 
-                            const result = response.data?.result;
-                            if (!result?.data || result.data.length === 0) break;
+                                const response = await axios.post(HELIUS_RPC_URL, {
+                                    jsonrpc: '2.0',
+                                    id: `vol-${token.mint.slice(0,8)}-${pages}`,
+                                    method: 'getTransactionsForAddress',
+                                    params: [token.mint, rpcParams]
+                                }, {
+                                    timeout: 30000,
+                                    headers: { 'Content-Type': 'application/json' }
+                                });
 
-                            // Process each transaction - sum up SOL volume from balance changes
-                            for (const txData of result.data) {
-                                const meta = txData.meta;
-                                if (!meta?.preBalances || !meta?.postBalances) continue;
-
-                                // Sum absolute SOL balance changes (trade volume)
-                                for (let i = 0; i < meta.preBalances.length; i++) {
-                                    const change = Math.abs(meta.postBalances[i] - meta.preBalances[i]);
-                                    // Only count significant changes (> 0.001 SOL, ignore dust/fees)
-                                    if (change > 1000000) { // > 0.001 SOL in lamports
-                                        tokenVolume += (change / 1e9) * solPrice;
-                                    }
+                                // Check for RPC errors
+                                if (response.data?.error) {
+                                    console.log(`[VOLUME] RPC error for ${token.mint.slice(0,8)}: ${JSON.stringify(response.data.error)}`);
+                                    break;
                                 }
-                                totalTxs++;
+
+                                const result = response.data?.result;
+                                if (!result?.data || result.data.length === 0) break;
+
+                                // Process each transaction - sum up SOL volume from balance changes
+                                for (const txData of result.data) {
+                                    const meta = txData.meta;
+                                    if (!meta?.preBalances || !meta?.postBalances) continue;
+
+                                    // Sum absolute SOL balance changes (trade volume)
+                                    for (let i = 0; i < meta.preBalances.length; i++) {
+                                        const change = Math.abs(meta.postBalances[i] - meta.preBalances[i]);
+                                        // Only count significant changes (> 0.01 SOL, ignore dust/fees)
+                                        if (change > 10000000) { // > 0.01 SOL in lamports
+                                            tokenVolume += (change / 1e9) * solPrice;
+                                        }
+                                    }
+                                    totalTxs++;
+                                }
+
+                                paginationToken = result.paginationToken;
+                                pages++;
+
+                                // Rate limit between pages (100 credits per request)
+                                await new Promise(r => setTimeout(r, 200));
+
+                            } while (paginationToken && pages < MAX_PAGES);
+
+                            // Divide by 2 since we count both sides of each trade
+                            tokenVolume = tokenVolume / 2;
+
+                            totalAllTimeVolume += tokenVolume;
+                            if (tokenVolume > 0) {
+                                console.log(`[VOLUME] ${token.symbol || token.mint.slice(0,8)}: $${(tokenVolume/1000).toFixed(1)}K (${totalTxs} txs, ${pages} pages)`);
                             }
 
-                            paginationToken = result.paginationToken;
-                            pages++;
-
-                            // Rate limit between pages
-                            await new Promise(r => setTimeout(r, 150));
-
-                        } while (paginationToken && pages < MAX_PAGES);
-
-                        // Divide by 2 since we count both sides of each trade
-                        tokenVolume = tokenVolume / 2;
-
-                        totalAllTimeVolume += tokenVolume;
-                        if (tokenVolume > 0) {
-                            console.log(`[VOLUME] ${token.symbol || token.mint.slice(0,8)}: $${(tokenVolume/1000).toFixed(1)}K (${totalTxs} txs, ${pages} pages)`);
+                            // Rate limit between tokens
+                            await new Promise(r => setTimeout(r, 300));
+                        } catch (e) {
+                            const errMsg = e.response?.data ? JSON.stringify(e.response.data) : e.message;
+                            console.log(`[VOLUME] Error fetching ${token.mint.slice(0,8)}: ${errMsg}`);
                         }
-
-                        // Rate limit between tokens
-                        await new Promise(r => setTimeout(r, 250));
-                    } catch (e) {
-                        console.log(`[VOLUME] Error fetching ${token.mint.slice(0,8)}: ${e.message}`);
                     }
-                }
 
-                if (totalAllTimeVolume > 0) {
-                    launchpadStatsDB.setVolume(totalAllTimeVolume);
-                    stats = launchpadStatsDB.get();
-                    console.log(`[VOLUME] Seeded REAL all-time volume: $${formatVolume(totalAllTimeVolume)}`);
+                    if (totalAllTimeVolume > 0) {
+                        launchpadStatsDB.setVolume(totalAllTimeVolume);
+                        stats = launchpadStatsDB.get();
+                        console.log(`[VOLUME] Seeded REAL all-time volume: $${formatVolume(totalAllTimeVolume)}`);
+                    }
                 }
             }
 
