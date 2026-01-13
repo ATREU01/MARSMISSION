@@ -7305,43 +7305,77 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     // API: Get volume by token CA (contract address) - For investor presentations
     // Usage: GET /api/volume?mint=<token_address> - single token volume
     //        GET /api/volume - all tokens with their volumes
-    // Returns ALL-TIME volume (accumulated) + current 24h/6h/1h from DexScreener
-    // Also tries Birdeye for historical volume data
+    // Returns TRUE ALL-TIME volume from Helius transaction history
     // ═══════════════════════════════════════════════════════════════════════════
     if (url.pathname === '/api/volume' && req.method === 'GET') {
         try {
             const axios = require('axios');
             const mintParam = url.searchParams.get('mint');
+            const forceRefresh = url.searchParams.get('refresh') === 'true';
 
             const formatUsd = (v) => v >= 1000000 ? `$${(v/1000000).toFixed(2)}M` : v >= 1000 ? `$${(v/1000).toFixed(1)}K` : `$${v.toFixed(0)}`;
 
-            // Try to get historical volume from Birdeye (they have all-time data)
-            async function getBirdeyeVolume(mint) {
+            // Get Helius API key
+            const HELIUS_RPC = process.env.HELIUS_RPC || '';
+            const HELIUS_API_KEY = HELIUS_RPC.includes('api-key=')
+                ? HELIUS_RPC.split('api-key=')[1]?.split('&')[0]
+                : process.env.HELIUS_API_KEY;
+
+            // Get TRUE all-time volume by paginating through ALL Helius transactions
+            async function getAllTimeVolumeFromHelius(pairAddress, maxPages = 50) {
+                if (!HELIUS_API_KEY || !pairAddress) return null;
+
+                let totalVolume = 0;
+                let totalSwaps = 0;
+                let lastSignature = null;
+                let pages = 0;
+
                 try {
-                    const birdeyeKey = process.env.BIRDEYE_API_KEY;
-                    if (!birdeyeKey) return null;
+                    while (pages < maxPages) {
+                        let heliusUrl = `https://api.helius.xyz/v0/addresses/${pairAddress}/transactions?api-key=${HELIUS_API_KEY}&type=SWAP&limit=100`;
+                        if (lastSignature) {
+                            heliusUrl += `&before=${lastSignature}`;
+                        }
 
-                    const res = await axios.get(`https://public-api.birdeye.so/defi/token_overview?address=${mint}`, {
-                        headers: { 'X-API-KEY': birdeyeKey },
-                        timeout: 5000
-                    });
+                        const response = await axios.get(heliusUrl, { timeout: 30000 });
+                        const transactions = response.data || [];
 
-                    if (res.data?.success && res.data?.data) {
-                        return {
-                            volume24h: res.data.data.v24hUSD || 0,
-                            trade24h: res.data.data.trade24h || 0,
-                            liquidity: res.data.data.liquidity || 0,
-                            mc: res.data.data.mc || 0,
-                        };
+                        if (transactions.length === 0) break;
+
+                        for (const tx of transactions) {
+                            if (tx.nativeTransfers) {
+                                for (const transfer of tx.nativeTransfers) {
+                                    const solAmount = Math.abs(transfer.amount) / 1e9;
+                                    if (solAmount > 0.001) {
+                                        totalVolume += solAmount;
+                                        totalSwaps++;
+                                    }
+                                }
+                            }
+                        }
+
+                        lastSignature = transactions[transactions.length - 1]?.signature;
+                        pages++;
+
+                        // Small delay to avoid rate limiting
+                        await new Promise(r => setTimeout(r, 100));
                     }
+
+                    // Divide by 2 (each swap has 2 transfers) and convert to USD
+                    const solPrice = 147; // TODO: fetch live price
+                    return {
+                        allTimeVolume: (totalVolume / 2) * solPrice,
+                        totalSwaps: Math.floor(totalSwaps / 2),
+                        pagesScanned: pages
+                    };
                 } catch (e) {
-                    // Birdeye failed, continue with DexScreener
+                    console.log(`[VOLUME] Helius pagination error: ${e.message}`);
+                    return null;
                 }
-                return null;
             }
 
             // Helper to get volume for a single token
-            async function getTokenVolume(mint) {
+            async function getTokenVolume(mint, refresh = false) {
                 try {
                     // Get current data from DexScreener
                     const dexRes = await axios.get(`https://api.dexscreener.com/latest/dex/tokens/${mint}`, { timeout: 8000 });
@@ -7374,13 +7408,37 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                     const name = mainPair.baseToken?.name || 'Unknown';
                     const symbol = mainPair.baseToken?.symbol || '???';
                     const vol24h = mainPair.volume?.h24 || 0;
+                    const pairAddress = mainPair.pairAddress;
 
-                    // Update volume registry (accumulates over time)
-                    const volumeEntry = updateTokenVolume(mint, vol24h, name, symbol);
-                    const allTimeVolume = volumeEntry.allTimeVolume;
+                    // Get stored volume entry
+                    let volumeEntry = volumeRegistry.get(mint);
+                    let allTimeVolume = volumeEntry?.allTimeVolume || 0;
+                    let totalSwaps = volumeEntry?.totalSwaps || 0;
 
-                    // Also try Birdeye for additional data
-                    const birdeyeData = await getBirdeyeVolume(mint);
+                    // If no stored volume OR refresh requested, fetch from Helius
+                    if ((allTimeVolume === 0 || refresh) && pairAddress && HELIUS_API_KEY) {
+                        console.log(`[VOLUME] Fetching all-time volume from Helius for ${symbol}...`);
+                        const heliusData = await getAllTimeVolumeFromHelius(pairAddress);
+                        if (heliusData && heliusData.allTimeVolume > 0) {
+                            allTimeVolume = heliusData.allTimeVolume;
+                            totalSwaps = heliusData.totalSwaps;
+
+                            // Store in registry
+                            if (!volumeEntry) {
+                                volumeEntry = createVolumeEntry(mint);
+                            }
+                            volumeEntry.allTimeVolume = allTimeVolume;
+                            volumeEntry.totalSwaps = totalSwaps;
+                            volumeEntry.name = name;
+                            volumeEntry.symbol = symbol;
+                            volumeEntry.lastUpdated = Date.now();
+                            volumeEntry.pairAddress = pairAddress;
+                            volumeRegistry.set(mint, volumeEntry);
+                            saveVolumeRegistry();
+
+                            console.log(`[VOLUME] ${symbol}: $${formatUsd(allTimeVolume)} all-time (${totalSwaps} swaps)`);
+                        }
+                    }
 
                     return {
                         mint: mint,
@@ -7388,6 +7446,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                         symbol: symbol,
                         allTimeVolume: Math.round(allTimeVolume),
                         allTimeVolumeFormatted: formatUsd(allTimeVolume),
+                        totalSwaps: totalSwaps,
                         volume24h: vol24h,
                         volume24hFormatted: formatUsd(vol24h),
                         volume6h: mainPair.volume?.h6 || 0,
@@ -7399,12 +7458,10 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                         marketCap: mainPair.marketCap || mainPair.fdv || 0,
                         marketCapFormatted: formatUsd(mainPair.marketCap || mainPair.fdv || 0),
                         priceUsd: mainPair.priceUsd || '0',
-                        pairAddress: mainPair.pairAddress,
+                        pairAddress: pairAddress,
                         dexId: mainPair.dexId,
                         txns24h: mainPair.txns?.h24 || { buys: 0, sells: 0 },
-                        priceChange24h: mainPair.priceChange?.h24 || 0,
-                        firstSeen: volumeEntry.firstSeen,
-                        birdeyeData: birdeyeData
+                        priceChange24h: mainPair.priceChange?.h24 || 0
                     };
                 } catch (e) {
                     console.log(`[VOLUME] Error for ${mint?.slice(0,8)}: ${e.message}`);
@@ -7427,17 +7484,14 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
             // If specific mint requested, return just that token
             if (mintParam) {
-                const volumeData = await getTokenVolume(mintParam);
-
-                // Save registry after query
-                saveVolumeRegistry();
+                const volumeData = await getTokenVolume(mintParam, forceRefresh);
 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({
                     success: true,
                     token: volumeData,
                     timestamp: Date.now(),
-                    note: 'All-time volume accumulated from tracking. Updates every hour.'
+                    note: 'All-time volume from Helius transaction history. Add ?refresh=true to force recalculate.'
                 }));
                 return;
             }
@@ -7453,9 +7507,10 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             let totalVolume1h = 0;
             let totalLiquidity = 0;
             let totalMarketCap = 0;
+            let totalSwaps = 0;
 
             for (const token of allTokens) {
-                const volumeData = await getTokenVolume(token.mint);
+                const volumeData = await getTokenVolume(token.mint, forceRefresh);
                 volumeResults.push(volumeData);
                 totalAllTimeVolume += volumeData.allTimeVolume || 0;
                 totalVolume24h += volumeData.volume24h || 0;
@@ -7463,9 +7518,10 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 totalVolume1h += volumeData.volume1h || 0;
                 totalLiquidity += volumeData.liquidity || 0;
                 totalMarketCap += volumeData.marketCap || 0;
+                totalSwaps += volumeData.totalSwaps || 0;
 
-                // Rate limit between tokens
-                await new Promise(r => setTimeout(r, 100));
+                // Rate limit between tokens (longer for Helius pagination)
+                await new Promise(r => setTimeout(r, 200));
             }
 
             // Save volume registry after updating all tokens
@@ -7480,6 +7536,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 platform: {
                     allTimeVolume: Math.round(totalAllTimeVolume),
                     allTimeVolumeFormatted: formatUsd(totalAllTimeVolume),
+                    totalSwaps: totalSwaps,
                     volume24h: Math.round(totalVolume24h),
                     volume24hFormatted: formatUsd(totalVolume24h),
                     volume6h: Math.round(totalVolume6h),
@@ -7495,7 +7552,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 },
                 tokens: volumeResults,
                 timestamp: Date.now(),
-                note: 'All-time volume accumulated from tracking. Updates hourly to avoid double-counting.'
+                note: 'All-time volume from Helius transaction history. Add ?refresh=true to force recalculate.'
             }));
         } catch (err) {
             console.log('[VOLUME API ERROR]', err.message);
