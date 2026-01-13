@@ -1341,6 +1341,93 @@ function logOrbitActivity(mint, action, details = {}) {
     saveOrbitRegistry();
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// VOLUME REGISTRY - Tracks ALL-TIME cumulative volume per token
+// ═══════════════════════════════════════════════════════════════════════════
+const VOLUME_FILE = path.join(DATA_DIR, '.volume-registry.json');
+const volumeRegistry = new Map(); // mint -> VolumeData
+
+// Volume data structure
+function createVolumeEntry(mint) {
+    return {
+        mint,
+        allTimeVolume: 0,        // Cumulative USD volume
+        lastVolume24h: 0,        // Last known 24h volume (to avoid double counting)
+        lastUpdated: Date.now(),
+        firstSeen: Date.now(),
+        name: null,
+        symbol: null,
+    };
+}
+
+// Load volume registry from disk
+function loadVolumeRegistry() {
+    try {
+        if (fs.existsSync(VOLUME_FILE)) {
+            const data = JSON.parse(fs.readFileSync(VOLUME_FILE, 'utf8'));
+            if (data.registry) {
+                for (const [mint, vol] of Object.entries(data.registry)) {
+                    volumeRegistry.set(mint, vol);
+                }
+            }
+            console.log(`[VOLUME] Loaded ${volumeRegistry.size} tokens with cumulative volume`);
+        }
+    } catch (e) {
+        console.error('[VOLUME] Failed to load registry:', e.message);
+    }
+}
+
+// Save volume registry to disk
+function saveVolumeRegistry() {
+    try {
+        const data = {
+            registry: Object.fromEntries(volumeRegistry),
+            lastSaved: Date.now(),
+        };
+        fs.writeFileSync(VOLUME_FILE, JSON.stringify(data, null, 2));
+    } catch (e) {
+        console.error('[VOLUME] Failed to save registry:', e.message);
+    }
+}
+
+// Update volume for a token - accumulates new volume
+function updateTokenVolume(mint, currentVolume24h, name = null, symbol = null) {
+    let entry = volumeRegistry.get(mint);
+    if (!entry) {
+        entry = createVolumeEntry(mint);
+    }
+
+    const now = Date.now();
+    const hoursSinceUpdate = (now - entry.lastUpdated) / (1000 * 60 * 60);
+
+    // Only add volume if enough time has passed (avoid double counting)
+    // If >24h passed, add full 24h volume. If less, add proportional amount.
+    if (hoursSinceUpdate >= 1) {
+        const volumeToAdd = Math.min(currentVolume24h, currentVolume24h * (hoursSinceUpdate / 24));
+        entry.allTimeVolume += volumeToAdd;
+        entry.lastVolume24h = currentVolume24h;
+        entry.lastUpdated = now;
+    }
+
+    // Update name/symbol if provided
+    if (name) entry.name = name;
+    if (symbol) entry.symbol = symbol;
+
+    volumeRegistry.set(mint, entry);
+    return entry;
+}
+
+// Get all-time volume for a token
+function getAllTimeVolume(mint) {
+    return volumeRegistry.get(mint)?.allTimeVolume || 0;
+}
+
+// Load on startup
+loadVolumeRegistry();
+
+// Save periodically (every 5 minutes)
+setInterval(saveVolumeRegistry, 5 * 60 * 1000);
+
 // Register a new ORBIT instance
 function registerOrbit(mint, walletAddress, allocations = null) {
     if (!orbitRegistry.has(mint)) {
@@ -7218,7 +7305,8 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     // API: Get volume by token CA (contract address) - For investor presentations
     // Usage: GET /api/volume?mint=<token_address> - single token volume
     //        GET /api/volume - all tokens with their volumes
-    // Uses DexScreener data which is accurate and fast
+    // Returns ALL-TIME volume (accumulated) + current 24h/6h/1h from DexScreener
+    // Also tries Birdeye for historical volume data
     // ═══════════════════════════════════════════════════════════════════════════
     if (url.pathname === '/api/volume' && req.method === 'GET') {
         try {
@@ -7227,17 +7315,47 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
             const formatUsd = (v) => v >= 1000000 ? `$${(v/1000000).toFixed(2)}M` : v >= 1000 ? `$${(v/1000).toFixed(1)}K` : `$${v.toFixed(0)}`;
 
-            // Helper to get volume for a single token from DexScreener
+            // Try to get historical volume from Birdeye (they have all-time data)
+            async function getBirdeyeVolume(mint) {
+                try {
+                    const birdeyeKey = process.env.BIRDEYE_API_KEY;
+                    if (!birdeyeKey) return null;
+
+                    const res = await axios.get(`https://public-api.birdeye.so/defi/token_overview?address=${mint}`, {
+                        headers: { 'X-API-KEY': birdeyeKey },
+                        timeout: 5000
+                    });
+
+                    if (res.data?.success && res.data?.data) {
+                        return {
+                            volume24h: res.data.data.v24hUSD || 0,
+                            trade24h: res.data.data.trade24h || 0,
+                            liquidity: res.data.data.liquidity || 0,
+                            mc: res.data.data.mc || 0,
+                        };
+                    }
+                } catch (e) {
+                    // Birdeye failed, continue with DexScreener
+                }
+                return null;
+            }
+
+            // Helper to get volume for a single token
             async function getTokenVolume(mint) {
                 try {
+                    // Get current data from DexScreener
                     const dexRes = await axios.get(`https://api.dexscreener.com/latest/dex/tokens/${mint}`, { timeout: 8000 });
                     const pairs = dexRes.data?.pairs || [];
 
                     if (pairs.length === 0) {
+                        // Check if we have stored all-time volume
+                        const storedVolume = getAllTimeVolume(mint);
                         return {
                             mint: mint,
                             name: 'Unknown',
                             symbol: '???',
+                            allTimeVolume: storedVolume,
+                            allTimeVolumeFormatted: formatUsd(storedVolume),
                             volume24h: 0,
                             volume6h: 0,
                             volume1h: 0,
@@ -7253,13 +7371,25 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
                     // Get main pair (highest liquidity)
                     const mainPair = pairs.sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
+                    const name = mainPair.baseToken?.name || 'Unknown';
+                    const symbol = mainPair.baseToken?.symbol || '???';
+                    const vol24h = mainPair.volume?.h24 || 0;
+
+                    // Update volume registry (accumulates over time)
+                    const volumeEntry = updateTokenVolume(mint, vol24h, name, symbol);
+                    const allTimeVolume = volumeEntry.allTimeVolume;
+
+                    // Also try Birdeye for additional data
+                    const birdeyeData = await getBirdeyeVolume(mint);
 
                     return {
                         mint: mint,
-                        name: mainPair.baseToken?.name || 'Unknown',
-                        symbol: mainPair.baseToken?.symbol || '???',
-                        volume24h: mainPair.volume?.h24 || 0,
-                        volume24hFormatted: formatUsd(mainPair.volume?.h24 || 0),
+                        name: name,
+                        symbol: symbol,
+                        allTimeVolume: Math.round(allTimeVolume),
+                        allTimeVolumeFormatted: formatUsd(allTimeVolume),
+                        volume24h: vol24h,
+                        volume24hFormatted: formatUsd(vol24h),
                         volume6h: mainPair.volume?.h6 || 0,
                         volume6hFormatted: formatUsd(mainPair.volume?.h6 || 0),
                         volume1h: mainPair.volume?.h1 || 0,
@@ -7272,14 +7402,19 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                         pairAddress: mainPair.pairAddress,
                         dexId: mainPair.dexId,
                         txns24h: mainPair.txns?.h24 || { buys: 0, sells: 0 },
-                        priceChange24h: mainPair.priceChange?.h24 || 0
+                        priceChange24h: mainPair.priceChange?.h24 || 0,
+                        firstSeen: volumeEntry.firstSeen,
+                        birdeyeData: birdeyeData
                     };
                 } catch (e) {
                     console.log(`[VOLUME] Error for ${mint?.slice(0,8)}: ${e.message}`);
+                    const storedVolume = getAllTimeVolume(mint);
                     return {
                         mint: mint,
                         name: 'Unknown',
                         symbol: '???',
+                        allTimeVolume: storedVolume,
+                        allTimeVolumeFormatted: formatUsd(storedVolume),
                         volume24h: 0,
                         volume6h: 0,
                         volume1h: 0,
@@ -7294,12 +7429,15 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             if (mintParam) {
                 const volumeData = await getTokenVolume(mintParam);
 
+                // Save registry after query
+                saveVolumeRegistry();
+
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({
                     success: true,
                     token: volumeData,
                     timestamp: Date.now(),
-                    note: 'Volume data from DexScreener'
+                    note: 'All-time volume accumulated from tracking. Updates every hour.'
                 }));
                 return;
             }
@@ -7309,6 +7447,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             const allTokens = data.tokens || [];
 
             const volumeResults = [];
+            let totalAllTimeVolume = 0;
             let totalVolume24h = 0;
             let totalVolume6h = 0;
             let totalVolume1h = 0;
@@ -7318,6 +7457,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             for (const token of allTokens) {
                 const volumeData = await getTokenVolume(token.mint);
                 volumeResults.push(volumeData);
+                totalAllTimeVolume += volumeData.allTimeVolume || 0;
                 totalVolume24h += volumeData.volume24h || 0;
                 totalVolume6h += volumeData.volume6h || 0;
                 totalVolume1h += volumeData.volume1h || 0;
@@ -7328,13 +7468,18 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 await new Promise(r => setTimeout(r, 100));
             }
 
-            // Sort by 24h volume descending
-            volumeResults.sort((a, b) => (b.volume24h || 0) - (a.volume24h || 0));
+            // Save volume registry after updating all tokens
+            saveVolumeRegistry();
+
+            // Sort by all-time volume descending
+            volumeResults.sort((a, b) => (b.allTimeVolume || 0) - (a.allTimeVolume || 0));
 
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 success: true,
                 platform: {
+                    allTimeVolume: Math.round(totalAllTimeVolume),
+                    allTimeVolumeFormatted: formatUsd(totalAllTimeVolume),
                     volume24h: Math.round(totalVolume24h),
                     volume24hFormatted: formatUsd(totalVolume24h),
                     volume6h: Math.round(totalVolume6h),
@@ -7346,17 +7491,78 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                     totalMarketCap: Math.round(totalMarketCap),
                     totalMarketCapFormatted: formatUsd(totalMarketCap),
                     totalTokens: allTokens.length,
-                    tokensWithVolume: volumeResults.filter(t => t.volume24h > 0).length
+                    tokensWithVolume: volumeResults.filter(t => t.allTimeVolume > 0).length
                 },
                 tokens: volumeResults,
                 timestamp: Date.now(),
-                note: 'Volume data from DexScreener'
+                note: 'All-time volume accumulated from tracking. Updates hourly to avoid double-counting.'
             }));
         } catch (err) {
             console.log('[VOLUME API ERROR]', err.message);
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: false, error: err.message }));
         }
+        return;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // API: Seed/update all-time volume for a token (for backfilling historical data)
+    // POST /api/volume/seed { mint, allTimeVolume }
+    // ═══════════════════════════════════════════════════════════════════════════
+    if (url.pathname === '/api/volume/seed' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', async () => {
+            try {
+                const { mint, allTimeVolume, name, symbol } = JSON.parse(body);
+
+                if (!mint) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'mint is required' }));
+                    return;
+                }
+
+                if (typeof allTimeVolume !== 'number' || allTimeVolume < 0) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'allTimeVolume must be a positive number' }));
+                    return;
+                }
+
+                // Get or create entry
+                let entry = volumeRegistry.get(mint);
+                if (!entry) {
+                    entry = createVolumeEntry(mint);
+                }
+
+                // Set the all-time volume
+                entry.allTimeVolume = allTimeVolume;
+                if (name) entry.name = name;
+                if (symbol) entry.symbol = symbol;
+                entry.lastUpdated = Date.now();
+
+                volumeRegistry.set(mint, entry);
+                saveVolumeRegistry();
+
+                console.log(`[VOLUME] Seeded ${mint.slice(0,8)}... with $${allTimeVolume.toLocaleString()} all-time volume`);
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: true,
+                    message: `Seeded all-time volume for ${entry.symbol || mint.slice(0,8)}`,
+                    token: {
+                        mint,
+                        name: entry.name,
+                        symbol: entry.symbol,
+                        allTimeVolume: entry.allTimeVolume,
+                        firstSeen: entry.firstSeen,
+                        lastUpdated: entry.lastUpdated
+                    }
+                }));
+            } catch (e) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: e.message }));
+            }
+        });
         return;
     }
 
