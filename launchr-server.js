@@ -1922,7 +1922,7 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    // Serve Culture Coins page (preview for team/testers)
+    // Serve Culture Coins page - PUBLIC LAUNCH
     if (url.pathname === '/culture-coins' && req.method === 'GET') {
         try {
             const html = fs.readFileSync(path.join(__dirname, 'website', 'culture-coins.html'), 'utf8');
