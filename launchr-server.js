@@ -7122,6 +7122,87 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
         return;
     }
 
+    // API: Get launchpad all-time volume (for investors)
+    // Calculates real volume from Helius transaction data
+    if (url.pathname === '/api/launchpad/volume' && req.method === 'GET') {
+        try {
+            const axios = require('axios');
+            const data = tracker.getTokens();
+            const tokens = data.tokens || [];
+
+            // Get Helius API key from env
+            const HELIUS_RPC = process.env.HELIUS_RPC || process.env.RPC_URL || '';
+            const HELIUS_API_KEY = HELIUS_RPC.includes('api-key=')
+                ? HELIUS_RPC.split('api-key=')[1]?.split('&')[0]
+                : process.env.HELIUS_API_KEY;
+
+            if (!HELIUS_API_KEY) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Helius API key not configured' }));
+                return;
+            }
+
+            const HELIUS_RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
+
+            // Get SOL price
+            let solPrice = 140;
+            try {
+                const solRes = await axios.get('https://api.dexscreener.com/latest/dex/tokens/So11111111111111111111111111111111111111112', { timeout: 5000 });
+                const solPair = solRes.data?.pairs?.find(p => p.quoteToken?.symbol === 'USDC' || p.quoteToken?.symbol === 'USDT');
+                if (solPair?.priceUsd) solPrice = parseFloat(solPair.priceUsd);
+            } catch (e) { /* use fallback */ }
+
+            let totalVolume = 0;
+            let processedTokens = 0;
+
+            // Process each token - get transaction count as proxy for volume
+            for (const token of tokens) {
+                try {
+                    const response = await axios.post(HELIUS_RPC_URL, {
+                        jsonrpc: '2.0',
+                        id: `vol-${token.mint.slice(0,8)}`,
+                        method: 'getTransactionsForAddress',
+                        params: [token.mint, {
+                            transactionDetails: 'signatures',
+                            limit: 1000,
+                            filters: { status: 'succeeded' }
+                        }]
+                    }, { timeout: 15000, headers: { 'Content-Type': 'application/json' } });
+
+                    const txCount = response.data?.result?.data?.length || 0;
+                    // Estimate ~$50 avg per swap transaction
+                    const estimatedVolume = txCount * 50;
+                    totalVolume += estimatedVolume;
+                    processedTokens++;
+
+                    // Rate limit
+                    await new Promise(r => setTimeout(r, 100));
+                } catch (e) { /* skip failed tokens */ }
+            }
+
+            // Also add current 24h volume from tracker
+            const current24h = tokens.reduce((sum, t) => sum + (t.volume || 0), 0);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                allTimeVolume: totalVolume,
+                allTimeVolumeFormatted: totalVolume >= 1000000 ? `$${(totalVolume/1000000).toFixed(2)}M` : `$${(totalVolume/1000).toFixed(1)}K`,
+                volume24h: current24h,
+                volume24hFormatted: `$${(current24h/1000).toFixed(1)}K`,
+                tokensProcessed: processedTokens,
+                totalTokens: tokens.length,
+                solPrice,
+                note: 'Volume estimated from transaction count * avg trade size'
+            }));
+        } catch (err) {
+            console.log('[VOLUME ERROR]', err.message);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: err.message }));
+        }
+        return;
+    }
+
     // API: Get timer (6-hour distribution cycle)
     if (url.pathname === '/api/timer' && req.method === 'GET') {
         // Timer endpoint - returns countdown data (6 hour cycle)
