@@ -7123,7 +7123,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     }
 
     // API: Get launchpad all-time volume (for investors)
-    // Calculates real volume from Helius transaction data
+    // Calculates REAL volume from Helius transaction data with full details
     if (url.pathname === '/api/launchpad/volume' && req.method === 'GET') {
         try {
             const axios = require('axios');
@@ -7153,30 +7153,64 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             } catch (e) { /* use fallback */ }
 
             let totalVolume = 0;
+            let totalTxCount = 0;
             let processedTokens = 0;
 
-            // Process each token - get transaction count as proxy for volume
+            // Process each token - get FULL transaction details and calculate real SOL volume
             for (const token of tokens) {
                 try {
-                    const response = await axios.post(HELIUS_RPC_URL, {
-                        jsonrpc: '2.0',
-                        id: `vol-${token.mint.slice(0,8)}`,
-                        method: 'getTransactionsForAddress',
-                        params: [token.mint, {
-                            transactionDetails: 'signatures',
-                            limit: 1000,
-                            filters: { status: 'succeeded' }
-                        }]
-                    }, { timeout: 15000, headers: { 'Content-Type': 'application/json' } });
+                    let tokenVolume = 0;
+                    let paginationToken = null;
+                    let pages = 0;
+                    const MAX_PAGES = 20; // Up to 2000 txs per token
 
-                    const txCount = response.data?.result?.data?.length || 0;
-                    // Estimate ~$50 avg per swap transaction
-                    const estimatedVolume = txCount * 50;
-                    totalVolume += estimatedVolume;
+                    do {
+                        const params = {
+                            transactionDetails: 'full',
+                            maxSupportedTransactionVersion: 0,
+                            limit: 100,
+                            filters: { status: 'succeeded' }
+                        };
+                        if (paginationToken) params.paginationToken = paginationToken;
+
+                        const response = await axios.post(HELIUS_RPC_URL, {
+                            jsonrpc: '2.0',
+                            id: `vol-${token.mint.slice(0,8)}-${pages}`,
+                            method: 'getTransactionsForAddress',
+                            params: [token.mint, params]
+                        }, { timeout: 30000, headers: { 'Content-Type': 'application/json' } });
+
+                        if (response.data?.error) break;
+                        const result = response.data?.result;
+                        if (!result?.data || result.data.length === 0) break;
+
+                        // Calculate SOL volume from balance changes
+                        for (const txData of result.data) {
+                            const meta = txData.meta;
+                            if (!meta?.preBalances || !meta?.postBalances) continue;
+
+                            // Sum SOL transfers (looking for significant balance changes)
+                            for (let i = 0; i < meta.preBalances.length; i++) {
+                                const change = Math.abs(meta.postBalances[i] - meta.preBalances[i]);
+                                // Only count transfers > 0.05 SOL (ignore dust/fees)
+                                if (change > 50000000) { // 0.05 SOL in lamports
+                                    tokenVolume += (change / 1e9) * solPrice;
+                                }
+                            }
+                            totalTxCount++;
+                        }
+
+                        paginationToken = result.paginationToken;
+                        pages++;
+                        await new Promise(r => setTimeout(r, 150)); // Rate limit
+                    } while (paginationToken && pages < MAX_PAGES);
+
+                    // Divide by 2 since we count both sides of trades
+                    tokenVolume = tokenVolume / 2;
+                    totalVolume += tokenVolume;
                     processedTokens++;
 
-                    // Rate limit
-                    await new Promise(r => setTimeout(r, 100));
+                    await new Promise(r => setTimeout(r, 100)); // Rate limit between tokens
                 } catch (e) { /* skip failed tokens */ }
             }
 
@@ -7186,14 +7220,15 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 success: true,
-                allTimeVolume: totalVolume,
+                allTimeVolume: Math.round(totalVolume),
                 allTimeVolumeFormatted: totalVolume >= 1000000 ? `$${(totalVolume/1000000).toFixed(2)}M` : `$${(totalVolume/1000).toFixed(1)}K`,
                 volume24h: current24h,
                 volume24hFormatted: `$${(current24h/1000).toFixed(1)}K`,
+                totalTransactions: totalTxCount,
                 tokensProcessed: processedTokens,
                 totalTokens: tokens.length,
                 solPrice,
-                note: 'Volume estimated from transaction count * avg trade size'
+                note: 'Real volume calculated from on-chain SOL transfers'
             }));
         } catch (err) {
             console.log('[VOLUME ERROR]', err.message);
