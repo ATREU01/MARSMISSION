@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
+const { launchpadStatsDB } = require('./database');
 
 // Helius API for holders and transactions
 // Extract API key from HELIUS_RPC URL (format: https://mainnet.helius-rpc.com/?api-key=XXXX)
@@ -829,6 +830,15 @@ async function updateAllTokenMetrics() {
         } catch (e) {
             console.log(`[TRACKER] Error updating ${token.mint.slice(0, 8)}...: ${e.message}`);
         }
+    }
+
+    // Update all-time volume tracking after refreshing all token data
+    try {
+        const freshData = loadTokens();
+        const volumeResult = launchpadStatsDB.updateVolume(freshData.tokens || []);
+        console.log(`[TRACKER] All-time volume: $${(volumeResult.allTimeVolume / 1000).toFixed(1)}K (+$${(volumeResult.newVolumeAdded / 1000).toFixed(1)}K new)`);
+    } catch (e) {
+        console.log(`[TRACKER] Volume tracking error: ${e.message}`);
     }
 
     console.log(`[TRACKER] Updated metrics for ${updated}/${tokens.length} tokens`);

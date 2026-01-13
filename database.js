@@ -149,6 +149,19 @@ db.exec(`
     FOREIGN KEY (auction_id) REFERENCES auctions(id) ON DELETE CASCADE
   );
 
+  -- Launchpad stats table - tracks all-time volume and other cumulative metrics
+  CREATE TABLE IF NOT EXISTS launchpad_stats (
+    id TEXT PRIMARY KEY DEFAULT 'global',
+    all_time_volume REAL DEFAULT 0,
+    volume_last_updated TEXT,
+    volume_snapshot TEXT DEFAULT '{}', -- JSON: stores last known 24h volumes per token to avoid double counting
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+  );
+
+  -- Insert default global stats row if not exists
+  INSERT OR IGNORE INTO launchpad_stats (id) VALUES ('global');
+
   -- Create indexes for performance
   CREATE INDEX IF NOT EXISTS idx_cultures_creator ON cultures(creator_wallet);
   CREATE INDEX IF NOT EXISTS idx_cultures_token ON cultures(token_address);
@@ -722,6 +735,84 @@ const auctionDB = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
+// LAUNCHPAD STATS - All-time volume tracking
+// ═══════════════════════════════════════════════════════════════════════════
+
+const launchpadStatsDB = {
+  // Get current stats
+  get: () => {
+    const stmt = db.prepare('SELECT * FROM launchpad_stats WHERE id = ?');
+    const row = stmt.get('global');
+    if (!row) return { allTimeVolume: 0, volumeSnapshot: {} };
+    return {
+      allTimeVolume: row.all_time_volume || 0,
+      volumeLastUpdated: row.volume_last_updated,
+      volumeSnapshot: JSON.parse(row.volume_snapshot || '{}'),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
+  },
+
+  // Update all-time volume with new token volumes
+  // Uses snapshot to track what we've already counted and only add new volume
+  updateVolume: (tokens) => {
+    const current = launchpadStatsDB.get();
+    const snapshot = current.volumeSnapshot || {};
+    let newVolumeAdded = 0;
+
+    for (const token of tokens) {
+      const mint = token.mint;
+      const currentVolume = token.volume || 0;
+      const lastKnownVolume = snapshot[mint] || 0;
+
+      // If current 24h volume is higher than what we last recorded,
+      // add the difference (this captures new trading activity)
+      if (currentVolume > lastKnownVolume) {
+        newVolumeAdded += (currentVolume - lastKnownVolume);
+        snapshot[mint] = currentVolume;
+      }
+      // If current is lower, token's 24h window rolled over - update snapshot
+      // but don't add negative volume
+      else if (currentVolume < lastKnownVolume * 0.5) {
+        // Significant drop means new 24h window, start fresh tracking
+        snapshot[mint] = currentVolume;
+      }
+    }
+
+    const newAllTimeVolume = current.allTimeVolume + newVolumeAdded;
+
+    db.prepare(`
+      UPDATE launchpad_stats
+      SET all_time_volume = ?, volume_snapshot = ?, volume_last_updated = datetime('now'), updated_at = datetime('now')
+      WHERE id = 'global'
+    `).run(newAllTimeVolume, JSON.stringify(snapshot));
+
+    return {
+      allTimeVolume: newAllTimeVolume,
+      newVolumeAdded,
+      tokensTracked: Object.keys(snapshot).length
+    };
+  },
+
+  // Set all-time volume directly (for initialization/correction)
+  setVolume: (volume) => {
+    db.prepare(`
+      UPDATE launchpad_stats
+      SET all_time_volume = ?, volume_last_updated = datetime('now'), updated_at = datetime('now')
+      WHERE id = 'global'
+    `).run(volume);
+    return { allTimeVolume: volume };
+  },
+
+  // Add volume directly (for manual adjustments)
+  addVolume: (amount) => {
+    const current = launchpadStatsDB.get();
+    const newVolume = current.allTimeVolume + amount;
+    return launchpadStatsDB.setVolume(newVolume);
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
 // RATE LIMITING
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -827,6 +918,7 @@ module.exports = {
   postDB,
   mediaDB,
   auctionDB,
+  launchpadStatsDB,
   rateLimiter,
   MEDIA_DIR,
   DATA_DIR

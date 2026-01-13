@@ -11,7 +11,7 @@ const { LaunchrBot } = require('./telegram-bot');
 const { getOnChainStats } = require('./onchain-stats');
 
 // Production Database Module
-const { cultureDB, profileDB, postDB, mediaDB, auctionDB, rateLimiter, MEDIA_DIR } = require('./database');
+const { cultureDB, profileDB, postDB, mediaDB, auctionDB, launchpadStatsDB, rateLimiter, MEDIA_DIR } = require('./database');
 
 // Culture Coins Security Module - CIA-Level Protection (optional - graceful fallback)
 let CultureSecurityController = null;
@@ -722,6 +722,14 @@ function formatTrendVolume(num) {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
     return num.toString();
+}
+
+// Format volume for API response (with $ prefix)
+function formatVolume(num) {
+    if (num >= 1000000000) return `$${(num / 1000000000).toFixed(2)}B`;
+    if (num >= 1000000) return `$${(num / 1000000).toFixed(2)}M`;
+    if (num >= 1000) return `$${(num / 1000).toFixed(1)}K`;
+    return `$${num.toFixed(2)}`;
 }
 
 function getLandingHTML() {
@@ -7119,6 +7127,195 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 pending: 0,
             }));
         }
+        return;
+    }
+
+    // API: Get launchpad all-time volume (for investors)
+    // This is a lightweight endpoint that returns cumulative volume data
+    if (url.pathname === '/api/launchpad/volume' && req.method === 'GET') {
+        try {
+            // Get all-time tracked volume from database
+            let stats = launchpadStatsDB.get();
+
+            // Also get current 24h volume from tracker for comparison
+            const data = tracker.getTokens();
+            const tokens = data.tokens || [];
+            const current24hVolume = tokens.reduce((sum, t) => sum + (t.volume || 0), 0);
+
+            // AUTO-SEED: If all-time volume is 0, calculate from Helius getTransactionsForAddress
+            if (stats.allTimeVolume === 0 && tokens.length > 0) {
+                console.log(`[VOLUME] Calculating REAL all-time volume from ${tokens.length} tokens via Helius getTransactionsForAddress...`);
+
+                const axios = require('axios');
+                // Same logic as tracker.js - extract API key from HELIUS_RPC or use HELIUS_API_KEY
+                const HELIUS_RPC = process.env.HELIUS_RPC || process.env.RPC_URL || '';
+                const HELIUS_API_KEY = HELIUS_RPC.includes('api-key=')
+                    ? HELIUS_RPC.split('api-key=')[1]?.split('&')[0]
+                    : process.env.HELIUS_API_KEY;
+                const HELIUS_RPC_URL = HELIUS_API_KEY
+                    ? `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`
+                    : null;
+
+                if (!HELIUS_RPC_URL) {
+                    console.log(`[VOLUME] ERROR: No Helius API key found in HELIUS_RPC or HELIUS_API_KEY.`);
+                } else {
+                    let totalAllTimeVolume = 0;
+
+                    // Get current SOL price from DexScreener
+                    let solPrice = 140; // fallback
+                    try {
+                        const solRes = await axios.get('https://api.dexscreener.com/latest/dex/tokens/So11111111111111111111111111111111111111112', { timeout: 5000 });
+                        const solPair = solRes.data?.pairs?.find(p => p.quoteToken?.symbol === 'USDC' || p.quoteToken?.symbol === 'USDT');
+                        if (solPair?.priceUsd) solPrice = parseFloat(solPair.priceUsd);
+                    } catch (e) {}
+                    console.log(`[VOLUME] Using SOL price: $${solPrice}`);
+                    console.log(`[VOLUME] Using Helius RPC: ${HELIUS_RPC_URL.replace(/api-key=[^&]+/, 'api-key=REDACTED')}`);
+
+                    for (const token of tokens) {
+                        try {
+                            let tokenVolume = 0;
+                            let paginationToken = null;
+                            let totalTxs = 0;
+                            let pages = 0;
+                            const MAX_PAGES = 50; // Safety limit - 5000 txs max per token
+
+                            // Use Helius getTransactionsForAddress RPC - paginate through ALL transactions
+                            do {
+                                const rpcParams = {
+                                    transactionDetails: 'full',
+                                    maxSupportedTransactionVersion: 0,
+                                    limit: 100,
+                                    filters: { status: 'succeeded' }
+                                };
+                                if (paginationToken) rpcParams.paginationToken = paginationToken;
+
+                                const response = await axios.post(HELIUS_RPC_URL, {
+                                    jsonrpc: '2.0',
+                                    id: `vol-${token.mint.slice(0,8)}-${pages}`,
+                                    method: 'getTransactionsForAddress',
+                                    params: [token.mint, rpcParams]
+                                }, {
+                                    timeout: 30000,
+                                    headers: { 'Content-Type': 'application/json' }
+                                });
+
+                                // Check for RPC errors
+                                if (response.data?.error) {
+                                    console.log(`[VOLUME] RPC error for ${token.mint.slice(0,8)}: ${JSON.stringify(response.data.error)}`);
+                                    break;
+                                }
+
+                                const result = response.data?.result;
+                                if (!result?.data || result.data.length === 0) break;
+
+                                // Process each transaction - sum up SOL volume from balance changes
+                                for (const txData of result.data) {
+                                    const meta = txData.meta;
+                                    if (!meta?.preBalances || !meta?.postBalances) continue;
+
+                                    // Sum absolute SOL balance changes (trade volume)
+                                    for (let i = 0; i < meta.preBalances.length; i++) {
+                                        const change = Math.abs(meta.postBalances[i] - meta.preBalances[i]);
+                                        // Only count significant changes (> 0.01 SOL, ignore dust/fees)
+                                        if (change > 10000000) { // > 0.01 SOL in lamports
+                                            tokenVolume += (change / 1e9) * solPrice;
+                                        }
+                                    }
+                                    totalTxs++;
+                                }
+
+                                paginationToken = result.paginationToken;
+                                pages++;
+
+                                // Rate limit between pages (100 credits per request)
+                                await new Promise(r => setTimeout(r, 200));
+
+                            } while (paginationToken && pages < MAX_PAGES);
+
+                            // Divide by 2 since we count both sides of each trade
+                            tokenVolume = tokenVolume / 2;
+
+                            totalAllTimeVolume += tokenVolume;
+                            if (tokenVolume > 0) {
+                                console.log(`[VOLUME] ${token.symbol || token.mint.slice(0,8)}: $${(tokenVolume/1000).toFixed(1)}K (${totalTxs} txs, ${pages} pages)`);
+                            }
+
+                            // Rate limit between tokens
+                            await new Promise(r => setTimeout(r, 300));
+                        } catch (e) {
+                            const errMsg = e.response?.data ? JSON.stringify(e.response.data) : e.message;
+                            console.log(`[VOLUME] Error fetching ${token.mint.slice(0,8)}: ${errMsg}`);
+                        }
+                    }
+
+                    if (totalAllTimeVolume > 0) {
+                        launchpadStatsDB.setVolume(totalAllTimeVolume);
+                        stats = launchpadStatsDB.get();
+                        console.log(`[VOLUME] Seeded REAL all-time volume: $${formatVolume(totalAllTimeVolume)}`);
+                    }
+                }
+            }
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                // All-time cumulative volume (tracked since feature enabled)
+                allTimeVolume: stats.allTimeVolume,
+                allTimeVolumeFormatted: formatVolume(stats.allTimeVolume),
+                // Current 24h snapshot for reference
+                volume24h: current24hVolume,
+                volume24hFormatted: formatVolume(current24hVolume),
+                // Meta
+                totalTokens: tokens.length,
+                activeTokens: tokens.filter(t => t.volume > 0).length,
+                graduatedTokens: tokens.filter(t => t.graduated).length,
+                lastUpdated: stats.volumeLastUpdated,
+                // Note for investors
+                note: 'allTimeVolume calculated from on-chain pair data for all launched tokens'
+            }));
+        } catch (e) {
+            console.error('[VOLUME API] Error:', e.message);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // API: Set/adjust launchpad all-time volume (admin only)
+    if (url.pathname === '/api/launchpad/volume' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', () => {
+            try {
+                const { volume, add } = JSON.parse(body);
+
+                let result;
+                if (add !== undefined) {
+                    // Add to existing volume
+                    result = launchpadStatsDB.addVolume(parseFloat(add));
+                    console.log(`[VOLUME] Added $${formatVolume(add)} to all-time volume`);
+                } else if (volume !== undefined) {
+                    // Set absolute volume
+                    result = launchpadStatsDB.setVolume(parseFloat(volume));
+                    console.log(`[VOLUME] Set all-time volume to $${formatVolume(volume)}`);
+                } else {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Provide volume or add parameter' }));
+                    return;
+                }
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: true,
+                    allTimeVolume: result.allTimeVolume,
+                    allTimeVolumeFormatted: formatVolume(result.allTimeVolume)
+                }));
+            } catch (e) {
+                console.error('[VOLUME API] Error:', e.message);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: e.message }));
+            }
+        });
         return;
     }
 
