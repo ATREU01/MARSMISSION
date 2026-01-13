@@ -4897,6 +4897,11 @@
             const sells = dexData?.txns?.h24?.sells || trackerData?.sells || 0;
             const totalTxns = buys + sells || trackerData?.txns || 0;
 
+            // Check DEX type - if on PumpSwap or Raydium, token is graduated
+            // (you can't be on these DEXes without graduating from Pump.fun)
+            const analyticsDexId = (dexData?.dexId || '').toLowerCase();
+            const analyticsIsOnGraduatedDex = analyticsDexId === 'pumpswap' || analyticsDexId === 'raydium' || analyticsDexId.includes('raydium');
+
             // Get holder count - prioritize FRESH data from live APIs
             // Fallback chain: Pump.fun (fresh) -> Jupiter (fresh) -> GMGN (fresh) -> Tracker (cached)
             let holders = 0;
@@ -4960,8 +4965,8 @@
                 bundlerPct: 0,
                 insiderPct: pumpData?.insider_pct || 0,
                 devHoldPct: pumpData?.dev_hold_pct || 0,
-                verified: pumpData?.is_verified || false,
-                isGraduated: pumpData?.complete === true || mcap >= 69000
+                verified: pumpData?.is_verified || analyticsIsOnGraduatedDex,
+                isGraduated: pumpData?.complete === true || analyticsIsOnGraduatedDex || mcap >= 69000
             };
 
             console.log('[ANALYTICS] Updating with:', analyticsData);
@@ -5314,6 +5319,11 @@
                 const sells = dexData?.txns?.h24?.sells || 0;
                 const totalTxns = buys + sells;
 
+                // Check DEX type - if on PumpSwap or Raydium, token is graduated
+                // (you can't be on these DEXes without graduating from Pump.fun)
+                const selectDexId = (dexData?.dexId || '').toLowerCase();
+                const selectIsOnGraduatedDex = selectDexId === 'pumpswap' || selectDexId === 'raydium' || selectDexId.includes('raydium');
+
                 // Get holder count - prioritize FRESH data from live APIs
                 // Fallback: Pump.fun -> Jupiter -> GMGN -> token data (cached)
                 const holders = pumpData?.holder_count || jupiterHolders || gmgnHolders || token.holders || 0;
@@ -5362,8 +5372,8 @@
                     bundlerPct: 0,
                     insiderPct: pumpData?.insider_pct || 0,
                     devHoldPct: pumpData?.dev_hold_pct || 0,
-                    verified: pumpData?.is_verified || false,
-                    isGraduated: pumpData?.complete === true || token?.complete === true || mcap >= 69000
+                    verified: pumpData?.is_verified || selectIsOnGraduatedDex,
+                    isGraduated: pumpData?.complete === true || token?.complete === true || selectIsOnGraduatedDex || mcap >= 69000
                 };
 
                 updateTokenAnalytics(analyticsData);
@@ -5795,13 +5805,19 @@
                 currentTokenData = pumpData;
                 currentTokenPrice = pumpData.price || 0;
 
+                // Check DEX type - if on PumpSwap or Raydium, token is graduated
+                // (you can't be on these DEXes without graduating from Pump.fun)
+                const dexId = (dexData?.dexId || '').toLowerCase();
+                const isOnGraduatedDex = dexId === 'pumpswap' || dexId === 'raydium' || dexId.includes('raydium');
+                const tokenIsGraduated = pumpData.complete === true || isOnGraduatedDex;
+
                 // Update token selector
                 document.getElementById('tokenName').textContent = pumpData.name || 'Unknown';
                 document.getElementById('tokenMint').textContent = mint;
                 document.getElementById('tokenAvatar').innerHTML = pumpData.image
                     ? `<img src="${escapeHtml(pumpData.image)}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">`
                     : (pumpData.symbol?.slice(0, 2) || '??');
-                document.getElementById('tokenPath').textContent = pumpData.complete === true ? 'GRADUATED' : 'PUMP';
+                document.getElementById('tokenPath').textContent = tokenIsGraduated ? 'GRADUATED' : 'PUMP';
 
                 // Update trading panel
                 document.getElementById('tradingTokenLabel').textContent = `${pumpData.symbol} / SOL`;
@@ -5863,8 +5879,8 @@
                     bundlerPct: 0,
                     insiderPct: 0,
                     devHoldPct: 0,
-                    verified: pumpData.complete === true,
-                    isGraduated: pumpData.complete === true || mcap >= 69000,
+                    verified: tokenIsGraduated,
+                    isGraduated: tokenIsGraduated || mcap >= 69000,
                     bondingProgress: progress,
                     solInCurve: realSolInCurve,
                     solTarget: BONDING_CURVE_TARGET
@@ -5876,12 +5892,17 @@
                 currentTokenData = token;
                 currentTokenPrice = token.price || 0;
 
+                // Check DEX type from dexData if available
+                const localDexId = (dexData?.dexId || '').toLowerCase();
+                const localIsOnGraduatedDex = localDexId === 'pumpswap' || localDexId === 'raydium' || localDexId.includes('raydium');
+                const localTokenIsGraduated = token.complete === true || token.graduated === true || localIsOnGraduatedDex;
+
                 document.getElementById('tokenName').textContent = token.name || 'Unknown Token';
                 document.getElementById('tokenMint').textContent = mint;
                 document.getElementById('tokenAvatar').innerHTML = token.image
                     ? `<img src="${escapeHtml(token.image)}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">`
                     : token.symbol?.slice(0, 2) || '??';
-                document.getElementById('tokenPath').textContent = token.path === 'launchr' ? 'MARS' : 'PUMP';
+                document.getElementById('tokenPath').textContent = localTokenIsGraduated ? 'GRADUATED' : (token.path === 'launchr' ? 'MARS' : 'PUMP');
                 document.getElementById('tradingTokenLabel').textContent = `${token.symbol} / SOL`;
                 document.getElementById('tradeBalance').textContent = `Balance: ${walletBalance.toFixed(4)} SOL`;
                 document.getElementById('tradeBtn').disabled = false;
@@ -5912,8 +5933,8 @@
                     bundlerPct: 0,
                     insiderPct: 0,
                     devHoldPct: 0,
-                    verified: false,
-                    isGraduated: token.complete === true || (token.mcap || 0) >= 69000
+                    verified: localTokenIsGraduated,
+                    isGraduated: localTokenIsGraduated || (token.mcap || 0) >= 69000
                 });
 
                 showNotification(`Using local data for ${token.symbol}`, 'info');
@@ -5938,6 +5959,12 @@
                             setTradeMode(tradeMode);
 
                             // Update analytics from DexScreener
+                            // Check DEX type - if on PumpSwap or Raydium, token is graduated
+                            // (you can't be on these DEXes without graduating from Pump.fun)
+                            const dexId = (pair.dexId || '').toLowerCase();
+                            const isOnGraduatedDex = dexId === 'pumpswap' || dexId === 'raydium' || dexId.includes('raydium');
+                            const mcapGraduated = (pair.marketCap || pair.fdv || 0) >= 69000;
+
                             updateTokenAnalytics({
                                 marketCap: pair.marketCap || pair.fdv || 0,
                                 liquidity: pair.liquidity?.usd || 0,
@@ -5962,8 +5989,8 @@
                                 bundlerPct: 0,
                                 insiderPct: 0,
                                 devHoldPct: 0,
-                                verified: false,
-                                isGraduated: (pair.marketCap || pair.fdv || 0) >= 69000
+                                verified: isOnGraduatedDex,
+                                isGraduated: isOnGraduatedDex || mcapGraduated
                             });
 
                             // Update chart
