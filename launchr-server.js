@@ -7147,21 +7147,17 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 console.log(`[VOLUME] Calculating REAL all-time volume from ${tokens.length} tokens via Helius getTransactionsForAddress...`);
 
                 const axios = require('axios');
-                // Build Helius RPC URL - supports both formats:
-                // 1. HELIUS_RPC with api-key in URL
-                // 2. HELIUS_RPC base URL + HELIUS_API_KEY separate
-                let HELIUS_RPC_URL = process.env.HELIUS_RPC || '';
-                const HELIUS_API_KEY = process.env.HELIUS_API_KEY || '';
+                // Same logic as tracker.js - extract API key from HELIUS_RPC or use HELIUS_API_KEY
+                const HELIUS_RPC = process.env.HELIUS_RPC || process.env.RPC_URL || '';
+                const HELIUS_API_KEY = HELIUS_RPC.includes('api-key=')
+                    ? HELIUS_RPC.split('api-key=')[1]?.split('&')[0]
+                    : process.env.HELIUS_API_KEY;
+                const HELIUS_RPC_URL = HELIUS_API_KEY
+                    ? `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`
+                    : null;
 
-                // If RPC URL doesn't have api-key, append it
-                if (HELIUS_RPC_URL && !HELIUS_RPC_URL.includes('api-key') && HELIUS_API_KEY) {
-                    HELIUS_RPC_URL = HELIUS_RPC_URL.includes('?')
-                        ? `${HELIUS_RPC_URL}&api-key=${HELIUS_API_KEY}`
-                        : `${HELIUS_RPC_URL}?api-key=${HELIUS_API_KEY}`;
-                }
-
-                if (!HELIUS_RPC_URL || !HELIUS_RPC_URL.includes('api-key')) {
-                    console.log(`[VOLUME] ERROR: Need HELIUS_RPC with api-key or HELIUS_API_KEY. Cannot calculate volume.`);
+                if (!HELIUS_RPC_URL) {
+                    console.log(`[VOLUME] ERROR: No Helius API key found in HELIUS_RPC or HELIUS_API_KEY.`);
                 } else {
                     let totalAllTimeVolume = 0;
 
