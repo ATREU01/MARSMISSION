@@ -7210,6 +7210,188 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
         return;
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // API: Get volume by token CA (contract address) - For investor presentations
+    // Usage: GET /api/volume?mint=<token_address> - single token volume
+    //        GET /api/volume - all tokens with their volumes
+    // ═══════════════════════════════════════════════════════════════════════════
+    if (url.pathname === '/api/volume' && req.method === 'GET') {
+        try {
+            const axios = require('axios');
+            const mintParam = url.searchParams.get('mint');
+            const data = tracker.getTokens();
+            const allTokens = data.tokens || [];
+
+            // Get Helius API key
+            const HELIUS_RPC = process.env.HELIUS_RPC || '';
+            const HELIUS_API_KEY = HELIUS_RPC.includes('api-key=')
+                ? HELIUS_RPC.split('api-key=')[1]?.split('&')[0]
+                : process.env.HELIUS_API_KEY;
+
+            if (!HELIUS_API_KEY) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Helius API key not configured' }));
+                return;
+            }
+
+            // Helper to get volume for a single token
+            async function getTokenVolume(token) {
+                try {
+                    // Get PAIR address from DexScreener
+                    const dexRes = await axios.get(`https://api.dexscreener.com/latest/dex/tokens/${token.mint}`, { timeout: 8000 });
+                    const pairs = dexRes.data?.pairs || [];
+
+                    if (pairs.length === 0) {
+                        return {
+                            mint: token.mint,
+                            name: token.name || 'Unknown',
+                            symbol: token.symbol || '???',
+                            allTimeVolume: 0,
+                            volume24h: token.volume || 0,
+                            swaps: 0,
+                            pairAddress: null,
+                            note: 'No DEX pairs found'
+                        };
+                    }
+
+                    // Get main pair (highest liquidity)
+                    const mainPair = pairs.sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
+                    const pairAddress = mainPair.pairAddress;
+
+                    // Get 24h volume from DexScreener (more reliable)
+                    const dexVolume24h = mainPair.volume?.h24 || 0;
+
+                    if (!pairAddress) {
+                        return {
+                            mint: token.mint,
+                            name: token.name || mainPair.baseToken?.name || 'Unknown',
+                            symbol: token.symbol || mainPair.baseToken?.symbol || '???',
+                            allTimeVolume: 0,
+                            volume24h: dexVolume24h,
+                            swaps: 0,
+                            pairAddress: null,
+                            note: 'No pair address'
+                        };
+                    }
+
+                    // Query Helius for SWAP transactions on the PAIR address
+                    const heliusUrl = `https://api.helius.xyz/v0/addresses/${pairAddress}/transactions?api-key=${HELIUS_API_KEY}&type=SWAP`;
+                    const response = await axios.get(heliusUrl, { timeout: 15000 });
+                    const transactions = response.data || [];
+
+                    // Sum up swap volumes from nativeTransfers
+                    let tokenVolume = 0;
+                    let swapCount = 0;
+                    for (const tx of transactions) {
+                        if (tx.nativeTransfers) {
+                            for (const transfer of tx.nativeTransfers) {
+                                const solAmount = Math.abs(transfer.amount) / 1e9;
+                                if (solAmount > 0.01) {
+                                    tokenVolume += solAmount * 147; // SOL to USD
+                                    swapCount++;
+                                }
+                            }
+                        }
+                    }
+
+                    // Divide by 2 since each swap counts both sides
+                    tokenVolume = tokenVolume / 2;
+                    swapCount = Math.floor(swapCount / 2);
+
+                    return {
+                        mint: token.mint,
+                        name: token.name || mainPair.baseToken?.name || 'Unknown',
+                        symbol: token.symbol || mainPair.baseToken?.symbol || '???',
+                        allTimeVolume: Math.round(tokenVolume),
+                        allTimeVolumeFormatted: tokenVolume >= 1000000 ? `$${(tokenVolume/1000000).toFixed(2)}M` : tokenVolume >= 1000 ? `$${(tokenVolume/1000).toFixed(1)}K` : `$${tokenVolume.toFixed(0)}`,
+                        volume24h: dexVolume24h,
+                        volume24hFormatted: dexVolume24h >= 1000000 ? `$${(dexVolume24h/1000000).toFixed(2)}M` : dexVolume24h >= 1000 ? `$${(dexVolume24h/1000).toFixed(1)}K` : `$${dexVolume24h.toFixed(0)}`,
+                        swaps: swapCount,
+                        pairAddress: pairAddress,
+                        liquidity: mainPair.liquidity?.usd || 0,
+                        marketCap: mainPair.marketCap || mainPair.fdv || 0,
+                        priceUsd: mainPair.priceUsd || '0'
+                    };
+                } catch (e) {
+                    console.log(`[VOLUME] Error for ${token.symbol || token.mint?.slice(0,8)}: ${e.message}`);
+                    return {
+                        mint: token.mint,
+                        name: token.name || 'Unknown',
+                        symbol: token.symbol || '???',
+                        allTimeVolume: 0,
+                        volume24h: token.volume || 0,
+                        swaps: 0,
+                        error: e.message
+                    };
+                }
+            }
+
+            // If specific mint requested, return just that token
+            if (mintParam) {
+                // First check if it's in our tracked tokens
+                let token = allTokens.find(t => t.mint === mintParam);
+
+                // If not found in tracker, create a minimal token object
+                if (!token) {
+                    token = { mint: mintParam, name: null, symbol: null };
+                }
+
+                const volumeData = await getTokenVolume(token);
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: true,
+                    token: volumeData,
+                    timestamp: Date.now(),
+                    note: 'Volume data from Helius SWAP transactions on DEX pairs'
+                }));
+                return;
+            }
+
+            // No mint specified - return all tokens with volumes
+            const volumeResults = [];
+            let platformTotalVolume = 0;
+            let platformTotal24h = 0;
+            let platformTotalSwaps = 0;
+
+            for (const token of allTokens) {
+                const volumeData = await getTokenVolume(token);
+                volumeResults.push(volumeData);
+                platformTotalVolume += volumeData.allTimeVolume || 0;
+                platformTotal24h += volumeData.volume24h || 0;
+                platformTotalSwaps += volumeData.swaps || 0;
+
+                // Rate limit between tokens
+                await new Promise(r => setTimeout(r, 200));
+            }
+
+            // Sort by all-time volume descending
+            volumeResults.sort((a, b) => (b.allTimeVolume || 0) - (a.allTimeVolume || 0));
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                platform: {
+                    totalAllTimeVolume: Math.round(platformTotalVolume),
+                    totalAllTimeVolumeFormatted: platformTotalVolume >= 1000000 ? `$${(platformTotalVolume/1000000).toFixed(2)}M` : `$${(platformTotalVolume/1000).toFixed(1)}K`,
+                    totalVolume24h: Math.round(platformTotal24h),
+                    totalVolume24hFormatted: platformTotal24h >= 1000000 ? `$${(platformTotal24h/1000000).toFixed(2)}M` : `$${(platformTotal24h/1000).toFixed(1)}K`,
+                    totalSwaps: platformTotalSwaps,
+                    totalTokens: allTokens.length,
+                    tokensWithVolume: volumeResults.filter(t => t.allTimeVolume > 0).length
+                },
+                tokens: volumeResults,
+                timestamp: Date.now(),
+                note: 'Volume data from Helius SWAP transactions on DEX pairs'
+            }));
+        } catch (err) {
+            console.log('[VOLUME API ERROR]', err.message);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: err.message }));
+        }
+        return;
+    }
+
     // API: Get timer (6-hour distribution cycle)
     if (url.pathname === '/api/timer' && req.method === 'GET') {
         // Timer endpoint - returns countdown data (6 hour cycle)
