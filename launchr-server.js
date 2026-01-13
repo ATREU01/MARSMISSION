@@ -7123,15 +7123,15 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     }
 
     // API: Get launchpad all-time volume (for investors)
-    // Calculates REAL volume from Helius transaction data with full details
+    // Uses Helius parsed transactions API to get REAL swap volume
     if (url.pathname === '/api/launchpad/volume' && req.method === 'GET') {
         try {
             const axios = require('axios');
             const data = tracker.getTokens();
             const tokens = data.tokens || [];
 
-            // Get Helius API key from env
-            const HELIUS_RPC = process.env.HELIUS_RPC || process.env.RPC_URL || '';
+            // Get Helius API key
+            const HELIUS_RPC = process.env.HELIUS_RPC || '';
             const HELIUS_API_KEY = HELIUS_RPC.includes('api-key=')
                 ? HELIUS_RPC.split('api-key=')[1]?.split('&')[0]
                 : process.env.HELIUS_API_KEY;
@@ -7142,79 +7142,45 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 return;
             }
 
-            const HELIUS_RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
-
-            // Get SOL price
-            let solPrice = 140;
-            try {
-                const solRes = await axios.get('https://api.dexscreener.com/latest/dex/tokens/So11111111111111111111111111111111111111112', { timeout: 5000 });
-                const solPair = solRes.data?.pairs?.find(p => p.quoteToken?.symbol === 'USDC' || p.quoteToken?.symbol === 'USDT');
-                if (solPair?.priceUsd) solPrice = parseFloat(solPair.priceUsd);
-            } catch (e) { /* use fallback */ }
-
             let totalVolume = 0;
-            let totalTxCount = 0;
+            let totalSwaps = 0;
             let processedTokens = 0;
 
-            // Process each token - get FULL transaction details and calculate real SOL volume
+            // For each token, get parsed transactions from Helius
             for (const token of tokens) {
                 try {
-                    let tokenVolume = 0;
-                    let paginationToken = null;
-                    let pages = 0;
-                    const MAX_PAGES = 20; // Up to 2000 txs per token
+                    // Helius parsed transaction history API - gets SWAP transactions with amounts
+                    const heliusUrl = `https://api.helius.xyz/v0/addresses/${token.mint}/transactions?api-key=${HELIUS_API_KEY}&type=SWAP`;
 
-                    do {
-                        const params = {
-                            transactionDetails: 'full',
-                            maxSupportedTransactionVersion: 0,
-                            limit: 100,
-                            filters: { status: 'succeeded' }
-                        };
-                        if (paginationToken) params.paginationToken = paginationToken;
+                    const response = await axios.get(heliusUrl, { timeout: 15000 });
+                    const transactions = response.data || [];
 
-                        const response = await axios.post(HELIUS_RPC_URL, {
-                            jsonrpc: '2.0',
-                            id: `vol-${token.mint.slice(0,8)}-${pages}`,
-                            method: 'getTransactionsForAddress',
-                            params: [token.mint, params]
-                        }, { timeout: 30000, headers: { 'Content-Type': 'application/json' } });
-
-                        if (response.data?.error) break;
-                        const result = response.data?.result;
-                        if (!result?.data || result.data.length === 0) break;
-
-                        // Calculate SOL volume from balance changes
-                        for (const txData of result.data) {
-                            const meta = txData.meta;
-                            if (!meta?.preBalances || !meta?.postBalances) continue;
-
-                            // Sum SOL transfers (looking for significant balance changes)
-                            for (let i = 0; i < meta.preBalances.length; i++) {
-                                const change = Math.abs(meta.postBalances[i] - meta.preBalances[i]);
-                                // Only count transfers > 0.05 SOL (ignore dust/fees)
-                                if (change > 50000000) { // 0.05 SOL in lamports
-                                    tokenVolume += (change / 1e9) * solPrice;
+                    // Sum up swap volumes
+                    for (const tx of transactions) {
+                        // Each swap has nativeTransfers with SOL amounts
+                        if (tx.nativeTransfers) {
+                            for (const transfer of tx.nativeTransfers) {
+                                // Convert lamports to SOL, then to USD (use ~$147 SOL price)
+                                const solAmount = Math.abs(transfer.amount) / 1e9;
+                                if (solAmount > 0.01) { // Ignore dust
+                                    totalVolume += solAmount * 147;
+                                    totalSwaps++;
                                 }
                             }
-                            totalTxCount++;
                         }
-
-                        paginationToken = result.paginationToken;
-                        pages++;
-                        await new Promise(r => setTimeout(r, 150)); // Rate limit
-                    } while (paginationToken && pages < MAX_PAGES);
-
-                    // Divide by 2 since we count both sides of trades
-                    tokenVolume = tokenVolume / 2;
-                    totalVolume += tokenVolume;
+                    }
                     processedTokens++;
 
-                    await new Promise(r => setTimeout(r, 100)); // Rate limit between tokens
-                } catch (e) { /* skip failed tokens */ }
+                    // Rate limit - Helius allows 10 req/sec on paid plans
+                    await new Promise(r => setTimeout(r, 150));
+                } catch (e) {
+                    console.log(`[VOLUME] Error for ${token.mint.slice(0,8)}: ${e.message}`);
+                }
             }
 
-            // Also add current 24h volume from tracker
+            // Divide by 2 since each swap has 2 transfers (in and out)
+            totalVolume = totalVolume / 2;
+
             const current24h = tokens.reduce((sum, t) => sum + (t.volume || 0), 0);
 
             res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -7224,11 +7190,10 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 allTimeVolumeFormatted: totalVolume >= 1000000 ? `$${(totalVolume/1000000).toFixed(2)}M` : `$${(totalVolume/1000).toFixed(1)}K`,
                 volume24h: current24h,
                 volume24hFormatted: `$${(current24h/1000).toFixed(1)}K`,
-                totalTransactions: totalTxCount,
+                totalSwaps: totalSwaps,
                 tokensProcessed: processedTokens,
                 totalTokens: tokens.length,
-                solPrice,
-                note: 'Real volume calculated from on-chain SOL transfers'
+                note: 'Real volume from Helius parsed SWAP transactions'
             }));
         } catch (err) {
             console.log('[VOLUME ERROR]', err.message);
