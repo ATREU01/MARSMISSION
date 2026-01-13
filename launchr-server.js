@@ -7147,10 +7147,21 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 console.log(`[VOLUME] Calculating REAL all-time volume from ${tokens.length} tokens via Helius getTransactionsForAddress...`);
 
                 const axios = require('axios');
-                // Helius RPC URL must include API key: https://mainnet.helius-rpc.com/?api-key=YOUR_KEY
-                const HELIUS_RPC_URL = process.env.HELIUS_RPC;
+                // Build Helius RPC URL - supports both formats:
+                // 1. HELIUS_RPC with api-key in URL
+                // 2. HELIUS_RPC base URL + HELIUS_API_KEY separate
+                let HELIUS_RPC_URL = process.env.HELIUS_RPC || '';
+                const HELIUS_API_KEY = process.env.HELIUS_API_KEY || '';
+
+                // If RPC URL doesn't have api-key, append it
+                if (HELIUS_RPC_URL && !HELIUS_RPC_URL.includes('api-key') && HELIUS_API_KEY) {
+                    HELIUS_RPC_URL = HELIUS_RPC_URL.includes('?')
+                        ? `${HELIUS_RPC_URL}&api-key=${HELIUS_API_KEY}`
+                        : `${HELIUS_RPC_URL}?api-key=${HELIUS_API_KEY}`;
+                }
+
                 if (!HELIUS_RPC_URL || !HELIUS_RPC_URL.includes('api-key')) {
-                    console.log(`[VOLUME] ERROR: HELIUS_RPC env var missing or no api-key. Cannot calculate volume.`);
+                    console.log(`[VOLUME] ERROR: Need HELIUS_RPC with api-key or HELIUS_API_KEY. Cannot calculate volume.`);
                 } else {
                     let totalAllTimeVolume = 0;
 
