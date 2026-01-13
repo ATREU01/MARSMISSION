@@ -7123,7 +7123,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     }
 
     // API: Get launchpad all-time volume (for investors)
-    // Uses Helius parsed transactions API to get REAL swap volume
+    // Gets PAIR address from DexScreener, then queries Helius for swap volume on the PAIR
     if (url.pathname === '/api/launchpad/volume' && req.method === 'GET') {
         try {
             const axios = require('axios');
@@ -7146,23 +7146,31 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             let totalSwaps = 0;
             let processedTokens = 0;
 
-            // For each token, get parsed transactions from Helius
             for (const token of tokens) {
                 try {
-                    // Helius parsed transaction history API - gets SWAP transactions with amounts
-                    const heliusUrl = `https://api.helius.xyz/v0/addresses/${token.mint}/transactions?api-key=${HELIUS_API_KEY}&type=SWAP`;
+                    // Step 1: Get PAIR address from DexScreener
+                    const dexRes = await axios.get(`https://api.dexscreener.com/latest/dex/tokens/${token.mint}`, { timeout: 8000 });
+                    const pairs = dexRes.data?.pairs || [];
 
+                    if (pairs.length === 0) continue;
+
+                    // Get main pair (highest liquidity)
+                    const mainPair = pairs.sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
+                    const pairAddress = mainPair.pairAddress;
+
+                    if (!pairAddress) continue;
+
+                    // Step 2: Query Helius for SWAP transactions on the PAIR address
+                    const heliusUrl = `https://api.helius.xyz/v0/addresses/${pairAddress}/transactions?api-key=${HELIUS_API_KEY}&type=SWAP`;
                     const response = await axios.get(heliusUrl, { timeout: 15000 });
                     const transactions = response.data || [];
 
-                    // Sum up swap volumes
+                    // Sum up swap volumes from nativeTransfers
                     for (const tx of transactions) {
-                        // Each swap has nativeTransfers with SOL amounts
                         if (tx.nativeTransfers) {
                             for (const transfer of tx.nativeTransfers) {
-                                // Convert lamports to SOL, then to USD (use ~$147 SOL price)
                                 const solAmount = Math.abs(transfer.amount) / 1e9;
-                                if (solAmount > 0.01) { // Ignore dust
+                                if (solAmount > 0.01) {
                                     totalVolume += solAmount * 147;
                                     totalSwaps++;
                                 }
@@ -7171,14 +7179,13 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                     }
                     processedTokens++;
 
-                    // Rate limit - Helius allows 10 req/sec on paid plans
-                    await new Promise(r => setTimeout(r, 150));
+                    await new Promise(r => setTimeout(r, 200));
                 } catch (e) {
-                    console.log(`[VOLUME] Error for ${token.mint.slice(0,8)}: ${e.message}`);
+                    console.log(`[VOLUME] Error for ${token.symbol || token.mint.slice(0,8)}: ${e.message}`);
                 }
             }
 
-            // Divide by 2 since each swap has 2 transfers (in and out)
+            // Divide by 2 since each swap counts both sides
             totalVolume = totalVolume / 2;
 
             const current24h = tokens.reduce((sum, t) => sum + (t.volume || 0), 0);
@@ -7193,7 +7200,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 totalSwaps: totalSwaps,
                 tokensProcessed: processedTokens,
                 totalTokens: tokens.length,
-                note: 'Real volume from Helius parsed SWAP transactions'
+                note: 'Volume from Helius SWAP transactions on DEX pair addresses'
             }));
         } catch (err) {
             console.log('[VOLUME ERROR]', err.message);
