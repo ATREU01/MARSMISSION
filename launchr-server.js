@@ -11,7 +11,7 @@ const { LaunchrBot } = require('./telegram-bot');
 const { getOnChainStats } = require('./onchain-stats');
 
 // Production Database Module
-const { cultureDB, profileDB, postDB, mediaDB, auctionDB, rateLimiter, MEDIA_DIR } = require('./database');
+const { cultureDB, profileDB, postDB, mediaDB, auctionDB, launchpadStatsDB, rateLimiter, MEDIA_DIR } = require('./database');
 
 // Culture Coins Security Module - CIA-Level Protection (optional - graceful fallback)
 let CultureSecurityController = null;
@@ -722,6 +722,14 @@ function formatTrendVolume(num) {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
     return num.toString();
+}
+
+// Format volume for API response (with $ prefix)
+function formatVolume(num) {
+    if (num >= 1000000000) return `$${(num / 1000000000).toFixed(2)}B`;
+    if (num >= 1000000) return `$${(num / 1000000).toFixed(2)}M`;
+    if (num >= 1000) return `$${(num / 1000).toFixed(1)}K`;
+    return `$${num.toFixed(2)}`;
 }
 
 function getLandingHTML() {
@@ -7118,6 +7126,43 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 holderPool: 0,
                 pending: 0,
             }));
+        }
+        return;
+    }
+
+    // API: Get launchpad all-time volume (for investors)
+    // This is a lightweight endpoint that returns cumulative volume data
+    if (url.pathname === '/api/launchpad/volume' && req.method === 'GET') {
+        try {
+            // Get all-time tracked volume from database
+            const stats = launchpadStatsDB.get();
+
+            // Also get current 24h volume from tracker for comparison
+            const data = tracker.getTokens();
+            const tokens = data.tokens || [];
+            const current24hVolume = tokens.reduce((sum, t) => sum + (t.volume || 0), 0);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                // All-time cumulative volume (tracked since feature enabled)
+                allTimeVolume: stats.allTimeVolume,
+                allTimeVolumeFormatted: formatVolume(stats.allTimeVolume),
+                // Current 24h snapshot for reference
+                volume24h: current24hVolume,
+                volume24hFormatted: formatVolume(current24hVolume),
+                // Meta
+                totalTokens: tokens.length,
+                activeTokens: tokens.filter(t => t.volume > 0).length,
+                graduatedTokens: tokens.filter(t => t.graduated).length,
+                lastUpdated: stats.volumeLastUpdated,
+                // Note for investors
+                note: 'allTimeVolume tracks cumulative trading volume since tracking began'
+            }));
+        } catch (e) {
+            console.error('[VOLUME API] Error:', e.message);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
         }
         return;
     }
