@@ -267,16 +267,22 @@ function loadPrivySessions() {
 }
 
 // Save Privy sessions to disk
-function savePrivySessions() {
-    try {
-        const data = {
-            sessions: Object.fromEntries(privyWalletSessions),
-            updatedAt: Date.now()
-        };
-        fs.writeFileSync(PRIVY_SESSIONS_FILE, JSON.stringify(data, null, 2));
-    } catch (e) {
-        console.error('[PRIVY] Failed to save sessions:', e.message);
-    }
+// Async file save with debounce
+let privySessionsSavePending = null;
+async function savePrivySessions() {
+    if (privySessionsSavePending) return;
+    privySessionsSavePending = setTimeout(async () => {
+        privySessionsSavePending = null;
+        try {
+            const data = {
+                sessions: Object.fromEntries(privyWalletSessions),
+                updatedAt: Date.now()
+            };
+            await fs.promises.writeFile(PRIVY_SESSIONS_FILE, JSON.stringify(data, null, 2));
+        } catch (e) {
+            console.error('[PRIVY] Failed to save sessions:', e.message);
+        }
+    }, 1000);
 }
 
 // Register a Privy wallet for 24/7 ORBIT operation
@@ -342,22 +348,27 @@ async function loadAndRecoverPrivyEngines() {
     }
 }
 
-// Save active Privy engines to disk
-function savePrivyEngines() {
-    try {
-        const engines = {};
-        for (const [tokenMint, data] of privyEngines.entries()) {
-            engines[tokenMint] = {
-                sessionToken: data.sessionToken,
-                publicKey: data.publicKey,
-                allocations: data.engine?.allocations || null,
-                startedAt: data.startedAt
-            };
+// Save active Privy engines to disk - ASYNC with debounce
+let privyEnginesSavePending = null;
+async function savePrivyEngines() {
+    if (privyEnginesSavePending) return;
+    privyEnginesSavePending = setTimeout(async () => {
+        privyEnginesSavePending = null;
+        try {
+            const engines = {};
+            for (const [tokenMint, data] of privyEngines.entries()) {
+                engines[tokenMint] = {
+                    sessionToken: data.sessionToken,
+                    publicKey: data.publicKey,
+                    allocations: data.engine?.allocations || null,
+                    startedAt: data.startedAt
+                };
+            }
+            await fs.promises.writeFile(PRIVY_ENGINES_FILE, JSON.stringify({ engines, updatedAt: Date.now() }, null, 2));
+        } catch (e) {
+            console.error('[PRIVY-ENGINE] Failed to save engines:', e.message);
         }
-        fs.writeFileSync(PRIVY_ENGINES_FILE, JSON.stringify({ engines, updatedAt: Date.now() }, null, 2));
-    } catch (e) {
-        console.error('[PRIVY-ENGINE] Failed to save engines:', e.message);
-    }
+    }, 1000);
 }
 
 // Start a Privy-backed engine for a token
@@ -498,10 +509,10 @@ const loadCultures = () => {
     return [];
 };
 
-// Save cultures to file
-const saveCultures = (cultures) => {
+// Save cultures to file - ASYNC but no debounce (creates are rare and important)
+const saveCultures = async (cultures) => {
     try {
-        fs.writeFileSync(CULTURES_FILE, JSON.stringify(cultures, null, 2));
+        await fs.promises.writeFile(CULTURES_FILE, JSON.stringify(cultures, null, 2));
         return true;
     } catch (e) {
         console.error('[CULTURES] Error saving:', e.message);
@@ -574,17 +585,22 @@ function loadVanityPool() {
     }
 }
 
-// Save pool to disk
-function saveVanityPool() {
-    try {
-        fs.writeFileSync(VANITY_POOL_FILE, JSON.stringify({
-            pool: vanityPool,
-            stats: vanityGeneratorStats,
-            updatedAt: Date.now()
-        }, null, 2));
-    } catch (e) {
-        console.error('[VANITY] Failed to save pool:', e.message);
-    }
+// Save pool to disk - ASYNC with debounce
+let vanitySavePending = null;
+async function saveVanityPool() {
+    if (vanitySavePending) return;
+    vanitySavePending = setTimeout(async () => {
+        vanitySavePending = null;
+        try {
+            await fs.promises.writeFile(VANITY_POOL_FILE, JSON.stringify({
+                pool: vanityPool,
+                stats: vanityGeneratorStats,
+                updatedAt: Date.now()
+            }, null, 2));
+        } catch (e) {
+            console.error('[VANITY] Failed to save pool:', e.message);
+        }
+    }, 1000);
 }
 
 // Generate a single vanity keypair (blocking - use in worker)
@@ -1246,8 +1262,11 @@ if (CultureSecurityController) {
 // ═══════════════════════════════════════════════════════════════════════════
 const ORBIT_FILE = path.join(DATA_DIR, '.orbit-registry.json');
 const orbitRegistry = new Map(); // mint -> OrbitStatus
-const orbitActivityLog = []; // Global activity log (last 1000 events)
+// PERF: Use circular buffer instead of array.shift() which is O(n)
 const ORBIT_ACTIVITY_MAX = 1000;
+const orbitActivityLog = new Array(ORBIT_ACTIVITY_MAX).fill(null);
+let orbitActivityIndex = 0;
+let orbitActivityCount = 0;
 
 // ORBIT status structure
 function createOrbitStatus(mint, walletAddress, allocations = null) {
@@ -1294,21 +1313,34 @@ function loadOrbitRegistry() {
     }
 }
 
-// Save ORBIT registry to disk
-function saveOrbitRegistry() {
-    try {
-        const data = {
-            registry: Object.fromEntries(orbitRegistry),
-            activityLog: orbitActivityLog.slice(-ORBIT_ACTIVITY_MAX),
-            updatedAt: Date.now()
-        };
-        fs.writeFileSync(ORBIT_FILE, JSON.stringify(data, null, 2));
-    } catch (e) {
-        console.error('[ORBIT] Failed to save registry:', e.message);
-    }
+// Save ORBIT registry to disk - ASYNC with debounce to not block event loop
+let orbitSavePending = null;
+let orbitSaveInProgress = false;
+async function saveOrbitRegistry() {
+    // Debounce: If a save is pending, skip (we'll save fresh data when timer fires)
+    if (orbitSavePending) return;
+    if (orbitSaveInProgress) return;
+
+    orbitSavePending = setTimeout(async () => {
+        orbitSavePending = null;
+        if (orbitSaveInProgress) return;
+        orbitSaveInProgress = true;
+        try {
+            const data = {
+                registry: Object.fromEntries(orbitRegistry),
+                activityLog: getOrbitActivityLog(),
+                updatedAt: Date.now()
+            };
+            await fs.promises.writeFile(ORBIT_FILE, JSON.stringify(data, null, 2));
+        } catch (e) {
+            console.error('[ORBIT] Failed to save registry:', e.message);
+        } finally {
+            orbitSaveInProgress = false;
+        }
+    }, 2000); // Debounce 2 seconds
 }
 
-// Log ORBIT activity (public transparency)
+// Log ORBIT activity (public transparency) - O(1) circular buffer
 function logOrbitActivity(mint, action, details = {}) {
     const event = {
         timestamp: Date.now(),
@@ -1316,12 +1348,27 @@ function logOrbitActivity(mint, action, details = {}) {
         action, // 'started', 'stopped', 'claimed', 'distributed', 'error'
         ...details
     };
-    orbitActivityLog.push(event);
-    if (orbitActivityLog.length > ORBIT_ACTIVITY_MAX) {
-        orbitActivityLog.shift();
-    }
+    // PERF: Circular buffer - O(1) instead of O(n) for shift()
+    orbitActivityLog[orbitActivityIndex] = event;
+    orbitActivityIndex = (orbitActivityIndex + 1) % ORBIT_ACTIVITY_MAX;
+    if (orbitActivityCount < ORBIT_ACTIVITY_MAX) orbitActivityCount++;
 
     // Update registry stats
+    updateOrbitStats(mint, action, details);
+}
+
+// Get activity log in chronological order (newest last)
+function getOrbitActivityLog() {
+    if (orbitActivityCount === 0) return [];
+    if (orbitActivityCount < ORBIT_ACTIVITY_MAX) {
+        return orbitActivityLog.slice(0, orbitActivityCount);
+    }
+    // Full buffer: return in order (oldest to newest)
+    return [...orbitActivityLog.slice(orbitActivityIndex), ...orbitActivityLog.slice(0, orbitActivityIndex)].filter(Boolean);
+}
+
+// Update registry stats when activity is logged
+function updateOrbitStats(mint, action, details) {
     const status = orbitRegistry.get(mint);
     if (status) {
         if (action === 'claimed' && details.amount) {
@@ -2434,7 +2481,7 @@ const server = http.createServer(async (req, res) => {
 
             cultures.push(newCulture);
 
-            if (saveCultures(cultures)) {
+            if (await saveCultures(cultures)) {
                 // Audit log the creation (check if method exists)
                 if (cultureSecurityController?.logAudit) {
                     cultureSecurityController.logAudit('CULTURE_CREATED', {
@@ -2546,7 +2593,7 @@ const server = http.createServer(async (req, res) => {
                     };
                     cultures.push(newCulture);
 
-                    if (saveCultures(cultures)) {
+                    if (await saveCultures(cultures)) {
                         console.log(`[CULTURES] Created from pump.fun import: ${newCulture.name} (Token: ${tokenAddress})`);
                         res.writeHead(200, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify({ success: true, culture: newCulture, created: true }));
@@ -2592,7 +2639,7 @@ const server = http.createServer(async (req, res) => {
                 .update(JSON.stringify({ name: culture.name, creatorName: culture.creatorName, beliefs: culture.pillars }))
                 .digest('hex');
 
-            if (saveCultures(cultures)) {
+            if (await saveCultures(cultures)) {
                 console.log(`[CULTURES] Updated: ${culture.name} (ID: ${culture.id})`);
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: true, culture }));
@@ -7778,8 +7825,8 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             const limit = isNaN(limitParam) ? 100 : Math.max(1, Math.min(limitParam, 500));
             const mint = url.searchParams.get('mint');
 
-            // Get activities efficiently (slice before reverse)
-            let activities = orbitActivityLog.slice(-limit).reverse();
+            // Get activities from circular buffer (newest first for API)
+            let activities = getOrbitActivityLog().reverse().slice(0, limit);
 
             // Filter by mint if specified
             if (mint) {
