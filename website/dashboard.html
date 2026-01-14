@@ -5867,49 +5867,39 @@
                 setTradeMode(tradeMode);
 
                 // Calculate real analytics from Pump.fun + DexScreener data
-                // Pump.fun bonding curve: starts at 30 virtual SOL, graduates at ~79 SOL deposited
-                // MATCHING PUMP.FUN'S EXACT CALCULATION
-                const BONDING_CURVE_TARGET = 79; // Pump.fun graduation threshold in SOL
-                const INITIAL_VIRTUAL_SOL = 30; // Pump.fun's initial virtual liquidity
+                // ═══════════════════════════════════════════════════════════════
+                // BONDING CURVE CALCULATION - MATCHING ALICE TRADING SYSTEM
+                // $69K market cap = graduation to Raydium (100%)
+                // ═══════════════════════════════════════════════════════════════
+                const GRADUATION_MCAP = 69000; // $69K = graduation to Raydium
+                const SOL_TARGET = 79; // ~79 SOL equivalent at graduation
 
-                // Get reserves from API
-                const virtualSol = (pumpData.virtualSolReserves || 0) / 1e9;
-                const realSolRaw = (pumpData.realSolReserves || 0) / 1e9;
+                // Get market cap - this is the PRIMARY source of truth
+                const marketCap = pumpData.mcap || 0;
 
-                // Calculate bonding curve progress - MUST MATCH PUMP.FUN
-                let realSolInCurve = 0;
+                // Calculate bonding curve progress from MARKET CAP (like ALICE does)
                 let progress = 0;
+                let solInCurve = 0;
                 let calcMethod = 'NONE';
 
-                console.log(`[BONDING] ${pumpData.symbol}: INPUT - graduated=${tokenIsGraduated}, realSol=${realSolRaw}, virtualSol=${virtualSol}, mcap=${pumpData.mcap}`);
+                console.log(`[BONDING] ${pumpData.symbol}: INPUT - graduated=${tokenIsGraduated}, mcap=$${marketCap.toLocaleString()}, complete=${pumpData.complete}`);
 
                 if (tokenIsGraduated) {
                     // GRADUATED = ALWAYS 100%, regardless of current market cap
                     progress = 100;
-                    realSolInCurve = BONDING_CURVE_TARGET;
+                    solInCurve = SOL_TARGET;
                     calcMethod = 'GRADUATED';
-                } else if (realSolRaw > 0) {
-                    // Best case: real_sol_reserves is available from Pump.fun API
-                    realSolInCurve = realSolRaw;
-                    progress = Math.min((realSolInCurve / BONDING_CURVE_TARGET) * 100, 99.9);
-                    calcMethod = 'REAL_SOL';
-                } else if (virtualSol > INITIAL_VIRTUAL_SOL) {
-                    // Fallback: calculate from virtual_sol - 30 (initial virtual liquidity)
-                    realSolInCurve = virtualSol - INITIAL_VIRTUAL_SOL;
-                    progress = Math.min((realSolInCurve / BONDING_CURVE_TARGET) * 100, 99.9);
-                    calcMethod = 'VIRTUAL_SOL';
-                } else if (pumpData.mcap > 0) {
-                    // Last resort: estimate from market cap
-                    // Bonding curve range: ~$4K (0%) to ~$69K (100%)
-                    progress = Math.max(0, Math.min(99, ((pumpData.mcap - 4000) / 65000) * 100));
-                    realSolInCurve = (progress / 100) * BONDING_CURVE_TARGET;
-                    calcMethod = 'MCAP_ESTIMATE';
+                } else if (marketCap > 0) {
+                    // PRIMARY METHOD: Use market cap / $69K (ALICE method)
+                    progress = Math.min((marketCap / GRADUATION_MCAP) * 100, 99.9);
+                    solInCurve = (progress / 100) * SOL_TARGET;
+                    calcMethod = 'MCAP';
                 } else {
                     calcMethod = 'NO_DATA';
-                    console.error(`[BONDING] ${pumpData.symbol}: NO DATA AVAILABLE - all sources returned 0/null`);
+                    console.error(`[BONDING] ${pumpData.symbol}: NO MARKET CAP DATA`);
                 }
 
-                console.log(`[BONDING] ${pumpData.symbol}: OUTPUT - method=${calcMethod}, solInCurve=${realSolInCurve.toFixed(2)}, progress=${progress.toFixed(1)}%`);
+                console.log(`[BONDING] ${pumpData.symbol}: OUTPUT - method=${calcMethod}, progress=${progress.toFixed(1)}%, ~${solInCurve.toFixed(1)} SOL`);
 
                 // Get transaction data from DexScreener
                 const buys = dexData?.txns?.h24?.buys || 0;
@@ -5918,7 +5908,7 @@
 
                 // Calculate metrics
                 const mcap = pumpData.mcap || dexData?.marketCap || 0;
-                const liq = dexData?.liquidity?.usd || realSolInCurve * 200;
+                const liq = dexData?.liquidity?.usd || solInCurve * 200;
                 const vol = pumpData.volume24h || dexData?.volume?.h24 || 0;
                 const holders = pumpData.holders || 0;
 
@@ -5963,8 +5953,8 @@
                     verified: tokenIsGraduated,
                     isGraduated: tokenIsGraduated,
                     bondingProgress: progress,
-                    solInCurve: realSolInCurve,
-                    solTarget: BONDING_CURVE_TARGET
+                    solInCurve: solInCurve,
+                    solTarget: SOL_TARGET
                 });
 
                 showNotification(`Loaded ${pumpData.symbol} data`, 'success');
