@@ -1822,6 +1822,25 @@ function cleanupCaches() {
     const MAX_CACHE_AGE = 300000; // 5 minutes max
     const MAX_CACHE_SIZE = 500; // Max entries per cache
 
+    // Clean rate limiting maps (prevent unbounded growth)
+    let rateLimitClean = 0;
+    for (const [key, record] of requestCounts) {
+        if (now > record.resetTime) {
+            requestCounts.delete(key);
+            rateLimitClean++;
+        }
+    }
+    for (const [ip, record] of failedAttempts) {
+        if (record.lockoutUntil < now && record.count === 0) {
+            failedAttempts.delete(ip);
+            rateLimitClean++;
+        } else if (record.lockoutUntil < now) {
+            // Reset count but keep entry for tracking
+            record.count = 0;
+        }
+    }
+    if (rateLimitClean > 0) console.log(`[CACHE] Cleaned ${rateLimitClean} expired rate limit entries`);
+
     // Clean Map-based caches
     const mapCaches = [
         { cache: global.pumpCache, name: 'pumpCache' },
@@ -1859,6 +1878,32 @@ function cleanupCaches() {
             }
         }
         if (deleted > 0) console.log(`[CACHE] Cleaned ${deleted} entries from trendingCache`);
+    }
+
+    // Clean telegram wallet links older than 24 hours
+    if (global.tgWalletLinks instanceof Map) {
+        const MAX_LINK_AGE = 24 * 60 * 60 * 1000; // 24 hours
+        let deleted = 0;
+        for (const [chatId, data] of global.tgWalletLinks) {
+            if (now - (data.linkedAt || 0) > MAX_LINK_AGE) {
+                global.tgWalletLinks.delete(chatId);
+                deleted++;
+            }
+        }
+        if (deleted > 0) console.log(`[CACHE] Cleaned ${deleted} expired telegram links`);
+    }
+
+    // Clean pending launches older than 1 hour
+    if (global.pendingLaunches instanceof Map) {
+        const MAX_PENDING_AGE = 60 * 60 * 1000; // 1 hour
+        let deleted = 0;
+        for (const [chatId, data] of global.pendingLaunches) {
+            if (now - (data.createdAt || 0) > MAX_PENDING_AGE) {
+                global.pendingLaunches.delete(chatId);
+                deleted++;
+            }
+        }
+        if (deleted > 0) console.log(`[CACHE] Cleaned ${deleted} stale pending launches`);
     }
 }
 
