@@ -5840,9 +5840,21 @@
                 setTradeMode(tradeMode);
 
                 // Calculate real analytics from Pump.fun + DexScreener data
+                // Pump.fun bonding curve: virtual_sol starts at ~30 SOL, graduation at 85 SOL real deposited
                 const BONDING_CURVE_TARGET = 85;
-                const realSolInCurve = (pumpData.realSolReserves || 0) / 1e9;
+                const INITIAL_VIRTUAL_SOL = 30; // Pump.fun's initial virtual liquidity
+
+                // Get SOL in curve - try real_sol_reserves first, fallback to (virtual - 30)
+                const virtualSol = (pumpData.virtualSolReserves || 0) / 1e9;
+                const realSolRaw = (pumpData.realSolReserves || 0) / 1e9;
+
+                // If real_sol_reserves is 0 but virtual > 30, calculate from virtual
+                const realSolInCurve = realSolRaw > 0
+                    ? realSolRaw
+                    : (virtualSol > INITIAL_VIRTUAL_SOL ? virtualSol - INITIAL_VIRTUAL_SOL : 0);
+
                 const progress = Math.min((realSolInCurve / BONDING_CURVE_TARGET) * 100, 100);
+                console.log(`[BONDING] ${pumpData.symbol}: virtual=${virtualSol.toFixed(2)}, real=${realSolRaw.toFixed(2)}, calculated=${realSolInCurve.toFixed(2)}, progress=${progress.toFixed(1)}%`);
 
                 // Get transaction data from DexScreener
                 const buys = dexData?.txns?.h24?.buys || 0;
@@ -5894,7 +5906,7 @@
                     insiderPct: 0,
                     devHoldPct: 0,
                     verified: tokenIsGraduated,
-                    isGraduated: tokenIsGraduated || mcap >= 69000,
+                    isGraduated: tokenIsGraduated,
                     bondingProgress: progress,
                     solInCurve: realSolInCurve,
                     solTarget: BONDING_CURVE_TARGET
