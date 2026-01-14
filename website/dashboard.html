@@ -2482,7 +2482,7 @@
                         </div>
                         <div class="bonding-curve-labels">
                             <span class="bonding-curve-progress" id="bondingProgress">0%</span>
-                            <span class="bonding-curve-target">Target: ~$69K → Pump Swap</span>
+                            <span class="bonding-curve-target" id="bondingTarget">Target: ~85 SOL → Pump Swap</span>
                         </div>
                     </div>
 
@@ -5004,16 +5004,21 @@
                 isGraduated: false
             };
 
-            // Update bonding curve progress
+            // Update bonding curve progress - USE REAL DATA FROM PUMP.FUN API
             const bondingFill = document.getElementById('bondingFill');
             const bondingMarker = document.getElementById('bondingMarker');
-            const bondingProgress = document.getElementById('bondingProgress');
+            const bondingProgressEl = document.getElementById('bondingProgress');
             const bondingStatus = document.getElementById('bondingStatus');
+            const bondingTarget = document.getElementById('bondingTarget');
 
-            // Calculate bonding progress (target ~$69K mcap = 100%)
-            const GRADUATION_TARGET = 69000;
-            const progress = Math.min(100, (data.marketCap / GRADUATION_TARGET) * 100);
-            const isGraduated = data.isGraduated || data.marketCap >= GRADUATION_TARGET;
+            // Use REAL bonding progress from Pump.fun API (SOL in curve / 85 SOL target)
+            // NEVER calculate from market cap - that's wrong!
+            const SOL_TARGET = data.solTarget || 85;
+            const solInCurve = data.solInCurve || 0;
+            const progress = data.bondingProgress !== undefined && data.bondingProgress > 0
+                ? data.bondingProgress
+                : Math.min(100, (solInCurve / SOL_TARGET) * 100);
+            const isGraduated = data.isGraduated === true;
 
             if (bondingFill) {
                 bondingFill.style.width = `${isGraduated ? 100 : progress}%`;
@@ -5023,13 +5028,22 @@
                 bondingMarker.style.left = `${isGraduated ? 100 : progress}%`;
                 bondingMarker.className = `bonding-curve-marker${isGraduated ? ' graduated' : ''}`;
             }
-            if (bondingProgress) {
-                bondingProgress.textContent = isGraduated ? 'GRADUATED' : `${progress.toFixed(1)}%`;
-                bondingProgress.className = `bonding-curve-progress${isGraduated ? ' graduated' : ''}`;
+            if (bondingProgressEl) {
+                bondingProgressEl.textContent = isGraduated ? 'GRADUATED' : `${progress.toFixed(1)}%`;
+                bondingProgressEl.className = `bonding-curve-progress${isGraduated ? ' graduated' : ''}`;
             }
             if (bondingStatus) {
                 bondingStatus.textContent = isGraduated ? 'On Pump Swap' : 'On Pump.fun';
                 bondingStatus.className = `bonding-curve-status ${isGraduated ? 'graduated' : 'active'}`;
+            }
+            // Update target text with real SOL values
+            if (bondingTarget) {
+                if (isGraduated) {
+                    bondingTarget.textContent = 'Graduated to Pump Swap';
+                } else {
+                    const solDisplay = solInCurve > 0 ? `${solInCurve.toFixed(1)}/${SOL_TARGET}` : `~${SOL_TARGET}`;
+                    bondingTarget.textContent = `Target: ${solDisplay} SOL \u2192 Pump Swap`;
+                }
             }
 
             // Update main stats
@@ -5908,7 +5922,10 @@
                 document.getElementById('tradeBtn').disabled = false;
                 setTradeMode(tradeMode);
 
-                // Update analytics with local token data
+                // Update analytics with local token data - include real bonding curve data
+                const localSolInCurve = token.realSolReserves || 0;
+                const localProgress = token.progress || (localSolInCurve > 0 ? Math.min((localSolInCurve / 85) * 100, 100) : 0);
+
                 updateTokenAnalytics({
                     marketCap: token.mcap || 0,
                     liquidity: token.liquidity || 0,
@@ -5934,7 +5951,10 @@
                     insiderPct: 0,
                     devHoldPct: 0,
                     verified: localTokenIsGraduated,
-                    isGraduated: localTokenIsGraduated || (token.mcap || 0) >= 69000
+                    isGraduated: localTokenIsGraduated,
+                    bondingProgress: localProgress,
+                    solInCurve: localSolInCurve,
+                    solTarget: 85
                 });
 
                 showNotification(`Using local data for ${token.symbol}`, 'info');
@@ -5963,7 +5983,6 @@
                             // (you can't be on these DEXes without graduating from Pump.fun)
                             const dexId = (pair.dexId || '').toLowerCase();
                             const isOnGraduatedDex = dexId === 'pumpswap' || dexId === 'raydium' || dexId.includes('raydium');
-                            const mcapGraduated = (pair.marketCap || pair.fdv || 0) >= 69000;
 
                             updateTokenAnalytics({
                                 marketCap: pair.marketCap || pair.fdv || 0,
@@ -5990,7 +6009,10 @@
                                 insiderPct: 0,
                                 devHoldPct: 0,
                                 verified: isOnGraduatedDex,
-                                isGraduated: isOnGraduatedDex || mcapGraduated
+                                isGraduated: isOnGraduatedDex,
+                                bondingProgress: isOnGraduatedDex ? 100 : 0,
+                                solInCurve: isOnGraduatedDex ? 85 : 0,
+                                solTarget: 85
                             });
 
                             // Update chart
