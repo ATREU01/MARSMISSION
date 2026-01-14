@@ -5840,18 +5840,31 @@
                 setTradeMode(tradeMode);
 
                 // Calculate real analytics from Pump.fun + DexScreener data
-                // Pump.fun bonding curve: virtual_sol starts at ~30 SOL, graduation at 85 SOL real deposited
+                // Pump.fun bonding curve: virtual_sol starts at ~30 SOL, graduation at ~85 SOL real deposited
                 const BONDING_CURVE_TARGET = 85;
                 const INITIAL_VIRTUAL_SOL = 30; // Pump.fun's initial virtual liquidity
+                const SOL_PRICE_USD = 200; // Approximate SOL price for fallback calculation
 
                 // Get SOL in curve - try real_sol_reserves first, fallback to (virtual - 30)
                 const virtualSol = (pumpData.virtualSolReserves || 0) / 1e9;
                 const realSolRaw = (pumpData.realSolReserves || 0) / 1e9;
 
-                // If real_sol_reserves is 0 but virtual > 30, calculate from virtual
-                const realSolInCurve = realSolRaw > 0
-                    ? realSolRaw
-                    : (virtualSol > INITIAL_VIRTUAL_SOL ? virtualSol - INITIAL_VIRTUAL_SOL : 0);
+                // Calculate real SOL in curve with multiple fallbacks
+                let realSolInCurve = 0;
+                if (realSolRaw > 0) {
+                    // Best case: real_sol_reserves is available
+                    realSolInCurve = realSolRaw;
+                } else if (virtualSol > INITIAL_VIRTUAL_SOL) {
+                    // Fallback: calculate from virtual - initial
+                    realSolInCurve = virtualSol - INITIAL_VIRTUAL_SOL;
+                } else if (pumpData.mcap > 0 && !tokenIsGraduated) {
+                    // Last resort fallback: estimate from market cap
+                    // Bonding curve mcap roughly scales: ~$6K at 0 SOL, ~$100K at graduation
+                    // This is an approximation for when API doesn't return reserves
+                    const mcapProgress = Math.max(0, Math.min(100, ((pumpData.mcap - 6000) / 94000) * 100));
+                    realSolInCurve = (mcapProgress / 100) * BONDING_CURVE_TARGET;
+                    console.log(`[BONDING] Using mcap fallback: mcap=$${pumpData.mcap}, estimated SOL=${realSolInCurve.toFixed(2)}`);
+                }
 
                 const progress = Math.min((realSolInCurve / BONDING_CURVE_TARGET) * 100, 100);
                 console.log(`[BONDING] ${pumpData.symbol}: virtual=${virtualSol.toFixed(2)}, real=${realSolRaw.toFixed(2)}, calculated=${realSolInCurve.toFixed(2)}, progress=${progress.toFixed(1)}%`);
@@ -5935,8 +5948,23 @@
                 setTradeMode(tradeMode);
 
                 // Update analytics with local token data - include real bonding curve data
-                const localSolInCurve = token.realSolReserves || 0;
-                const localProgress = token.progress || (localSolInCurve > 0 ? Math.min((localSolInCurve / 85) * 100, 100) : 0);
+                // Use multiple fallbacks: realSolReserves > progress > mcap estimation
+                let localSolInCurve = token.realSolReserves || 0;
+                let localProgress = 0;
+
+                if (token.progress && token.progress > 0) {
+                    // Use stored progress if available
+                    localProgress = token.progress;
+                    localSolInCurve = (localProgress / 100) * 85;
+                } else if (localSolInCurve > 0) {
+                    // Calculate from realSolReserves
+                    localProgress = Math.min((localSolInCurve / 85) * 100, 100);
+                } else if (token.mcap > 0 && !localTokenIsGraduated) {
+                    // Fallback: estimate from market cap
+                    localProgress = Math.max(0, Math.min(99, ((token.mcap - 6000) / 94000) * 100));
+                    localSolInCurve = (localProgress / 100) * 85;
+                    console.log(`[BONDING-LOCAL] Using mcap fallback: mcap=$${token.mcap}, progress=${localProgress.toFixed(1)}%`);
+                }
 
                 updateTokenAnalytics({
                     marketCap: token.mcap || 0,
@@ -5995,9 +6023,26 @@
                             // (you can't be on these DEXes without graduating from Pump.fun)
                             const dexId = (pair.dexId || '').toLowerCase();
                             const isOnGraduatedDex = dexId === 'pumpswap' || dexId === 'raydium' || dexId.includes('raydium');
+                            const isOnPumpFun = dexId === 'pump' || dexId === 'pumpfun' || dexId.includes('pump');
+
+                            // Calculate bonding progress for Pump.fun tokens using market cap approximation
+                            // Bonding curve mcap roughly scales: ~$6K at 0%, ~$100K at graduation
+                            let dexBondingProgress = 0;
+                            let dexSolInCurve = 0;
+                            const dexMcap = pair.marketCap || pair.fdv || 0;
+
+                            if (isOnGraduatedDex) {
+                                dexBondingProgress = 100;
+                                dexSolInCurve = 85;
+                            } else if (isOnPumpFun && dexMcap > 0) {
+                                // Estimate progress from market cap for Pump.fun tokens
+                                dexBondingProgress = Math.max(0, Math.min(99, ((dexMcap - 6000) / 94000) * 100));
+                                dexSolInCurve = (dexBondingProgress / 100) * 85;
+                                console.log(`[BONDING-DEX] Using mcap fallback: mcap=$${dexMcap}, progress=${dexBondingProgress.toFixed(1)}%`);
+                            }
 
                             updateTokenAnalytics({
-                                marketCap: pair.marketCap || pair.fdv || 0,
+                                marketCap: dexMcap,
                                 liquidity: pair.liquidity?.usd || 0,
                                 volume24h: pair.volume?.h24 || 0,
                                 holders: 0,
@@ -6009,8 +6054,8 @@
                                 priceChange24h: pair.priceChange?.h24 || 0,
                                 buys24h: pair.txns?.h24?.buys || 0,
                                 sells24h: pair.txns?.h24?.sells || 0,
-                                liqDepth: pair.marketCap > 0 ? (pair.liquidity?.usd / pair.marketCap) * 100 : 0,
-                                volMcapRatio: pair.marketCap > 0 ? (pair.volume?.h24 || 0) / pair.marketCap : 0,
+                                liqDepth: dexMcap > 0 ? (pair.liquidity?.usd / dexMcap) * 100 : 0,
+                                volMcapRatio: dexMcap > 0 ? (pair.volume?.h24 || 0) / dexMcap : 0,
                                 flow5m: 0,
                                 momentum: 0,
                                 top10Pct: 0,
@@ -6022,8 +6067,8 @@
                                 devHoldPct: 0,
                                 verified: isOnGraduatedDex,
                                 isGraduated: isOnGraduatedDex,
-                                bondingProgress: isOnGraduatedDex ? 100 : 0,
-                                solInCurve: isOnGraduatedDex ? 85 : 0,
+                                bondingProgress: dexBondingProgress,
+                                solInCurve: dexSolInCurve,
                                 solTarget: 85
                             });
 
