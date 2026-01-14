@@ -5824,6 +5824,15 @@
             }
 
             if (pumpData) {
+                // DEBUG: Log EXACTLY what Pump.fun API returned
+                console.log(`[PUMP-DATA] RAW DATA for ${pumpData.symbol}:`, {
+                    virtual_sol_reserves: pumpData.virtualSolReserves,
+                    real_sol_reserves: pumpData.realSolReserves,
+                    complete: pumpData.complete,
+                    raydium_pool: pumpData.raydiumPool,
+                    usd_market_cap: pumpData.mcap
+                });
+
                 currentTokenData = pumpData;
                 currentTokenPrice = pumpData.price || 0;
 
@@ -5840,6 +5849,8 @@
                                          token?.complete === true ||
                                          pumpData.raydiumPool != null ||
                                          pumpData.kingOfTheHillTimestamp != null;
+
+                console.log(`[PUMP-DATA] Graduation check: complete=${pumpData.complete}, isOnGraduatedDex=${isOnGraduatedDex}, tokenGraduated=${token?.graduated}, raydiumPool=${pumpData.raydiumPool}, RESULT=${tokenIsGraduated}`);
 
                 // Update token selector
                 document.getElementById('tokenName').textContent = pumpData.name || 'Unknown';
@@ -5868,29 +5879,37 @@
                 // Calculate bonding curve progress - MUST MATCH PUMP.FUN
                 let realSolInCurve = 0;
                 let progress = 0;
+                let calcMethod = 'NONE';
+
+                console.log(`[BONDING] ${pumpData.symbol}: INPUT - graduated=${tokenIsGraduated}, realSol=${realSolRaw}, virtualSol=${virtualSol}, mcap=${pumpData.mcap}`);
 
                 if (tokenIsGraduated) {
                     // GRADUATED = ALWAYS 100%, regardless of current market cap
                     progress = 100;
                     realSolInCurve = BONDING_CURVE_TARGET;
-                    console.log(`[BONDING] ${pumpData.symbol}: GRADUATED - showing 100%`);
+                    calcMethod = 'GRADUATED';
                 } else if (realSolRaw > 0) {
-                    // Best case: real_sol_reserves is available
+                    // Best case: real_sol_reserves is available from Pump.fun API
                     realSolInCurve = realSolRaw;
                     progress = Math.min((realSolInCurve / BONDING_CURVE_TARGET) * 100, 99.9);
-                    console.log(`[BONDING] ${pumpData.symbol}: Using real_sol=${realSolRaw.toFixed(2)}, progress=${progress.toFixed(1)}%`);
+                    calcMethod = 'REAL_SOL';
                 } else if (virtualSol > INITIAL_VIRTUAL_SOL) {
-                    // Fallback: calculate from virtual - initial (this is what's deposited)
+                    // Fallback: calculate from virtual_sol - 30 (initial virtual liquidity)
                     realSolInCurve = virtualSol - INITIAL_VIRTUAL_SOL;
                     progress = Math.min((realSolInCurve / BONDING_CURVE_TARGET) * 100, 99.9);
-                    console.log(`[BONDING] ${pumpData.symbol}: Using virtual=${virtualSol.toFixed(2)}, deposited=${realSolInCurve.toFixed(2)}, progress=${progress.toFixed(1)}%`);
+                    calcMethod = 'VIRTUAL_SOL';
                 } else if (pumpData.mcap > 0) {
-                    // Last resort: estimate from market cap (bonding curve ~$6K to ~$69K)
-                    // Using tighter range for more accurate estimation
+                    // Last resort: estimate from market cap
+                    // Bonding curve range: ~$4K (0%) to ~$69K (100%)
                     progress = Math.max(0, Math.min(99, ((pumpData.mcap - 4000) / 65000) * 100));
                     realSolInCurve = (progress / 100) * BONDING_CURVE_TARGET;
-                    console.log(`[BONDING] ${pumpData.symbol}: Using mcap=$${pumpData.mcap}, estimated progress=${progress.toFixed(1)}%`);
+                    calcMethod = 'MCAP_ESTIMATE';
+                } else {
+                    calcMethod = 'NO_DATA';
+                    console.error(`[BONDING] ${pumpData.symbol}: NO DATA AVAILABLE - all sources returned 0/null`);
                 }
+
+                console.log(`[BONDING] ${pumpData.symbol}: OUTPUT - method=${calcMethod}, solInCurve=${realSolInCurve.toFixed(2)}, progress=${progress.toFixed(1)}%`);
 
                 // Get transaction data from DexScreener
                 const buys = dexData?.txns?.h24?.buys || 0;

@@ -4572,6 +4572,10 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
             if (data) {
                 global.pumpCache.set(cacheKey, { data, ts: Date.now() });
+                // Log bonding curve data for debugging
+                console.log(`[PUMP-API] ${data.symbol || mint}: virtual_sol=${data.virtual_sol_reserves}, real_sol=${data.real_sol_reserves}, complete=${data.complete}, raydium_pool=${data.raydium_pool}`);
+            } else {
+                console.log(`[PUMP-API] No data returned for ${mint}, status=${pumpRes.status}`);
             }
 
             res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'MISS' });
