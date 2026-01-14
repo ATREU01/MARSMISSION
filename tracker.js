@@ -401,14 +401,22 @@ async function checkGraduationStatus(tokenMint) {
         const response = await pumpApi.get(`/coins/${tokenMint}`);
 
         if (response.data) {
-            const realSol = (response.data.virtual_sol_reserves || 0) / 1e9;
+            const virtualSol = (response.data.virtual_sol_reserves || 0) / 1e9;
+            const realSolRaw = (response.data.real_sol_reserves || 0) / 1e9;
             const graduated = response.data.complete === true;
+
+            // Calculate real SOL in curve: use real_sol_reserves if available, else virtual - 30 (initial virtual)
+            const INITIAL_VIRTUAL_SOL = 30;
+            const realSol = realSolRaw > 0
+                ? realSolRaw
+                : (virtualSol > INITIAL_VIRTUAL_SOL ? virtualSol - INITIAL_VIRTUAL_SOL : 0);
             const progress = Math.min((realSol / GRADUATION_THRESHOLD_SOL) * 100, 100);
 
             const result = {
                 graduated,
                 progress,
                 realSol,
+                virtualSol,
                 mcap: response.data.usd_market_cap || 0,
                 bondingCurve: response.data.bonding_curve,
                 raydiumPool: response.data.raydium_pool || null,
@@ -540,7 +548,12 @@ async function updateTokenMetrics(tokenMint) {
             token.realSolReserves = (d.real_sol_reserves || 0) / 1e9;
             token.virtualSolReserves = (d.virtual_sol_reserves || 0) / 1e9;
             token.virtualTokenReserves = d.virtual_token_reserves || 0;
-            token.progress = Math.min((token.realSolReserves / GRADUATION_THRESHOLD_SOL) * 100, 100);
+            // Calculate progress: use real_sol if available, else calculate from virtual - 30 (initial virtual liquidity)
+            const INITIAL_VIRTUAL_SOL = 30;
+            const calculatedRealSol = token.realSolReserves > 0
+                ? token.realSolReserves
+                : (token.virtualSolReserves > INITIAL_VIRTUAL_SOL ? token.virtualSolReserves - INITIAL_VIRTUAL_SOL : 0);
+            token.progress = Math.min((calculatedRealSol / GRADUATION_THRESHOLD_SOL) * 100, 100);
             token.graduated = d.complete === true;
             token.twitter = d.twitter || token.twitter;
             token.telegram = d.telegram || token.telegram;
