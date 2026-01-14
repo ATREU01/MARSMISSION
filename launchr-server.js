@@ -267,16 +267,22 @@ function loadPrivySessions() {
 }
 
 // Save Privy sessions to disk
-function savePrivySessions() {
-    try {
-        const data = {
-            sessions: Object.fromEntries(privyWalletSessions),
-            updatedAt: Date.now()
-        };
-        fs.writeFileSync(PRIVY_SESSIONS_FILE, JSON.stringify(data, null, 2));
-    } catch (e) {
-        console.error('[PRIVY] Failed to save sessions:', e.message);
-    }
+// Async file save with debounce
+let privySessionsSavePending = null;
+async function savePrivySessions() {
+    if (privySessionsSavePending) return;
+    privySessionsSavePending = setTimeout(async () => {
+        privySessionsSavePending = null;
+        try {
+            const data = {
+                sessions: Object.fromEntries(privyWalletSessions),
+                updatedAt: Date.now()
+            };
+            await fs.promises.writeFile(PRIVY_SESSIONS_FILE, JSON.stringify(data, null, 2));
+        } catch (e) {
+            console.error('[PRIVY] Failed to save sessions:', e.message);
+        }
+    }, 1000);
 }
 
 // Register a Privy wallet for 24/7 ORBIT operation
@@ -342,22 +348,27 @@ async function loadAndRecoverPrivyEngines() {
     }
 }
 
-// Save active Privy engines to disk
-function savePrivyEngines() {
-    try {
-        const engines = {};
-        for (const [tokenMint, data] of privyEngines.entries()) {
-            engines[tokenMint] = {
-                sessionToken: data.sessionToken,
-                publicKey: data.publicKey,
-                allocations: data.engine?.allocations || null,
-                startedAt: data.startedAt
-            };
+// Save active Privy engines to disk - ASYNC with debounce
+let privyEnginesSavePending = null;
+async function savePrivyEngines() {
+    if (privyEnginesSavePending) return;
+    privyEnginesSavePending = setTimeout(async () => {
+        privyEnginesSavePending = null;
+        try {
+            const engines = {};
+            for (const [tokenMint, data] of privyEngines.entries()) {
+                engines[tokenMint] = {
+                    sessionToken: data.sessionToken,
+                    publicKey: data.publicKey,
+                    allocations: data.engine?.allocations || null,
+                    startedAt: data.startedAt
+                };
+            }
+            await fs.promises.writeFile(PRIVY_ENGINES_FILE, JSON.stringify({ engines, updatedAt: Date.now() }, null, 2));
+        } catch (e) {
+            console.error('[PRIVY-ENGINE] Failed to save engines:', e.message);
         }
-        fs.writeFileSync(PRIVY_ENGINES_FILE, JSON.stringify({ engines, updatedAt: Date.now() }, null, 2));
-    } catch (e) {
-        console.error('[PRIVY-ENGINE] Failed to save engines:', e.message);
-    }
+    }, 1000);
 }
 
 // Start a Privy-backed engine for a token
@@ -498,10 +509,10 @@ const loadCultures = () => {
     return [];
 };
 
-// Save cultures to file
-const saveCultures = (cultures) => {
+// Save cultures to file - ASYNC but no debounce (creates are rare and important)
+const saveCultures = async (cultures) => {
     try {
-        fs.writeFileSync(CULTURES_FILE, JSON.stringify(cultures, null, 2));
+        await fs.promises.writeFile(CULTURES_FILE, JSON.stringify(cultures, null, 2));
         return true;
     } catch (e) {
         console.error('[CULTURES] Error saving:', e.message);
@@ -574,17 +585,22 @@ function loadVanityPool() {
     }
 }
 
-// Save pool to disk
-function saveVanityPool() {
-    try {
-        fs.writeFileSync(VANITY_POOL_FILE, JSON.stringify({
-            pool: vanityPool,
-            stats: vanityGeneratorStats,
-            updatedAt: Date.now()
-        }, null, 2));
-    } catch (e) {
-        console.error('[VANITY] Failed to save pool:', e.message);
-    }
+// Save pool to disk - ASYNC with debounce
+let vanitySavePending = null;
+async function saveVanityPool() {
+    if (vanitySavePending) return;
+    vanitySavePending = setTimeout(async () => {
+        vanitySavePending = null;
+        try {
+            await fs.promises.writeFile(VANITY_POOL_FILE, JSON.stringify({
+                pool: vanityPool,
+                stats: vanityGeneratorStats,
+                updatedAt: Date.now()
+            }, null, 2));
+        } catch (e) {
+            console.error('[VANITY] Failed to save pool:', e.message);
+        }
+    }, 1000);
 }
 
 // Generate a single vanity keypair (blocking - use in worker)
@@ -1246,8 +1262,11 @@ if (CultureSecurityController) {
 // ═══════════════════════════════════════════════════════════════════════════
 const ORBIT_FILE = path.join(DATA_DIR, '.orbit-registry.json');
 const orbitRegistry = new Map(); // mint -> OrbitStatus
-const orbitActivityLog = []; // Global activity log (last 1000 events)
+// PERF: Use circular buffer instead of array.shift() which is O(n)
 const ORBIT_ACTIVITY_MAX = 1000;
+const orbitActivityLog = new Array(ORBIT_ACTIVITY_MAX).fill(null);
+let orbitActivityIndex = 0;
+let orbitActivityCount = 0;
 
 // ORBIT status structure
 function createOrbitStatus(mint, walletAddress, allocations = null) {
@@ -1294,21 +1313,34 @@ function loadOrbitRegistry() {
     }
 }
 
-// Save ORBIT registry to disk
-function saveOrbitRegistry() {
-    try {
-        const data = {
-            registry: Object.fromEntries(orbitRegistry),
-            activityLog: orbitActivityLog.slice(-ORBIT_ACTIVITY_MAX),
-            updatedAt: Date.now()
-        };
-        fs.writeFileSync(ORBIT_FILE, JSON.stringify(data, null, 2));
-    } catch (e) {
-        console.error('[ORBIT] Failed to save registry:', e.message);
-    }
+// Save ORBIT registry to disk - ASYNC with debounce to not block event loop
+let orbitSavePending = null;
+let orbitSaveInProgress = false;
+async function saveOrbitRegistry() {
+    // Debounce: If a save is pending, skip (we'll save fresh data when timer fires)
+    if (orbitSavePending) return;
+    if (orbitSaveInProgress) return;
+
+    orbitSavePending = setTimeout(async () => {
+        orbitSavePending = null;
+        if (orbitSaveInProgress) return;
+        orbitSaveInProgress = true;
+        try {
+            const data = {
+                registry: Object.fromEntries(orbitRegistry),
+                activityLog: getOrbitActivityLog(),
+                updatedAt: Date.now()
+            };
+            await fs.promises.writeFile(ORBIT_FILE, JSON.stringify(data, null, 2));
+        } catch (e) {
+            console.error('[ORBIT] Failed to save registry:', e.message);
+        } finally {
+            orbitSaveInProgress = false;
+        }
+    }, 2000); // Debounce 2 seconds
 }
 
-// Log ORBIT activity (public transparency)
+// Log ORBIT activity (public transparency) - O(1) circular buffer
 function logOrbitActivity(mint, action, details = {}) {
     const event = {
         timestamp: Date.now(),
@@ -1316,12 +1348,27 @@ function logOrbitActivity(mint, action, details = {}) {
         action, // 'started', 'stopped', 'claimed', 'distributed', 'error'
         ...details
     };
-    orbitActivityLog.push(event);
-    if (orbitActivityLog.length > ORBIT_ACTIVITY_MAX) {
-        orbitActivityLog.shift();
-    }
+    // PERF: Circular buffer - O(1) instead of O(n) for shift()
+    orbitActivityLog[orbitActivityIndex] = event;
+    orbitActivityIndex = (orbitActivityIndex + 1) % ORBIT_ACTIVITY_MAX;
+    if (orbitActivityCount < ORBIT_ACTIVITY_MAX) orbitActivityCount++;
 
     // Update registry stats
+    updateOrbitStats(mint, action, details);
+}
+
+// Get activity log in chronological order (newest last)
+function getOrbitActivityLog() {
+    if (orbitActivityCount === 0) return [];
+    if (orbitActivityCount < ORBIT_ACTIVITY_MAX) {
+        return orbitActivityLog.slice(0, orbitActivityCount);
+    }
+    // Full buffer: return in order (oldest to newest)
+    return [...orbitActivityLog.slice(orbitActivityIndex), ...orbitActivityLog.slice(0, orbitActivityIndex)].filter(Boolean);
+}
+
+// Update registry stats when activity is logged
+function updateOrbitStats(mint, action, details) {
     const status = orbitRegistry.get(mint);
     if (status) {
         if (action === 'claimed' && details.amount) {
@@ -1377,16 +1424,21 @@ function loadVolumeRegistry() {
     }
 }
 
-// Save volume registry to disk
-function saveVolumeRegistry() {
+// Save volume registry to disk - ASYNC to not block event loop
+let volumeSaveInProgress = false;
+async function saveVolumeRegistry() {
+    if (volumeSaveInProgress) return; // Prevent concurrent saves
+    volumeSaveInProgress = true;
     try {
         const data = {
             registry: Object.fromEntries(volumeRegistry),
             lastSaved: Date.now(),
         };
-        fs.writeFileSync(VOLUME_FILE, JSON.stringify(data, null, 2));
+        await fs.promises.writeFile(VOLUME_FILE, JSON.stringify(data, null, 2));
     } catch (e) {
         console.error('[VOLUME] Failed to save registry:', e.message);
+    } finally {
+        volumeSaveInProgress = false;
     }
 }
 
@@ -1770,6 +1822,25 @@ function cleanupCaches() {
     const MAX_CACHE_AGE = 300000; // 5 minutes max
     const MAX_CACHE_SIZE = 500; // Max entries per cache
 
+    // Clean rate limiting maps (prevent unbounded growth)
+    let rateLimitClean = 0;
+    for (const [key, record] of requestCounts) {
+        if (now > record.resetTime) {
+            requestCounts.delete(key);
+            rateLimitClean++;
+        }
+    }
+    for (const [ip, record] of failedAttempts) {
+        if (record.lockoutUntil < now && record.count === 0) {
+            failedAttempts.delete(ip);
+            rateLimitClean++;
+        } else if (record.lockoutUntil < now) {
+            // Reset count but keep entry for tracking
+            record.count = 0;
+        }
+    }
+    if (rateLimitClean > 0) console.log(`[CACHE] Cleaned ${rateLimitClean} expired rate limit entries`);
+
     // Clean Map-based caches
     const mapCaches = [
         { cache: global.pumpCache, name: 'pumpCache' },
@@ -1807,6 +1878,32 @@ function cleanupCaches() {
             }
         }
         if (deleted > 0) console.log(`[CACHE] Cleaned ${deleted} entries from trendingCache`);
+    }
+
+    // Clean telegram wallet links older than 24 hours
+    if (global.tgWalletLinks instanceof Map) {
+        const MAX_LINK_AGE = 24 * 60 * 60 * 1000; // 24 hours
+        let deleted = 0;
+        for (const [chatId, data] of global.tgWalletLinks) {
+            if (now - (data.linkedAt || 0) > MAX_LINK_AGE) {
+                global.tgWalletLinks.delete(chatId);
+                deleted++;
+            }
+        }
+        if (deleted > 0) console.log(`[CACHE] Cleaned ${deleted} expired telegram links`);
+    }
+
+    // Clean pending launches older than 1 hour
+    if (global.pendingLaunches instanceof Map) {
+        const MAX_PENDING_AGE = 60 * 60 * 1000; // 1 hour
+        let deleted = 0;
+        for (const [chatId, data] of global.pendingLaunches) {
+            if (now - (data.createdAt || 0) > MAX_PENDING_AGE) {
+                global.pendingLaunches.delete(chatId);
+                deleted++;
+            }
+        }
+        if (deleted > 0) console.log(`[CACHE] Cleaned ${deleted} stale pending launches`);
     }
 }
 
@@ -1846,7 +1943,7 @@ const server = http.createServer(async (req, res) => {
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com",
         "img-src 'self' data: https: blob:",
-        "connect-src 'self' https://api.dexscreener.com https://lite-api.jup.ag https://api.jup.ag https://gmgn.ai https://frontend-api.pump.fun https://pumpportal.fun https://*.helius-rpc.com wss://*.helius-rpc.com",
+        "connect-src 'self' https://api.dexscreener.com https://lite-api.jup.ag https://api.jup.ag https://gmgn.ai https://frontend-api.pump.fun https://pumpportal.fun https://*.helius-rpc.com wss://*.helius-rpc.com https://auth.privy.io wss://auth.privy.io https://*.privy.io wss://*.privy.io https://explorer-api.walletconnect.com https://relay.walletconnect.com wss://relay.walletconnect.com wss://relay.walletconnect.org https://relay.walletconnect.org",
         "frame-src 'self' https://dexscreener.com",
         "object-src 'none'",
         "base-uri 'self'"
@@ -2429,7 +2526,7 @@ const server = http.createServer(async (req, res) => {
 
             cultures.push(newCulture);
 
-            if (saveCultures(cultures)) {
+            if (await saveCultures(cultures)) {
                 // Audit log the creation (check if method exists)
                 if (cultureSecurityController?.logAudit) {
                     cultureSecurityController.logAudit('CULTURE_CREATED', {
@@ -2541,7 +2638,7 @@ const server = http.createServer(async (req, res) => {
                     };
                     cultures.push(newCulture);
 
-                    if (saveCultures(cultures)) {
+                    if (await saveCultures(cultures)) {
                         console.log(`[CULTURES] Created from pump.fun import: ${newCulture.name} (Token: ${tokenAddress})`);
                         res.writeHead(200, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify({ success: true, culture: newCulture, created: true }));
@@ -2587,7 +2684,7 @@ const server = http.createServer(async (req, res) => {
                 .update(JSON.stringify({ name: culture.name, creatorName: culture.creatorName, beliefs: culture.pillars }))
                 .digest('hex');
 
-            if (saveCultures(cultures)) {
+            if (await saveCultures(cultures)) {
                 console.log(`[CULTURES] Updated: ${culture.name} (ID: ${culture.id})`);
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: true, culture }));
@@ -4572,6 +4669,10 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
             if (data) {
                 global.pumpCache.set(cacheKey, { data, ts: Date.now() });
+                // Log bonding curve data for debugging
+                console.log(`[PUMP-API] ${data.symbol || mint}: virtual_sol=${data.virtual_sol_reserves}, real_sol=${data.real_sol_reserves}, complete=${data.complete}, raydium_pool=${data.raydium_pool}`);
+            } else {
+                console.log(`[PUMP-API] No data returned for ${mint}, status=${pumpRes.status}`);
             }
 
             res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'MISS' });
@@ -7211,9 +7312,22 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
     // API: Get launchpad all-time volume (for investors)
     // Uses DexScreener volume data (accurate) instead of Helius (limited)
+    // PERFORMANCE: Cached for 2 minutes to prevent API hammering
     if (url.pathname === '/api/launchpad/volume' && req.method === 'GET') {
         try {
             const axios = require('axios');
+            const forceRefresh = url.searchParams.get('refresh') === 'true';
+
+            // CACHE: Return cached response instantly
+            const LAUNCHPAD_VOLUME_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+            if (!global.launchpadVolumeCache) global.launchpadVolumeCache = { data: null, ts: 0 };
+
+            if (!forceRefresh && global.launchpadVolumeCache.data && Date.now() - global.launchpadVolumeCache.ts < LAUNCHPAD_VOLUME_CACHE_TTL) {
+                res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'HIT' });
+                res.end(JSON.stringify(global.launchpadVolumeCache.data));
+                return;
+            }
+
             const data = tracker.getTokens();
             const tokens = data.tokens || [];
 
@@ -7272,8 +7386,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
             const formatUsd = (v) => v >= 1000000 ? `$${(v/1000000).toFixed(2)}M` : v >= 1000 ? `$${(v/1000).toFixed(1)}K` : `$${v.toFixed(0)}`;
 
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({
+            const responseData = {
                 success: true,
                 platform: {
                     volume24h: Math.round(totalVolume24h),
@@ -7291,8 +7404,15 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 },
                 tokens: tokenVolumes,
                 timestamp: Date.now(),
-                note: 'Volume data from DexScreener'
-            }));
+                note: 'Volume data from DexScreener',
+                cached: false
+            };
+
+            // Cache for future requests
+            global.launchpadVolumeCache = { data: { ...responseData, cached: true }, ts: Date.now() };
+
+            res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'MISS' });
+            res.end(JSON.stringify(responseData));
         } catch (err) {
             console.log('[VOLUME ERROR]', err.message);
             res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -7306,12 +7426,24 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     // Usage: GET /api/volume?mint=<token_address> - single token volume
     //        GET /api/volume - all tokens with their volumes
     // Returns TRUE ALL-TIME volume from Helius transaction history
+    // PERFORMANCE: Returns cached data instantly, background updates every 5 min
     // ═══════════════════════════════════════════════════════════════════════════
     if (url.pathname === '/api/volume' && req.method === 'GET') {
         try {
             const axios = require('axios');
             const mintParam = url.searchParams.get('mint');
             const forceRefresh = url.searchParams.get('refresh') === 'true';
+
+            // CACHE: Return cached response if available and not forcing refresh
+            const VOLUME_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+            if (!global.volumeApiCache) global.volumeApiCache = { data: null, ts: 0, updating: false };
+
+            // For bulk requests (no mint param), use aggressive caching
+            if (!mintParam && !forceRefresh && global.volumeApiCache.data && Date.now() - global.volumeApiCache.ts < VOLUME_CACHE_TTL) {
+                res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'HIT' });
+                res.end(JSON.stringify(global.volumeApiCache.data));
+                return;
+            }
 
             const formatUsd = (v) => v >= 1000000 ? `$${(v/1000000).toFixed(2)}M` : v >= 1000 ? `$${(v/1000).toFixed(1)}K` : `$${v.toFixed(0)}`;
 
@@ -7524,14 +7656,13 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 await new Promise(r => setTimeout(r, 200));
             }
 
-            // Save volume registry after updating all tokens
+            // Save volume registry in background (non-blocking)
             saveVolumeRegistry();
 
             // Sort by all-time volume descending
             volumeResults.sort((a, b) => (b.allTimeVolume || 0) - (a.allTimeVolume || 0));
 
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({
+            const responseData = {
                 success: true,
                 platform: {
                     allTimeVolume: Math.round(totalAllTimeVolume),
@@ -7552,8 +7683,17 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 },
                 tokens: volumeResults,
                 timestamp: Date.now(),
-                note: 'All-time volume from Helius transaction history. Add ?refresh=true to force recalculate.'
-            }));
+                note: 'All-time volume from Helius transaction history. Add ?refresh=true to force recalculate.',
+                cached: false
+            };
+
+            // Cache the response for future requests (only for bulk requests)
+            if (!mintParam) {
+                global.volumeApiCache = { data: { ...responseData, cached: true }, ts: Date.now(), updating: false };
+            }
+
+            res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'MISS' });
+            res.end(JSON.stringify(responseData));
         } catch (err) {
             console.log('[VOLUME API ERROR]', err.message);
             res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -7730,8 +7870,8 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             const limit = isNaN(limitParam) ? 100 : Math.max(1, Math.min(limitParam, 500));
             const mint = url.searchParams.get('mint');
 
-            // Get activities efficiently (slice before reverse)
-            let activities = orbitActivityLog.slice(-limit).reverse();
+            // Get activities from circular buffer (newest first for API)
+            let activities = getOrbitActivityLog().reverse().slice(0, limit);
 
             // Filter by mint if specified
             if (mint) {
