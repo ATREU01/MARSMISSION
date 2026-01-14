@@ -805,7 +805,7 @@ const CULTURE_CSP = {
             "img-src 'self' data: blob: https://*.ipfs.io https://ipfs.io https://cf-ipfs.com https://gateway.pinata.cloud https://arweave.net",
 
             // Connect - API endpoints only
-            "connect-src 'self' https://api.mainnet-beta.solana.com https://*.helius-rpc.com https://api.helius.xyz wss://*.helius-rpc.com https://frontend-api.pump.fun",
+            "connect-src 'self' https://api.mainnet-beta.solana.com https://*.helius-rpc.com https://api.helius.xyz wss://*.helius-rpc.com https://frontend-api.pump.fun https://auth.privy.io wss://auth.privy.io https://*.privy.io wss://*.privy.io https://explorer-api.walletconnect.com https://relay.walletconnect.com wss://relay.walletconnect.com wss://relay.walletconnect.org https://relay.walletconnect.org",
 
             // Frame ancestors - deny embedding
             "frame-ancestors 'none'",
