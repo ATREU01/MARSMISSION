@@ -1377,16 +1377,21 @@ function loadVolumeRegistry() {
     }
 }
 
-// Save volume registry to disk
-function saveVolumeRegistry() {
+// Save volume registry to disk - ASYNC to not block event loop
+let volumeSaveInProgress = false;
+async function saveVolumeRegistry() {
+    if (volumeSaveInProgress) return; // Prevent concurrent saves
+    volumeSaveInProgress = true;
     try {
         const data = {
             registry: Object.fromEntries(volumeRegistry),
             lastSaved: Date.now(),
         };
-        fs.writeFileSync(VOLUME_FILE, JSON.stringify(data, null, 2));
+        await fs.promises.writeFile(VOLUME_FILE, JSON.stringify(data, null, 2));
     } catch (e) {
         console.error('[VOLUME] Failed to save registry:', e.message);
+    } finally {
+        volumeSaveInProgress = false;
     }
 }
 
@@ -7215,9 +7220,22 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
     // API: Get launchpad all-time volume (for investors)
     // Uses DexScreener volume data (accurate) instead of Helius (limited)
+    // PERFORMANCE: Cached for 2 minutes to prevent API hammering
     if (url.pathname === '/api/launchpad/volume' && req.method === 'GET') {
         try {
             const axios = require('axios');
+            const forceRefresh = url.searchParams.get('refresh') === 'true';
+
+            // CACHE: Return cached response instantly
+            const LAUNCHPAD_VOLUME_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+            if (!global.launchpadVolumeCache) global.launchpadVolumeCache = { data: null, ts: 0 };
+
+            if (!forceRefresh && global.launchpadVolumeCache.data && Date.now() - global.launchpadVolumeCache.ts < LAUNCHPAD_VOLUME_CACHE_TTL) {
+                res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'HIT' });
+                res.end(JSON.stringify(global.launchpadVolumeCache.data));
+                return;
+            }
+
             const data = tracker.getTokens();
             const tokens = data.tokens || [];
 
@@ -7276,8 +7294,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
 
             const formatUsd = (v) => v >= 1000000 ? `$${(v/1000000).toFixed(2)}M` : v >= 1000 ? `$${(v/1000).toFixed(1)}K` : `$${v.toFixed(0)}`;
 
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({
+            const responseData = {
                 success: true,
                 platform: {
                     volume24h: Math.round(totalVolume24h),
@@ -7295,8 +7312,15 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 },
                 tokens: tokenVolumes,
                 timestamp: Date.now(),
-                note: 'Volume data from DexScreener'
-            }));
+                note: 'Volume data from DexScreener',
+                cached: false
+            };
+
+            // Cache for future requests
+            global.launchpadVolumeCache = { data: { ...responseData, cached: true }, ts: Date.now() };
+
+            res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'MISS' });
+            res.end(JSON.stringify(responseData));
         } catch (err) {
             console.log('[VOLUME ERROR]', err.message);
             res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -7310,12 +7334,24 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
     // Usage: GET /api/volume?mint=<token_address> - single token volume
     //        GET /api/volume - all tokens with their volumes
     // Returns TRUE ALL-TIME volume from Helius transaction history
+    // PERFORMANCE: Returns cached data instantly, background updates every 5 min
     // ═══════════════════════════════════════════════════════════════════════════
     if (url.pathname === '/api/volume' && req.method === 'GET') {
         try {
             const axios = require('axios');
             const mintParam = url.searchParams.get('mint');
             const forceRefresh = url.searchParams.get('refresh') === 'true';
+
+            // CACHE: Return cached response if available and not forcing refresh
+            const VOLUME_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+            if (!global.volumeApiCache) global.volumeApiCache = { data: null, ts: 0, updating: false };
+
+            // For bulk requests (no mint param), use aggressive caching
+            if (!mintParam && !forceRefresh && global.volumeApiCache.data && Date.now() - global.volumeApiCache.ts < VOLUME_CACHE_TTL) {
+                res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'HIT' });
+                res.end(JSON.stringify(global.volumeApiCache.data));
+                return;
+            }
 
             const formatUsd = (v) => v >= 1000000 ? `$${(v/1000000).toFixed(2)}M` : v >= 1000 ? `$${(v/1000).toFixed(1)}K` : `$${v.toFixed(0)}`;
 
@@ -7528,14 +7564,13 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 await new Promise(r => setTimeout(r, 200));
             }
 
-            // Save volume registry after updating all tokens
+            // Save volume registry in background (non-blocking)
             saveVolumeRegistry();
 
             // Sort by all-time volume descending
             volumeResults.sort((a, b) => (b.allTimeVolume || 0) - (a.allTimeVolume || 0));
 
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({
+            const responseData = {
                 success: true,
                 platform: {
                     allTimeVolume: Math.round(totalAllTimeVolume),
@@ -7556,8 +7591,17 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 },
                 tokens: volumeResults,
                 timestamp: Date.now(),
-                note: 'All-time volume from Helius transaction history. Add ?refresh=true to force recalculate.'
-            }));
+                note: 'All-time volume from Helius transaction history. Add ?refresh=true to force recalculate.',
+                cached: false
+            };
+
+            // Cache the response for future requests (only for bulk requests)
+            if (!mintParam) {
+                global.volumeApiCache = { data: { ...responseData, cached: true }, ts: Date.now(), updating: false };
+            }
+
+            res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'MISS' });
+            res.end(JSON.stringify(responseData));
         } catch (err) {
             console.log('[VOLUME API ERROR]', err.message);
             res.writeHead(500, { 'Content-Type': 'application/json' });

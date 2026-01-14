@@ -279,10 +279,24 @@ function loadTokens() {
     return { tokens: [], stats: { totalTokens: 0, totalClaimed: 0, totalDistributed: 0 } };
 }
 
-// Save tracked tokens
+// Save tracked tokens - ASYNC with debounce to prevent disk thrashing
+let saveTokensPending = null;
+let saveTokensData = null;
 function saveTokens(data) {
     ensureDataDir();
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+    saveTokensData = data;
+
+    // Debounce: only save once every 500ms even if called multiple times
+    if (!saveTokensPending) {
+        saveTokensPending = setTimeout(async () => {
+            try {
+                await fs.promises.writeFile(DATA_FILE, JSON.stringify(saveTokensData, null, 2));
+            } catch (e) {
+                console.error('[TRACKER] Failed to save tokens:', e.message);
+            }
+            saveTokensPending = null;
+        }, 500);
+    }
 }
 
 // Register a new token
