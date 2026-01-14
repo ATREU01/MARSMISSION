@@ -5011,21 +5011,27 @@
             const bondingStatus = document.getElementById('bondingStatus');
             const bondingTarget = document.getElementById('bondingTarget');
 
-            // Use REAL bonding progress from Pump.fun API (SOL in curve / 85 SOL target)
-            // NEVER calculate from market cap - that's wrong!
-            const SOL_TARGET = data.solTarget || 85;
+            // Pump.fun graduation threshold is ~79 SOL
+            const SOL_TARGET = data.solTarget || 79;
             const solInCurve = data.solInCurve || 0;
-            const progress = data.bondingProgress !== undefined && data.bondingProgress > 0
-                ? data.bondingProgress
-                : Math.min(100, (solInCurve / SOL_TARGET) * 100);
-            const isGraduated = data.isGraduated === true;
+            const isGraduated = data.isGraduated === true || data.bondingProgress >= 100;
+
+            // GRADUATED = ALWAYS 100% (graduation is permanent)
+            let progress = 0;
+            if (isGraduated) {
+                progress = 100;
+            } else if (data.bondingProgress !== undefined && data.bondingProgress > 0) {
+                progress = Math.min(data.bondingProgress, 99.9);
+            } else if (solInCurve > 0) {
+                progress = Math.min((solInCurve / SOL_TARGET) * 100, 99.9);
+            }
 
             if (bondingFill) {
-                bondingFill.style.width = `${isGraduated ? 100 : progress}%`;
+                bondingFill.style.width = `${progress}%`;
                 bondingFill.className = `bonding-curve-fill${isGraduated ? ' graduated' : ''}`;
             }
             if (bondingMarker) {
-                bondingMarker.style.left = `${isGraduated ? 100 : progress}%`;
+                bondingMarker.style.left = `${progress}%`;
                 bondingMarker.className = `bonding-curve-marker${isGraduated ? ' graduated' : ''}`;
             }
             if (bondingProgressEl) {
@@ -5033,16 +5039,16 @@
                 bondingProgressEl.className = `bonding-curve-progress${isGraduated ? ' graduated' : ''}`;
             }
             if (bondingStatus) {
-                bondingStatus.textContent = isGraduated ? 'On Pump Swap' : 'On Pump.fun';
+                bondingStatus.textContent = isGraduated ? 'Graduated' : 'On Pump.fun';
                 bondingStatus.className = `bonding-curve-status ${isGraduated ? 'graduated' : 'active'}`;
             }
             // Update target text with real SOL values
             if (bondingTarget) {
                 if (isGraduated) {
-                    bondingTarget.textContent = 'Graduated to Pump Swap';
+                    bondingTarget.textContent = 'Graduated to Raydium/PumpSwap';
                 } else {
                     const solDisplay = solInCurve > 0 ? `${solInCurve.toFixed(1)}/${SOL_TARGET}` : `~${SOL_TARGET}`;
-                    bondingTarget.textContent = `Target: ${solDisplay} SOL \u2192 Pump Swap`;
+                    bondingTarget.textContent = `Target: ${solDisplay} SOL → Graduation`;
                 }
             }
 
@@ -5753,7 +5759,9 @@
                         virtualTokenReserves: data.virtual_token_reserves,
                         realSolReserves: data.real_sol_reserves,
                         realTokenReserves: data.real_token_reserves,
-                        complete: data.complete
+                        complete: data.complete,
+                        raydiumPool: data.raydium_pool,
+                        kingOfTheHillTimestamp: data.king_of_the_hill_timestamp
                     };
                 }
             } catch (e) {
@@ -5823,7 +5831,15 @@
                 // (you can't be on these DEXes without graduating from Pump.fun)
                 const dexId = (dexData?.dexId || '').toLowerCase();
                 const isOnGraduatedDex = dexId === 'pumpswap' || dexId === 'raydium' || dexId.includes('raydium');
-                const tokenIsGraduated = pumpData.complete === true || isOnGraduatedDex;
+
+                // IMPORTANT: Once graduated, ALWAYS graduated - check ALL sources
+                // Graduation is PERMANENT even if market cap drops below threshold
+                const tokenIsGraduated = pumpData.complete === true ||
+                                         isOnGraduatedDex ||
+                                         token?.graduated === true ||
+                                         token?.complete === true ||
+                                         pumpData.raydiumPool != null ||
+                                         pumpData.kingOfTheHillTimestamp != null;
 
                 // Update token selector
                 document.getElementById('tokenName').textContent = pumpData.name || 'Unknown';
@@ -5840,34 +5856,41 @@
                 setTradeMode(tradeMode);
 
                 // Calculate real analytics from Pump.fun + DexScreener data
-                // Pump.fun bonding curve: virtual_sol starts at ~30 SOL, graduation at ~85 SOL real deposited
-                const BONDING_CURVE_TARGET = 85;
+                // Pump.fun bonding curve: starts at 30 virtual SOL, graduates at ~79 SOL deposited
+                // MATCHING PUMP.FUN'S EXACT CALCULATION
+                const BONDING_CURVE_TARGET = 79; // Pump.fun graduation threshold in SOL
                 const INITIAL_VIRTUAL_SOL = 30; // Pump.fun's initial virtual liquidity
-                const SOL_PRICE_USD = 200; // Approximate SOL price for fallback calculation
 
-                // Get SOL in curve - try real_sol_reserves first, fallback to (virtual - 30)
+                // Get reserves from API
                 const virtualSol = (pumpData.virtualSolReserves || 0) / 1e9;
                 const realSolRaw = (pumpData.realSolReserves || 0) / 1e9;
 
-                // Calculate real SOL in curve with multiple fallbacks
+                // Calculate bonding curve progress - MUST MATCH PUMP.FUN
                 let realSolInCurve = 0;
-                if (realSolRaw > 0) {
+                let progress = 0;
+
+                if (tokenIsGraduated) {
+                    // GRADUATED = ALWAYS 100%, regardless of current market cap
+                    progress = 100;
+                    realSolInCurve = BONDING_CURVE_TARGET;
+                    console.log(`[BONDING] ${pumpData.symbol}: GRADUATED - showing 100%`);
+                } else if (realSolRaw > 0) {
                     // Best case: real_sol_reserves is available
                     realSolInCurve = realSolRaw;
+                    progress = Math.min((realSolInCurve / BONDING_CURVE_TARGET) * 100, 99.9);
+                    console.log(`[BONDING] ${pumpData.symbol}: Using real_sol=${realSolRaw.toFixed(2)}, progress=${progress.toFixed(1)}%`);
                 } else if (virtualSol > INITIAL_VIRTUAL_SOL) {
-                    // Fallback: calculate from virtual - initial
+                    // Fallback: calculate from virtual - initial (this is what's deposited)
                     realSolInCurve = virtualSol - INITIAL_VIRTUAL_SOL;
-                } else if (pumpData.mcap > 0 && !tokenIsGraduated) {
-                    // Last resort fallback: estimate from market cap
-                    // Bonding curve mcap roughly scales: ~$6K at 0 SOL, ~$100K at graduation
-                    // This is an approximation for when API doesn't return reserves
-                    const mcapProgress = Math.max(0, Math.min(100, ((pumpData.mcap - 6000) / 94000) * 100));
-                    realSolInCurve = (mcapProgress / 100) * BONDING_CURVE_TARGET;
-                    console.log(`[BONDING] Using mcap fallback: mcap=$${pumpData.mcap}, estimated SOL=${realSolInCurve.toFixed(2)}`);
+                    progress = Math.min((realSolInCurve / BONDING_CURVE_TARGET) * 100, 99.9);
+                    console.log(`[BONDING] ${pumpData.symbol}: Using virtual=${virtualSol.toFixed(2)}, deposited=${realSolInCurve.toFixed(2)}, progress=${progress.toFixed(1)}%`);
+                } else if (pumpData.mcap > 0) {
+                    // Last resort: estimate from market cap (bonding curve ~$6K to ~$69K)
+                    // Using tighter range for more accurate estimation
+                    progress = Math.max(0, Math.min(99, ((pumpData.mcap - 4000) / 65000) * 100));
+                    realSolInCurve = (progress / 100) * BONDING_CURVE_TARGET;
+                    console.log(`[BONDING] ${pumpData.symbol}: Using mcap=$${pumpData.mcap}, estimated progress=${progress.toFixed(1)}%`);
                 }
-
-                const progress = Math.min((realSolInCurve / BONDING_CURVE_TARGET) * 100, 100);
-                console.log(`[BONDING] ${pumpData.symbol}: virtual=${virtualSol.toFixed(2)}, real=${realSolRaw.toFixed(2)}, calculated=${realSolInCurve.toFixed(2)}, progress=${progress.toFixed(1)}%`);
 
                 // Get transaction data from DexScreener
                 const buys = dexData?.txns?.h24?.buys || 0;
@@ -5948,22 +5971,29 @@
                 setTradeMode(tradeMode);
 
                 // Update analytics with local token data - include real bonding curve data
-                // Use multiple fallbacks: realSolReserves > progress > mcap estimation
-                let localSolInCurve = token.realSolReserves || 0;
+                // GRADUATION IS PERMANENT - once bonded, always bonded
+                const LOCAL_BONDING_TARGET = 79; // Same as Pump.fun
+                let localSolInCurve = 0;
                 let localProgress = 0;
 
-                if (token.progress && token.progress > 0) {
+                if (localTokenIsGraduated) {
+                    // GRADUATED = ALWAYS 100%
+                    localProgress = 100;
+                    localSolInCurve = LOCAL_BONDING_TARGET;
+                    console.log(`[BONDING-LOCAL] ${token.symbol}: GRADUATED - showing 100%`);
+                } else if (token.progress && token.progress > 0) {
                     // Use stored progress if available
-                    localProgress = token.progress;
-                    localSolInCurve = (localProgress / 100) * 85;
-                } else if (localSolInCurve > 0) {
+                    localProgress = Math.min(token.progress, 99.9);
+                    localSolInCurve = (localProgress / 100) * LOCAL_BONDING_TARGET;
+                } else if (token.realSolReserves > 0) {
                     // Calculate from realSolReserves
-                    localProgress = Math.min((localSolInCurve / 85) * 100, 100);
-                } else if (token.mcap > 0 && !localTokenIsGraduated) {
+                    localSolInCurve = token.realSolReserves;
+                    localProgress = Math.min((localSolInCurve / LOCAL_BONDING_TARGET) * 100, 99.9);
+                } else if (token.mcap > 0) {
                     // Fallback: estimate from market cap
-                    localProgress = Math.max(0, Math.min(99, ((token.mcap - 6000) / 94000) * 100));
-                    localSolInCurve = (localProgress / 100) * 85;
-                    console.log(`[BONDING-LOCAL] Using mcap fallback: mcap=$${token.mcap}, progress=${localProgress.toFixed(1)}%`);
+                    localProgress = Math.max(0, Math.min(99, ((token.mcap - 4000) / 65000) * 100));
+                    localSolInCurve = (localProgress / 100) * LOCAL_BONDING_TARGET;
+                    console.log(`[BONDING-LOCAL] ${token.symbol}: Using mcap=$${token.mcap}, progress=${localProgress.toFixed(1)}%`);
                 }
 
                 updateTokenAnalytics({
@@ -5994,7 +6024,7 @@
                     isGraduated: localTokenIsGraduated,
                     bondingProgress: localProgress,
                     solInCurve: localSolInCurve,
-                    solTarget: 85
+                    solTarget: 79
                 });
 
                 showNotification(`Using local data for ${token.symbol}`, 'info');
@@ -6025,20 +6055,23 @@
                             const isOnGraduatedDex = dexId === 'pumpswap' || dexId === 'raydium' || dexId.includes('raydium');
                             const isOnPumpFun = dexId === 'pump' || dexId === 'pumpfun' || dexId.includes('pump');
 
-                            // Calculate bonding progress for Pump.fun tokens using market cap approximation
-                            // Bonding curve mcap roughly scales: ~$6K at 0%, ~$100K at graduation
+                            // Calculate bonding progress for Pump.fun tokens
+                            // GRADUATION IS PERMANENT - once graduated, ALWAYS 100%
+                            const DEX_BONDING_TARGET = 79; // Same as Pump.fun
                             let dexBondingProgress = 0;
                             let dexSolInCurve = 0;
                             const dexMcap = pair.marketCap || pair.fdv || 0;
 
                             if (isOnGraduatedDex) {
+                                // On PumpSwap/Raydium = GRADUATED = 100%
                                 dexBondingProgress = 100;
-                                dexSolInCurve = 85;
+                                dexSolInCurve = DEX_BONDING_TARGET;
+                                console.log(`[BONDING-DEX] Token graduated on ${dexId} - showing 100%`);
                             } else if (isOnPumpFun && dexMcap > 0) {
-                                // Estimate progress from market cap for Pump.fun tokens
-                                dexBondingProgress = Math.max(0, Math.min(99, ((dexMcap - 6000) / 94000) * 100));
-                                dexSolInCurve = (dexBondingProgress / 100) * 85;
-                                console.log(`[BONDING-DEX] Using mcap fallback: mcap=$${dexMcap}, progress=${dexBondingProgress.toFixed(1)}%`);
+                                // Still on bonding curve - estimate progress from mcap
+                                dexBondingProgress = Math.max(0, Math.min(99, ((dexMcap - 4000) / 65000) * 100));
+                                dexSolInCurve = (dexBondingProgress / 100) * DEX_BONDING_TARGET;
+                                console.log(`[BONDING-DEX] Pump.fun token: mcap=$${dexMcap}, progress=${dexBondingProgress.toFixed(1)}%`);
                             }
 
                             updateTokenAnalytics({
@@ -6069,7 +6102,7 @@
                                 isGraduated: isOnGraduatedDex,
                                 bondingProgress: dexBondingProgress,
                                 solInCurve: dexSolInCurve,
-                                solTarget: 85
+                                solTarget: 79
                             });
 
                             // Update chart
