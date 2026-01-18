@@ -266,6 +266,10 @@ const server = http.createServer(async (req, res) => {
         log('Auto-claim started (every 10 min)');
         const runClaim = async () => {
             try {
+                if (!distributor) {
+                    log('Auto: Distributor not available');
+                    return;
+                }
                 await distributor.updatePrice();
                 const result = await distributor.claimAndDistribute();
                 if (result.claimed > 0) {
