@@ -3267,6 +3267,10 @@ const server = http.createServer(async (req, res) => {
                     }
                 }
 
+                if (!engine) {
+                    log('Auto: Engine not available (session may have expired)');
+                    return;
+                }
                 await engine.updatePrice();
                 const result = await engine.claimAndDistribute();
                 if (result.claimed > 0) {
@@ -10078,6 +10082,10 @@ server.listen(PORT, async () => {
 
             const runClaim = async () => {
                 try {
+                    if (!engine) {
+                        log('Auto: Engine not available (session may have expired)');
+                        return;
+                    }
                     await engine.updatePrice();
                     const result = await engine.claimAndDistribute();
                     if (result.claimed > 0) {

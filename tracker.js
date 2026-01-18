@@ -280,8 +280,10 @@ function loadTokens() {
 }
 
 // Save tracked tokens - ASYNC with debounce to prevent disk thrashing
+// Uses atomic writes (write to temp file, then rename) to prevent corruption
 let saveTokensPending = null;
 let saveTokensData = null;
+let saveInProgress = false;
 function saveTokens(data) {
     ensureDataDir();
     saveTokensData = data;
@@ -289,11 +291,25 @@ function saveTokens(data) {
     // Debounce: only save once every 500ms even if called multiple times
     if (!saveTokensPending) {
         saveTokensPending = setTimeout(async () => {
+            // Skip if a save is already in progress to prevent race conditions
+            if (saveInProgress) {
+                saveTokensPending = null;
+                // Reschedule to ensure the latest data gets saved
+                saveTokens(saveTokensData);
+                return;
+            }
+            saveInProgress = true;
             try {
-                await fs.promises.writeFile(DATA_FILE, JSON.stringify(saveTokensData, null, 2));
+                const tempFile = DATA_FILE + '.tmp';
+                const jsonData = JSON.stringify(saveTokensData, null, 2);
+                // Write to temp file first
+                await fs.promises.writeFile(tempFile, jsonData);
+                // Atomic rename (prevents partial reads)
+                await fs.promises.rename(tempFile, DATA_FILE);
             } catch (e) {
                 console.error('[TRACKER] Failed to save tokens:', e.message);
             }
+            saveInProgress = false;
             saveTokensPending = null;
         }, 500);
     }
