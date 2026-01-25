@@ -878,6 +878,46 @@ async function updateAllTokenMetrics() {
     return { updated, total: tokens.length };
 }
 
+// Update metrics for top leaderboard tokens only (runs more frequently)
+// This is more efficient than updating all tokens and keeps leaderboard data fresh
+async function updateLeaderboardTokens(limit = 10) {
+    const data = loadTokens();
+    const tokens = data.tokens || [];
+
+    // Sort by market cap to get top tokens (same as leaderboard)
+    const topTokens = tokens
+        .sort((a, b) => (b.mcap || 0) - (a.mcap || 0))
+        .slice(0, limit);
+
+    if (topTokens.length === 0) {
+        return { updated: 0, total: 0 };
+    }
+
+    console.log(`[TRACKER] Refreshing top ${topTokens.length} leaderboard tokens...`);
+
+    let updated = 0;
+    for (const token of topTokens) {
+        try {
+            // Clear cache to force fresh API fetch
+            const cacheKey = `metrics_${token.mint}`;
+            apiCache.delete(cacheKey);
+
+            const result = await updateTokenMetrics(token.mint);
+            if (result?.success) {
+                updated++;
+                console.log(`[TRACKER] ${token.symbol}: $${result.token?.mcap?.toLocaleString() || 0}`);
+            }
+            // Rate limit - 300ms between API calls (faster since fewer tokens)
+            await new Promise(r => setTimeout(r, 300));
+        } catch (e) {
+            console.log(`[TRACKER] Error updating ${token.symbol || token.mint.slice(0, 8)}: ${e.message}`);
+        }
+    }
+
+    console.log(`[TRACKER] Leaderboard refresh complete: ${updated}/${topTokens.length} updated`);
+    return { updated, total: topTokens.length };
+}
+
 // Keep only specified tokens, remove all others
 function keepOnlyTokens(mintsToKeep = []) {
     const data = loadTokens();
@@ -924,5 +964,6 @@ module.exports = {
     getGraduationStats,
     updateTokenMetrics,
     updateAllTokenMetrics,
+    updateLeaderboardTokens,
     GRADUATION_THRESHOLD_SOL,
 };
