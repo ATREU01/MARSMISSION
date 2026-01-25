@@ -385,9 +385,9 @@ async function startPrivyEngine(tokenMint, sessionToken, allocations = null) {
         throw new Error('Invalid session - Privy signer not found');
     }
 
-    // Create connection
+    // Create connection with disabled auto-retry to prevent 429 cascade
     const rpcUrl = PRODUCTION_CONFIG.HELIUS_RPC || 'https://api.mainnet-beta.solana.com';
-    const conn = new Connection(rpcUrl, 'confirmed');
+    const conn = new Connection(rpcUrl, { commitment: 'confirmed', disableRetryOnRateLimit: true });
 
     // Create engine with Privy signer
     const privyEngine = new LaunchrEngine(conn, tokenMint, signer);
@@ -2962,10 +2962,11 @@ const server = http.createServer(async (req, res) => {
             }
 
             // Use RPC URL with robust fallback (empty string check)
+            // Disable auto-retry on rate limit to prevent 429 cascade
             const rpcUrl = process.env.RPC_URL && process.env.RPC_URL.startsWith('http')
                 ? process.env.RPC_URL
                 : 'https://api.mainnet-beta.solana.com';
-            connection = new Connection(rpcUrl, 'confirmed');
+            connection = new Connection(rpcUrl, { commitment: 'confirmed', disableRetryOnRateLimit: true });
             wallet = Keypair.fromSecretKey(decodedKey);
             engine = new LaunchrEngine(connection, data.tokenMint, wallet);
 
@@ -4441,7 +4442,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
         const launchId = '${launchId}';
         let launchData = null;
         const { Connection, VersionedTransaction } = solanaWeb3;
-        const connection = new Connection('${PRODUCTION_CONFIG.HELIUS_RPC}', 'confirmed');
+        const connection = new Connection('${PRODUCTION_CONFIG.HELIUS_RPC}', { commitment: 'confirmed', disableRetryOnRateLimit: true });
 
         async function init() {
             try {
@@ -5152,7 +5153,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
             log(`[SWAP] Executing signed transaction...`);
 
             const { Connection, VersionedTransaction } = require('@solana/web3.js');
-            const connection = new Connection(PRODUCTION_CONFIG.HELIUS_RPC, 'confirmed');
+            const connection = new Connection(PRODUCTION_CONFIG.HELIUS_RPC, { commitment: 'confirmed', disableRetryOnRateLimit: true });
 
             // Decode and send the signed transaction
             const txBuffer = Buffer.from(signedTransaction, 'base64');
@@ -8553,7 +8554,7 @@ Your token <b>${launch.tokenData.name}</b> ($${launch.tokenData.symbol}) is now 
                 console.log(`[VAULT] Added mint signature for ${vaultEntry.publicKey}, sending transaction...`);
 
                 // Send the fully signed transaction (same as TG bot: skipPreflight: true)
-                const connection = new Connection(PRODUCTION_CONFIG.HELIUS_RPC || 'https://api.mainnet-beta.solana.com', 'confirmed');
+                const connection = new Connection(PRODUCTION_CONFIG.HELIUS_RPC || 'https://api.mainnet-beta.solana.com', { commitment: 'confirmed', disableRetryOnRateLimit: true });
                 const signature = await connection.sendRawTransaction(tx.serialize(), {
                     skipPreflight: true,
                     maxRetries: 3
@@ -10060,10 +10061,11 @@ server.listen(PORT, async () => {
             }
 
             // Setup connection and wallet
+            // Disable auto-retry on rate limit to prevent 429 cascade
             const rpcUrl = process.env.RPC_URL && process.env.RPC_URL.startsWith('http')
                 ? process.env.RPC_URL
                 : 'https://api.mainnet-beta.solana.com';
-            connection = new Connection(rpcUrl, 'confirmed');
+            connection = new Connection(rpcUrl, { commitment: 'confirmed', disableRetryOnRateLimit: true });
             wallet = Keypair.fromSecretKey(decodedKey);
 
             console.log(`[AUTO] Wallet: ${wallet.publicKey.toBase58()}`);
