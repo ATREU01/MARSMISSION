@@ -907,8 +907,8 @@ async function updateLeaderboardTokens(limit = 10) {
                 updated++;
                 console.log(`[TRACKER] ${token.symbol}: $${result.token?.mcap?.toLocaleString() || 0}`);
             }
-            // Rate limit - 300ms between API calls (faster since fewer tokens)
-            await new Promise(r => setTimeout(r, 300));
+            // Rate limit - 1000ms between API calls to avoid 429 errors
+            await new Promise(r => setTimeout(r, 1000));
         } catch (e) {
             console.log(`[TRACKER] Error updating ${token.symbol || token.mint.slice(0, 8)}: ${e.message}`);
         }

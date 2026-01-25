@@ -10145,17 +10145,18 @@ server.listen(PORT, async () => {
     // Run first update after 60 seconds
     setTimeout(() => tracker.updateAllTokenMetrics().catch(() => {}), 60000);
 
-    // Start leaderboard-specific updater (refresh top 10 tokens every 2 minutes for accurate leaderboard)
-    console.log('[METRICS] Starting leaderboard refresh (every 2 min)...');
+    // Start leaderboard-specific updater (refresh top 10 tokens every 5 minutes)
+    // NOTE: Staggered 2.5 min after full update to spread API load and avoid rate limiting
+    console.log('[METRICS] Starting leaderboard refresh (every 5 min, staggered)...');
     setInterval(async () => {
         try {
             await tracker.updateLeaderboardTokens(10);
         } catch (e) {
             console.log('[METRICS] Leaderboard refresh error: ' + e.message);
         }
-    }, 2 * 60 * 1000); // Every 2 minutes
-    // Run first leaderboard refresh after 30 seconds
-    setTimeout(() => tracker.updateLeaderboardTokens(10).catch(() => {}), 30000);
+    }, 5 * 60 * 1000); // Every 5 minutes (was 2 min, caused rate limiting)
+    // Run first leaderboard refresh after 3 minutes (stagger from full update at 1 min)
+    setTimeout(() => tracker.updateLeaderboardTokens(10).catch(() => {}), 3 * 60 * 1000);
 
     // Start Telegram bot if token is configured
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
