@@ -3300,7 +3300,8 @@ const server = http.createServer(async (req, res) => {
             }
         };
 
-        runClaim();
+        // Delay first claim by 30s to avoid competing with startup rate limit burst
+        setTimeout(runClaim, 30000);
         autoClaimInterval = setInterval(runClaim, intervalMs);
 
         // Register ORBIT for TEK indicator
