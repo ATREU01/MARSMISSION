@@ -4819,16 +4819,14 @@
             let dexData = null;
             let trackerData = null;
             let jupiterHolders = 0;
-            let gmgnHolders = 0;
 
             try {
-                // Fetch from all sources in parallel - include Jupiter and GMGN for fresh holder data
-                const [pumpRes, dexRes, trackerRes, jupRes, gmgnRes] = await Promise.all([
+                // Fetch from all sources in parallel (removed gmgn.ai - blocked by CORS)
+                const [pumpRes, dexRes, trackerRes, jupRes] = await Promise.all([
                     fetch(`/api/pump/coin/${mint}`).catch(() => null),
                     fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`).catch(() => null),
                     fetch(`/api/tracker/token/${mint}`).catch(() => null),
-                    fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${mint}`).catch(() => null),
-                    fetch(`https://gmgn.ai/defi/quotation/v1/tokens/sol/${mint}`).catch(() => null)
+                    fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${mint}`).catch(() => null)
                 ]);
 
                 if (pumpRes?.ok) {
@@ -4850,17 +4848,6 @@
                         if (jupToken?.holderCount > 0) {
                             jupiterHolders = jupToken.holderCount;
                             console.log('[ANALYTICS] Jupiter holders:', jupiterHolders);
-                        }
-                    } catch (e) {}
-                }
-
-                // GMGN holder count
-                if (gmgnRes?.ok) {
-                    try {
-                        const gmgnData = await gmgnRes.json();
-                        gmgnHolders = gmgnData?.data?.token?.holder_count || gmgnData?.data?.token?.holders || 0;
-                        if (gmgnHolders > 0) {
-                            console.log('[ANALYTICS] GMGN holders:', gmgnHolders);
                         }
                     } catch (e) {}
                 }
@@ -4912,9 +4899,6 @@
             } else if (jupiterHolders > 0) {
                 holders = jupiterHolders;
                 holderSource = 'Jupiter';
-            } else if (gmgnHolders > 0) {
-                holders = gmgnHolders;
-                holderSource = 'GMGN';
             } else if (trackerData?.holders > 0) {
                 holders = trackerData.holders;
                 holderSource = 'Tracker';
@@ -5295,14 +5279,12 @@
                 let dexData = null;
                 let pumpData = null;
                 let jupiterHolders = 0;
-                let gmgnHolders = 0;
 
                 try {
-                    const [dexRes, pumpRes, jupRes, gmgnRes] = await Promise.all([
+                    const [dexRes, pumpRes, jupRes] = await Promise.all([
                         fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`).catch(() => null),
                         fetch(`/api/pump/coin/${mint}`).catch(() => null),
-                        fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${mint}`).catch(() => null),
-                        fetch(`https://gmgn.ai/defi/quotation/v1/tokens/sol/${mint}`).catch(() => null)
+                        fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${mint}`).catch(() => null)
                     ]);
 
                     // Parse DexScreener data
@@ -5324,14 +5306,6 @@
                             if (jupToken?.holderCount > 0) jupiterHolders = jupToken.holderCount;
                         } catch (e) {}
                     }
-
-                    // GMGN holder count
-                    if (gmgnRes?.ok) {
-                        try {
-                            const gmgnData = await gmgnRes.json();
-                            gmgnHolders = gmgnData?.data?.token?.holder_count || gmgnData?.data?.token?.holders || 0;
-                        } catch (e) {}
-                    }
                 } catch (e) { console.log('Data fetch failed:', e); }
 
                 // Get transaction counts from DexScreener
@@ -5345,8 +5319,8 @@
                 const selectIsOnGraduatedDex = selectDexId === 'pumpswap' || selectDexId === 'raydium' || selectDexId.includes('raydium');
 
                 // Get holder count - prioritize FRESH data from live APIs
-                // Fallback: Pump.fun -> Jupiter -> GMGN -> token data (cached)
-                const holders = pumpData?.holder_count || jupiterHolders || gmgnHolders || token.holders || 0;
+                // Fallback: Pump.fun -> Jupiter -> token data (cached)
+                const holders = pumpData?.holder_count || jupiterHolders || token.holders || 0;
 
                 // Calculate metrics
                 const mcap = dexData?.marketCap || dexData?.fdv || pumpData?.usd_market_cap || token.mcap || 0;

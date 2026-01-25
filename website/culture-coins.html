@@ -7287,19 +7287,17 @@
                   if (!culture.tokenAddress) return culture;
 
                   try {
-                    // Fetch from ALL sources in parallel (same as dashboard.html)
-                    // DexScreener for mcap/vol, pump.fun + Jupiter + GMGN for holders
-                    const [dexRes, pumpRes, jupRes, gmgnRes] = await Promise.all([
+                    // Fetch from sources in parallel (removed gmgn.ai - blocked by CORS)
+                    // DexScreener for mcap/vol, pump.fun + Jupiter for holders
+                    const [dexRes, pumpRes, jupRes] = await Promise.all([
                       fetch(`https://api.dexscreener.com/latest/dex/tokens/${culture.tokenAddress}`).catch(() => null),
                       fetch(`/api/pump/coin/${culture.tokenAddress}`).catch(() => null),
-                      fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${culture.tokenAddress}`).catch(() => null),
-                      fetch(`https://gmgn.ai/defi/quotation/v1/tokens/sol/${culture.tokenAddress}`).catch(() => null)
+                      fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${culture.tokenAddress}`).catch(() => null)
                     ]);
 
                     let dexData = null;
                     let pumpData = null;
                     let jupiterHolders = 0;
-                    let gmgnHolders = 0;
 
                     if (dexRes?.ok) {
                       const dexJson = await dexRes.json();
@@ -7319,27 +7317,17 @@
                       } catch (e) {}
                     }
 
-                    // GMGN holder count
-                    if (gmgnRes?.ok) {
-                      try {
-                        const gmgnData = await gmgnRes.json();
-                        gmgnHolders = gmgnData?.data?.token?.holder_count || gmgnData?.data?.token?.holders || 0;
-                      } catch (e) {}
-                    }
-
                     // Combine data: prioritize DexScreener for mcap/vol
                     const marketCap = dexData?.marketCap || dexData?.fdv || pumpData?.usd_market_cap || culture.marketCap || 0;
                     const volume = dexData?.volume?.h24 || pumpData?.volume_24h || culture.volume || 0;
                     const liquidity = dexData?.liquidity?.usd || 0;
 
-                    // Holder fallback chain: pump.fun -> Jupiter -> GMGN -> existing
+                    // Holder fallback chain: pump.fun -> Jupiter -> existing
                     let holders = 0;
                     if (pumpData?.holder_count > 0) {
                       holders = pumpData.holder_count;
                     } else if (jupiterHolders > 0) {
                       holders = jupiterHolders;
-                    } else if (gmgnHolders > 0) {
-                      holders = gmgnHolders;
                     } else {
                       holders = culture.holders || 0;
                     }

@@ -497,9 +497,12 @@ async function checkAllGraduations() {
     const nonGraduated = data.tokens.filter(t => !t.graduated);
     const results = [];
 
-    console.log(`[TRACKER] Checking graduation for ${nonGraduated.length} tokens...`);
+    console.log(`[TRACKER] Checking graduation for ${Math.min(10, nonGraduated.length)}/${nonGraduated.length} tokens...`);
 
-    for (const token of nonGraduated) {
+    // Limit to first 10 non-graduated tokens per cycle to avoid rate limiting
+    const tokensToCheck = nonGraduated.slice(0, 10);
+
+    for (const token of tokensToCheck) {
         try {
             const result = await updateGraduationStatus(token.mint);
             if (result?.status?.graduated) {
@@ -509,8 +512,8 @@ async function checkAllGraduations() {
                     graduatedAt: token.graduatedAt,
                 });
             }
-            // Rate limit - 500ms between API calls
-            await new Promise(r => setTimeout(r, 500));
+            // Rate limit - 1500ms between API calls to avoid 429
+            await new Promise(r => setTimeout(r, 1500));
         } catch (e) {
             console.log(`[TRACKER] Error checking ${token.mint.slice(0, 8)}...: ${e.message}`);
         }
@@ -860,22 +863,24 @@ async function updateAllTokenMetrics() {
     const data = loadTokens();
     const tokens = data.tokens || [];
 
-    console.log(`[TRACKER] Updating metrics for ${tokens.length} tokens...`);
+    // Limit to 15 tokens per cycle to avoid rate limiting
+    const tokensToUpdate = tokens.slice(0, 15);
+    console.log(`[TRACKER] Updating metrics for ${tokensToUpdate.length}/${tokens.length} tokens...`);
 
     let updated = 0;
-    for (const token of tokens) {
+    for (const token of tokensToUpdate) {
         try {
             const result = await updateTokenMetrics(token.mint);
             if (result?.success) updated++;
-            // Rate limit - 500ms between API calls
-            await new Promise(r => setTimeout(r, 500));
+            // Rate limit - 1500ms between API calls to avoid 429
+            await new Promise(r => setTimeout(r, 1500));
         } catch (e) {
             console.log(`[TRACKER] Error updating ${token.mint.slice(0, 8)}...: ${e.message}`);
         }
     }
 
-    console.log(`[TRACKER] Updated metrics for ${updated}/${tokens.length} tokens`);
-    return { updated, total: tokens.length };
+    console.log(`[TRACKER] Updated metrics for ${updated}/${tokensToUpdate.length} tokens`);
+    return { updated, total: tokensToUpdate.length };
 }
 
 // Update metrics for top leaderboard tokens only (runs more frequently)

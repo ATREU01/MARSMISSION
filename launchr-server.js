@@ -3307,7 +3307,7 @@ const server = http.createServer(async (req, res) => {
             registerOrbit(engine.tokenMintStr, wallet.publicKey.toBase58());
         }
 
-        // Start price updates every 10s to build RSI data
+        // Start price updates every 30s to build RSI data (was 10s, caused rate limiting)
         if (!priceUpdateInterval) {
             priceUpdateInterval = setInterval(async () => {
                 try {
@@ -3317,7 +3317,7 @@ const server = http.createServer(async (req, res) => {
                 } catch (e) {
                     // Silent fail - don't crash on price update errors
                 }
-            }, 10000);
+            }, 30000);
         }
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -10100,7 +10100,7 @@ server.listen(PORT, async () => {
             runClaim();
             autoClaimInterval = setInterval(runClaim, intervalMs);
 
-            // Start price updates every 10s
+            // Start price updates every 30s (was 10s, caused rate limiting)
             priceUpdateInterval = setInterval(async () => {
                 try {
                     if (engine) {
@@ -10109,7 +10109,7 @@ server.listen(PORT, async () => {
                 } catch (e) {
                     // Silent fail - don't crash on price update errors
                 }
-            }, 10000);
+            }, 30000);
 
             log('Auto-claim started (every 1 min) - AUTO-CONFIGURED FROM ENV');
             console.log('[AUTO] ✅ Auto-claim STARTED from environment variables!');
