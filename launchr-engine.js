@@ -797,7 +797,13 @@ class PumpPortalClient {
             // Sign using Privy or Keypair
             const signedTx = await this.signTransaction(tx);
 
-            const balanceBefore = await this.connection.getBalance(this.wallet.publicKey);
+            // Try to get balance before (for tracking), but don't fail if 429
+            let balanceBefore = 0;
+            try {
+                balanceBefore = await this.connection.getBalance(this.wallet.publicKey);
+            } catch (balErr) {
+                console.log(`[CLAIM] Balance check skipped (rate limited): ${balErr.message}`);
+            }
 
             const sig = await this.connection.sendRawTransaction(signedTx.serialize(), {
                 skipPreflight: true,
@@ -808,21 +814,26 @@ class PumpPortalClient {
             // Wait a few seconds for tx to land, then check balance
             await new Promise(r => setTimeout(r, 5000));
 
-            // Get balance after claim
-            const balanceAfter = await this.connection.getBalance(this.wallet.publicKey);
-            const balanceChange = balanceAfter - balanceBefore;
-
-            // Estimate tx fee
-            const txFee = 5000; // ~0.000005 SOL
-            const claimed = balanceChange + txFee;
+            // Get balance after claim (optional - for tracking only)
+            let balanceAfter = 0;
+            let claimed = 0;
+            try {
+                balanceAfter = await this.connection.getBalance(this.wallet.publicKey);
+                const balanceChange = balanceAfter - balanceBefore;
+                const txFee = 5000; // ~0.000005 SOL
+                claimed = balanceChange + txFee;
+            } catch (balErr) {
+                console.log(`[CLAIM] Post-balance check skipped (rate limited)`);
+                // Transaction was sent, just can't verify amount
+            }
 
             if (claimed > 0) {
                 console.log(`[CLAIM] SUCCESS! Claimed ${(claimed / 1e9).toFixed(6)} SOL`);
             } else {
-                console.log(`[CLAIM] No balance change detected (tx may still be processing)`);
+                console.log(`[CLAIM] Transaction sent (balance check unavailable)`);
             }
 
-            return { success: true, claimed: Math.max(0, claimed), signature: sig, txFee };
+            return { success: true, claimed: Math.max(0, claimed), signature: sig, txFee: 5000 };
         } catch (error) {
             console.log(`[CLAIM] Error: ${error.message}`);
             if (error.response) {
