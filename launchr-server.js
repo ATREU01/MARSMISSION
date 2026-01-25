@@ -3027,7 +3027,13 @@ const server = http.createServer(async (req, res) => {
             return;
         }
         try {
-            const balance = await connection.getBalance(wallet.publicKey);
+            let balance = 0;
+            try {
+                balance = await connection.getBalance(wallet.publicKey);
+            } catch (balanceErr) {
+                // Balance fetch failed (likely 429) - continue with 0 balance
+                console.log('[STATUS] Balance fetch failed:', balanceErr.message);
+            }
             const status = engine.getStatus();
             res.end(JSON.stringify({
                 configured: true,
@@ -3037,7 +3043,12 @@ const server = http.createServer(async (req, res) => {
                 autoClaimActive: autoClaimInterval !== null,
             }));
         } catch (e) {
-            res.end(JSON.stringify({ configured: true, error: e.message }));
+            // Even on error, still return autoClaimActive status
+            res.end(JSON.stringify({
+                configured: true,
+                error: e.message,
+                autoClaimActive: autoClaimInterval !== null,
+            }));
         }
         return;
     }
@@ -3300,7 +3311,8 @@ const server = http.createServer(async (req, res) => {
             }
         };
 
-        runClaim();
+        // Delay first claim by 30s to avoid competing with startup rate limit burst
+        setTimeout(runClaim, 30000);
         autoClaimInterval = setInterval(runClaim, intervalMs);
 
         // Register ORBIT for TEK indicator
